@@ -441,13 +441,19 @@ exec "$SCRIPT_DIR/.venv/Scripts/python" "$SCRIPT_DIR/star.py" "$@"
 LAUNCHER_SCRIPT
 
         # .bat launcher (Command Prompt)
-        printf '@echo off\r\n"%dp0.venv\\Scripts\\python.exe" "%dp0star.py" %%*\r\n' \
-            > "$STAR_DIR/star.bat"
+        # Use printf '%s\r\n' so the content is the argument, not the format string —
+        # this avoids printf misreading %~dp0 as a format specifier.
+        {
+            printf '%s\r\n' '@echo off'
+            printf '%s\r\n' '"%~dp0.venv\Scripts\python.exe" "%~dp0star.py" %*'
+        } > "$STAR_DIR/star.bat"
         ok "Launcher (cmd):        $STAR_DIR/star.bat"
 
         # .ps1 launcher (PowerShell)
-        printf -- '$d=Split-Path -Parent $MyInvocation.MyCommand.Path\r\n& "$d\.venv\Scripts\python.exe" "$d\star.py" @args\r\n' \
-            > "$STAR_DIR/star.ps1"
+        {
+            printf '%s\r\n' '$d=Split-Path -Parent $MyInvocation.MyCommand.Path'
+            printf '%s\r\n' '& "$d\.venv\Scripts\python.exe" "$d\star.py" @args'
+        } > "$STAR_DIR/star.ps1"
         ok "Launcher (PowerShell): $STAR_DIR/star.ps1"
 
     else
