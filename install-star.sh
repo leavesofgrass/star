@@ -441,7 +441,7 @@ exec "$SCRIPT_DIR/.venv/Scripts/python" "$SCRIPT_DIR/star.py" "$@"
 LAUNCHER_SCRIPT
 
         # .bat launcher (Command Prompt)
-        printf '@echo off\r\n"%~dp0.venv\\Scripts\\python.exe" "%~dp0star.py" %%*\r\n' \
+        printf '@echo off\r\n"%dp0.venv\\Scripts\\python.exe" "%dp0star.py" %%*\r\n' \
             > "$STAR_DIR/star.bat"
         ok "Launcher (cmd):        $STAR_DIR/star.bat"
 
