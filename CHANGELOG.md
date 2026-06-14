@@ -87,14 +87,6 @@ reading-accessibility aids. The single-file architecture is unchanged —
   (Windows) with `minimal` / `recommended` / `all` profiles, virtual-env by
   default, and platform-aware dependency hints (incl. `pyobjc` on macOS,
   `windows-curses` on Windows).
-- **Portable Windows binary build.** A PyInstaller recipe (`star.spec`) and a
-  one-command wrapper (`build-windows.ps1`) produce a single, self-contained
-  `dist\star.exe` that runs on Windows machines with no Python or dependencies
-  installed — ideal for demos. Bundles the Qt GUI, SAPI5 speech, and the core
-  document loaders. Documented in `BUILD.md`.
-- New documentation: `CHANGELOG.md`, `BUILD.md` (portable Windows binary), and
-  `PORTING.md` (feasibility study for a compiled-language / single-binary
-  distribution).
 
 ### 🔧 Changed
 
