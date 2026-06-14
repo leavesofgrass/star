@@ -40,7 +40,7 @@ Copyright (C) 2026 Jon Pielaet
 License: GNU General Public License v3 (or later)
 """
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 __author__ = "Jon Pielaet"
 __copyright__ = "Copyright (C) 2026 Jon Pielaet"
 __license__ = "GPL-3.0-or-later"
@@ -171,52 +171,90 @@ except (ImportError, Exception):  # also catches missing dependencies
 _QT = None
 try:
     from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
-    from PyQt6.QtGui import QColor, QFont, QTextCharFormat, QTextCursor
+    from PyQt6.QtGui import (
+        QAction,  # PyQt6 moved QAction from QtWidgets to QtGui
+        QColor,
+        QFont,
+        QFontDatabase,
+        QTextBlockFormat,
+        QTextCharFormat,
+        QTextCursor,
+        QTextFormat,
+    )
     from PyQt6.QtWidgets import (
-        QAction,
         QApplication,
+        QCheckBox,
+        QComboBox,
         QDialog,
         QDialogButtonBox,
         QDockWidget,
+        QDoubleSpinBox,
         QFileDialog,
         QFontDialog,
+        QFormLayout,
+        QHBoxLayout,
         QInputDialog,
         QLabel,
+        QLineEdit,
         QListWidget,
         QListWidgetItem,
         QMainWindow,
         QMenu,
         QMessageBox,
+        QPushButton,
+        QSpinBox,
+        QSplitter,
         QStatusBar,
+        QTextBrowser,
         QTextEdit,
         QToolBar,
         QVBoxLayout,
+        QWidget,
     )
 
     _QT = "PyQt6"
 except ImportError:
     try:
         from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal
-        from PyQt5.QtGui import QColor, QFont, QTextCharFormat, QTextCursor
+        from PyQt5.QtGui import (
+            QColor,
+            QFont,
+            QFontDatabase,
+            QTextBlockFormat,
+            QTextCharFormat,
+            QTextCursor,
+            QTextFormat,
+        )
         from PyQt5.QtWidgets import (
             QAction,
             QApplication,
+            QCheckBox,
+            QComboBox,
             QDialog,
             QDialogButtonBox,
             QDockWidget,
+            QDoubleSpinBox,
             QFileDialog,
             QFontDialog,
+            QFormLayout,
+            QHBoxLayout,
             QInputDialog,
             QLabel,
+            QLineEdit,
             QListWidget,
             QListWidgetItem,
             QMainWindow,
             QMenu,
             QMessageBox,
+            QPushButton,
+            QSpinBox,
+            QSplitter,
             QStatusBar,
+            QTextBrowser,
             QTextEdit,
             QToolBar,
             QVBoxLayout,
+            QWidget,
         )
 
         _QT = "PyQt5"
@@ -241,6 +279,30 @@ except ImportError:
 
 _PANDOC_BIN = shutil.which("pandoc")  # raw binary path
 
+# --- Speech recognition: OpenAI Whisper (or faster-whisper) ------------------
+# Used for dictation and recording transcription.  Both the model library and
+# a microphone capture library are optional; every code path is guarded so the
+# program runs identically when they are absent.
+try:
+    import whisper as _whisper  # openai-whisper
+
+    _WHISPER = "openai"
+except ImportError:
+    try:
+        from faster_whisper import WhisperModel as _FasterWhisper  # type: ignore
+
+        _WHISPER = "faster"
+    except ImportError:
+        _WHISPER = ""
+
+try:
+    import numpy as _np
+    import sounddevice as _sounddevice  # microphone capture
+
+    _AUDIO_IN = True
+except ImportError:
+    _AUDIO_IN = False
+
 # =============================================================================
 # Metadata & paths
 # =============================================================================
@@ -263,6 +325,23 @@ CACHE_DIR = _CFG_ROOT / "cache"
 THEMES_DIR = _CFG_ROOT / "themes"  # user CSS theme files live here
 LOG_FILE = _CFG_ROOT / "star.log"
 
+
+def _default_sans_font() -> str:
+    """Return a high-quality sans-serif display font for the current platform.
+
+    Sans-serif faces are preferred over serif for on-screen reading
+    accessibility (lower visual crowding, clearer letterforms for readers
+    with low vision or dyslexia).  Each value is a face that ships with the
+    OS, so it resolves without the user installing anything; Qt falls back
+    to its generic sans-serif if the named family is somehow missing.
+    """
+    if sys.platform == "darwin":
+        return "Helvetica Neue"
+    if sys.platform == "win32":
+        return "Segoe UI"
+    return "DejaVu Sans"
+
+
 # =============================================================================
 # Default settings
 # =============================================================================
@@ -272,7 +351,8 @@ DEFAULTS: Dict[str, Any] = {
     "tts_backend": "auto",  # "auto"|"pyttsx3"|"espeak"|"festival"|"coqui"|"dectalk"|"none"
     "tts_rate": 265,  # words per minute — intentionally brisk
     "tts_volume": 1.0,  # 0.0 – 1.0
-    "tts_voice": "",  # empty = system default
+    "tts_voice": "",  # empty = system default (auto-resolved per platform)
+    "tts_prefer_voice": "eloquence",  # substring of a preferred default voice
     "tts_auto_play": False,  # start reading on file open
     "tts_skip_code": True,  # don't read code blocks aloud
     "wrap_width": 0,  # 0 = terminal width
@@ -283,48 +363,70 @@ DEFAULTS: Dict[str, Any] = {
     "font_size": 0,  # 0 = terminal default; meaningful in Qt GUI only
     "ocr_lang": "eng",  # Tesseract language(s), e.g. "eng+spa"
     "braille_table": "en-ueb-g2.ctb",
+    "braille_grade2": False,  # opt-in liblouis Grade 2; built-in Grade 1 is default
+    "audio_export_format": "wav",  # default audio export container (no ffmpeg needed)
     "last_path": "",
     "recent_files": [],  # list of recently opened paths/URLs
     "highlight_current_word": True,
     "highlight_color": "cyan",  # color of the TTS word highlight
     "gui_width": 1000,
     "gui_height": 700,
-    # Suggestions 19-35 — new features
     "footnote_mode": "inline",  # "inline" | "deferred" | "skip"
     "epub_show_chapters": True,
     "document_cache": True,
     "cache_max_size_mb": 100,
     "qt_show_toc": True,
+    "qt_show_notes": False,  # Notes/annotations dock hidden until first used
+    "annotations": {},  # {path: [{"char_pos", "word_idx", "anchor", "note", "tags", "cite", "ts"}]}
+    "annotation_filter_presets": {},  # {name: filter-query} saved note filters
+    "citations": [],  # citation library: list of CSL-ish dicts (see _citation_label)
+    "whisper_model": "base",  # Whisper model size for dictation/transcription
+    "transcribe_timestamps": False,  # prefix [hh:mm:ss] segment times in transcripts
+    "whisper_chunk_seconds": 6,  # chunk length for live streaming dictation
+    "keybindings": {},  # {default_shortcut: custom_shortcut} GUI remap overrides
     "bookmarks": {},
     "nav_history_size": 50,
     "regex_search": False,
     "qt_hidpi": True,
-    "qt_font_family": "Georgia",
+    "qt_font_family": _default_sans_font(),  # sans-serif for reading accessibility
     "qt_font_size": 14,
+    # ── Text spacing (WCAG 1.4.12) — Qt GUI ─────────────────────────────
+    # Generous, independently adjustable spacing reduces crowding effects
+    # for dyslexic and low-vision readers.
+    "qt_line_height": 1.5,  # line-height multiplier (1.0 = single)
+    "qt_letter_spacing": 0.0,  # extra letter spacing, % of font size (0 = normal)
+    "qt_word_spacing": 0.0,  # extra word spacing in px (0 = normal)
+    # ── Dyslexia-friendly reading aids — Qt GUI ─────────────────────────
+    "qt_dyslexia_font": False,  # prefer a bundled/installed dyslexia-friendly font
+    "qt_current_line_highlight": False,  # band-highlight the line being read
+    "qt_bionic_reading": False,  # embolden the leading part of each word
+    # ── Karaoke word-highlight tuning — Qt GUI (highlight_speed is shared) ─
+    "highlight_style": "background",  # background|underline|box|bold|color
+    "highlight_lead_words": 0,  # advance the visual highlight N words (lead/lag)
     "speak_image_alts": True,
     "show_reading_level": True,
     "normalize_math": True,
     "recent_files_limit": 20,
-    # Abbreviation expansion (suggestion 10)
+    # Abbreviation expansion
     "expand_abbreviations": True,
     "abbrev_expansions": {},  # user overrides: {"abbrev.": "expansion"}
-    # Number normalisation (suggestion 11)
+    # Number normalization
     "normalize_numbers": True,
-    # Table reading mode (suggestion 12)
+    # Table reading mode
     "table_reading_mode": "structured",  # "structured" | "flat" | "skip"
     # User text highlights (persistent per-document colored annotations)
     "user_highlights": {},  # {path: [{"start": int, "end": int, "color": str}]}
-    # Reading position memory (suggestion 7)
+    # Reading position memory
     "tts_auto_resume": True,  # restore position automatically on open
     "reading_positions": {},  # {path: {"offset": int, "pct": int, "ts": str}}
-    # Speed presets (suggestion 8)
+    # Speed presets
     "speed_presets": {
         "skim": 350,
         "normal": 265,
         "study": 200,
         "slow": 150,
     },
-    # SSML prosody (suggestion 9)
+    # SSML prosody
     # Off by default: plain-text mode enables pyttsx3 word-boundary callbacks
     # which give accurate word highlighting.  SSML disables those callbacks
     # (character offsets point into the XML string, not the plain text) so the
@@ -334,10 +436,11 @@ DEFAULTS: Dict[str, Any] = {
     "ssml_sentence_pause_ms": 350,  # pause after . ! ?
     "ssml_clause_pause_ms": 150,  # pause after , ; :
     # Highlight timing (fraction of speech rate the cursor advances at).
-    # 1.0 = same as speech WPM; values below 1.0 keep the highlight slightly
-    # behind the audio so engine-startup lag and SSML silence pauses don't
-    # cause it to race ahead.  0.85 works well for most SAPI5 / eSpeak setups.
-    "highlight_speed": 0.85,
+    # 1.0 = match speech WPM exactly.  The pacing guard in the highlight timer
+    # (capped at _MAX_AHEAD words past the last callback-confirmed position)
+    # is the true throttle, so running the timer at full speed keeps the
+    # highlight tight to the audio instead of lagging behind it.
+    "highlight_speed": 1.0,
 }
 
 # =============================================================================
@@ -367,6 +470,22 @@ class Settings:
                         self._data[k] = v
         except (FileNotFoundError, json.JSONDecodeError, OSError):
             pass
+        self._migrate()
+
+    def _migrate(self) -> None:
+        """Upgrade settings files written by earlier versions.
+
+        Older versions persisted every default into settings.json, which means
+        deprecated defaults (the serif ``Georgia`` display font and the
+        lagging ``0.85`` highlight speed) would otherwise be pinned forever.
+        We only replace values that exactly match the old default, so a user's
+        deliberate choice is never overridden.
+        """
+        if self._data.get("qt_font_family") == "Georgia":
+            # Serif default deprecated for reading-accessibility reasons.
+            self._data["qt_font_family"] = _default_sans_font()
+        if self._data.get("highlight_speed") == 0.85:
+            self._data["highlight_speed"] = 1.0
 
     def save(self) -> None:
         try:
@@ -430,7 +549,7 @@ class TTSBackend:
         return []
 
     def export_to_wav(self, text: str, wav_path: str) -> None:
-        """Synthesise *text* and write the result to *wav_path* (WAV format).
+        """Synthesize *text* and write the result to *wav_path* (WAV format).
 
         This call is **blocking**.  Raises ``RuntimeError`` if the backend
         does not support audio file export or is unavailable.
@@ -559,7 +678,7 @@ class FestivalBackend(TTSBackend):
         return []
 
     def export_to_wav(self, text: str, wav_path: str) -> None:
-        """Synthesise *text* to *wav_path* using Festival.
+        """Synthesize *text* to *wav_path* using Festival.
 
         Prefers the ``text2wave`` helper (ships with most Festival
         installs); falls back to a Festival Scheme ``utt.save.wave``
@@ -614,7 +733,7 @@ class FestivalBackend(TTSBackend):
 class CoquiBackend(TTSBackend):
     """Coqui TTS neural speech backend.
 
-    Uses the ``TTS`` Python library (``pip install TTS``) to synthesise
+    Uses the ``TTS`` Python library (``pip install TTS``) to synthesize
     high-quality neural speech locally.  A suitable model is downloaded on
     first use (typically 100–400 MB) and cached under
     ``~/.local/share/tts/`` (Linux/macOS) or ``%APPDATA%\\TTS\\`` (Windows).
@@ -650,7 +769,7 @@ class CoquiBackend(TTSBackend):
         self._rate = rate
         self._volume = volume
         self._model_name = voice or self._DEFAULT_MODEL
-        self._tts_obj = None  # lazily initialised _CoquiTTS instance
+        self._tts_obj = None  # lazily initialized _CoquiTTS instance
         self._speaking = False
         self._stop_flag = threading.Event()
         self._play_proc: Optional[subprocess.Popen] = None
@@ -661,7 +780,7 @@ class CoquiBackend(TTSBackend):
     # ── internal helpers ──────────────────────────────────────────────────────
 
     def _init(self) -> None:
-        """Initialise (and possibly download) the TTS model.  Blocking."""
+        """Initialize (and possibly download) the TTS model.  Blocking."""
         if self._tts_obj is not None:
             return
         try:
@@ -720,7 +839,7 @@ class CoquiBackend(TTSBackend):
 
             tmp_path = ""
             try:
-                # Lazy model initialisation (downloads on first use).
+                # Lazy model initialization (downloads on first use).
                 if self._stop_flag.is_set():
                     return
                 self._init()
@@ -824,7 +943,7 @@ class CoquiBackend(TTSBackend):
             ]
 
     def export_to_wav(self, text: str, wav_path: str) -> None:
-        """Synthesise *text* to *wav_path* using Coqui TTS."""
+        """Synthesize *text* to *wav_path* using Coqui TTS."""
         if not _COQUI:
             raise RuntimeError("Coqui TTS is not available (pip install TTS)")
         self._init()
@@ -1128,7 +1247,7 @@ class Pyttsx3Backend(TTSBackend):
             return []
 
     def export_to_wav(self, text: str, wav_path: str) -> None:
-        """Synthesise *text* to *wav_path* using pyttsx3's ``save_to_file``."""
+        """Synthesize *text* to *wav_path* using pyttsx3's ``save_to_file``."""
         if not self._available:
             raise RuntimeError("pyttsx3 is not available (pip install pyttsx3)")
         eng = self._make_engine()
@@ -1178,7 +1297,7 @@ class ESpeakBackend(TTSBackend):
         # Auto-detect SSML: add the -m flag so eSpeak processes <break> tags.
         already_ssml = text.lstrip().startswith("<speak>")
 
-        # eSpeak word-callback support (suggestion #2).
+        # eSpeak word-callback support.
         # Wrap plain text in SSML with <mark name="N"/> tags between each
         # word so eSpeak-NG outputs "MARK N" to stdout as each word is
         # spoken.  We capture stdout and fire on_word(N, word_len) in a
@@ -1296,7 +1415,7 @@ class ESpeakBackend(TTSBackend):
             return []
 
     def export_to_wav(self, text: str, wav_path: str) -> None:
-        """Synthesise *text* to *wav_path* using eSpeak/eSpeak-NG (-w flag)."""
+        """Synthesize *text* to *wav_path* using eSpeak/eSpeak-NG (-w flag)."""
         if not self._bin:
             raise RuntimeError("espeak / espeak-ng is not available")
         cmd = [
@@ -1403,7 +1522,7 @@ class DECtalkBackend(TTSBackend):
         self._voice = voice_id
 
     def export_to_wav(self, text: str, wav_path: str) -> None:
-        """Synthesise *text* to *wav_path* using DECtalk's ``-w`` flag."""
+        """Synthesize *text* to *wav_path* using DECtalk's ``-w`` flag."""
         if not self._bin:
             raise RuntimeError("DECtalk is not available")
         dt_rate = min(600, max(75, int(self._rate * 1.6)))
@@ -1424,13 +1543,148 @@ class DECtalkBackend(TTSBackend):
         return self._speaking
 
 
+class AppleSayBackend(TTSBackend):
+    """macOS native speech via the built-in ``/usr/bin/say`` command.
+
+    This gives Mac users Apple's high-quality system voices (including the
+    Eloquence voices bundled with recent macOS releases) with **zero extra
+    dependencies** — no ``pyobjc``, no Homebrew, no ``espeak``.  Because it is
+    always present on macOS it is ranked above eSpeak in ``auto`` mode so the
+    program never silently falls back to the robotic eSpeak voice on a Mac.
+
+    ``say`` does not emit per-word events, so word highlighting is driven by
+    the timer in :class:`TTSManager` (the same path used for Festival/Coqui).
+    """
+
+    name = "applesay"
+
+    def __init__(self, rate: int = 265, volume: float = 1.0, voice: str = ""):
+        self._rate = int(rate)
+        self._volume = volume
+        self._voice = voice
+        self._proc: Optional[subprocess.Popen] = None
+        self._speaking = False
+        self._bin = shutil.which("say") if sys.platform == "darwin" else None
+
+    def available(self) -> bool:
+        return self._bin is not None
+
+    def _cmd(self, extra: Optional[List[str]] = None) -> List[str]:
+        cmd = [self._bin, "-r", str(max(50, self._rate))]
+        if self._voice:
+            cmd += ["-v", self._voice]
+        if extra:
+            cmd += extra
+        return cmd
+
+    def speak(
+        self,
+        text: str,
+        on_word: Optional[Callable[[int, int], None]] = None,
+        on_done: Optional[Callable[[], None]] = None,
+    ) -> None:
+        self.stop()
+        if not self._bin:
+            if on_done:
+                on_done()
+            return
+        self._speaking = True
+
+        def _run() -> None:
+            try:
+                # `say` reads the text to speak from stdin when no string
+                # operand is given, which avoids ARG_MAX limits on long docs.
+                self._proc = subprocess.Popen(
+                    self._cmd(),
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                if self._proc.stdin:
+                    self._proc.stdin.write(text.encode("utf-8", errors="replace"))
+                    self._proc.stdin.close()
+                self._proc.wait()
+            except Exception:
+                pass
+            finally:
+                self._speaking = False
+                if on_done:
+                    on_done()
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    def stop(self) -> None:
+        if self._proc and self._proc.poll() is None:
+            try:
+                self._proc.terminate()
+            except Exception:
+                pass
+        self._speaking = False
+
+    def set_rate(self, wpm: int) -> None:
+        self._rate = int(wpm)
+
+    def set_volume(self, vol: float) -> None:
+        self._volume = max(0.0, min(1.0, vol))
+
+    def set_voice(self, voice_id: str) -> None:
+        self._voice = voice_id
+
+    def list_voices(self) -> List[Dict[str, str]]:
+        if not self._bin:
+            return []
+        try:
+            out = subprocess.check_output(
+                [self._bin, "-v", "?"], stderr=subprocess.DEVNULL, text=True
+            )
+        except Exception:
+            return []
+        voices: List[Dict[str, str]] = []
+        for line in out.splitlines():
+            # Format: "Reed                en_US    # comment"
+            m = re.match(r"^(.+?)\s+([a-z]{2}[-_][A-Z]{2})\s*#?", line)
+            if m:
+                voices.append(
+                    {
+                        "id": m.group(1).strip(),
+                        "name": m.group(1).strip(),
+                        "lang": m.group(2),
+                    }
+                )
+        return voices
+
+    def export_to_wav(self, text: str, wav_path: str) -> None:
+        """Synthesize *text* to a WAVE file using ``say -o`` (LEI16 PCM)."""
+        if not self._bin:
+            raise RuntimeError("macOS 'say' command is not available")
+        cmd = self._cmd(
+            ["-o", wav_path, "--file-format=WAVE", "--data-format=LEI16@22050"]
+        )
+        proc = subprocess.Popen(
+            cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        if proc.stdin:
+            proc.stdin.write(text.encode("utf-8", errors="replace"))
+            proc.stdin.close()
+        proc.wait()
+        if proc.returncode not in (0, None):
+            raise RuntimeError(f"say exited with code {proc.returncode}")
+
+    @property
+    def speaking(self) -> bool:
+        return self._speaking
+
+
 class _SCReader:
     """Persistent single-line TTS reader for Speech Cursor mode.
 
     Problem being solved
     --------------------
     ``_sc_read_line`` used to call ``pyttsx3.Engine()`` on *every* line.  On
-    Windows that COM initialisation takes 200–500 ms, creating a window where
+    Windows that COM initialization takes 200–500 ms, creating a window where
     ``_active_engine`` is ``None``.  If the user exits SC mode during that
     window ``Pyttsx3Backend.stop()`` cannot reach the engine via
     ``eng.stop()``; the ``_stop_requested`` flag may also lose the race,
@@ -1564,7 +1818,15 @@ class _SCReader:
 class TTSManager:
     """Manages the active TTS backend and word-position tracking."""
 
-    BACKENDS = ["pyttsx3", "espeak", "festival", "coqui", "dectalk", "silent"]
+    BACKENDS = [
+        "pyttsx3",
+        "applesay",
+        "espeak",
+        "festival",
+        "coqui",
+        "dectalk",
+        "silent",
+    ]
 
     def __init__(self, settings: Settings):
         self._settings = settings
@@ -1603,6 +1865,11 @@ class TTSManager:
 
         if preference in ("auto", "pyttsx3") and _PYTTSX3:
             candidates.append(Pyttsx3Backend(rate=rate, volume=vol, voice=voice))
+        # macOS native `say` is ranked above eSpeak in auto mode so a Mac
+        # always speaks with an Apple system voice (no pyobjc required) rather
+        # than silently falling back to the robotic eSpeak voice.
+        if preference in ("auto", "applesay"):
+            candidates.append(AppleSayBackend(rate=rate, volume=vol, voice=voice))
         if preference in ("auto", "espeak"):
             candidates.append(ESpeakBackend(rate=rate, voice=voice or "en-us"))
         if preference in ("auto", "festival"):
@@ -1620,7 +1887,44 @@ class TTSManager:
                 self._backend = b
                 self._backend.set_rate(rate)
                 self._backend.set_volume(vol)
+                self._resolve_default_voice()
                 return
+
+    def _resolve_default_voice(self) -> None:
+        """Pick a sensible default voice when the user hasn't chosen one.
+
+        When ``tts_voice`` is empty, prefer a voice whose name contains the
+        ``tts_prefer_voice`` substring (default ``"eloquence"``), favoring a
+        US-English variant.  This makes the bundled Eloquence voices the
+        default on macOS while leaving the engine default untouched when no
+        match is found.  The user's explicit voice choice always wins.
+        """
+        if str(self._settings.get("tts_voice", "")):
+            return  # user has an explicit voice; never override it
+        prefer = str(self._settings.get("tts_prefer_voice", "")).strip().lower()
+        if not prefer:
+            return
+        try:
+            voices = self._backend.list_voices()
+        except Exception:
+            voices = []
+        if not voices:
+            return
+        matches = [
+            v
+            for v in voices
+            if prefer in (v.get("name", "") + " " + v.get("id", "")).lower()
+        ]
+        if not matches:
+            return
+        # Favor a US-English variant of the preferred voice family.
+        best = next(
+            (m for m in matches if "us" in str(m.get("lang", "")).lower()),
+            matches[0],
+        )
+        vid = best.get("id") or best.get("name")
+        if vid:
+            self._backend.set_voice(vid)
 
     @property
     def backend_name(self) -> str:
@@ -1859,7 +2163,7 @@ class TTSManager:
         return self._backend.list_voices()
 
     def export_audio(self, text: str, dest_path: str) -> None:
-        """Synthesise *text* and save it to *dest_path*.
+        """Synthesize *text* and save it to *dest_path*.
 
         The output format is inferred from the file extension:
 
@@ -3612,7 +3916,7 @@ def _latex_to_md(text: str) -> str:  # noqa: C901
     preamble removal, sectioning, \\textbf / \\textit / \\emph,
     itemize / enumerate lists, verbatim / lstlisting / minted code
     blocks, quote / abstract environments, math stripping, special
-    character normalisation, and citation / cross-reference simplification.
+    character normalization, and citation / cross-reference simplification.
     """
     # ─ Strip comments ───────────────────────────────────────────────────
     text = re.sub(r"%[^\n]*", "", text)
@@ -4846,7 +5150,7 @@ def _setup_colors(theme_name: str) -> Dict[str, int]:
 
 
 # =============================================================================
-# M-x command catalogue
+# M-x command catalog
 # =============================================================================
 
 MX_COMMANDS = sorted(
@@ -4940,6 +5244,13 @@ MX_COMMANDS = sorted(
         "search-regex",
         "table-mode",
         "wiki",
+        "annotate",
+        "annotations-list",
+        "annotations-search",
+        "annotation-goto",
+        "annotation-delete",
+        "annotations-export",
+        "shortcuts",
     ]
 )
 
@@ -4972,19 +5283,761 @@ def _fillrow(win: "curses.window", y: int, attr: int = 0, ch: str = " ") -> None
         pass
 
 
-def _export_braille(text: str, table: str = "en-ueb-g2.ctb") -> str:
-    """Convert text to BRF (Braille Ready Format) using liblouis."""
-    if not _LOUIS:
-        return "Braille export requires liblouis: pip install louis\n"
-    try:
-        brl = _louis.translateString([table], text, None, 0)
-        return brl
-    except Exception as e:
-        return f"Braille translation error: {e}\n"
+# North American Braille ASCII (a.k.a. NABCC / Braille-ASCII) lookup, indexed
+# by the 6-dot cell value (bit0=dot1, bit1=dot2 … bit5=dot6).  Each braille
+# cell maps to exactly one ASCII byte; this is the character set BRF embossers
+# expect.  This table is the canonical Unicode-braille (U+2800..U+283F) order.
+_BRAILLE_ASCII = " A1B'K2L@CIF/MSP\"E3H9O6R^DJG>NTQ,*5<-U8V.%[$+X!&;:4\\0Z7(_?W]#Y)="
+
+# Print character -> braille dot-cell value, for uncontracted (Grade 1) English.
+_BRL_LETTER = {
+    chr(ord("a") + i): v
+    for i, v in enumerate(
+        # a  b  c   d   e   f   g   h   i   j   k  l  m   n   o   p   q   r   s
+        [
+            1,
+            3,
+            9,
+            25,
+            17,
+            11,
+            27,
+            19,
+            10,
+            26,
+            5,
+            7,
+            13,
+            29,
+            21,
+            15,
+            31,
+            23,
+            14,
+            # t   u   v   w   x   y   z
+            30,
+            37,
+            39,
+            58,
+            45,
+            61,
+            53,
+        ]
+    )
+}
+_BRL_DIGIT = {
+    "1": 1,
+    "2": 3,
+    "3": 9,
+    "4": 25,
+    "5": 17,
+    "6": 11,
+    "7": 27,
+    "8": 19,
+    "9": 10,
+    "0": 26,
+}
+_BRL_PUNCT = {
+    ".": 50,
+    ",": 2,
+    ";": 6,
+    ":": 18,
+    "?": 38,
+    "!": 22,
+    "'": 4,
+    "-": 36,
+    "(": 54,
+    ")": 54,
+    "/": 12,
+    '"': 38,
+}
+_BRL_NUMBER_SIGN = 60  # dots 3-4-5-6
+_BRL_CAPITAL_SIGN = 32  # dot 6
+
+
+def _text_to_braille_grade1(text: str) -> str:
+    """Translate plain text to uncontracted (Grade 1) Braille-ASCII.
+
+    Pure-Python, dependency-free, and incapable of crashing the process — the
+    reliable default for BRF export.  Handles letters, digits (with number
+    sign), capital signs, common punctuation, and whitespace.  Unknown
+    characters are dropped so the output stays valid Braille-ASCII.
+    """
+    out: List[str] = []
+    in_number = False
+    for ch in text:
+        if ch == "\n":
+            out.append("\n")
+            in_number = False
+            continue
+        if ch == "\t" or ch == " ":
+            out.append(" ")
+            in_number = False
+            continue
+        low = ch.lower()
+        if low in _BRL_LETTER:
+            if ch.isupper():
+                out.append(_BRAILLE_ASCII[_BRL_CAPITAL_SIGN])
+            # A letter a-j immediately after a number must be separated from
+            # the number by a letter sign; we end number mode on any letter.
+            in_number = False
+            out.append(_BRAILLE_ASCII[_BRL_LETTER[low]])
+        elif ch in _BRL_DIGIT:
+            if not in_number:
+                out.append(_BRAILLE_ASCII[_BRL_NUMBER_SIGN])
+                in_number = True
+            out.append(_BRAILLE_ASCII[_BRL_DIGIT[ch]])
+        elif ch in _BRL_PUNCT:
+            in_number = False
+            out.append(_BRAILLE_ASCII[_BRL_PUNCT[ch]])
+        # else: unsupported glyph -> skip (keeps output valid Braille-ASCII)
+    return "".join(out)
+
+
+def _format_brf(braille: str, cells: int = 40, lines_per_page: int = 25) -> str:
+    """Wrap a Braille-ASCII string into standard BRF page geometry.
+
+    Word-wraps at *cells* columns (default 40), groups output into pages of
+    *lines_per_page* lines separated by a form feed, and uses CRLF line
+    endings as embossers expect.
+    """
+    lines: List[str] = []
+    for para in braille.split("\n"):
+        if not para:
+            lines.append("")
+            continue
+        cur = ""
+        for word in para.split(" "):
+            if not cur:
+                cur = word
+            elif len(cur) + 1 + len(word) <= cells:
+                cur += " " + word
+            else:
+                lines.append(cur)
+                cur = word
+            # A single word longer than a line: hard-split it.
+            while len(cur) > cells:
+                lines.append(cur[:cells])
+                cur = cur[cells:]
+        lines.append(cur)
+    # Paginate.
+    pages: List[str] = []
+    for i in range(0, len(lines), lines_per_page):
+        pages.append("\r\n".join(lines[i : i + lines_per_page]))
+    return "\f".join(pages) + "\r\n"
+
+
+def _export_braille(
+    text: str, table: str = "en-ueb-g2.ctb", use_liblouis: bool = False
+) -> str:
+    """Convert text to BRF (Braille Ready Format).
+
+    By default this uses the built-in pure-Python Grade 1 translator, which is
+    always available and can never crash the host process.  This fixes the
+    long-standing bug where a missing liblouis translation table caused
+    liblouis to call ``exit()`` at the C level, abruptly closing the window.
+
+    Set *use_liblouis* (``braille_grade2`` setting) to opt in to contracted
+    Grade 2 translation via liblouis when it is installed and the requested
+    table resolves; any failure falls back to the built-in translator.
+    """
+    if use_liblouis and _LOUIS:
+        try:
+            brl = _louis.translateString([table], text, None, 0)
+            if brl:
+                return _format_brf(brl)
+        except Exception:
+            pass  # fall through to the dependency-free translator
+    return _format_brf(_text_to_braille_grade1(text))
+
+
+def _format_annotations(
+    items: List[Dict[str, Any]],
+    ext: str,
+    title: str,
+    author: str,
+    source: str,
+) -> str:
+    """Serialize document annotations to the format implied by *ext*.
+
+    Supported extensions: ``.json``, ``.bib`` (BibTeX), ``.ris`` (RIS),
+    ``.txt``, and ``.md`` (Markdown — the default for anything else).  BibTeX
+    and RIS emit a single reference for the source document with the notes
+    attached, which is the standard reference-manager convention.
+    """
+    date = time.strftime("%Y-%m-%d")
+    year = time.strftime("%Y")
+
+    if ext == ".json":
+        return json.dumps(
+            {
+                "title": title,
+                "author": author,
+                "source": source,
+                "exported": date,
+                "annotations": items,
+            },
+            indent=2,
+            ensure_ascii=False,
+        )
+
+    if ext == ".bib":
+        key = (
+            re.sub(r"\W+", "", (Path(source).stem or title or "notes"))[:40] or "notes"
+        )
+        notes_blob = "; ".join(
+            f"[{a.get('anchor', '')}] {a.get('note', '')}".strip() for a in items
+        )
+        lines = [f"@misc{{{key},", f"  title = {{{title}}},"]
+        if author:
+            lines.append(f"  author = {{{author}}},")
+        if source:
+            lines.append(f"  howpublished = {{{source}}},")
+        lines.append(f"  year = {{{year}}},")
+        lines.append(f"  annote = {{{notes_blob}}}")
+        lines.append("}")
+        return "\n".join(lines) + "\n"
+
+    if ext == ".ris":
+        lines = ["TY  - GEN", f"TI  - {title}"]
+        if author:
+            lines.append(f"AU  - {author}")
+        for a in items:
+            anchor = str(a.get("anchor", "")).strip()
+            note = str(a.get("note", "")).strip()
+            combined = f"“{anchor}” — {note}" if anchor else note
+            lines.append(f"N1  - {combined}")
+        if source:
+            lines.append(f"UR  - {source}")
+        lines.append(f"PY  - {year}")
+        lines.append("ER  - ")
+        return "\r\n".join(lines) + "\r\n"
+
+    if ext == ".txt":
+        out = [f"Notes — {title}"]
+        if author:
+            out.append(f"Author: {author}")
+        if source:
+            out.append(f"Source: {source}")
+        out.append(f"Exported: {date}")
+        out.append("")
+        for i, a in enumerate(items, 1):
+            anchor = str(a.get("anchor", "")).strip()
+            note = str(a.get("note", "")).strip()
+            ts = str(a.get("ts", ""))
+            out.append(f"{i}. {note}")
+            if anchor:
+                out.append(f"   context: “{anchor}”")
+            if ts:
+                out.append(f"   {ts}")
+            out.append("")
+        return "\n".join(out)
+
+    # Default: Markdown
+    md = [f"# Notes — {title}", ""]
+    if author:
+        md.append(f"- **Author:** {author}")
+    if source:
+        md.append(f"- **Source:** `{source}`")
+    md.append(f"- **Exported:** {date}")
+    md.append(f"- **Count:** {len(items)}")
+    md.append("")
+    md.append("---")
+    md.append("")
+    for i, a in enumerate(items, 1):
+        anchor = str(a.get("anchor", "")).strip()
+        note = str(a.get("note", "")).strip()
+        ts = str(a.get("ts", ""))
+        md.append(f"## Note {i}")
+        if anchor:
+            md.append("")
+            md.append(f"> {anchor}")
+        md.append("")
+        md.append(note)
+        if ts:
+            md.append("")
+            md.append(f"*{ts}*")
+        md.append("")
+    return "\n".join(md)
+
+
+def _annotation_matches(a: Dict[str, Any], query: str) -> bool:
+    """Return True if annotation *a* matches the free-text *query*.
+
+    The query supports space-separated terms (all must match — AND) over the
+    note body, anchor quote, and tags.  A term beginning with ``#`` is a tag
+    filter (matches against the note's tags only).  An empty query matches all.
+    Shared by the Qt Notes panel and the curses TUI notes list.
+    """
+    q = (query or "").strip().lower()
+    if not q:
+        return True
+    note = str(a.get("note", "")).lower()
+    anchor = str(a.get("anchor", "")).lower()
+    tags = [str(t).lower() for t in a.get("tags", []) or []]
+    for term in q.split():
+        if term.startswith("#") and len(term) > 1:
+            if not any(term[1:] in t for t in tags):
+                return False
+        else:
+            if (
+                term not in note
+                and term not in anchor
+                and not any(term in t for t in tags)
+            ):
+                return False
+    return True
+
+
+def _parse_tags(raw: str) -> List[str]:
+    """Split a comma/space/`#`-separated tag string into a clean tag list."""
+    parts = re.split(r"[,\s]+", (raw or "").strip())
+    return [p.lstrip("#").strip() for p in parts if p.strip().lstrip("#")]
 
 
 # =============================================================================
-# SSML / prosody helpers  (Suggestion 9)
+# Citation manager
+# =============================================================================
+
+
+def _citation_label(c: Dict[str, Any]) -> str:
+    """Human-readable one-line label for a citation dict."""
+    author = str(c.get("author", "")).split(" and ")[0].split(",")[0].strip()
+    year = str(c.get("year", "")).strip()
+    title = str(c.get("title", "")).strip()
+    cid = str(c.get("id", "")).strip()
+    head = " ".join(p for p in (author, f"({year})" if year else "") if p).strip()
+    label = f"{head}  {title}" if head else title
+    return f"[{cid}] {label}".strip() if cid else label or "(untitled)"
+
+
+def _parse_bibtex(text: str) -> List[Dict[str, Any]]:
+    """Parse a (subset of) BibTeX into a list of citation dicts.
+
+    Uses brace-counting to find each entry's body so it works whether the
+    closing brace is on its own line or inline, and tolerates nested braces.
+    """
+    items: List[Dict[str, Any]] = []
+    n = len(text)
+    mapping = {
+        "title": "title",
+        "author": "author",
+        "year": "year",
+        "journal": "journal",
+        "booktitle": "journal",
+        "doi": "doi",
+        "url": "url",
+        "publisher": "publisher",
+    }
+    for m in re.finditer(r"@(\w+)\s*\{", text):
+        ctype = m.group(1).lower()
+        depth, j = 1, m.end()
+        while j < n and depth > 0:
+            if text[j] == "{":
+                depth += 1
+            elif text[j] == "}":
+                depth -= 1
+            j += 1
+        body = text[m.end() : j - 1]
+        key, _sep, rest = body.partition(",")
+        fields: Dict[str, Any] = {"id": key.strip(), "type": ctype}
+        for fm in re.finditer(
+            r"(\w+)\s*=\s*(\{(?:[^{}]|\{[^{}]*\})*\}|\"[^\"]*\"|[^,\n]+)",
+            rest,
+        ):
+            name = fm.group(1).lower()
+            val = fm.group(2).strip().strip("{}").strip('"').strip()
+            if name in mapping:
+                fields[mapping[name]] = val
+        items.append(fields)
+    return items
+
+
+def _parse_ris(text: str) -> List[Dict[str, Any]]:
+    """Parse RIS records into a list of citation dicts."""
+    items: List[Dict[str, Any]] = []
+    cur: Dict[str, Any] = {}
+    authors: List[str] = []
+    tag_map = {
+        "TI": "title",
+        "T1": "title",
+        "PY": "year",
+        "Y1": "year",
+        "JO": "journal",
+        "JF": "journal",
+        "T2": "journal",
+        "DO": "doi",
+        "UR": "url",
+        "PB": "publisher",
+        "ID": "id",
+    }
+    for line in text.splitlines():
+        mm = re.match(r"^([A-Z][A-Z0-9])  - (.*)$", line.rstrip())
+        if not mm:
+            continue
+        tag, val = mm.group(1), mm.group(2).strip()
+        if tag == "TY":
+            cur = {"type": val.lower()}
+            authors = []
+        elif tag in ("AU", "A1"):
+            authors.append(val)
+        elif tag == "ER":
+            if authors:
+                cur["author"] = " and ".join(authors)
+            if "year" in cur:
+                cur["year"] = str(cur["year"])[:4]
+            if not cur.get("id"):
+                a0 = (authors[0].split(",")[0] if authors else "ref").strip()
+                cur["id"] = re.sub(r"\W+", "", a0 + str(cur.get("year", ""))) or "ref"
+            items.append(cur)
+            cur = {}
+        elif tag in tag_map:
+            cur[tag_map[tag]] = val
+    return items
+
+
+def _parse_csl_json(text: str) -> List[Dict[str, Any]]:
+    """Parse CSL-JSON into a list of citation dicts."""
+    data = json.loads(text)
+    if isinstance(data, dict):
+        data = [data]
+    items: List[Dict[str, Any]] = []
+    for c in data:
+        authors = []
+        for a in c.get("author", []) or []:
+            fam = a.get("family", "")
+            given = a.get("given", "")
+            authors.append(f"{fam}, {given}".strip(", ") if fam else given)
+        issued = c.get("issued", {}) or {}
+        year = ""
+        if isinstance(issued, dict):
+            parts = issued.get("date-parts") or [[""]]
+            year = str(parts[0][0]) if parts and parts[0] else ""
+        items.append(
+            {
+                "id": str(c.get("id", "")),
+                "type": str(c.get("type", "article")),
+                "title": str(c.get("title", "")),
+                "author": " and ".join(authors),
+                "year": year,
+                "journal": str(c.get("container-title", "")),
+                "doi": str(c.get("DOI", "")),
+                "url": str(c.get("URL", "")),
+                "publisher": str(c.get("publisher", "")),
+            }
+        )
+    return items
+
+
+def _import_citations(path: str) -> List[Dict[str, Any]]:
+    """Read citations from a .bib / .ris / .json file (format by extension)."""
+    text = Path(path).read_text(encoding="utf-8", errors="replace")
+    ext = Path(path).suffix.lower()
+    if ext == ".bib":
+        return _parse_bibtex(text)
+    if ext == ".ris":
+        return _parse_ris(text)
+    if ext in (".json", ".csl"):
+        return _parse_csl_json(text)
+    # Heuristic fallback by content.
+    if text.lstrip().startswith("@"):
+        return _parse_bibtex(text)
+    if re.search(r"^TY  - ", text, re.MULTILINE):
+        return _parse_ris(text)
+    return _parse_csl_json(text)
+
+
+def _format_citations(items: List[Dict[str, Any]], ext: str) -> str:
+    """Serialize citations to BibTeX (.bib), RIS (.ris), or CSL-JSON (.json)."""
+    if ext == ".ris":
+        out: List[str] = []
+        for c in items:
+            out.append(f"TY  - {str(c.get('type', 'GEN')).upper()}")
+            if c.get("title"):
+                out.append(f"TI  - {c['title']}")
+            for au in str(c.get("author", "")).split(" and "):
+                if au.strip():
+                    out.append(f"AU  - {au.strip()}")
+            if c.get("year"):
+                out.append(f"PY  - {c['year']}")
+            if c.get("journal"):
+                out.append(f"JO  - {c['journal']}")
+            if c.get("doi"):
+                out.append(f"DO  - {c['doi']}")
+            if c.get("url"):
+                out.append(f"UR  - {c['url']}")
+            out.append("ER  - ")
+            out.append("")
+        return "\r\n".join(out)
+    if ext in (".json", ".csl"):
+        csl = []
+        for c in items:
+            authors = []
+            for au in str(c.get("author", "")).split(" and "):
+                au = au.strip()
+                if not au:
+                    continue
+                if "," in au:
+                    fam, given = au.split(",", 1)
+                    authors.append({"family": fam.strip(), "given": given.strip()})
+                else:
+                    authors.append({"family": au})
+            entry: Dict[str, Any] = {
+                "id": c.get("id", ""),
+                "type": c.get("type", "article"),
+                "title": c.get("title", ""),
+            }
+            if authors:
+                entry["author"] = authors
+            if c.get("year"):
+                entry["issued"] = {"date-parts": [[str(c["year"])]]}
+            if c.get("journal"):
+                entry["container-title"] = c["journal"]
+            if c.get("doi"):
+                entry["DOI"] = c["doi"]
+            if c.get("url"):
+                entry["URL"] = c["url"]
+            csl.append(entry)
+        return json.dumps(csl, indent=2, ensure_ascii=False)
+    # Default: BibTeX
+    out = []
+    for c in items:
+        cid = (
+            c.get("id") or re.sub(r"\W+", "", str(c.get("title", "ref"))[:20]) or "ref"
+        )
+        out.append(f"@{c.get('type', 'article')}{{{cid},")
+        for fld, key in (
+            ("title", "title"),
+            ("author", "author"),
+            ("year", "year"),
+            ("journal", "journal"),
+            ("doi", "doi"),
+            ("url", "url"),
+            ("publisher", "publisher"),
+        ):
+            if c.get(fld):
+                out.append(f"  {key} = {{{c[fld]}}},")
+        out.append("}")
+        out.append("")
+    return "\n".join(out)
+
+
+def _fetch_citation_by_doi(doi: str) -> Dict[str, Any]:
+    """Look up a DOI via the Crossref REST API and return a citation dict.
+
+    Network call (blocking) — call from a background thread in the GUI.
+    Raises on network/parse errors so callers can report them.
+    """
+    doi = doi.strip()
+    for prefix in ("https://doi.org/", "http://doi.org/", "doi:"):
+        if doi.lower().startswith(prefix):
+            doi = doi[len(prefix) :]
+    url = "https://api.crossref.org/works/" + urllib.parse.quote(doi)
+    req = urllib.request.Request(
+        url, headers={"User-Agent": f"star/{APP_VERSION} (citation lookup)"}
+    )
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        data = json.loads(resp.read().decode("utf-8", errors="replace"))
+    msg = data.get("message", {}) or {}
+    authors = []
+    for a in msg.get("author", []) or []:
+        fam = a.get("family", "")
+        given = a.get("given", "")
+        authors.append(f"{fam}, {given}".strip(", ") if fam else given)
+    year = ""
+    parts = (msg.get("issued", {}) or {}).get("date-parts", [[None]])
+    if parts and parts[0] and parts[0][0]:
+        year = str(parts[0][0])
+    title = (msg.get("title") or [""])[0]
+    journal = (msg.get("container-title") or [""])[0]
+    fam0 = authors[0].split(",")[0] if authors else "ref"
+    cid = re.sub(r"\W+", "", fam0 + year) or "ref"
+    return {
+        "id": cid,
+        "type": str(msg.get("type", "article")),
+        "title": title,
+        "author": " and ".join(authors),
+        "year": year,
+        "journal": journal,
+        "doi": doi,
+        "url": str(msg.get("URL", "")),
+    }
+
+
+# =============================================================================
+# Speech recognition  (Whisper dictation / transcription)
+# =============================================================================
+
+
+def _fmt_timestamp(seconds: float) -> str:
+    """Format *seconds* as ``[hh:mm:ss]`` (or ``[mm:ss]`` under an hour)."""
+    s = int(max(0, seconds))
+    h, rem = divmod(s, 3600)
+    m, sec = divmod(rem, 60)
+    return f"[{h:02d}:{m:02d}:{sec:02d}]" if h else f"[{m:02d}:{sec:02d}]"
+
+
+def _transcribe_audio(
+    path: str, model_name: str = "base", timestamps: bool = False
+) -> str:
+    """Transcribe an audio file to text using Whisper (blocking).
+
+    Works with either ``openai-whisper`` or ``faster-whisper``.  When
+    *timestamps* is True each segment is prefixed with its start time as
+    ``[hh:mm:ss]`` on its own line, producing a navigable transcript.
+    Raises RuntimeError with install guidance when no backend is available.
+    """
+    if _WHISPER == "openai":
+        model = _whisper.load_model(model_name)
+        result = model.transcribe(path)
+        if timestamps:
+            segs = result.get("segments", []) or []
+            return (
+                "\n".join(
+                    f"{_fmt_timestamp(s.get('start', 0))} {str(s.get('text', '')).strip()}"
+                    for s in segs
+                ).strip()
+                or str(result.get("text", "")).strip()
+            )
+        return str(result.get("text", "")).strip()
+    if _WHISPER == "faster":
+        model = _FasterWhisper(model_name)
+        segments, _info = model.transcribe(path)
+        if timestamps:
+            return "\n".join(
+                f"{_fmt_timestamp(getattr(seg, 'start', 0))} {seg.text.strip()}"
+                for seg in segments
+            ).strip()
+        return " ".join(seg.text for seg in segments).strip()
+    raise RuntimeError(
+        "Speech recognition requires Whisper:\n"
+        "  pip install openai-whisper   (or: pip install faster-whisper)"
+    )
+
+
+def _record_audio_to_wav(seconds: float, samplerate: int = 16000) -> str:
+    """Record *seconds* of mono microphone audio to a temp WAV; return its path."""
+    if not _AUDIO_IN:
+        raise RuntimeError(
+            "Microphone capture requires sounddevice + numpy:\n"
+            "  pip install sounddevice numpy"
+        )
+    import wave
+
+    frames = int(seconds * samplerate)
+    rec = _sounddevice.rec(frames, samplerate=samplerate, channels=1, dtype="int16")
+    _sounddevice.wait()
+    tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+    tmp.close()
+    with wave.open(tmp.name, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(samplerate)
+        w.writeframes(rec.tobytes())
+    return tmp.name
+
+
+# =============================================================================
+# Canonical keyboard shortcuts  (GUI/TUI parity + cheat sheet)
+# =============================================================================
+
+# The GUI bindings are the canonical set.  The TUI mirrors them where the
+# terminal can express the chord; where it cannot (terminals can't see
+# Ctrl+Shift+<letter>), an equivalent single-key or M-x command is listed.
+_SHORTCUTS: List[Tuple[str, List[Tuple[str, str, str]]]] = [
+    (
+        "Playback",
+        [
+            ("Play / pause", "Space", "Space"),
+            ("Stop", "Esc", "Esc / M-x stop"),
+            ("Speed up / slow down", "Ctrl+= / Ctrl+-", "+ / -"),
+            ("Play from cursor", "Ctrl+Return", "—"),
+            ("Speak current line", "—", "M-x speak-line"),
+        ],
+    ),
+    (
+        "Navigation",
+        [
+            ("Next / prev heading", "Ctrl+H / Ctrl+Shift+H", "> / <"),
+            ("Next / prev paragraph", "Ctrl+P / Ctrl+Shift+P", "] / ["),
+            ("Next / prev sentence", "Alt+. / Alt+,", ". / ,"),
+            ("Replay sentence", "Alt+;", ";"),
+            ("Replay paragraph", "Ctrl+R", "r"),
+            ("Next / prev table", "Ctrl+T / Ctrl+Shift+T", "M-x next-table"),
+            ("Speech-cursor mode", "Tab", "Tab"),
+        ],
+    ),
+    (
+        "Notes / Annotations",
+        [
+            ("Add note at cursor", "Ctrl+Shift+A", "a / M-x annotate"),
+            ("Toggle Notes panel", "Ctrl+Shift+N", "M-x annotations-list"),
+            (
+                "Search / filter notes",
+                "(search box in panel)",
+                "M-x annotations-search",
+            ),
+        ],
+    ),
+    (
+        "View",
+        [
+            ("Cycle theme", "F5", "F5"),
+            ("Toggle Contents panel", "Ctrl+\\", "—"),
+            ("Reading level", "Ctrl+L", "M-x reading-level"),
+            ("Choose voice", "Ctrl+Shift+V", "M-x voice-picker"),
+            ("Line numbers / syntax", "—", "F6 / F7"),
+        ],
+    ),
+    (
+        "Edit & File",
+        [
+            ("Toggle edit mode", "Ctrl+E", "—"),
+            ("Save", "Ctrl+S", "—"),
+            ("Copy", "Ctrl+C", "M-x copy"),
+            ("Open file", "Ctrl+O", "Ctrl+O"),
+            ("Command palette", "—", "M-x / F2 / :"),
+            ("Keyboard cheat sheet", "(Help menu)", "M-x shortcuts"),
+            ("Help (README)", "F1", "F1"),
+            ("Quit", "Ctrl+Q", "Ctrl+Q / q"),
+        ],
+    ),
+]
+
+
+def _shortcuts_text(plain: bool = False) -> str:
+    """Render the canonical shortcut scheme as text.
+
+    *plain* True produces a column layout for the curses pager; otherwise a
+    Markdown table suitable for the Qt help dialog.
+    """
+    if plain:
+        lines = ["Keyboard Shortcuts  (GUI bindings are canonical)", ""]
+        for section, rows in _SHORTCUTS:
+            lines.append(f"== {section} ==")
+            for action, gui, tui in rows:
+                lines.append(f"  {action:<26} GUI: {gui:<24} TUI: {tui}")
+            lines.append("")
+        return "\n".join(lines)
+    md = [
+        "# Keyboard Shortcuts",
+        "",
+        "GUI bindings are canonical; the TUI mirrors them where the terminal allows.",
+        "",
+    ]
+    for section, rows in _SHORTCUTS:
+        md.append(f"## {section}")
+        md.append("")
+        md.append("| Action | GUI | TUI |")
+        md.append("|---|---|---|")
+        for action, gui, tui in rows:
+            md.append(f"| {action} | `{gui}` | `{tui}` |")
+        md.append("")
+    return "\n".join(md)
+
+
+# =============================================================================
+# SSML / prosody helpers
 # =============================================================================
 
 
@@ -5070,7 +6123,7 @@ def _text_to_dectalk(
 
 
 # =============================================================================
-# TTS text preprocessing  (Suggestions 10, 11, 12)
+# TTS text preprocessing
 # =============================================================================
 # Pipeline (applied at speak-time after the plain-text slice is taken):
 #   _expand_abbreviations()  ->  _normalize_numbers()  ->  _text_to_ssml()
@@ -5079,7 +6132,7 @@ def _text_to_dectalk(
 # _strip_markdown_for_tts() so the word map reflects the spoken structure.
 # =============================================================================
 
-# -- Abbreviation table (Suggestion 10) --------------------------------------
+# -- Abbreviation table -------------------------------------------------------
 # Ordered longest-first so multi-word entries match before their components.
 
 _ABBREV_PAIRS: List[tuple] = [
@@ -5140,7 +6193,7 @@ _ABBREV_PAIRS: List[tuple] = [
     ("conc.", "concentration"),
     ("est.", "estimated"),
     ("max.", "maximum"),
-    # Business / organisations
+    # Business / organizations
     ("Inc.", "Incorporated"),
     ("Corp.", "Corporation"),
     ("Ltd.", "Limited"),
@@ -5169,7 +6222,7 @@ def _expand_abbreviations(text: str, custom: Optional[Dict[str, str]] = None) ->
     return text
 
 
-# -- Number normalization helpers (Suggestion 11) ----------------------------
+# -- Number normalization helpers --------------------------------------------
 
 _ONES = [
     "",
@@ -5452,7 +6505,7 @@ def _normalize_numbers(text: str) -> str:
     return text
 
 
-# -- Table narration (Suggestion 12) -----------------------------------------
+# -- Table narration ---------------------------------------------------------
 
 
 def _tables_to_narration(text: str, mode: str = "structured") -> str:
@@ -5553,15 +6606,15 @@ def _tables_to_narration(text: str, mode: str = "structured") -> str:
 
 
 def _preprocess_tts_text(text: str, settings: "Settings") -> str:
-    """Apply all speak-time text normalisations before SSML wrapping.
+    """Apply all speak-time text normalizations before SSML wrapping.
 
     Called in _tts_play_from_word() and _tts_speak_current_line() on the
     plain-text slice.  Each step is gated by its own settings flag so users
-    can disable individual normalisations independently.
+    can disable individual normalizations independently.
 
     Steps:
       1. Abbreviation expansion   (expand_abbreviations)
-      2. Number normalisation     (normalize_numbers)
+      2. Number normalization     (normalize_numbers)
     """
     if settings.get("expand_abbreviations", True):
         custom = settings.get("abbrev_expansions") or {}
@@ -5577,7 +6630,7 @@ def _preprocess_tts_text(text: str, settings: "Settings") -> str:
 
 
 # =============================================================================
-# New document loaders and utilities  (Suggestions 19–24)
+# New document loaders and utilities
 # =============================================================================
 
 # ---------------------------------------------------------------------------
@@ -6248,7 +7301,7 @@ class StarApp:
         self._highlight_line = -1  # display line of current TTS word
         self._highlight_col_start = -1
         self._highlight_col_end = -1
-        # Navigation history (suggestion 29)
+        # Navigation history
         self._nav_history: List[int] = []
         self._nav_hist_pos: int = -1
 
@@ -6499,7 +7552,7 @@ class StarApp:
             word_idx = 0
         text_slice = self.doc.plain_text[text_offset:]
 
-        # Apply speak-time normalisations (abbrev expansion, number words).
+        # Apply speak-time normalizations (abbrev expansion, number words).
         text_slice = _preprocess_tts_text(text_slice, self.settings)
 
         if self.settings.get("use_ssml", False):
@@ -6579,7 +7632,7 @@ class StarApp:
         Restarts if speech was already active *or* if *always_play* is True
         (used by replay commands that must always begin reading).
         """
-        self._history_push()  # record position before jump (suggestion 29)
+        self._history_push()  # record position before jump
         if not self.doc or not self.doc.word_map:
             return
         dest_word = max(0, min(dest_word, len(self.doc.word_map) - 1))
@@ -6688,7 +7741,7 @@ class StarApp:
         self._tts_play_from_word(dest_word)
         self.notify(f"↺ Replaying paragraph from line {dest_line + 1}")
 
-    # ── Reading position memory (suggestion 7) ──────────────────────────
+    # ── Reading position memory ──────────────────────────
 
     def _save_reading_position(self) -> None:
         """Persist the current reading offset for the open document."""
@@ -6749,7 +7802,7 @@ class StarApp:
         else:
             self.notify("No saved position for this document")
 
-    # ── Speed presets (suggestion 8) ────────────────────────────────────
+    # ── Speed presets ───────────────────────────────────────────────────
 
     def _set_speed_preset(self, name: str) -> None:
         """Apply a named speed preset or a raw wpm integer."""
@@ -6816,9 +7869,9 @@ class StarApp:
         self.tts.set_rate(nxt[1])
         self.notify(f"Speed: “{nxt[0]}” — {nxt[1]} wpm")
 
-    # ── SSML toggle (suggestion 9) ──────────────────────────────────────
+    # ── SSML toggle ─────────────────────────────────────────────────────
 
-    # ── New feature methods (Suggestions 23, 26, 27, 29, 30, 36, 44) ────────────
+    # ── Bookmarks, history, search & utility commands ───────────────────
     def _bookmark_set(self, name: str = "") -> None:
         "Set a named bookmark at the current reading position."
         if not self.doc or not self.doc.word_map:
@@ -7305,7 +8358,7 @@ class StarApp:
         self.tts.stop()
         self.tts._backend.speak(f"Voice changed to {label}.")
 
-    # ── Abbreviation helpers (suggestion 10) ───────────────────────────────
+    # ── Abbreviation helpers ───────────────────────────────────────────────
 
     def _abbrev_add(self, arg: str) -> None:
         """Add or update a custom abbreviation expansion.
@@ -7335,7 +8388,7 @@ class StarApp:
         pairs = "  |  ".join(f"{k} \u2192 {v}" for k, v in sorted(custom.items()))
         self.notify(f"Custom abbreviations: {pairs}", dur=8.0)
 
-    # ── Table mode helper (suggestion 12) ─────────────────────────────────
+    # ── Table mode helper ─────────────────────────────────────────────────
 
     def _set_table_mode(self, mode: str) -> None:
         """Set table reading mode.  Valid values: structured | flat | skip.
@@ -7965,7 +9018,11 @@ class StarApp:
             self.notify("No document to export.", error=True)
             return
         table = str(self.settings["braille_table"])
-        brf = _export_braille(self.doc.plain_text, table)
+        brf = _export_braille(
+            self.doc.plain_text,
+            table,
+            use_liblouis=bool(self.settings.get("braille_grade2", False)),
+        )
         p = Path(self.doc.path) if self.doc.path else Path("export")
         dest = str(p.parent / (p.stem + ".brf"))
         try:
@@ -7974,13 +9031,16 @@ class StarApp:
         except OSError as e:
             self.notify(f"BRF export error: {e}", error=True)
 
-    def _export_audio_cmd(self, fmt: str = "mp3") -> None:
+    def _export_audio_cmd(self, fmt: str = "") -> None:
         """Prompt for an output path and export TTS audio (M-x export-audio).
 
-        *fmt* is the default file extension (mp3, ogg, mp4, wav).  Synthesis
-        runs synchronously, so the TUI will be unresponsive until it finishes.
-        Use a shorter document or the espeak/pyttsx3 backend for faster results.
+        *fmt* is the default file extension (wav, mp3, ogg, mp4).  When empty
+        the ``audio_export_format`` setting is used (WAV by default — it needs
+        no external tools).  Synthesis runs synchronously, so the TUI will be
+        unresponsive until it finishes.  Use a shorter document or the
+        espeak/pyttsx3 backend for faster results.
         """
+        fmt = (fmt or str(self.settings.get("audio_export_format", "wav"))).lstrip(".")
         if not self.doc:
             self.notify("No document to export.", error=True)
             return
@@ -8139,7 +9199,7 @@ class StarApp:
             ),
             "export-markdown": self._export_markdown,
             "export-braille": self._export_braille_cmd,
-            "export-audio": lambda: self._export_audio_cmd(arg or "mp3"),
+            "export-audio": lambda: self._export_audio_cmd(arg or ""),
             "play": self._tts_play,
             "stop": self._tts_stop,
             "pause": self._tts_toggle,
@@ -8224,43 +9284,43 @@ class StarApp:
             "prev-sentence": self._skip_prev_sentence,
             "replay-sentence": self._replay_sentence,
             "replay-paragraph": self._replay_paragraph,
-            # Reading position memory (suggestion 7)
+            # Reading position memory
             "save-position": self._save_reading_position,
             "jump-saved": lambda: self._restore_reading_position(force=True),
             "clear-position": self._clear_reading_position,
-            # Speed presets (suggestion 8)
+            # Speed presets
             "speed": lambda: self._set_speed_preset(arg),
             "preset-add": lambda: self._preset_add(arg),
             "preset-list": self._preset_list,
-            # Bookmarks (suggestion 26)
+            # Bookmarks
             "bookmark-set": lambda: self._bookmark_set(arg),
             "bookmark-goto": lambda: self._bookmark_goto(arg),
             "bookmark-list": lambda: self._bookmark_list(),
             "bookmark-delete": lambda: self._bookmark_delete(arg),
-            # Chapter navigation (suggestion 23)
+            # Chapter navigation
             "chapter-next": lambda: self._chapter_next(),
             "chapter-prev": lambda: self._chapter_prev(),
             "chapter-list": lambda: self._chapter_list(),
             "chapter-goto": lambda: self._chapter_goto(arg),
-            # Navigation history (suggestion 29)
+            # Navigation history
             "history-back": lambda: self._history_back(),
             "history-forward": lambda: self._history_forward(),
-            # Search (suggestion 30)
+            # Search
             "search-regex": lambda: self._enter_minibuffer(
                 "Regex: ",
                 mode="search",
                 on_commit=lambda q: self._do_search_regex(q),
             ),
-            # Utility (27, 36, 44)
+            # Utility
             "copy": lambda: self._copy_to_clipboard(),
             "recent": lambda: self._recent_files(),
             "wiki": lambda: self._open_wikipedia(arg),
             "pubmed": lambda: self._open_pubmed(arg),
-            # Cache (suggestion 24)
+            # Cache
             "cache-clear": lambda: self._cache_clear(),
-            # Footnotes (suggestion 22)
+            # Footnotes
             "footnote-mode": lambda: self._set_footnote_mode(arg),
-            # Math normalization (suggestion 20)
+            # Math normalization
             "normalize-math": lambda: (
                 self.settings.set(
                     "normalize_math",
@@ -8271,11 +9331,11 @@ class StarApp:
                     + ("ON" if self.settings.get("normalize_math") else "OFF")
                 ),
             ),
-            # Reading level (suggestion 35)
+            # Reading level
             "reading-level": lambda: self.notify(
                 self._compute_reading_level_tui(), dur=8.0
             ),
-            # SSML (suggestion 9)
+            # SSML
             "ssml": lambda: self._ssml_toggle(),
             "ssml-on": lambda: (
                 self.settings.set("use_ssml", True),
@@ -8285,7 +9345,7 @@ class StarApp:
                 self.settings.set("use_ssml", False),
                 self.notify("SSML prosody: OFF"),
             ),
-            # Abbreviation expansion (suggestion 10)
+            # Abbreviation expansion
             "expand-abbreviations": lambda: (
                 self.settings.set(
                     "expand_abbreviations",
@@ -8298,19 +9358,29 @@ class StarApp:
             ),
             "abbrev-add": lambda: self._abbrev_add(arg),
             "abbrev-list": lambda: self._abbrev_list(),
-            # Number normalisation (suggestion 11)
+            # Number normalization
             "normalize-numbers": lambda: (
                 self.settings.set(
                     "normalize_numbers",
                     not self.settings.get("normalize_numbers", True),
                 ),
                 self.notify(
-                    "Number normalisation: "
+                    "Number normalization: "
                     + ("ON" if self.settings.get("normalize_numbers") else "OFF")
                 ),
             ),
-            # Table reading mode (suggestion 12)
+            # Table reading mode
             "table-mode": lambda: self._set_table_mode(arg),
+            # Annotations / notes (TUI notes panel)
+            "annotate": self._annotate,
+            "notes": self._notes_browser,
+            "annotations-list": lambda: self._annotations_list(arg),
+            "annotations-search": self._annotations_search,
+            "annotation-goto": lambda: self._annotation_goto(arg),
+            "annotation-delete": lambda: self._annotation_delete(arg),
+            "annotations-export": self._annotations_export,
+            # Keyboard cheat sheet
+            "shortcuts": self._show_shortcuts,
         }
 
         fn = cmd_map.get(cmd)
@@ -8325,7 +9395,7 @@ class StarApp:
     # ── Help / about pager ─────────────────────────────────────────────────
 
     def _show_help(self) -> None:
-        """Open README.md in a pager, matching the Qt GUI F1 behaviour.
+        """Open README.md in a pager, matching the Qt GUI F1 behavior.
         Falls back to the built-in _HELP_TEXT if README.md cannot be found."""
         readme = Path(__file__).parent / "README.md"
         if readme.exists():
@@ -8382,7 +9452,391 @@ class StarApp:
                 self._page_up()
         self.doc, self.rendered, self.scroll = old
 
-    # ── Main run loop ──────────────────────────────────────────────────────
+    def _show_text_pager(self, title: str, markdown: str) -> None:
+        """Render *markdown* in a read-only scrollable pager (q/Esc to exit).
+
+        Shared by the notes list and the keyboard cheat sheet; mirrors the
+        navigation keys used by _show_help / _show_license.
+        """
+        tmp = Document(title=title, markdown=markdown, plain_text="")
+        old = (self.doc, self.rendered, self.scroll)
+        self.doc = tmp
+        self._render_doc()
+        self.scroll = 0
+        while True:
+            self.draw()
+            ch = self.scr.getch()
+            if ch in (ord("q"), ord("Q"), 7, 27):
+                break
+            elif ch in (14, curses.KEY_DOWN, ord("j")):
+                self._scroll_by(1)
+            elif ch in (16, curses.KEY_UP, ord("k")):
+                self._scroll_by(-1)
+            elif ch in (curses.KEY_NPAGE, ord(" ")):
+                self._page_down()
+            elif ch == curses.KEY_PPAGE:
+                self._page_up()
+            elif ch in (curses.KEY_HOME, 1):
+                self._goto_top()
+            elif ch in (curses.KEY_END, 5):
+                self._goto_bottom()
+        self.doc, self.rendered, self.scroll = old
+
+    def _show_shortcuts(self) -> None:
+        """Show the canonical keyboard cheat sheet."""
+        self._show_text_pager("Keyboard Shortcuts", _shortcuts_text(plain=False))
+
+    # ── Annotations / notes (TUI) ──────────────────────────────────────────
+
+    def _annot_key(self) -> str:
+        """Per-document key under which annotations are stored."""
+        if not self.doc:
+            return ""
+        return self.doc.path or self.doc.title or ""
+
+    def _load_annotations(self) -> List[Dict[str, Any]]:
+        """Saved notes for the current document, sorted by position."""
+        key = self._annot_key()
+        if not key:
+            return []
+        store = self.settings.get("annotations", {}) or {}
+        items = [dict(a) for a in store.get(key, [])]
+        items.sort(key=lambda a: int(a.get("word_idx", a.get("char_pos", 0)) or 0))
+        return items
+
+    def _store_annotations(self, items: List[Dict[str, Any]]) -> None:
+        key = self._annot_key()
+        if not key:
+            return
+        store = dict(self.settings.get("annotations", {}) or {})
+        if items:
+            store[key] = items
+        else:
+            store.pop(key, None)
+        self.settings.set("annotations", store)
+
+    def _annotate(self) -> None:
+        """Add a note at the current reading position (key 'a' / M-x annotate)."""
+        if not self.doc or not self.doc.word_map:
+            self.notify("No document loaded.", error=True)
+            return
+        self._enter_minibuffer("Note: ", on_commit=self._annotate_note_cb)
+
+    def _annotate_note_cb(self, note: str) -> None:
+        note = note.strip()
+        if not note:
+            return
+        self._pending_note = note
+        self._enter_minibuffer(
+            "Tags (optional, comma-separated): ", on_commit=self._annotate_tags_cb
+        )
+
+    def _annotate_tags_cb(self, tag_str: str) -> None:
+        note = getattr(self, "_pending_note", "")
+        if not note:
+            return
+        self._pending_note = ""
+        wm = self.doc.word_map if self.doc else []
+        word_idx = self._current_word_for_nav()
+        if word_idx < 0:
+            word_idx = 0
+        anchor = ""
+        if wm and 0 <= word_idx < len(wm):
+            dl = wm[word_idx].disp_line
+            if 0 <= dl < len(self.rendered):
+                anchor = "".join(t for t, _ in self.rendered[dl]).strip()[:120]
+        items = self._load_annotations()
+        items.append(
+            {
+                "char_pos": 0,  # Qt-only; TUI anchors by word_idx
+                "word_idx": int(word_idx),
+                "anchor": anchor,
+                "note": note,
+                "tags": _parse_tags(tag_str),
+                "cite": "",
+                "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
+            }
+        )
+        self._store_annotations(items)
+        tags = _parse_tags(tag_str)
+        self.notify(
+            f"Note added ({len(items)} total)"
+            + (f"  tags: {', '.join(tags)}" if tags else "")
+        )
+
+    def _annotations_list(self, query: str = "") -> None:
+        """Show all notes (optionally filtered) in a pager (M-x annotations-list)."""
+        items = self._load_annotations()
+        if not items:
+            self.notify("No notes yet. Press 'a' or M-x annotate to add one.")
+            return
+        rows = [(i, a) for i, a in enumerate(items) if _annotation_matches(a, query)]
+        if not rows:
+            self.notify(f"No notes match '{query}'.")
+            return
+        title = self.doc.title if self.doc else "document"
+        lines = [f"# Notes — {title}", ""]
+        if query:
+            lines.append(f"*Filter: {query} — {len(rows)}/{len(items)} shown*")
+            lines.append("")
+        for i, a in rows:
+            first = (a.get("note", "") or "").splitlines()
+            head = first[0] if first else "(empty)"
+            lines.append(f"## [{i}] {head}")
+            if a.get("anchor"):
+                lines.append(f"> {a['anchor']}")
+            meta = "  ".join(f"#{t}" for t in a.get("tags", []) or [])
+            if a.get("cite"):
+                meta += ("  " if meta else "") + f"@{a['cite']}"
+            if meta:
+                lines.append(f"`{meta}`")
+            lines.append(a.get("note", ""))
+            if a.get("ts"):
+                lines.append(f"*{a['ts']}*")
+            lines.append("")
+        lines.append("---")
+        lines.append(
+            "M-x annotation-goto <n> · annotation-delete <n> · annotations-export"
+        )
+        self._show_text_pager("Notes", "\n".join(lines))
+
+    def _annotations_search(self) -> None:
+        self._enter_minibuffer(
+            "Filter notes (text or #tag): ",
+            on_commit=lambda q: self._annotations_list(q),
+        )
+
+    def _annotation_goto(self, arg: str) -> None:
+        items = self._load_annotations()
+        try:
+            i = int(str(arg).strip())
+        except (ValueError, TypeError):
+            self.notify("Usage: annotation-goto <n>", error=True)
+            return
+        if not (0 <= i < len(items)):
+            self.notify(f"No note #{i}", error=True)
+            return
+        wm = self.doc.word_map if self.doc else []
+        wi = int(items[i].get("word_idx", 0) or 0)
+        if wm and 0 <= wi < len(wm):
+            self._scroll_to_line(wm[wi].disp_line)
+            self.notify(f"Note #{i}: {items[i].get('note', '')[:50]}")
+        else:
+            self.notify("Note position unavailable", error=True)
+
+    def _annotation_delete(self, arg: str) -> None:
+        items = self._load_annotations()
+        try:
+            i = int(str(arg).strip())
+        except (ValueError, TypeError):
+            self.notify("Usage: annotation-delete <n>", error=True)
+            return
+        if not (0 <= i < len(items)):
+            self.notify(f"No note #{i}", error=True)
+            return
+        del items[i]
+        self._store_annotations(items)
+        self.notify(f"Note #{i} deleted ({len(items)} left)")
+
+    def _annotations_export(self) -> None:
+        items = self._load_annotations()
+        if not items:
+            self.notify("No notes to export.", error=True)
+            return
+        p = Path(self.doc.path) if self.doc and self.doc.path else Path("notes")
+        default = str(p.parent / (p.stem + "_notes.md"))
+        self._enter_minibuffer(
+            "Export notes to (.md/.json/.bib/.ris/.txt): ",
+            initial=default,
+            on_commit=self._annotations_export_cb,
+        )
+
+    def _annotations_export_cb(self, dest: str) -> None:
+        dest = dest.strip()
+        if not dest:
+            return
+        items = self._load_annotations()
+        meta = getattr(self.doc, "metadata", {}) or {}
+        title = self.doc.title if self.doc else "notes"
+        author = meta.get("author") or meta.get("creator") or ""
+        try:
+            content = _format_annotations(
+                items,
+                Path(dest).suffix.lower(),
+                title,
+                author,
+                self.doc.path if self.doc else "",
+            )
+            Path(dest).write_text(content, encoding="utf-8")
+            self.notify(f"Exported {len(items)} note(s) → {dest}")
+        except OSError as e:
+            self.notify(f"Export error: {e}", error=True)
+
+    # ── Saved note-filter presets ───────────────────────────────────────
+
+    def _notes_presets(self) -> Dict[str, str]:
+        return dict(self.settings.get("annotation_filter_presets", {}) or {})
+
+    def _notes_preset_save(self, name: str, query: str) -> None:
+        name = (name or "").strip()
+        if not name:
+            return
+        presets = self._notes_presets()
+        presets[name] = query
+        self.settings.set("annotation_filter_presets", presets)
+
+    # ── Inline prompt helpers (used inside the interactive notes browser) ──
+
+    def _inline_prompt(self, prompt: str, initial: str = "") -> Optional[str]:
+        """Read a line of text on the bottom row; return it, or None on Esc."""
+        buf = list(initial)
+        while True:
+            h, w = self.scr.getmaxyx()
+            _fillrow(self.scr, h - 1, self._a("minibuf"))
+            shown = (prompt + "".join(buf))[: w - 1]
+            _addstr(self.scr, h - 1, 0, shown, self._a("minibuf"))
+            try:
+                self.scr.move(h - 1, min(len(shown), w - 1))
+            except curses.error:
+                pass
+            self.scr.refresh()
+            ch = self.scr.getch()
+            if ch in (10, 13, curses.KEY_ENTER):
+                return "".join(buf)
+            if ch in (27, 7):
+                return None
+            if ch in (curses.KEY_BACKSPACE, 127, 8):
+                if buf:
+                    buf.pop()
+            elif 32 <= ch < 127:
+                buf.append(chr(ch))
+
+    def _inline_confirm(self, prompt: str) -> bool:
+        """Show *prompt* on the bottom row; return True only on 'y'."""
+        h, w = self.scr.getmaxyx()
+        _fillrow(self.scr, h - 1, self._a("minibuf"))
+        _addstr(self.scr, h - 1, 0, prompt[: w - 1], self._a("minibuf"))
+        self.scr.refresh()
+        return self.scr.getch() in (ord("y"), ord("Y"))
+
+    # ── Interactive notes browser ───────────────────────────────────────
+
+    def _notes_browser(self) -> None:
+        """A dedicated, interactive notes mode for the TUI.
+
+        Arrow keys / j,k select; Enter jumps to the note; r reads from it;
+        e edits, d deletes, / filters, p cycles saved filter presets, s saves
+        the current filter as a preset, x exports, q/Esc exits.
+        """
+        if not self.doc or not self.doc.word_map:
+            self.notify("No document loaded.", error=True)
+            return
+        flt = ""
+        sel = 0
+        preset_names = list(self._notes_presets().keys())
+        preset_idx = -1
+        while True:
+            all_items = self._load_annotations()
+            rows = [
+                (i, a) for i, a in enumerate(all_items) if _annotation_matches(a, flt)
+            ]
+            if rows:
+                sel = max(0, min(sel, len(rows) - 1))
+            else:
+                sel = 0
+            h, w = self.scr.getmaxyx()
+            view_h = max(1, h - 2)
+            top = 0 if sel < view_h else sel - view_h + 1
+            self.scr.erase()
+            hdr = f" Notes — {(self.doc.title or '')[:38]}  ({len(rows)}/{len(all_items)})"
+            if flt:
+                hdr += f"  filter: {flt}"
+            _fillrow(self.scr, 0, self._a("title_bar"))
+            _addstr(self.scr, 0, 0, hdr[: w - 1], self._a("title_bar"))
+            if rows:
+                for vi in range(top, min(len(rows), top + view_h)):
+                    i, a = rows[vi]
+                    note = (a.get("note", "") or "").splitlines()
+                    head = note[0] if note else "(empty)"
+                    tags = " ".join(f"#{t}" for t in a.get("tags", []) or [])
+                    cite = f" @{a['cite']}" if a.get("cite") else ""
+                    line = f"[{i}] {head}{('   ' + tags) if tags else ''}{cite}"
+                    attr = curses.A_REVERSE if vi == sel else self._a("normal")
+                    _addstr(self.scr, 1 + vi - top, 0, line[: w - 1].ljust(w - 1), attr)
+            else:
+                _addstr(
+                    self.scr,
+                    2,
+                    2,
+                    "No notes match.  /=filter  a=add (after exit)  q=quit",
+                    self._a("dim"),
+                )
+            foot = (
+                " ↑↓ move  ↵ jump  r read  e edit  d delete  / filter"
+                "  p preset  s save  x export  q quit "
+            )
+            _fillrow(self.scr, h - 1, self._a("status"))
+            _addstr(self.scr, h - 1, 0, foot[: w - 1], self._a("status"))
+            self.scr.refresh()
+
+            ch = self.scr.getch()
+            if ch in (ord("q"), ord("Q"), 27, 7):
+                return
+            elif ch in (curses.KEY_DOWN, ord("j")):
+                sel = min(sel + 1, max(0, len(rows) - 1))
+            elif ch in (curses.KEY_UP, ord("k")):
+                sel = max(sel - 1, 0)
+            elif ch == curses.KEY_NPAGE:
+                sel = min(sel + view_h, max(0, len(rows) - 1))
+            elif ch == curses.KEY_PPAGE:
+                sel = max(sel - view_h, 0)
+            elif ch == curses.KEY_HOME:
+                sel = 0
+            elif ch == curses.KEY_END:
+                sel = max(0, len(rows) - 1)
+            elif ch in (10, 13, curses.KEY_ENTER) and rows:
+                self._annotation_goto(str(rows[sel][0]))
+                return
+            elif ch == ord("r") and rows:
+                self._tts_play_from_word(int(rows[sel][1].get("word_idx", 0) or 0))
+            elif ch == ord("e") and rows:
+                i = rows[sel][0]
+                new = self._inline_prompt(f"Edit [{i}]: ", rows[sel][1].get("note", ""))
+                if new is not None and new.strip():
+                    items = self._load_annotations()
+                    if 0 <= i < len(items):
+                        items[i]["note"] = new.strip()
+                        items[i]["ts"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+                        self._store_annotations(items)
+            elif ch == ord("d") and rows:
+                i = rows[sel][0]
+                if self._inline_confirm(f"Delete note [{i}]? (y/n) "):
+                    self._annotation_delete(str(i))
+                    sel = max(0, sel - 1)
+            elif ch == ord("/"):
+                res = self._inline_prompt("Filter (text or #tag): ", flt)
+                if res is not None:
+                    flt = res.strip()
+                    sel = 0
+            elif ch == ord("p"):
+                preset_names = list(self._notes_presets().keys())
+                if preset_names:
+                    preset_idx = (preset_idx + 1) % len(preset_names)
+                    name = preset_names[preset_idx]
+                    flt = self._notes_presets()[name]
+                    sel = 0
+                    self.notify(f"Preset: {name}  ({flt})")
+                else:
+                    self.notify("No saved presets. Press s to save one.")
+            elif ch == ord("s"):
+                name = self._inline_prompt("Save current filter as preset: ")
+                if name and name.strip():
+                    self._notes_preset_save(name, flt)
+                    self.notify(f"Saved preset '{name.strip()}'")
+            elif ch == ord("x"):
+                return self._annotations_export()
+
+    # ── Main run loop ──────────────────────────────────────────────────
 
     def run(self) -> None:
         while self._running:
@@ -8559,7 +10013,7 @@ class StarApp:
         elif ch == ord("T"):
             self._skip_prev_table()
 
-        # ── Chapter navigation (suggestion 23) ──────────────────────────────
+        # ── Chapter navigation ──────────────────────────────────────────────
         elif ch == curses.KEY_F10:
             self._chapter_prev()
         elif ch == curses.KEY_F11:
@@ -8567,13 +10021,13 @@ class StarApp:
         elif ch == curses.KEY_F12:
             self._chapter_list()
 
-        # ── Navigation history (suggestion 29) ──────────────────────────────
+        # ── Navigation history ──────────────────────────────────────────────
         elif ch == ord("H"):  # H = history back (capital to avoid conflict)
             self._history_back()
         elif ch == ord("L"):  # L = history forward
             self._history_forward()
 
-        # ── Clipboard (suggestion 27) ────────────────────────────────────────
+        # ── Clipboard ────────────────────────────────────────────────────────
         elif ch == 3:  # Ctrl+C
             self._copy_to_clipboard()
         # ── Speech Cursor mode ────────────────────────────────────────────
@@ -8588,6 +10042,16 @@ class StarApp:
         elif ch in (0, 24):  # Ctrl+Space / Ctrl+X
             self._tts_stop()
             self.notify("Speech stopped")
+
+        # ── Annotations / notes ─────────────────────────────────────────────
+        elif ch == ord("a"):  # add a note at the reading position
+            self._annotate()
+        elif ch == ord("A"):  # interactive notes browser
+            self._notes_browser()
+
+        # ── Keyboard cheat sheet ────────────────────────────────────────────
+        elif ch == ord("?"):
+            self._show_shortcuts()
 
         # ── Command palette ────────────────────────────────────────────────
         elif ch == ord(":"):
@@ -9331,14 +10795,14 @@ def _parse_css_palette(css: str) -> Dict[str, str]:
     from copy import deepcopy as _dc
 
     _DARK = {
-        "bg": "#1e1e2e",
-        "fg": "#cdd6f4",
-        "sel": "#45475a",
-        "h1": "#89dceb",
-        "h2": "#74c7ec",
-        "h3": "#cba6f7",
-        "h4": "#f5c2e7",
-        "code": "#a6e3a1",
+        "bg": "#16181d",
+        "fg": "#c6ccd4",
+        "sel": "#2c313a",
+        "h1": "#82aaff",
+        "h2": "#89ddff",
+        "h3": "#c792ea",
+        "h4": "#f78c6c",
+        "code": "#7fdbab",
     }
     pal = _dc(_DARK)
 
@@ -9410,14 +10874,14 @@ def _seed_default_css_themes() -> None:
     # module level (StarWindow._PALETTES is defined inside _run_qt_gui).
     _BUILT_IN: Dict[str, Dict[str, str]] = {
         "dark": {
-            "bg": "#1e1e2e",
-            "fg": "#cdd6f4",
-            "sel": "#45475a",
-            "h1": "#89dceb",
-            "h2": "#74c7ec",
-            "h3": "#cba6f7",
-            "h4": "#f5c2e7",
-            "code": "#a6e3a1",
+            "bg": "#16181d",
+            "fg": "#c6ccd4",
+            "sel": "#2c313a",
+            "h1": "#82aaff",
+            "h2": "#89ddff",
+            "h3": "#c792ea",
+            "h4": "#f78c6c",
+            "code": "#7fdbab",
         },
         "light": {
             "bg": "#fafafa",
@@ -9511,7 +10975,32 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
     except AttributeError:
         _USER_ROLE = Qt.UserRole  # type: ignore[attr-defined]  # PyQt5
 
-    # High DPI support (suggestion 32) — must be set before QApplication().
+    # Enums used by the reading-accessibility features (spacing, reading
+    # aids, highlight tuning).  Each was reorganized between PyQt5 and 6.
+    try:
+        _PROPORTIONAL = QTextBlockFormat.LineHeightTypes.ProportionalHeight  # PyQt6
+    except AttributeError:
+        _PROPORTIONAL = QTextBlockFormat.ProportionalHeight  # type: ignore[attr-defined]
+    try:
+        _DOC_SELECTION = QTextCursor.SelectionType.Document  # PyQt6
+    except AttributeError:
+        _DOC_SELECTION = QTextCursor.Document  # type: ignore[attr-defined]
+    try:
+        _FULL_WIDTH_SEL = QTextFormat.Property.FullWidthSelection  # PyQt6
+    except AttributeError:
+        _FULL_WIDTH_SEL = QTextFormat.FullWidthSelection  # type: ignore[attr-defined]
+    try:
+        _PCT_SPACING = QFont.SpacingType.PercentageSpacing  # PyQt6
+    except AttributeError:
+        _PCT_SPACING = QFont.PercentageSpacing  # type: ignore[attr-defined]
+    try:
+        _SINGLE_UNDERLINE = QTextCharFormat.UnderlineStyle.SingleUnderline  # PyQt6
+        _WAVE_UNDERLINE = QTextCharFormat.UnderlineStyle.WaveUnderline
+    except AttributeError:
+        _SINGLE_UNDERLINE = QTextCharFormat.SingleUnderline  # type: ignore[attr-defined]
+        _WAVE_UNDERLINE = QTextCharFormat.WaveUnderline  # type: ignore[attr-defined]
+
+    # High DPI support — must be set before QApplication().
     # Use the module-level Qt object so PyQt6's C-extension type checks
     # receive the exact enum type they were compiled against.
     if settings.get("qt_hidpi", True):
@@ -9600,18 +11089,25 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
         # complete.  Carries the status-bar message to display (success or
         # error text) so the GUI thread can update safely.
         _export_audio_signal = pyqtSignal(str)
+        # Emitted from the Whisper background threads so results
+        # land on the GUI thread.  transcribe: (text, source_path);
+        # dictate: (text, char_pos_str, anchor).
+        _transcribe_signal = pyqtSignal(str, str)
+        _dictate_signal = pyqtSignal(str, str, str)
+        _dictate_partial_signal = pyqtSignal(str)  # live streaming dictation preview
+        _doi_signal = pyqtSignal(str)  # Crossref DOI lookup result (JSON or ERROR:)
 
         # Per-theme CSS colors used by _md_to_html and _apply_qt_theme.
         _PALETTES: Dict[str, Dict[str, str]] = {
             "dark": {
-                "bg": "#1e1e2e",
-                "fg": "#cdd6f4",
-                "sel": "#45475a",
-                "h1": "#89dceb",
-                "h2": "#74c7ec",
-                "h3": "#cba6f7",
-                "h4": "#f5c2e7",
-                "code": "#a6e3a1",
+                "bg": "#16181d",
+                "fg": "#c6ccd4",
+                "sel": "#2c313a",
+                "h1": "#82aaff",
+                "h2": "#89ddff",
+                "h3": "#c792ea",
+                "h4": "#f78c6c",
+                "code": "#7fdbab",
             },
             "light": {
                 "bg": "#fafafa",
@@ -9660,10 +11156,10 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             self._qt_word_map: List[int] = []
 
             # QTextCharFormat applied to the currently spoken word.
+            # Built from the user's highlight style/color settings so the
+            # karaoke highlight can be tuned (see _rebuild_hl_fmt).
             self._hl_fmt = QTextCharFormat()
-            self._hl_fmt.setBackground(QColor("#06b6d4"))  # cyan-500
-            self._hl_fmt.setForeground(QColor("#000000"))  # black
-            self._hl_fmt.setFontWeight(700)  # bold
+            self._rebuild_hl_fmt()
 
             # Session counter — incremented by every new speak() invocation.
             # The timer thread closes over the session value at speak() time;
@@ -9693,6 +11189,11 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             self._export_audio_signal.connect(
                 lambda msg: self.statusBar().showMessage(msg), _QUEUED
             )
+            # Wire the Whisper transcription / dictation result signals.
+            self._transcribe_signal.connect(self._qt_on_transcribed, _QUEUED)
+            self._dictate_signal.connect(self._qt_on_dictated, _QUEUED)
+            self._dictate_partial_signal.connect(self._qt_on_dictate_partial, _QUEUED)
+            self._doi_signal.connect(self._qt_on_doi, _QUEUED)
 
             # Speech Cursor (SC) mode state for the Qt GUI.
             # Mirrors the TUI sc mode: Tab enters it, arrows navigate
@@ -9722,27 +11223,32 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
 
         def _setup_ui(self) -> None:
             self.setWindowTitle(APP_TITLE)
-            font_size = int(self.settings["font_size"]) or 14
             self.resize(
                 int(self.settings["gui_width"]), int(self.settings["gui_height"])
             )
 
             # Document view
-            fam = self.settings.get("qt_font_family", "Georgia")
             self.editor = QTextEdit()
             self.editor.setReadOnly(True)
-            self.editor.setFont(QFont(fam, font_size))
+            # Build the base font from family/size + letter/word spacing and
+            # the optional dyslexia-friendly family override.
+            self.editor.setFont(self._make_editor_font())
             # Hide the blinking text cursor — this is a reader, not an editor.
             self.editor.setCursorWidth(0)
             self.setCentralWidget(self.editor)
             # Apply the current theme's colors to the editor widget.
             self._apply_qt_theme(self.settings.get("theme", "dark"))
 
-            # AT-SPI2 accessibility metadata (suggestion 31)
+            # AT-SPI2 accessibility metadata
             self.editor.setAccessibleName("Document View")
             self.editor.setAccessibleDescription(
                 "Main reading area. Space=play/pause, Ctrl+F=search, Escape=stop."
             )
+
+            # Registry of (label, QAction, default_shortcut) for every action
+            # that carries a shortcut, so they can be remapped at runtime
+            # Populated by _act and _nav below.
+            self._shortcut_actions = []
 
             # Toolbar
             tb = self.addToolBar("Controls")
@@ -9752,7 +11258,9 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
                 """Add one action to the toolbar with an optional tooltip."""
                 a = QAction(label, self)
                 if shortcut:
-                    a.setShortcut(shortcut)
+                    key = self._resolve_shortcut(shortcut)
+                    a.setShortcut(key)
+                    self._shortcut_actions.append((label, a, shortcut))
                 a.setToolTip(tip or label)
                 a.triggered.connect(fn)
                 tb.addAction(a)
@@ -9846,6 +11354,18 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
                 "Toggle Contents panel (Ctrl+\\\\)",
             )
             _act(
+                "Notes",
+                "",  # Ctrl+Shift+N is bound as a window-level shortcut
+                self._qt_toggle_annotations,
+                "Toggle Notes panel (Ctrl+Shift+N)",
+            )
+            _act(
+                "+ Note",
+                "",  # Ctrl+Shift+A is bound as a window-level shortcut
+                self._qt_add_annotation,
+                "Add a note at the cursor (Ctrl+Shift+A)",
+            )
+            _act(
                 "Level", "Ctrl+L", self._qt_reading_level, "Show reading level (Ctrl+L)"
             )
             _act("Font", "", self._qt_change_font_dialog, "Change display font")
@@ -9903,6 +11423,121 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             clr_act.triggered.connect(self._qt_highlight_clear)
             hl_menu.addAction(clr_act)
 
+            # Notes / annotations menu
+            notes_menu: QMenu = mb.addMenu("Notes")
+            add_note_act = QAction("Add Note at Cursor…", self)
+            add_note_act.setShortcut("Ctrl+Shift+A")
+            add_note_act.triggered.connect(self._qt_add_annotation)
+            notes_menu.addAction(add_note_act)
+            edit_note_act = QAction("Edit Selected Note…", self)
+            edit_note_act.triggered.connect(self._qt_edit_annotation)
+            notes_menu.addAction(edit_note_act)
+            del_note_act = QAction("Delete Selected Note", self)
+            del_note_act.triggered.connect(self._qt_delete_annotation)
+            notes_menu.addAction(del_note_act)
+            notes_menu.addSeparator()
+            toggle_notes_act = QAction("Toggle Notes Panel", self)
+            toggle_notes_act.setShortcut("Ctrl+Shift+N")
+            toggle_notes_act.triggered.connect(self._qt_toggle_annotations)
+            notes_menu.addAction(toggle_notes_act)
+            export_notes_act = QAction("Export Notes…", self)
+            export_notes_act.triggered.connect(self._qt_export_annotations)
+            notes_menu.addAction(export_notes_act)
+
+            # Helper: build a menu from (label, callable) rows (None = separator).
+            def _menu(title: str, rows: List[Any]) -> "QMenu":
+                menu = mb.addMenu(title)
+                for row in rows:
+                    if row is None:
+                        menu.addSeparator()
+                        continue
+                    label, fn = row
+                    act = QAction(label, self)
+                    act.triggered.connect(lambda _chk=False, f=fn: f())
+                    menu.addAction(act)
+                return menu
+
+            # Speech menu — every playback command reachable without the keyboard.
+            _menu(
+                "Speech",
+                [
+                    ("Play / Pause", self._tts_toggle),
+                    ("Stop", self._tts_stop),
+                    ("Play from Cursor", self._qt_play_from_cursor),
+                    None,
+                    ("Faster (+20 wpm)", lambda: self._rate_change(+20)),
+                    ("Slower (−20 wpm)", lambda: self._rate_change(-20)),
+                    None,
+                    ("Choose Voice…", self._voice_picker_qt),
+                    (
+                        "Speech Cursor Mode",
+                        lambda: (
+                            self._qt_sc_exit()
+                            if self._qt_sc_mode
+                            else self._qt_sc_enter()
+                        ),
+                    ),
+                    None,
+                    (
+                        "Toggle SSML Prosody",
+                        lambda: (
+                            self.settings.set(
+                                "use_ssml", not self.settings.get("use_ssml", False)
+                            ),
+                            self.statusBar().showMessage(
+                                "SSML prosody: "
+                                + ("ON" if self.settings.get("use_ssml") else "OFF")
+                            ),
+                        ),
+                    ),
+                ],
+            )
+
+            # Navigate menu.
+            _menu(
+                "Navigate",
+                [
+                    ("Next Sentence", self._qt_skip_next_sentence),
+                    ("Previous Sentence", self._qt_skip_prev_sentence),
+                    ("Replay Sentence", self._qt_replay_sentence),
+                    None,
+                    ("Next Paragraph", self._qt_skip_next_paragraph),
+                    ("Previous Paragraph", self._qt_skip_prev_paragraph),
+                    ("Replay Paragraph", self._qt_replay_paragraph),
+                    None,
+                    ("Next Heading", self._qt_read_next_heading),
+                    ("Previous Heading", self._qt_read_prev_heading),
+                    None,
+                    ("Next Table", self._qt_skip_next_table),
+                    ("Previous Table", self._qt_skip_prev_table),
+                ],
+            )
+
+            # Edit menu.
+            _menu(
+                "Edit",
+                [
+                    ("Copy", self._qt_copy),
+                    None,
+                    ("Toggle Edit Mode", self._qt_edit_mode_toggle),
+                    ("Save", self._qt_save),
+                ],
+            )
+
+            # Citations menu.
+            _menu(
+                "Citations",
+                [
+                    ("Import…", self._qt_import_citations),
+                    ("Export…", self._qt_export_citations),
+                    None,
+                    ("Add Citation…", self._qt_add_citation),
+                    ("Add by DOI…", self._qt_add_citation_by_doi),
+                    ("Insert Citation at Cursor…", self._qt_insert_citation),
+                    ("Manage / Browse…", self._qt_manage_citations),
+                ],
+            )
+
             # View menu
             view_menu: QMenu = mb.addMenu("View")
             toc_act = QAction("Toggle Contents Panel", self)
@@ -9911,6 +11546,10 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             # ambiguous and fire neither action.
             toc_act.triggered.connect(self._qt_toggle_toc)
             view_menu.addAction(toc_act)
+            notes_toggle_act = QAction("Toggle Notes Panel", self)
+            notes_toggle_act.triggered.connect(self._qt_toggle_annotations)
+            view_menu.addAction(notes_toggle_act)
+            view_menu.addSeparator()
             theme_act = QAction("Next Theme", self)
             # No setShortcut here — F5 is already on the toolbar button.
             theme_act.triggered.connect(self._next_theme)
@@ -9936,6 +11575,106 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             level_act.triggered.connect(self._qt_reading_level)
             view_menu.addAction(level_act)
 
+            # ── Reading Aids submenu (accessibility) ─────────────────────
+            aids_menu: QMenu = view_menu.addMenu("Reading Aids")
+            spacing_act = QAction("Text Spacing…", self)
+            spacing_act.setToolTip(
+                "Adjust line height, letter and word spacing (WCAG 1.4.12)"
+            )
+            spacing_act.triggered.connect(self._qt_text_spacing_dialog)
+            aids_menu.addAction(spacing_act)
+            karaoke_act = QAction("Karaoke Highlight…", self)
+            karaoke_act.setToolTip(
+                "Tune the spoken-word highlight style, color, speed and lead"
+            )
+            karaoke_act.triggered.connect(self._qt_karaoke_dialog)
+            aids_menu.addAction(karaoke_act)
+            aids_menu.addSeparator()
+            self._dyslexia_font_act = QAction("Dyslexia-Friendly Font", self)
+            self._dyslexia_font_act.setCheckable(True)
+            self._dyslexia_font_act.setChecked(
+                bool(self.settings.get("qt_dyslexia_font", False))
+            )
+            self._dyslexia_font_act.setToolTip(
+                "Prefer OpenDyslexic / Atkinson Hyperlegible / Lexend if installed"
+            )
+            self._dyslexia_font_act.triggered.connect(self._qt_toggle_dyslexia_font)
+            aids_menu.addAction(self._dyslexia_font_act)
+            self._bionic_act = QAction("Bionic Reading", self)
+            self._bionic_act.setCheckable(True)
+            self._bionic_act.setChecked(
+                bool(self.settings.get("qt_bionic_reading", False))
+            )
+            self._bionic_act.setToolTip("Embolden the leading part of each word")
+            self._bionic_act.triggered.connect(self._qt_toggle_bionic)
+            aids_menu.addAction(self._bionic_act)
+            self._current_line_act = QAction("Current-Line Highlight", self)
+            self._current_line_act.setCheckable(True)
+            self._current_line_act.setChecked(
+                bool(self.settings.get("qt_current_line_highlight", False))
+            )
+            self._current_line_act.setToolTip(
+                "Tint the line being read with a focus band"
+            )
+            self._current_line_act.triggered.connect(self._qt_toggle_current_line)
+            aids_menu.addAction(self._current_line_act)
+
+            # Tools menu — transcription, dictation, and maintenance.
+            _menu(
+                "Tools",
+                [
+                    ("Transcribe Audio File…", self._qt_transcribe_file),
+                    ("Dictate Note (record)…", self._qt_dictate_note),
+                    (
+                        "Toggle Transcript Timestamps",
+                        lambda: (
+                            self.settings.set(
+                                "transcribe_timestamps",
+                                not self.settings.get("transcribe_timestamps", False),
+                            ),
+                            self.statusBar().showMessage(
+                                "Transcript timestamps: "
+                                + (
+                                    "ON"
+                                    if self.settings.get("transcribe_timestamps")
+                                    else "OFF"
+                                )
+                            ),
+                        ),
+                    ),
+                    None,
+                    ("Reading Level", self._qt_reading_level),
+                    (
+                        "Clear Document Cache",
+                        lambda: (
+                            shutil.rmtree(CACHE_DIR, ignore_errors=True),
+                            self.statusBar().showMessage("Document cache cleared"),
+                        ),
+                    ),
+                ],
+            )
+
+            # Help menu.
+            _menu(
+                "Help",
+                [
+                    ("Command Palette… (F2)", self._qt_command_palette),
+                    ("Keyboard Shortcuts…", self._qt_show_shortcuts),
+                    ("Customize Shortcuts…", self._qt_customize_shortcuts),
+                    None,
+                    ("Open README (Help)", self._show_about),
+                    (
+                        "About star",
+                        lambda: QMessageBox.about(
+                            self,
+                            f"About {APP_NAME}",
+                            f"<b>{APP_TITLE}</b><br>Version {APP_VERSION}<br><br>"
+                            f"{__copyright__}<br>{__license__}",
+                        ),
+                    ),
+                ],
+            )
+
             # ── Table of Contents dock (Feature #25) ─────────────────────────
             self._toc_dock = QDockWidget("Contents", self)
             self._toc_dock.setObjectName("toc_dock")
@@ -9955,6 +11694,49 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             show_toc = bool(self.settings.get("qt_show_toc", True))
             self._toc_dock.setVisible(show_toc)
 
+            # ── Annotations / Notes dock ─────────────────────────────────────
+            # Mirrors the Contents dock: a list of notes anchored at character
+            # positions in the document.  Single-click scrolls to the note;
+            # double-click reads from there.  Notes persist per-document in
+            # settings and can be exported (Markdown / JSON / BibTeX / RIS).
+            self._annot_dock = QDockWidget("Notes", self)
+            self._annot_dock.setObjectName("annotations_dock")
+            self._annot_dock.setAllowedAreas(
+                _LEFT_DOCK | _RIGHT_DOCK  # type: ignore[operator]
+            )
+            _annot_panel = QWidget()
+            _annot_layout = QVBoxLayout(_annot_panel)
+            _annot_layout.setContentsMargins(4, 4, 4, 4)
+            _annot_layout.setSpacing(4)
+            # Full-text search / tag filter box (type `#tag` to filter by tag).
+            self._annot_filter = QLineEdit()
+            self._annot_filter.setPlaceholderText("Filter notes — text or #tag…")
+            self._annot_filter.setClearButtonEnabled(True)
+            self._annot_filter.textChanged.connect(
+                lambda _t: self._qt_build_annotations()
+            )
+            _annot_layout.addWidget(self._annot_filter)
+            self._annot_list = QListWidget()
+            self._annot_list.setMinimumWidth(200)
+            self._annot_list.setWordWrap(True)
+            self._annot_list.itemActivated.connect(self._qt_annotation_navigate)
+            self._annot_list.itemDoubleClicked.connect(self._qt_annotation_play)
+            _annot_layout.addWidget(self._annot_list)
+            _btn_row = QHBoxLayout()
+            for _lbl, _fn in (
+                ("Add", self._qt_add_annotation),
+                ("Edit", self._qt_edit_annotation),
+                ("Delete", self._qt_delete_annotation),
+                ("Export…", self._qt_export_annotations),
+            ):
+                _b = QPushButton(_lbl)
+                _b.clicked.connect(lambda _chk=False, fn=_fn: fn())
+                _btn_row.addWidget(_b)
+            _annot_layout.addLayout(_btn_row)
+            self._annot_dock.setWidget(_annot_panel)
+            self.addDockWidget(_RIGHT_DOCK, self._annot_dock)
+            self._annot_dock.setVisible(bool(self.settings.get("qt_show_notes", False)))
+
             # ── Window-level shortcuts ─────────────────────────────────────
             # Aligned with conventional screen-reader key bindings so users
             # familiar with NVDA/JAWS/VoiceOver have the same muscle memory.
@@ -9963,40 +11745,50 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             #   Ctrl+Shift+<letter>    → backward navigation
             #   Alt+<punctuation>      → sentence navigation (avoids
             #                            collisions with text-editing chords)
-            def _nav(key: str, fn: Callable) -> None:
+            def _nav(key: str, fn: Callable, label: str = "") -> None:
                 na = QAction(self)
-                na.setShortcut(key)
+                resolved = self._resolve_shortcut(key)
+                na.setShortcut(resolved)
                 na.triggered.connect(fn)
                 self.addAction(na)  # window-level — fires regardless of focus
+                self._shortcut_actions.append((label or key, na, key))
 
             # Play from cursor position
-            _nav("Ctrl+Return", self._qt_play_from_cursor)
+            _nav("Ctrl+Return", self._qt_play_from_cursor, "Play from cursor")
 
             # Heading navigation (H = Heading, screen-reader convention)
-            _nav("Ctrl+H", self._qt_skip_next_heading)
-            _nav("Ctrl+Shift+H", self._qt_skip_prev_heading)
+            _nav("Ctrl+H", self._qt_skip_next_heading, "Next heading")
+            _nav("Ctrl+Shift+H", self._qt_skip_prev_heading, "Previous heading")
 
             # Paragraph navigation (P = Paragraph)
-            _nav("Ctrl+P", self._qt_skip_next_paragraph)
-            _nav("Ctrl+Shift+P", self._qt_skip_prev_paragraph)
-            _nav("Ctrl+R", self._qt_replay_paragraph)
+            _nav("Ctrl+P", self._qt_skip_next_paragraph, "Next paragraph")
+            _nav("Ctrl+Shift+P", self._qt_skip_prev_paragraph, "Previous paragraph")
+            _nav("Ctrl+R", self._qt_replay_paragraph, "Replay paragraph")
 
             # Table navigation (T = Table)
-            _nav("Ctrl+T", self._qt_skip_next_table)
-            _nav("Ctrl+Shift+T", self._qt_skip_prev_table)
+            _nav("Ctrl+T", self._qt_skip_next_table, "Next table")
+            _nav("Ctrl+Shift+T", self._qt_skip_prev_table, "Previous table")
 
             # Sentence navigation (Alt+punctuation avoids text-editing conflicts)
-            _nav("Alt+.", self._qt_skip_next_sentence)
-            _nav("Alt+,", self._qt_skip_prev_sentence)
-            _nav("Alt+;", self._qt_replay_sentence)
+            _nav("Alt+.", self._qt_skip_next_sentence, "Next sentence")
+            _nav("Alt+,", self._qt_skip_prev_sentence, "Previous sentence")
+            _nav("Alt+;", self._qt_replay_sentence, "Replay sentence")
 
             # Document editing
-            _nav("Ctrl+E", self._qt_edit_mode_toggle)
-            _nav("Ctrl+S", self._qt_save)
+            _nav("Ctrl+E", self._qt_edit_mode_toggle, "Toggle edit mode")
+            _nav("Ctrl+S", self._qt_save, "Save")
+
+            # Annotations / notes (A = annotation, N = notes panel)
+            _nav("Ctrl+Shift+A", self._qt_add_annotation, "Add note")
+            _nav("Ctrl+Shift+N", self._qt_toggle_annotations, "Toggle notes panel")
+
+            # Command palette (F2 — mirrors the TUI command palette key)
+            _nav("F2", self._qt_command_palette, "Command palette")
 
             # Show the welcome screen immediately so the window is never
             # blank at launch.  _on_doc_loaded replaces it when a file loads.
             self.editor.setHtml(self._welcome_html())
+            self._apply_block_spacing()
             self.statusBar().showMessage(APP_TITLE)
 
         def _welcome_html(self) -> str:
@@ -10147,9 +11939,12 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
                 return
             self.doc = doc
             self.editor.setHtml(self._md_to_html(doc.markdown or ""))
+            self._apply_block_spacing()  # line-height (reset by setHtml)
             self.editor.setExtraSelections([])  # clear leftover TTS highlights
             # Build the ToC panel from the new document's headings.
             self._qt_build_toc()
+            # Populate the Notes panel from saved annotations for this document.
+            self._qt_build_annotations()
             # Restore any saved user highlights for this document.
             self._qt_apply_user_highlights()
 
@@ -10288,12 +12083,17 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
                     line = re.sub(r"`(.+?)`", r"<code>\1</code>", line)
                     out.append(f"<p>{line}</p>")
             body = "\n".join(out)
+            # Bionic-reading: embolden the leading part of each word so the
+            # eye is pulled forward through the text (a dyslexia reading aid).
+            if self.settings.get("qt_bionic_reading", False):
+                body = self._bionic_html(body)
+            fam = self._effective_font_family()
             if custom_css:
                 style = custom_css
             else:
                 style = (
                     f"body{{background:{pal['bg']};color:{pal['fg']};"
-                    "      font-family:Georgia,serif;margin:14px;}}"
+                    f"      font-family:{fam},sans-serif;margin:14px;}}"
                     f"h1{{color:{pal['h1']}}}"
                     f"h2{{color:{pal['h2']}}}"
                     f"h3{{color:{pal['h3']}}}"
@@ -10304,6 +12104,170 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
                 "<html><head><style>" + style + "</style></head>"
                 f"<body>{body}</body></html>"
             )
+
+        # ── Reading accessibility: fonts, spacing & reading aids ──────────
+
+        # Candidate dyslexia-friendly families, in order of preference.
+        # OpenDyslexic is purpose-built; the others are widely available
+        # fallbacks with the high legibility traits dyslexic readers benefit
+        # from (open apertures, distinct letterforms, generous spacing).
+        _DYSLEXIA_FONTS = (
+            "OpenDyslexic",
+            "OpenDyslexic3",
+            "OpenDyslexicAlta",
+            "Atkinson Hyperlegible",
+            "Lexend",
+            "Lexend Deca",
+            "Comic Sans MS",
+            "Comic Neue",
+        )
+
+        def _find_dyslexia_font(self) -> str:
+            """Return the first installed dyslexia-friendly family, or "".
+
+            QFontDatabase.families() is a static method in PyQt6 but an
+            instance method in PyQt5, so both call styles are attempted.
+            """
+            try:
+                fams = QFontDatabase.families()  # PyQt6 (static)
+            except TypeError:
+                fams = QFontDatabase().families()  # PyQt5 (instance)
+            except Exception:
+                return ""
+            available = {str(f).lower() for f in fams}
+            for cand in self._DYSLEXIA_FONTS:
+                if cand.lower() in available:
+                    return cand
+            return ""
+
+        def _effective_font_family(self) -> str:
+            """The display family, honoring the dyslexia-font preference.
+
+            When 'qt_dyslexia_font' is on and a dyslexia-friendly family is
+            installed it wins; otherwise the user's chosen family is used.
+            """
+            if self.settings.get("qt_dyslexia_font", False):
+                fam = self._find_dyslexia_font()
+                if fam:
+                    return fam
+            return str(self.settings.get("qt_font_family", "Georgia"))
+
+        def _make_editor_font(self) -> "QFont":
+            """Construct the editor's base QFont from family, size, and the
+            letter/word-spacing accessibility settings.
+
+            Letter and word spacing are applied through QFont (Qt's rich-text
+            CSS subset does not support letter-spacing/word-spacing), while
+            line height is applied separately via _apply_block_spacing.
+            """
+            fam = self._effective_font_family()
+            size = int(self.settings.get("font_size", 0)) or int(
+                self.settings.get("qt_font_size", 14)
+            )
+            f = QFont(fam, max(6, size))
+            ls = float(self.settings.get("qt_letter_spacing", 0.0))
+            # PercentageSpacing: 100 == normal; we store *extra* percent.
+            f.setLetterSpacing(_PCT_SPACING, 100.0 + ls)
+            ws = float(self.settings.get("qt_word_spacing", 0.0))
+            f.setWordSpacing(ws)
+            return f
+
+        def _apply_block_spacing(self) -> None:
+            """Apply the line-height multiplier to every block in the document.
+
+            Run after each setHtml() because block formats are per-document
+            and are reset whenever the HTML is replaced.
+            """
+            try:
+                mult = float(self.settings.get("qt_line_height", 1.5))
+            except (TypeError, ValueError):
+                mult = 1.5
+            pct = max(100.0, mult * 100.0)
+            cur = QTextCursor(self.editor.document())
+            cur.select(_DOC_SELECTION)
+            bf = QTextBlockFormat()
+            # setLineHeight's second arg is an int height-type.  PyQt5 enums
+            # are plain ints; PyQt6 enums expose the int via .value.
+            ht = getattr(_PROPORTIONAL, "value", _PROPORTIONAL)
+            bf.setLineHeight(pct, int(ht))
+            cur.mergeBlockFormat(bf)
+
+        def _apply_text_spacing(self) -> None:
+            """Re-apply font (letter/word spacing) and block (line-height)
+            spacing to the live document, then refresh."""
+            self.editor.setFont(self._make_editor_font())
+            self._apply_block_spacing()
+
+        def _bionic_word(self, m: "re.Match") -> str:
+            """Embolden the leading ~40% of a single word for bionic reading."""
+            w = m.group(0)
+            if len(w) <= 1:
+                return f"<b>{w}</b>"
+            n = max(1, round(len(w) * 0.4))
+            return f"<b>{w[:n]}</b>{w[n:]}"
+
+        def _bionic_html(self, html: str) -> str:
+            """Apply bionic-reading emphasis to the text runs of an HTML body.
+
+            Splits on tags and HTML entities so markup and entities are left
+            intact; text inside <code> spans is skipped (code stays verbatim).
+            """
+            parts = re.split(r"(<[^>]+>|&[a-zA-Z]+;|&#\d+;)", html)
+            in_code = False
+            out: List[str] = []
+            word_re = re.compile(r"[^\W\d_]{2,}", re.UNICODE)
+            for p in parts:
+                if not p:
+                    continue
+                if p.startswith("<"):
+                    low = p.lower()
+                    if low.startswith("<code"):
+                        in_code = True
+                    elif low.startswith("</code"):
+                        in_code = False
+                    out.append(p)
+                elif p.startswith("&"):
+                    out.append(p)  # HTML entity — leave untouched
+                elif in_code:
+                    out.append(p)
+                else:
+                    out.append(word_re.sub(self._bionic_word, p))
+            return "".join(out)
+
+        def _rebuild_hl_fmt(self) -> None:
+            """Rebuild the spoken-word highlight format from the user's
+            'highlight_style' and 'highlight_color' settings.
+
+            Styles: background (filled), underline, box (wavy underline),
+            bold (colored bold text), color (colored text).
+            """
+            style = str(self.settings.get("highlight_style", "background"))
+            color = QColor(str(self.settings.get("highlight_color", "cyan")))
+            if not color.isValid():
+                color = QColor("#06b6d4")  # cyan-500 fallback
+            fmt = QTextCharFormat()
+            if style == "underline":
+                fmt.setFontUnderline(True)
+                fmt.setUnderlineColor(color)
+                fmt.setUnderlineStyle(_SINGLE_UNDERLINE)
+                fmt.setFontWeight(700)
+            elif style == "box":
+                fmt.setUnderlineColor(color)
+                fmt.setUnderlineStyle(_WAVE_UNDERLINE)
+                fmt.setFontWeight(700)
+            elif style == "bold":
+                fmt.setForeground(color)
+                fmt.setFontWeight(900)
+            elif style == "color":
+                fmt.setForeground(color)
+                fmt.setFontWeight(700)
+            else:  # "background" (default)
+                fmt.setBackground(color)
+                # Pick a readable foreground based on the fill's luminance.
+                lum = 0.299 * color.red() + 0.587 * color.green() + 0.114 * color.blue()
+                fmt.setForeground(QColor("#000000" if lum > 140 else "#ffffff"))
+                fmt.setFontWeight(700)
+            self._hl_fmt = fmt
 
         # ── TTS controls ──────────────────────────────────────────────────
 
@@ -10445,16 +12409,23 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             if word_idx < 0 or not self._qt_word_map:
                 self.editor.setExtraSelections(selections)
                 return
-            if word_idx >= len(self._qt_word_map):
-                self.editor.setExtraSelections(selections)
-                return
 
-            char_pos = self._qt_word_map[word_idx]
+            # Lead/lag tuning: shift the *visual* highlight ahead of (or
+            # behind) the spoken word so the cursor can be made to anticipate
+            # the audio for users who track best slightly ahead.
+            try:
+                lead = int(self.settings.get("highlight_lead_words", 0))
+            except (TypeError, ValueError):
+                lead = 0
+            vis_idx = word_idx + lead
+            vis_idx = max(0, min(vis_idx, len(self._qt_word_map) - 1))
+
+            char_pos = self._qt_word_map[vis_idx]
 
             # Word length from the word map built in _build_qt_word_map.
             word_len = 1
-            if self.doc and word_idx < len(self.doc.word_map):
-                word_len = max(1, self.doc.word_map[word_idx].tts_len)
+            if self.doc and vis_idx < len(self.doc.word_map):
+                word_len = max(1, self.doc.word_map[vis_idx].tts_len)
 
             # Clamp to actual document length.
             doc_obj = self.editor.document()
@@ -10470,8 +12441,25 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             cursor.setPosition(char_pos)
             cursor.setPosition(char_pos + word_len, _KEEP_ANCHOR)
 
+            # Optional current-line band: a full-width tint behind the line
+            # being read, drawn *under* the word highlight (reading aid #9).
+            if self.settings.get("qt_current_line_highlight", False):
+                pal = self._effective_palette(self.settings.get("theme", "dark"))
+                band = QColor(str(pal.get("sel", "#2c313a")))
+                line_fmt = QTextCharFormat()
+                line_fmt.setBackground(band)
+                # Property id is an int; PyQt6 enums expose it via .value.
+                _fw = getattr(_FULL_WIDTH_SEL, "value", _FULL_WIDTH_SEL)
+                line_fmt.setProperty(int(_fw), True)
+                line_cur = QTextCursor(doc_obj)
+                line_cur.setPosition(char_pos)
+                line_sel = QTextEdit.ExtraSelection()
+                line_sel.format = line_fmt
+                line_sel.cursor = line_cur
+                selections = selections + [line_sel]
+
             # Wrap format + cursor in an ExtraSelection and apply it,
-            # prepending the persistent user highlights.
+            # prepending the persistent user highlights (and line band).
             sel = QTextEdit.ExtraSelection()
             sel.format = self._hl_fmt
             sel.cursor = cursor
@@ -11077,6 +13065,7 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             self.editor.setReadOnly(True)
             self.editor.setCursorWidth(0)
             self.editor.setHtml(self._md_to_html(md))
+            self._apply_block_spacing()
             self._qt_apply_user_highlights()
             self.statusBar().showMessage("Read mode")
 
@@ -11160,8 +13149,10 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             self.editor.setReadOnly(True)
             self.editor.setCursorWidth(0)
             self.editor.setHtml(self._md_to_html(new_md))
+            self._apply_block_spacing()
             self._qt_apply_user_highlights()
             self._qt_build_toc()
+            self._qt_build_annotations()
 
             # Rebuild word maps asynchronously (same flow as _on_doc_loaded_impl)
             qt_plain = self.editor.document().toPlainText()
@@ -11317,19 +13308,22 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             """
             pal = self._effective_palette(theme_name)
             font_size = int(self.settings.get("font_size", 0)) or 14
-            self.editor.setStyleSheet(
-                "QTextEdit {"
+            sheet = (
+                "QTextEdit, QTextBrowser {"
                 f"  background-color: {pal['bg']};"
                 f"  color: {pal['fg']};"
                 f"  font-size: {font_size}pt;"
                 f"  selection-background-color: {pal['sel']};"
                 "}"
             )
+            self.editor.setStyleSheet(sheet)
             # Re-render so the HTML body styles match the new theme.
             if self.doc is not None:
                 self.editor.setHtml(self._md_to_html(self.doc.markdown))
             else:
                 self.editor.setHtml(self._welcome_html())
+            # Line height is a per-document block format reset by setHtml.
+            self._apply_block_spacing()
 
         def _next_theme(self) -> None:
             """Cycle to the next theme (built-in + custom CSS)."""
@@ -11426,11 +13420,12 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
                 # Keep font_size in sync so _apply_qt_theme always reads the
                 # correct value regardless of which key it checks.
                 self.settings["font_size"] = size
-            fam = str(self.settings.get("qt_font_family", "Georgia"))
+            fam = self._effective_font_family()
             fsz = int(self.settings.get("qt_font_size", 14))
-            # setFont sets the base font for the widget; _apply_qt_theme then
-            # re-renders the HTML with the matching font-size in the stylesheet.
-            self.editor.setFont(QFont(fam, fsz))
+            # setFont sets the base font for the widget (with letter/word
+            # spacing); _apply_qt_theme then re-renders the HTML with the
+            # matching font-size in the stylesheet and re-applies line height.
+            self.editor.setFont(self._make_editor_font())
             self._apply_qt_theme(str(self.settings.get("theme", "dark")))
             self.statusBar().showMessage(f"Font: {fam} {fsz}pt")
 
@@ -11587,7 +13582,11 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             if not dest:
                 return
             table = str(self.settings.get("braille_table", "en-ueb-g2.ctb"))
-            brf = _export_braille(self.doc.plain_text, table)
+            brf = _export_braille(
+                self.doc.plain_text,
+                table,
+                use_liblouis=bool(self.settings.get("braille_grade2", False)),
+            )
             try:
                 Path(dest).write_text(brf, encoding="utf-8")
                 self.statusBar().showMessage(f"Exported BRF → {dest}")
@@ -11595,23 +13594,24 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
                 self.statusBar().showMessage(f"Export error: {e}")
 
         def _qt_export_audio(self) -> None:
-            """Export the full document as a TTS audio file (MP3 / OGG / MP4 / WAV).
+            """Export the full document as a TTS audio file.
 
             Synthesis runs in a background thread so the GUI stays responsive.
-            MP3, OGG, and MP4 output requires **ffmpeg** (recommended) or
-            **pydub** (``pip install pydub``) to be installed; WAV works with
-            no additional dependencies.
+            **WAV is the default** because it needs no external tools; MP3,
+            OGG, and MP4 output additionally require **ffmpeg** (recommended)
+            or **pydub** (``pip install pydub``).
             """
             if not self.doc:
                 self.statusBar().showMessage("No document loaded")
                 return
             p = Path(self.doc.path) if self.doc.path else Path("export")
-            default = str(p.parent / (p.stem + ".mp3"))
+            fmt = str(self.settings.get("audio_export_format", "wav")).lstrip(".")
+            default = str(p.parent / (p.stem + f".{fmt}"))
             dest, _ = QFileDialog.getSaveFileName(
                 self,
                 "Export as Audio",
                 default,
-                "Audio Files (*.mp3 *.ogg *.mp4 *.wav);;All Files (*)",
+                "Audio Files (*.wav *.mp3 *.ogg *.mp4);;All Files (*)",
             )
             if not dest:
                 return
@@ -11892,6 +13892,1006 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             visible = not self._toc_dock.isVisible()
             self._toc_dock.setVisible(visible)
             self.settings["qt_show_toc"] = visible
+
+        # ── Annotations / Notes panel ────────────────────────────────────────
+
+        def _annot_key(self) -> str:
+            """Per-document key under which annotations are stored."""
+            if not self.doc:
+                return ""
+            return self.doc.path or self.doc.title or ""
+
+        def _qt_load_annotations(self) -> List[Dict[str, Any]]:
+            """Return a mutable copy of the saved annotations for this document,
+            sorted by document position."""
+            key = self._annot_key()
+            if not key:
+                return []
+            store = self.settings.get("annotations", {}) or {}
+            items = [dict(a) for a in store.get(key, [])]
+            items.sort(key=lambda a: int(a.get("char_pos", 0)))
+            return items
+
+        def _qt_store_annotations(self, items: List[Dict[str, Any]]) -> None:
+            """Persist *items* as the annotation list for this document."""
+            key = self._annot_key()
+            if not key:
+                return
+            store = dict(self.settings.get("annotations", {}) or {})
+            if items:
+                store[key] = items
+            else:
+                store.pop(key, None)
+            self.settings.set("annotations", store)
+
+        def _qt_build_annotations(self) -> None:
+            """Populate the Notes dock list from saved annotations.
+
+            Each row stores the annotation's char position (_USER_ROLE + 1)
+            and its index in the saved list (_USER_ROLE) so edit/delete can
+            target the right entry even when the visible list is filtered.
+            The filter box performs full-text search over the note, anchor,
+            and tags; a `#tag` term filters by tag.
+            """
+            self._annot_list.clear()
+            items = self._qt_load_annotations()
+            query = self._annot_filter.text() if hasattr(self, "_annot_filter") else ""
+            doc_len = max(1, self.editor.document().characterCount())
+            shown = 0
+            for idx, a in enumerate(items):
+                if not _annotation_matches(a, query):
+                    continue
+                shown += 1
+                note = str(a.get("note", "")).strip()
+                anchor = str(a.get("anchor", "")).strip()
+                tags = a.get("tags", []) or []
+                cite = str(a.get("cite", "")).strip()
+                pct = int(100 * int(a.get("char_pos", 0)) / doc_len)
+                first = note.splitlines()[0] if note else "(empty note)"
+                label = f"{pct:>3}%  {first}"
+                meta = ""
+                if tags:
+                    meta += "  ".join(f"#{t}" for t in tags)
+                if cite:
+                    meta += ("  " if meta else "") + f"@{cite}"
+                if anchor:
+                    label += f"\n        “{anchor[:48]}”"
+                if meta:
+                    label += f"\n        {meta}"
+                item = QListWidgetItem(label)
+                item.setData(_USER_ROLE, idx)
+                item.setData(_USER_ROLE + 1, int(a.get("char_pos", 0)))
+                item.setToolTip(note or anchor)
+                self._annot_list.addItem(item)
+            if query and hasattr(self, "_annot_dock"):
+                self._annot_dock.setWindowTitle(f"Notes ({shown}/{len(items)})")
+            elif hasattr(self, "_annot_dock"):
+                self._annot_dock.setWindowTitle(
+                    f"Notes ({len(items)})" if items else "Notes"
+                )
+
+        def _qt_current_anchor(self) -> Tuple[int, str]:
+            """Return (char_pos, anchor_text) for a new note.
+
+            Uses the selection if there is one (so the user can annotate a
+            specific passage), otherwise the cursor's paragraph as context.
+            """
+            cursor = self.editor.textCursor()
+            if cursor.hasSelection():
+                char_pos = cursor.selectionStart()
+                anchor = cursor.selectedText()
+            else:
+                char_pos = cursor.position()
+                anchor = cursor.block().text()
+            # selectedText() uses U+2029 for line breaks; normalize whitespace.
+            anchor = " ".join(anchor.split())[:120]
+            return char_pos, anchor
+
+        def _qt_add_annotation(self) -> None:
+            """Prompt for note text and attach it at the current position."""
+            if not self.doc:
+                self.statusBar().showMessage("Open a document before adding notes")
+                return
+            char_pos, anchor = self._qt_current_anchor()
+            text, ok = QInputDialog.getMultiLineText(
+                self,
+                "Add Note",
+                f"Note for: “{anchor[:60]}”" if anchor else "Note:",
+                "",
+            )
+            if not ok or not text.strip():
+                return
+            # Optional tags (comma/space separated; leading # optional).
+            tag_str, _ok2 = QInputDialog.getText(
+                self, "Tags (optional)", "Tags, comma-separated:"
+            )
+            tags = _parse_tags(tag_str)
+            items = self._qt_load_annotations()
+            items.append(
+                {
+                    "char_pos": int(char_pos),
+                    "word_idx": self._qt_char_to_word(int(char_pos)),
+                    "anchor": anchor,
+                    "note": text.strip(),
+                    "tags": tags,
+                    "cite": "",
+                    "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                }
+            )
+            self._qt_store_annotations(items)
+            self._qt_build_annotations()
+            if not self._annot_dock.isVisible():
+                self._annot_dock.setVisible(True)
+                self.settings["qt_show_notes"] = True
+            self.statusBar().showMessage(
+                f"Note added{(' with tags: ' + ', '.join(tags)) if tags else ''}"
+            )
+
+        def _qt_selected_annotation_index(self) -> int:
+            """Index (into the saved list) of the selected note, or -1."""
+            item = self._annot_list.currentItem()
+            if item is None:
+                return -1
+            data = item.data(_USER_ROLE)
+            return int(data) if data is not None else -1
+
+        def _qt_edit_annotation(self) -> None:
+            """Edit the text of the selected note."""
+            idx = self._qt_selected_annotation_index()
+            items = self._qt_load_annotations()
+            if idx < 0 or idx >= len(items):
+                self.statusBar().showMessage("Select a note to edit")
+                return
+            text, ok = QInputDialog.getMultiLineText(
+                self, "Edit Note", "Note:", str(items[idx].get("note", ""))
+            )
+            if not ok:
+                return
+            if not text.strip():
+                # Empty text deletes the note.
+                del items[idx]
+            else:
+                items[idx]["note"] = text.strip()
+                items[idx]["ts"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+            self._qt_store_annotations(items)
+            self._qt_build_annotations()
+            self.statusBar().showMessage("Note updated")
+
+        def _qt_delete_annotation(self) -> None:
+            """Delete the selected note."""
+            idx = self._qt_selected_annotation_index()
+            items = self._qt_load_annotations()
+            if idx < 0 or idx >= len(items):
+                self.statusBar().showMessage("Select a note to delete")
+                return
+            del items[idx]
+            self._qt_store_annotations(items)
+            self._qt_build_annotations()
+            self.statusBar().showMessage("Note deleted")
+
+        def _qt_annotation_charpos(self, item: QListWidgetItem) -> int:
+            """Resolve a Qt character position for a notes-list *item*.
+
+            Prefers the stored Qt char position; falls back to the note's
+            word index (how TUI-created notes are anchored) mapped through
+            the Qt word map so notes made in either UI navigate correctly.
+            """
+            data = item.data(_USER_ROLE + 1)
+            char_pos = int(data) if data is not None else -1
+            if char_pos and char_pos > 0:
+                return char_pos
+            idx = item.data(_USER_ROLE)
+            items = self._qt_load_annotations()
+            if idx is not None and 0 <= int(idx) < len(items):
+                wi = int(items[int(idx)].get("word_idx", 0) or 0)
+                if self._qt_word_map and 0 <= wi < len(self._qt_word_map):
+                    return self._qt_word_map[wi]
+            return char_pos
+
+        def _qt_annotation_navigate(self, item: QListWidgetItem) -> None:
+            """Single-click / Enter: scroll the viewport to the note anchor."""
+            char_pos = self._qt_annotation_charpos(item)
+            if char_pos < 0:
+                return
+            doc_len = self.editor.document().characterCount()
+            char_pos = max(0, min(char_pos, doc_len - 1))
+            cursor = QTextCursor(self.editor.document())
+            cursor.setPosition(char_pos)
+            self.editor.setTextCursor(cursor)
+            self.editor.ensureCursorVisible()
+
+        def _qt_annotation_play(self, item: QListWidgetItem) -> None:
+            """Double-click: start reading from the note anchor."""
+            if not self.doc:
+                return
+            char_pos = self._qt_annotation_charpos(item)
+            if char_pos < 0:
+                return
+            self._tts_play_from_word(self._qt_char_to_word(char_pos))
+
+        def _qt_toggle_annotations(self) -> None:
+            """Toggle the visibility of the Notes dock panel."""
+            visible = not self._annot_dock.isVisible()
+            self._annot_dock.setVisible(visible)
+            self.settings["qt_show_notes"] = visible
+
+        def _qt_export_annotations(self) -> None:
+            """Export the current document's notes to Markdown / JSON / BibTeX / RIS.
+
+            The format is chosen by the file extension in the save dialog.
+            BibTeX and RIS emit a single reference for the source document with
+            the notes attached (the standard reference-manager convention).
+            """
+            if not self.doc:
+                self.statusBar().showMessage("No document loaded")
+                return
+            items = self._qt_load_annotations()
+            if not items:
+                self.statusBar().showMessage("No notes to export")
+                return
+            p = Path(self.doc.path) if self.doc.path else Path("notes")
+            default = str(p.parent / (p.stem + "_notes.md"))
+            dest, _flt = QFileDialog.getSaveFileName(
+                self,
+                "Export Notes",
+                default,
+                "Markdown (*.md);;JSON (*.json);;BibTeX (*.bib);;RIS (*.ris);;Text (*.txt)",
+            )
+            if not dest:
+                return
+            ext = Path(dest).suffix.lower()
+            meta = getattr(self.doc, "metadata", {}) or {}
+            title = self.doc.title or Path(self.doc.path or "document").stem
+            author = (
+                meta.get("author") or meta.get("creator") or meta.get("Author") or ""
+            )
+            try:
+                content = _format_annotations(
+                    items, ext, title, author, self.doc.path or ""
+                )
+                Path(dest).write_text(content, encoding="utf-8")
+                self.statusBar().showMessage(f"Exported {len(items)} note(s) → {dest}")
+            except OSError as exc:
+                self.statusBar().showMessage(f"Export error: {exc}")
+
+        # ── Citation manager ──────────────────────────────
+
+        def _qt_load_citations(self) -> List[Dict[str, Any]]:
+            return [dict(c) for c in (self.settings.get("citations", []) or [])]
+
+        def _qt_store_citations(self, items: List[Dict[str, Any]]) -> None:
+            self.settings.set("citations", items)
+
+        def _qt_import_citations(self) -> None:
+            """Import citations from a BibTeX / RIS / CSL-JSON file."""
+            src, _flt = QFileDialog.getOpenFileName(
+                self,
+                "Import Citations",
+                "",
+                "Citations (*.bib *.ris *.json *.csl);;All Files (*)",
+            )
+            if not src:
+                return
+            try:
+                imported = _import_citations(src)
+            except Exception as exc:  # noqa: BLE001
+                self.statusBar().showMessage(f"Import error: {exc}")
+                return
+            existing = self._qt_load_citations()
+            by_id = {c.get("id"): c for c in existing if c.get("id")}
+            added = 0
+            for c in imported:
+                cid = c.get("id")
+                if cid and cid in by_id:
+                    by_id[cid].update(c)  # refresh existing
+                else:
+                    existing.append(c)
+                    if cid:
+                        by_id[cid] = c
+                    added += 1
+            self._qt_store_citations(existing)
+            self.statusBar().showMessage(
+                f"Imported {len(imported)} citation(s) ({added} new); "
+                f"library now {len(existing)}"
+            )
+
+        def _qt_export_citations(self) -> None:
+            """Export the citation library to BibTeX / RIS / CSL-JSON."""
+            items = self._qt_load_citations()
+            if not items:
+                self.statusBar().showMessage("Citation library is empty")
+                return
+            dest, _flt = QFileDialog.getSaveFileName(
+                self,
+                "Export Citations",
+                "citations.bib",
+                "BibTeX (*.bib);;RIS (*.ris);;CSL-JSON (*.json)",
+            )
+            if not dest:
+                return
+            try:
+                Path(dest).write_text(
+                    _format_citations(items, Path(dest).suffix.lower()),
+                    encoding="utf-8",
+                )
+                self.statusBar().showMessage(
+                    f"Exported {len(items)} citation(s) → {dest}"
+                )
+            except OSError as exc:
+                self.statusBar().showMessage(f"Export error: {exc}")
+
+        def _qt_add_citation(self) -> None:
+            """Add a citation to the library by hand (a few quick prompts)."""
+            fields = [
+                ("id", "Citation key (e.g. smith2020):"),
+                ("title", "Title:"),
+                ("author", "Author(s) (Last, First and Last, First):"),
+                ("year", "Year:"),
+                ("journal", "Journal / container (optional):"),
+                ("doi", "DOI (optional):"),
+            ]
+            cite: Dict[str, Any] = {"type": "article"}
+            for key, prompt in fields:
+                val, ok = QInputDialog.getText(self, "Add Citation", prompt)
+                if not ok:
+                    return
+                cite[key] = val.strip()
+            if not (cite.get("title") or cite.get("id")):
+                self.statusBar().showMessage("Citation needs at least a title or key")
+                return
+            if not cite.get("id"):
+                cite["id"] = (
+                    re.sub(r"\W+", "", cite.get("author", "ref").split(",")[0])
+                    + str(cite.get("year", ""))
+                ) or "ref"
+            items = self._qt_load_citations()
+            items.append(cite)
+            self._qt_store_citations(items)
+            self.statusBar().showMessage(f"Added citation [{cite['id']}]")
+
+        def _qt_add_citation_by_doi(self) -> None:
+            """Fetch a citation from a DOI via Crossref and add it (background)."""
+            doi, ok = QInputDialog.getText(
+                self, "Add Citation by DOI", "DOI (e.g. 10.1038/nature12373):"
+            )
+            if not ok or not doi.strip():
+                return
+            self.statusBar().showMessage(f"Looking up {doi.strip()} …")
+
+            def _work() -> None:
+                try:
+                    cite = _fetch_citation_by_doi(doi)
+                    self._doi_signal.emit(json.dumps(cite))
+                except Exception as exc:  # noqa: BLE001
+                    self._doi_signal.emit(f"ERROR: {exc}")
+
+            threading.Thread(target=_work, daemon=True).start()
+
+        def _qt_on_doi(self, payload: str) -> None:
+            """Main-thread handler for a Crossref DOI lookup result."""
+            if payload.startswith("ERROR: "):
+                self.statusBar().showMessage(f"DOI lookup failed: {payload[7:]}")
+                return
+            try:
+                cite = json.loads(payload)
+            except ValueError:
+                self.statusBar().showMessage("DOI lookup returned bad data")
+                return
+            items = self._qt_load_citations()
+            if any(c.get("id") == cite.get("id") for c in items):
+                self.statusBar().showMessage(f"[{cite.get('id')}] already in library")
+                return
+            items.append(cite)
+            self._qt_store_citations(items)
+            self.statusBar().showMessage(
+                f"Added [{cite.get('id')}] {str(cite.get('title', ''))[:50]}"
+            )
+
+        def _qt_insert_citation(self) -> None:
+            """Insert a Pandoc-style `[@key]` marker at the cursor (or copy it).
+
+            In edit mode the marker is inserted inline; otherwise it is copied
+            to the clipboard so it can be pasted after entering edit mode.
+            """
+            items = self._qt_load_citations()
+            if not items:
+                self.statusBar().showMessage("No citations — import or add one first")
+                return
+            labels = [_citation_label(c) for c in items]
+            choice, ok = QInputDialog.getItem(
+                self, "Insert Citation", "Insert which reference?", labels, 0, False
+            )
+            if not ok or choice not in labels:
+                return
+            marker = f"[@{items[labels.index(choice)].get('id', '')}]"
+            if self._qt_edit_mode:
+                self.editor.textCursor().insertText(marker)
+                self.statusBar().showMessage(f"Inserted {marker}")
+            else:
+                QApplication.clipboard().setText(marker)
+                self.statusBar().showMessage(
+                    f"Copied {marker} — enter edit mode (Ctrl+E) to insert inline"
+                )
+
+        def _qt_manage_citations(self) -> None:
+            """Browse the citation library; copy a key or delete an entry."""
+            items = self._qt_load_citations()
+            if not items:
+                self.statusBar().showMessage(
+                    "No citations yet — use Citations → Import or Add"
+                )
+                return
+            labels = [_citation_label(c) for c in items]
+            choice, ok = QInputDialog.getItem(
+                self, "Citations", "Library (Cancel to close):", labels, 0, False
+            )
+            if not ok or choice not in labels:
+                return
+            c = items[labels.index(choice)]
+            action, ok2 = QInputDialog.getItem(
+                self,
+                _citation_label(c),
+                "Action:",
+                ["Copy key to clipboard", "Link to selected note", "Delete"],
+                0,
+                False,
+            )
+            if not ok2:
+                return
+            if action.startswith("Copy"):
+                QApplication.clipboard().setText(str(c.get("id", "")))
+                self.statusBar().showMessage(f"Copied [{c.get('id', '')}]")
+            elif action.startswith("Link"):
+                self._qt_link_citation(c.get("id", ""))
+            elif action == "Delete":
+                items.remove(c)
+                self._qt_store_citations(items)
+                self.statusBar().showMessage("Citation deleted")
+
+        def _qt_link_citation(self, cite_id: str) -> None:
+            """Attach a citation key to the currently selected note."""
+            idx = self._qt_selected_annotation_index()
+            items = self._qt_load_annotations()
+            if idx < 0 or idx >= len(items):
+                self.statusBar().showMessage(
+                    "Select a note first, then link a citation"
+                )
+                return
+            items[idx]["cite"] = cite_id
+            self._qt_store_annotations(items)
+            self._qt_build_annotations()
+            self.statusBar().showMessage(f"Linked note to [{cite_id}]")
+
+        # ── Speech recognition (Whisper) ───────────────────
+
+        def _qt_transcribe_file(self) -> None:
+            """Transcribe an audio file with Whisper and open it as a document."""
+            if not _WHISPER:
+                QMessageBox.information(
+                    self,
+                    "Speech recognition unavailable",
+                    "Transcription requires Whisper:\n\n"
+                    "    pip install openai-whisper\n"
+                    "or  pip install faster-whisper",
+                )
+                return
+            src, _flt = QFileDialog.getOpenFileName(
+                self,
+                "Transcribe Audio",
+                "",
+                "Audio (*.wav *.mp3 *.m4a *.ogg *.flac *.aac *.mp4);;All Files (*)",
+            )
+            if not src:
+                return
+            model = str(self.settings.get("whisper_model", "base"))
+            ts = bool(self.settings.get("transcribe_timestamps", False))
+            self.statusBar().showMessage(
+                f"Transcribing with Whisper ({model})… this may take a while"
+            )
+
+            def _work() -> None:
+                try:
+                    text = _transcribe_audio(src, model, timestamps=ts)
+                    self._transcribe_signal.emit(text, src)
+                except Exception as exc:  # noqa: BLE001
+                    self._transcribe_signal.emit("", f"ERROR: {exc}")
+
+            threading.Thread(target=_work, daemon=True).start()
+
+        def _qt_on_transcribed(self, text: str, src: str) -> None:
+            """Main-thread handler for a completed transcription."""
+            if src.startswith("ERROR: "):
+                self.statusBar().showMessage(src[7:])
+                return
+            if not text:
+                self.statusBar().showMessage("Transcription produced no text")
+                return
+            name = Path(src).stem if src else "transcription"
+            md = f"# Transcription — {name}\n\n{text}\n"
+            self._pending_doc = Document(
+                path="",
+                title=f"Transcription — {name}",
+                markdown=md,
+                plain_text=text,
+                format="transcription",
+            )
+            self._on_doc_loaded()
+            self.statusBar().showMessage(f"Transcribed {name} ({len(text)} chars)")
+
+        def _qt_dictate_note(self) -> None:
+            """Record a short voice memo and add it as a note (Whisper)."""
+            if not self.doc:
+                self.statusBar().showMessage("Open a document before dictating a note")
+                return
+            if not _WHISPER or not _AUDIO_IN:
+                QMessageBox.information(
+                    self,
+                    "Dictation unavailable",
+                    "Voice dictation requires Whisper and a microphone library:\n\n"
+                    "    pip install openai-whisper sounddevice numpy",
+                )
+                return
+            secs, ok = QInputDialog.getInt(
+                self, "Dictate Note", "Record for how many seconds?", 8, 2, 300
+            )
+            if not ok:
+                return
+            char_pos, anchor = self._qt_current_anchor()
+            model = str(self.settings.get("whisper_model", "base"))
+            chunk = max(2, int(self.settings.get("whisper_chunk_seconds", 6)))
+            self.statusBar().showMessage(f"Recording {secs}s… speak now")
+
+            def _work() -> None:
+                # Live streaming: record in short chunks, transcribing each as
+                # it arrives so the user sees text accumulate instead of waiting
+                # for one long blocking pass.  Chunks are concatenated into the
+                # final note.
+                try:
+                    remaining = secs
+                    parts: List[str] = []
+                    while remaining > 0:
+                        seg = min(chunk, remaining)
+                        remaining -= seg
+                        wav = _record_audio_to_wav(seg)
+                        try:
+                            piece = _transcribe_audio(wav, model)
+                        finally:
+                            Path(wav).unlink(missing_ok=True)
+                        if piece:
+                            parts.append(piece)
+                            self._dictate_partial_signal.emit(" ".join(parts))
+                    self._dictate_signal.emit(
+                        " ".join(parts), str(int(char_pos)), anchor
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    self._dictate_signal.emit("", "ERROR", str(exc))
+
+            threading.Thread(target=_work, daemon=True).start()
+
+        def _qt_on_dictate_partial(self, text: str) -> None:
+            """Live status update as dictation chunks are transcribed."""
+            preview = text[-80:]
+            self.statusBar().showMessage(f"🎙 …{preview}")
+
+        def _qt_on_dictated(self, text: str, char_pos_s: str, anchor: str) -> None:
+            """Main-thread handler for a completed dictation → save as a note."""
+            if char_pos_s == "ERROR":
+                self.statusBar().showMessage(f"Dictation error: {anchor}")
+                return
+            if not text:
+                self.statusBar().showMessage("Dictation produced no text")
+                return
+            items = self._qt_load_annotations()
+            items.append(
+                {
+                    "char_pos": int(char_pos_s or 0),
+                    "word_idx": self._qt_char_to_word(int(char_pos_s or 0)),
+                    "anchor": anchor,
+                    "note": text,
+                    "tags": ["dictated"],
+                    "cite": "",
+                    "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                }
+            )
+            self._qt_store_annotations(items)
+            self._qt_build_annotations()
+            if not self._annot_dock.isVisible():
+                self._annot_dock.setVisible(True)
+                self.settings["qt_show_notes"] = True
+            self.statusBar().showMessage(f"Dictated note added ({len(text)} chars)")
+
+        # ── Keyboard cheat sheet ────────────────────────
+
+        def _qt_show_shortcuts(self) -> None:
+            """Show the canonical keyboard shortcut cheat sheet in a dialog."""
+            dlg = QDialog(self)
+            dlg.setWindowTitle("Keyboard Shortcuts")
+            dlg.resize(640, 600)
+            layout = QVBoxLayout(dlg)
+            view = QTextBrowser()
+            view.setHtml(self._md_to_html(_shortcuts_text(plain=False)))
+            layout.addWidget(view)
+            try:
+                _ok_btn = QDialogButtonBox.StandardButton.Ok  # PyQt6
+            except AttributeError:
+                _ok_btn = QDialogButtonBox.Ok  # type: ignore[attr-defined]  # PyQt5
+            buttons = QDialogButtonBox(_ok_btn)
+            buttons.accepted.connect(dlg.accept)
+            layout.addWidget(buttons)
+            dlg.exec() if _QT == "PyQt6" else dlg.exec_()
+
+        # ── Remappable keybindings ─────────────────
+
+        def _resolve_shortcut(self, default: str) -> str:
+            """Return the user's override for *default* shortcut, or *default*."""
+            overrides = self.settings.get("keybindings", {}) or {}
+            return str(overrides.get(default, default))
+
+        def _qt_customize_shortcuts(self) -> None:
+            """Let the user remap any window/toolbar shortcut; persists overrides."""
+            actions = getattr(self, "_shortcut_actions", [])
+            if not actions:
+                self.statusBar().showMessage("No remappable shortcuts")
+                return
+            labels = [
+                f"{label}   —   {act.shortcut().toString() or '(none)'}"
+                for label, act, _default in actions
+            ]
+            labels.append("→ Reset all to defaults")
+            choice, ok = QInputDialog.getItem(
+                self, "Customize Shortcuts", "Action to rebind:", labels, 0, False
+            )
+            if not ok:
+                return
+            if choice == "→ Reset all to defaults":
+                self.settings.set("keybindings", {})
+                for _label, act, default in actions:
+                    act.setShortcut(default)
+                self.statusBar().showMessage("Shortcuts reset to defaults")
+                return
+            idx = labels.index(choice)
+            label, act, default = actions[idx]
+            new_key, ok2 = QInputDialog.getText(
+                self,
+                "Rebind Shortcut",
+                f"New shortcut for “{label}”\n"
+                f"(e.g. Ctrl+Shift+K; blank = restore default {default}):",
+                text=act.shortcut().toString(),
+            )
+            if not ok2:
+                return
+            overrides = dict(self.settings.get("keybindings", {}) or {})
+            new_key = new_key.strip()
+            if not new_key or new_key == default:
+                overrides.pop(default, None)
+                act.setShortcut(default)
+            else:
+                overrides[default] = new_key
+                act.setShortcut(new_key)
+            self.settings.set("keybindings", overrides)
+            self.statusBar().showMessage(
+                f"“{label}” → {act.shortcut().toString() or default}"
+            )
+
+        # ── Command palette ───────────────────────
+
+        def _qt_command_registry(self) -> List[Tuple[str, Callable]]:
+            """All commands the palette can search and run."""
+            return [
+                ("Open File…", self._open_dialog),
+                ("Open URL…", self._qt_open_url),
+                ("Play / Pause", self._tts_toggle),
+                ("Stop", self._tts_stop),
+                ("Play from Cursor", self._qt_play_from_cursor),
+                ("Faster", lambda: self._rate_change(+20)),
+                ("Slower", lambda: self._rate_change(-20)),
+                ("Choose Voice…", self._voice_picker_qt),
+                (
+                    "Speech Cursor Mode",
+                    lambda: (
+                        self._qt_sc_exit() if self._qt_sc_mode else self._qt_sc_enter()
+                    ),
+                ),
+                ("Next Sentence", self._qt_skip_next_sentence),
+                ("Previous Sentence", self._qt_skip_prev_sentence),
+                ("Replay Sentence", self._qt_replay_sentence),
+                ("Next Paragraph", self._qt_skip_next_paragraph),
+                ("Previous Paragraph", self._qt_skip_prev_paragraph),
+                ("Replay Paragraph", self._qt_replay_paragraph),
+                ("Next Heading", self._qt_read_next_heading),
+                ("Previous Heading", self._qt_read_prev_heading),
+                ("Next Table", self._qt_skip_next_table),
+                ("Previous Table", self._qt_skip_prev_table),
+                ("Add Note", self._qt_add_annotation),
+                ("Toggle Notes Panel", self._qt_toggle_annotations),
+                ("Export Notes…", self._qt_export_annotations),
+                ("Import Citations…", self._qt_import_citations),
+                ("Export Citations…", self._qt_export_citations),
+                ("Add Citation…", self._qt_add_citation),
+                ("Add Citation by DOI…", self._qt_add_citation_by_doi),
+                ("Insert Citation at Cursor…", self._qt_insert_citation),
+                ("Browse Citations…", self._qt_manage_citations),
+                ("Toggle Contents Panel", self._qt_toggle_toc),
+                ("Transcribe Audio File…", self._qt_transcribe_file),
+                ("Dictate Note…", self._qt_dictate_note),
+                ("Copy", self._qt_copy),
+                ("Toggle Edit Mode", self._qt_edit_mode_toggle),
+                ("Save", self._qt_save),
+                ("Export as Markdown…", self._qt_export_markdown),
+                ("Export as PDF…", self._qt_export_pdf),
+                ("Export as Braille (BRF)…", self._qt_export_brf),
+                ("Export as Audio…", self._qt_export_audio),
+                ("Reading Level", self._qt_reading_level),
+                ("Change Font…", self._qt_change_font_dialog),
+                ("Next Theme", self._next_theme),
+                ("Choose Theme…", self._qt_pick_theme),
+                ("Customize Shortcuts…", self._qt_customize_shortcuts),
+                ("Keyboard Shortcuts", self._qt_show_shortcuts),
+                ("Open README (Help)", self._show_about),
+            ]
+
+        def _qt_command_palette(self) -> None:
+            """A searchable command palette (F2) — type to filter, Enter to run."""
+            cmds = self._qt_command_registry()
+            by_label = {label: fn for label, fn in cmds}
+            dlg = QDialog(self)
+            dlg.setWindowTitle("Command Palette")
+            dlg.resize(520, 440)
+            lay = QVBoxLayout(dlg)
+            box = QLineEdit()
+            box.setPlaceholderText(
+                "Type to search commands…  (Enter runs, Esc cancels)"
+            )
+            lst = QListWidget()
+            lay.addWidget(box)
+            lay.addWidget(lst)
+
+            def _populate(query: str = "") -> None:
+                lst.clear()
+                terms = query.lower().split()
+                for label, _fn in cmds:
+                    if all(t in label.lower() for t in terms):
+                        lst.addItem(QListWidgetItem(label))
+                if lst.count():
+                    lst.setCurrentRow(0)
+
+            def _run() -> None:
+                it = lst.currentItem() or (lst.item(0) if lst.count() else None)
+                if it is None:
+                    return
+                fn = by_label.get(it.text())
+                dlg.accept()
+                if fn:
+                    fn()
+
+            _populate()
+            box.textChanged.connect(_populate)
+            box.returnPressed.connect(_run)
+            lst.itemActivated.connect(lambda _it: _run())
+            # Down-arrow from the search box moves into the results list.
+            box.setFocus()
+            dlg.exec() if _QT == "PyQt6" else dlg.exec_()
+
+        def _qt_toggle_dyslexia_font(self) -> None:
+            """Toggle the dyslexia-friendly display font preference."""
+            new = not bool(self.settings.get("qt_dyslexia_font", False))
+            self.settings["qt_dyslexia_font"] = new
+            if hasattr(self, "_dyslexia_font_act"):
+                self._dyslexia_font_act.setChecked(new)
+            self.editor.setFont(self._make_editor_font())
+            self._apply_qt_theme(str(self.settings.get("theme", "dark")))
+            if new:
+                fam = self._find_dyslexia_font()
+                if fam:
+                    self.statusBar().showMessage(f"Dyslexia-friendly font: {fam}")
+                else:
+                    self.statusBar().showMessage(
+                        "No dyslexia-friendly font found — install OpenDyslexic, "
+                        "Atkinson Hyperlegible, or Lexend"
+                    )
+            else:
+                self.statusBar().showMessage("Dyslexia-friendly font: OFF")
+
+        def _qt_toggle_bionic(self) -> None:
+            """Toggle bionic-reading emphasis and re-render the document."""
+            new = not bool(self.settings.get("qt_bionic_reading", False))
+            self.settings["qt_bionic_reading"] = new
+            if hasattr(self, "_bionic_act"):
+                self._bionic_act.setChecked(new)
+            self._apply_qt_theme(str(self.settings.get("theme", "dark")))
+            self.statusBar().showMessage("Bionic reading: " + ("ON" if new else "OFF"))
+
+        def _qt_toggle_current_line(self) -> None:
+            """Toggle the current-line focus band shown while reading."""
+            new = not bool(self.settings.get("qt_current_line_highlight", False))
+            self.settings["qt_current_line_highlight"] = new
+            if hasattr(self, "_current_line_act"):
+                self._current_line_act.setChecked(new)
+            self.statusBar().showMessage(
+                "Current-line highlight: " + ("ON" if new else "OFF")
+            )
+
+        def _qt_text_spacing_dialog(self) -> None:
+            """Adjust line height, letter spacing, and word spacing.
+
+            Changes preview live; OK keeps them, Cancel reverts.  Spacing is
+            a recognized accommodation that reduces crowding for dyslexic and
+            low-vision readers (WCAG 1.4.12 Text Spacing).
+            """
+            keys = ("qt_line_height", "qt_letter_spacing", "qt_word_spacing")
+            orig = {k: self.settings.get(k) for k in keys}
+
+            dlg = QDialog(self)
+            dlg.setWindowTitle("Text Spacing")
+            form = QFormLayout(dlg)
+            info = QLabel(
+                "Generous spacing reduces crowding (WCAG 1.4.12).\n"
+                "Changes preview live — OK to keep, Cancel to revert."
+            )
+            info.setWordWrap(True)
+            form.addRow(info)
+
+            lh = QDoubleSpinBox()
+            lh.setRange(1.0, 3.0)
+            lh.setSingleStep(0.1)
+            lh.setDecimals(2)
+            lh.setValue(float(orig["qt_line_height"] or 1.5))
+            form.addRow("Line height (×):", lh)
+
+            le = QDoubleSpinBox()
+            le.setRange(0.0, 40.0)
+            le.setSingleStep(1.0)
+            le.setDecimals(1)
+            le.setSuffix(" %")
+            le.setValue(float(orig["qt_letter_spacing"] or 0.0))
+            form.addRow("Extra letter spacing:", le)
+
+            wd = QDoubleSpinBox()
+            wd.setRange(0.0, 40.0)
+            wd.setSingleStep(1.0)
+            wd.setDecimals(1)
+            wd.setSuffix(" px")
+            wd.setValue(float(orig["qt_word_spacing"] or 0.0))
+            form.addRow("Extra word spacing:", wd)
+
+            def _preview() -> None:
+                # Mutate in-memory only (no disk write) so Cancel can revert.
+                self.settings._data["qt_line_height"] = lh.value()
+                self.settings._data["qt_letter_spacing"] = le.value()
+                self.settings._data["qt_word_spacing"] = wd.value()
+                self._apply_text_spacing()
+
+            lh.valueChanged.connect(lambda _v: _preview())
+            le.valueChanged.connect(lambda _v: _preview())
+            wd.valueChanged.connect(lambda _v: _preview())
+
+            try:
+                _ok = QDialogButtonBox.StandardButton.Ok  # PyQt6
+                _cancel = QDialogButtonBox.StandardButton.Cancel
+            except AttributeError:
+                _ok = QDialogButtonBox.Ok  # type: ignore[attr-defined]
+                _cancel = QDialogButtonBox.Cancel  # type: ignore[attr-defined]
+            buttons = QDialogButtonBox(_ok | _cancel)
+            buttons.accepted.connect(dlg.accept)
+            buttons.rejected.connect(dlg.reject)
+            form.addRow(buttons)
+
+            result = dlg.exec() if _QT == "PyQt6" else dlg.exec_()
+            if result:
+                _preview()
+                self.settings.save()
+                self.statusBar().showMessage(
+                    f"Spacing — line {lh.value():.2f}×, letter +{le.value():.0f}%, "
+                    f"word +{wd.value():.0f}px"
+                )
+            else:
+                for k, v in orig.items():
+                    self.settings._data[k] = v
+                self._apply_text_spacing()
+
+        def _qt_karaoke_dialog(self) -> None:
+            """Tune the per-word karaoke highlight: style, color, speed, lead.
+
+            Different readers track best with different cues — a sharp filled
+            highlight, a colored underline, or bold text — and at different
+            lead/lag offsets relative to the audio.
+            """
+            keys = (
+                "highlight_style",
+                "highlight_color",
+                "highlight_speed",
+                "highlight_lead_words",
+            )
+            orig = {k: self.settings.get(k) for k in keys}
+
+            dlg = QDialog(self)
+            dlg.setWindowTitle("Karaoke Highlight")
+            form = QFormLayout(dlg)
+            info = QLabel(
+                "Tune how the spoken word is marked as it is read.\n"
+                "Changes preview live — OK to keep, Cancel to revert."
+            )
+            info.setWordWrap(True)
+            form.addRow(info)
+
+            _STYLES = ["background", "underline", "box", "bold", "color"]
+            style_box = QComboBox()
+            style_box.addItems(_STYLES)
+            cur_style = str(orig["highlight_style"] or "background")
+            style_box.setCurrentIndex(
+                _STYLES.index(cur_style) if cur_style in _STYLES else 0
+            )
+            form.addRow("Style:", style_box)
+
+            _COLORS = [
+                "cyan",
+                "yellow",
+                "green",
+                "magenta",
+                "orange",
+                "red",
+                "blue",
+                "white",
+            ]
+            color_box = QComboBox()
+            color_box.setEditable(True)
+            color_box.addItems(_COLORS)
+            color_box.setEditText(str(orig["highlight_color"] or "cyan"))
+            form.addRow("Color:", color_box)
+
+            speed = QDoubleSpinBox()
+            speed.setRange(0.5, 1.5)
+            speed.setSingleStep(0.05)
+            speed.setDecimals(2)
+            speed.setValue(float(orig["highlight_speed"] or 1.0))
+            speed.setToolTip(
+                "Highlight pacing relative to speech (1.0 = match WPM).\n"
+                "Applies on the next play."
+            )
+            form.addRow("Speed (× WPM):", speed)
+
+            lead = QSpinBox()
+            lead.setRange(-5, 5)
+            lead.setValue(int(orig["highlight_lead_words"] or 0))
+            lead.setToolTip("Words the highlight leads (+) or lags (−) the audio")
+            form.addRow("Lead / lag (words):", lead)
+
+            def _preview() -> None:
+                self.settings._data["highlight_style"] = style_box.currentText()
+                self.settings._data["highlight_color"] = color_box.currentText().strip()
+                self.settings._data["highlight_speed"] = speed.value()
+                self.settings._data["highlight_lead_words"] = lead.value()
+                self._rebuild_hl_fmt()
+
+            style_box.currentTextChanged.connect(lambda _v: _preview())
+            color_box.editTextChanged.connect(lambda _v: _preview())
+            speed.valueChanged.connect(lambda _v: _preview())
+            lead.valueChanged.connect(lambda _v: _preview())
+
+            try:
+                _ok = QDialogButtonBox.StandardButton.Ok  # PyQt6
+                _cancel = QDialogButtonBox.StandardButton.Cancel
+            except AttributeError:
+                _ok = QDialogButtonBox.Ok  # type: ignore[attr-defined]
+                _cancel = QDialogButtonBox.Cancel  # type: ignore[attr-defined]
+            buttons = QDialogButtonBox(_ok | _cancel)
+            buttons.accepted.connect(dlg.accept)
+            buttons.rejected.connect(dlg.reject)
+            form.addRow(buttons)
+
+            result = dlg.exec() if _QT == "PyQt6" else dlg.exec_()
+            if result:
+                _preview()
+                self.settings.save()
+                self.statusBar().showMessage(
+                    f"Highlight — {style_box.currentText()}, "
+                    f"{color_box.currentText().strip()}, "
+                    f"{speed.value():.2f}×, lead {lead.value():+d}"
+                )
+            else:
+                for k, v in orig.items():
+                    self.settings._data[k] = v
+                self._rebuild_hl_fmt()
 
         def _qt_change_font_dialog(self) -> None:
             """Open the system font picker to choose family, style, and size.
