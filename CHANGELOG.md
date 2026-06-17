@@ -8,6 +8,123 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.3] — 2026-06-16
+
+A focused round of reading, speech, and study-workflow additions, all built on
+the existing single-file architecture — `star.py` still runs with zero extras
+installed.
+
+### ✨ Added
+
+- **Sentence-level highlight option.** A new **highlight granularity**
+  control lets the spoken text be highlighted by **word** (default), by whole
+  **sentence** (much less visual flicker for readers who find rapid word-by-word
+  movement distracting), or **both** (a soft sentence band with the current word
+  marked on top). Works in **both** the Qt GUI and the curses TUI. Set it from
+  **View → Reading Aids → Karaoke Highlight…** (new *Granularity* selector) or
+  `M-x highlight-granularity word|sentence|both` in the TUI. New setting:
+  `highlight_granularity` (default `word`).
+- **Timestamped subtitle export — SRT / VTT.** Audio export can now emit a
+  synchronized caption track so the highlight "travels" with the audio into any
+  media player. Export captions on their own (**File → Export → Export Subtitles
+  (SRT / VTT)…**, or `M-x export-subtitles`), or have them written automatically
+  alongside every audio export (`M-x subtitles-with-audio`). Captions are grouped
+  into readable sentence-length cues by default, or one cue per word with
+  `M-x subtitle-word-level`. Timing is estimated from the synthesized audio's
+  duration, so it needs no external tools. New settings: `subtitle_format`
+  (`srt`/`vtt`), `subtitle_word_level`, `export_subtitles_with_audio`. New TUI
+  commands: `export-subtitles`, `subtitle-format`, `subtitle-word-level`,
+  `subtitles-with-audio`.
+- **A keyboard shortcut for every GUI menu item.** Every command in the Qt
+  menus now has a shortcut shown beside it and listed in **Help → Keyboard
+  Shortcuts** (`F3`). Bindings follow a consistent scheme — `Ctrl+letter`
+  (forward/primary), `Ctrl+Shift+letter` (backward/secondary), `Alt+punct`
+  (sentences), `Ctrl+Alt+letter` (exports, citations, tools, reading aids) —
+  and each is owned by exactly one action, eliminating the previous duplicate
+  toolbar/window bindings that risked Qt “ambiguous shortcut” conflicts. New:
+  highlight colors (`Ctrl+Shift+1`…`5`), export commands (`Ctrl+Alt+M/P/B/A/U`),
+  citation commands (`Ctrl+Alt+I/E/C/D/R/G`), reading aids, and more. All
+  bindings remain remappable via **Help → Customize Shortcuts…**.
+- **Tap `Ctrl` to play/pause (JAWS habit).** Pressing and releasing the `Ctrl`
+  key on its own toggles speech, mirroring the JAWS “Ctrl silences speech”
+  reflex. Using Ctrl as a modifier in a chord never triggers it. New setting:
+  `qt_ctrl_pause` (default `true`).
+- **Reading statistics & progress tracking.** STAR now records time read,
+  furthest word reached, progress %, and session count per document while
+  speech plays, and surfaces them in a dashboard — **Tools → Reading
+  Statistics…** (`Ctrl+Shift+S`) in the Qt GUI and `M-x reading-stats` in the
+  TUI — with overall totals and a most-read list. New setting: `reading_stats`.
+- **Library / bookshelf view.** Every opened document is remembered with
+  its title, format, progress, and last-opened time. **File → Library /
+  Bookshelf…** (`Ctrl+Shift+B`) opens a searchable list (Enter / double-click
+  reopens a document); the TUI offers `M-x library`. New setting: `library`.
+- **Live HTML preview while editing.** In edit mode a split pane can show a
+  live-rendered HTML preview of the Markdown source beside the editor,
+  re-rendering as you type (debounced). Toggle it with **View → Live HTML
+  Preview** (`Ctrl+Shift+L`); turning it on outside edit mode enters edit mode.
+  New setting: `qt_edit_preview`.
+- **Voice & profile presets.** Save the current voice, rate, volume, theme,
+  font, spacing, and highlight settings as a named profile (e.g. “Skim”, “Deep
+  Study”, “Low-Light”) and switch between them in one step. A new **Profiles**
+  menu offers **Save Current Settings as Profile…** (`Ctrl+Shift+K`), **Load
+  Profile…** (`Ctrl+Shift+J`), and **Delete Profile…** (`Ctrl+Shift+Y`); the TUI
+  adds `M-x profile-save`, `profile-load`, `profile-list`, and `profile-delete`.
+  New setting: `profiles`.
+- **Pronunciation lexicon editor.** A user-editable dictionary maps domain
+  terms — drug names, anatomy, acronyms — to a spoken form so TTS says them
+  correctly and consistently across every backend. Edit it from **Speech →
+  Pronunciation Lexicon…** (`Ctrl+Shift+I`) in the Qt GUI, or `M-x pron-add`,
+  `pron-list`, `pron-remove`, and `pronunciations` (on/off) in the TUI.
+  Pronunciation overrides are applied first, before abbreviation and number
+  normalization. New settings: `pronunciations`, `use_pronunciations`.
+- **Piper neural TTS backend.** A new optional **`piper`** backend brings
+  free, offline, neural-quality voices via the standalone
+  [Piper](https://github.com/rhasspy/piper) binary — no Python package, no
+  subscription, no network. Point STAR at a `.onnx` voice model with the new
+  `piper_model` setting (or the `PIPER_MODEL` env var, or by dropping models in
+  a Piper voice directory) and select it from **Speech → Choose TTS Engine…**
+  (new GUI engine picker) or `M-x tts-backend piper`. Like Coqui, it is opt-in
+  and never chosen in `auto` mode. New setting: `piper_model`.
+- **Fully self-contained Windows binary.** The portable `star.exe` can now
+  bundle the native engines that previously had to be installed separately, so
+  a single file does *everything* on a clean PC:
+  - **ffmpeg** → MP3 / OGG / MP4 audio export
+  - **Tesseract** + English language data → OCR of images and scanned PDFs
+  - **liblouis** + translation tables → Grade 2 (contracted) Braille
+  - **Pandoc** → high-fidelity markup conversion (RST, Org, MediaWiki,
+    AsciiDoc, Textile, LaTeX, legacy `.doc`, …)
+  - **DECtalk** → the classic “Perfect Paul” voice, via the bundled
+    `DECtalk.dll` + dictionary driven **in-process through ctypes** (no
+    separate CLI required); the architecture-matched 64-/32-bit engine is
+    selected automatically. On the self-contained Windows build DECtalk is now
+    the **default engine** and **Perfect Paul the default voice**, and all
+    nine classic speakers — Perfect Paul, Beautiful Betty, Huge Harry, Frail
+    Frank, Doctor Dennis, Kit the Kid, Uppity Ursula, Rough Rita, Whispering
+    Wendy — appear in the voice picker (**Speech → Choose Voice…**,
+    `Ctrl+Shift+V`). DECtalk is only chosen automatically when the engine
+    actually starts (a real startup is probed once), so machines without a
+    working DECtalk fall back to pyttsx3/SAPI as before
+
+  `star.py` locates each bundled engine via a new `_vendor_dir()` resolver
+  (`sys._MEIPASS` when frozen) and falls back to a system install when a tool
+  is absent, so running from source still needs nothing extra. For Pandoc the
+  bundled binary is also exposed to `pypandoc` via `$PYPANDOC_PANDOC`; for
+  DECtalk a `say`/`dtalk` CLI (on `PATH` or via `DECTALK_BIN`) still works as a
+  fallback. A new `build-vendor.py` helper downloads and assembles the engines
+  into `vendor/`, which `star.spec` packs into the bundle (see `BUILD.md`). The
+  fully self-contained build is ~300+ MB (Pandoc alone adds ~150 MB); a lean
+  build without `vendor/` remains ~90–100 MB.
+
+### 📝 Notes for upgrading users
+
+- All new settings have safe defaults, so existing `settings.json` files keep
+  working unchanged; the new keys are added on next save.
+- Subtitle timing is *estimated* (proportional to spoken-token length) because
+  file-based TTS synthesis exposes no per-word callbacks. It is accurate enough
+  for review and study recordings.
+
+---
+
 ## [0.1.2] — 2026-06-14
 
 A substantial revision focused on **reliable, accessible defaults out of the
@@ -87,6 +204,14 @@ reading-accessibility aids. The single-file architecture is unchanged —
   (Windows) with `minimal` / `recommended` / `all` profiles, virtual-env by
   default, and platform-aware dependency hints (incl. `pyobjc` on macOS,
   `windows-curses` on Windows).
+- **Portable Windows binary build.** A PyInstaller recipe (`star.spec`) and a
+  one-command wrapper (`build-windows.ps1`) produce a single, self-contained
+  `dist\star.exe` that runs on Windows machines with no Python or dependencies
+  installed — ideal for demos. Bundles the Qt GUI, SAPI5 speech, and the core
+  document loaders. Documented in `BUILD.md`.
+- New documentation: `CHANGELOG.md`, `BUILD.md` (portable Windows binary), and
+  `PORTING.md` (feasibility study for a compiled-language / single-binary
+  distribution).
 
 ### 🔧 Changed
 
@@ -151,5 +276,6 @@ bookmarks, reading-position memory, speed presets, Speech Cursor mode,
 table-of-contents navigation, user highlights, audio export, document caching,
 and screen-reader compatibility.
 
+[0.1.3]: #013--2026-06-16
 [0.1.2]: #012--2026-06-14
 [0.1.1]: #011--earlier

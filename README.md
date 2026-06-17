@@ -1,6 +1,6 @@
 # ⭐ star — Speaking Terminal Access Reader
 
-> **Version 0.1.2** — native speech on every platform, dependency-free Braille export, reading-accessibility aids (adjustable spacing, dyslexia-friendly fonts, bionic reading), and smooth word-by-word highlighting that follows the voice.
+> **Version 0.1.3** — native speech on every platform, dependency-free Braille export, reading-accessibility aids (adjustable spacing, dyslexia-friendly fonts, bionic reading), word- **or sentence-level** highlighting that follows the voice, optional **Piper neural voices** (offline & free), **timestamped SRT/VTT subtitle export**, **reading statistics & a document library**, a **live HTML preview while editing**, **saveable voice/profile presets**, and a **user pronunciation lexicon**.
 
 A single-file Python application that reads your documents aloud while you follow along — no installation wizard, no cloud account, no internet required.
 
@@ -18,11 +18,12 @@ A single-file Python application that reads your documents aloud while you follo
 |---|---|
 | Qt GUI (default) | Windowed application with menu bar, toolbar, and dock panels; launches automatically when PyQt6/PyQt5 is installed |
 | Terminal TUI (fallback) | Full-featured curses interface; force it with `--tui` |
-| Built-in TTS | pyttsx3 (SAPI5 / NSSpeechSynthesizer / eSpeak-NG), **macOS `say` (native, default on Mac)**, eSpeak-NG direct, DECtalk, Festival, Coqui |
+| Built-in TTS | pyttsx3 (SAPI5 / NSSpeechSynthesizer / eSpeak-NG), **macOS `say` (native, default on Mac)**, eSpeak-NG direct, DECtalk, Festival, **Piper (neural, offline, free)**, Coqui |
 | Native macOS voices | Apple system voices (incl. **Eloquence US English**) work out of the box with no extra packages |
 | eSpeak-NG word callbacks | eSpeak-NG uses SSML `<mark/>` events for accurate per-word highlighting — not just a timer estimate |
 | Default reading rate | **265 wpm** — intentionally brisk; adjustable at runtime |
 | TTS word highlighting | Spoken word highlighted live; works in both Qt and terminal modes |
+| Highlight granularity | Highlight by **word** (default), whole **sentence** (less flicker), or **both** — Qt and TUI |
 | User text highlights | Select any passage and highlight it in yellow, green, cyan, pink, or orange; persists across sessions and exports to PDF |
 | Annotations / notes panel | Add tagged notes anywhere in a document via a dock panel (Qt) or pager (TUI); full-text + `#tag` search; persists per-document; exports to Markdown, JSON, BibTeX, or RIS |
 | Citation manager | Import/export BibTeX, RIS, and CSL-JSON; link citations to notes |
@@ -47,8 +48,14 @@ A single-file Python application that reads your documents aloud while you follo
 | Emacs-style keybindings | Full Emacs navigation plus vi-style `j`/`k`/`gg`/`G` shortcuts (TUI) |
 | M-x command palette | Tab-completed command palette with persistent history (TUI) |
 | Export | Save as Markdown, PDF (with highlights), BRF braille, or TTS audio from the File menu |
-| Braille export | Reliable **built-in Grade 1 BRF** (no dependencies); optional contracted Grade 2 via liblouis |
-| Audio export | Synthesize the document to audio; **defaults to WAV** (no extra tools), with MP3/OGG/MP4 when ffmpeg/pydub is present |
+| Braille export | Reliable **built-in Grade 1 BRF** (no dependencies); contracted **Grade 2 via liblouis** (bundled in the self-contained Windows build) |
+| Audio export | Synthesize the document to audio; **defaults to WAV** (no extra tools); **MP3/OGG/MP4 via ffmpeg** (bundled in the self-contained Windows build) |
+| Subtitle export | Emit timestamped **SRT / VTT** captions synchronized to the speech, on their own or alongside an audio export |
+| Reading statistics | Per-document time read, progress %, and session count, with totals and a most-read dashboard |
+| Library / bookshelf | Searchable list of every opened document with progress and last-opened time; reopen with one click |
+| Live HTML preview | Optional split-pane preview that re-renders the Markdown live while you edit |
+| Voice & profile presets | Save voice, rate, theme, font, spacing, and highlight settings as named profiles; switch in one step |
+| Pronunciation lexicon | User-editable term → spoken-form dictionary so drug names, anatomy, and acronyms are read correctly |
 | Screen reader compatible | AT-SPI2 accessibility metadata; cursor parked at minibuffer (TUI) |
 | Four built-in themes | dark (default), light, contrast, phosphor — all colorblind-friendly |
 | CSS theme customization | Drop any `.css` file into the themes folder; star picks it up instantly via View → Reload CSS Themes |
@@ -110,11 +117,14 @@ The scripts also add the platform-specific pieces automatically — `pyobjc` on 
 
 ### External Binary Dependencies
 
-- **Tesseract** — required by `pytesseract`. Download from [github.com/tesseract-ocr/tesseract](https://github.com/tesseract-ocr/tesseract/releases) or install via your system package manager.
+> **Self-contained Windows binary:** since v.0.1.3, the portable `star.exe` bundles **ffmpeg**, the **Tesseract** engine + English data, **liblouis** + tables, **Pandoc**, and the **DECtalk** engine (`DECtalk.dll` + dictionary), so none of the tools below need to be installed on the target machine.
+
+- **Tesseract** — required by `pytesseract` for OCR. Download from [github.com/tesseract-ocr/tesseract](https://github.com/tesseract-ocr/tesseract/releases) or install via your system package manager. *(Bundled in the self-contained Windows build.)*
+- **liblouis** — only for contracted **Grade 2** Braille; Grade 1 BRF export is built in and needs nothing. *(Bundled in the self-contained Windows build.)*
 - **eSpeak-NG** — required for the eSpeak-NG backend and for accurate per-word callbacks. See [TTS Backends](#tts-backends).
-- **DECtalk** — set `DECTALK_BIN` to the path of the `dtalk`/`dectalk` binary. Source: [github.com/dectalk/dectalk](https://github.com/dectalk/dectalk).
-- **Pandoc** — optional fallback for exotic formats. See [pandoc.org](https://pandoc.org/).
-- **ffmpeg** — recommended for audio export (MP3, OGG, MP4). WAV export works without it. Download from [ffmpeg.org](https://ffmpeg.org/download.html) or install via your package manager (`sudo apt install ffmpeg`, `brew install ffmpeg`).
+- **DECtalk** — the self-contained Windows build drives `DECtalk.dll` in-process (no setup needed). Otherwise set `DECTALK_BIN` to the path of a `dtalk`/`dectalk` CLI, or install system DECtalk. Source: [github.com/dectalk/dectalk](https://github.com/dectalk/dectalk). *(Bundled in the self-contained Windows build.)*
+- **Pandoc** — optional fallback for exotic formats. See [pandoc.org](https://pandoc.org/). *(Bundled in the self-contained Windows build.)*
+- **ffmpeg** — needed for audio export (MP3, OGG, MP4). WAV export works without it. Download from [ffmpeg.org](https://ffmpeg.org/download.html) or install via your package manager (`sudo apt install ffmpeg`, `brew install ffmpeg`). *(Bundled in the self-contained Windows build.)*
 
 ### Platform Notes
 
@@ -228,17 +238,40 @@ python star.py --keytest             # open the key-code diagnostic tool (TUI)
 
 Both interfaces share the same navigation philosophy — single-letter or `Ctrl+letter` shortcuts follow **NVDA / JAWS browse-mode conventions** so screen-reader users have the same muscle memory in both modes.
 
+> **Every Qt GUI menu item has a keyboard shortcut.** The shortcut is shown next to each command in its menu, and the full set is listed below (and in **Help → Keyboard Shortcuts**, `F3`). Each binding is owned by exactly one action, so there are no “ambiguous shortcut” conflicts. Any binding can be remapped from **Help → Customize Shortcuts…** (`Ctrl+Alt+Q`).
+>
+> **Modifier scheme:** `Ctrl+letter` = forward / primary action, `Ctrl+Shift+letter` = backward / secondary, `Alt+punctuation` = sentence navigation, and `Ctrl+Alt+letter` = exports, citations, tools, and reading aids.
+
+### Play / pause with the Ctrl key (JAWS habit)
+
+Tapping (pressing and releasing) the **`Ctrl`** key on its own toggles speech, mirroring the JAWS muscle memory of hitting Ctrl to silence speech. Using Ctrl as a modifier in a chord (`Ctrl+O`, `Ctrl+H`, …) never triggers it — only a clean solo tap does. It is active while the document view has focus and can be turned off with the `qt_ctrl_pause` setting.
+
 ### Playback (both modes)
 
-| Key | Action |
-|---|---|
-| `Space` | Play / pause TTS |
-| `Esc` | Stop TTS |
-| `Ctrl+=` / `+` | Speed up (+20 wpm) |
-| `Ctrl+-` / `-` | Slow down (−20 wpm) |
-| `F8` | Cycle speed preset (skim / normal / study / slow) |
+| Action | Qt GUI | TUI |
+|---|---|---|
+| Play / pause | `Space`  ·  tap `Ctrl` | `Space` |
+| Stop | `Esc` | `Esc` |
+| Speed up (+20 wpm) | `Ctrl+=` | `+` |
+| Slow down (−20 wpm) | `Ctrl+-` | `-` |
+| Play from cursor / selection | `Ctrl+Return` | — |
+| Choose TTS engine | `Ctrl+Shift+G` | `M-x tts-backend` |
+| Choose voice | `Ctrl+Shift+V` | `Ctrl+T` |
+| Pronunciation lexicon | `Ctrl+Shift+I` | `M-x pron-add` / `pron-list` |
+| Speech Cursor mode | `Tab` | `Tab` |
+| Toggle SSML prosody | `Ctrl+Alt+Y` | `M-x ssml` |
+| Cycle speed preset | `F8` | `F8` |
 
 The default reading rate is **265 wpm**. New users should start at 150–180 wpm and increase gradually.
+
+### Profiles (saved setting bundles)
+
+| Action | Qt GUI | TUI |
+|---|---|---|
+| Save current settings as a profile | `Ctrl+Shift+K` | `M-x profile-save <name>` |
+| Load a profile | `Ctrl+Shift+J` | `M-x profile-load <name>` |
+| Delete a profile | `Ctrl+Shift+Y` | `M-x profile-delete <name>` |
+| List profiles | Profiles menu | `M-x profile-list` |
 
 ### Structure navigation (both modes)
 
@@ -246,11 +279,9 @@ Keys are shared between the Qt GUI and the TUI. The TUI also accepts the legacy 
 
 | Action | Qt GUI | TUI |
 |---|---|---|
-| Next heading | `Ctrl+H` | `h`   `}` (legacy) |
-| Previous heading | `Ctrl+Shift+H` | `{` (legacy) |
-| Read next heading aloud | `Ctrl+H` (if playing) | `>` |
-| Read previous heading aloud | `Ctrl+Shift+H` (if playing) | `<` |
-| Next paragraph | `Ctrl+P` | `p`   `Ctrl+P`   `]` (legacy) |
+| Next heading (reads aloud) | `Ctrl+H` | `h`   `>`   `}` (legacy) |
+| Previous heading (reads aloud) | `Ctrl+Shift+H` | `<`   `{` (legacy) |
+| Next paragraph | `Ctrl+P` | `p`   `Ctrl+P`   `]` (legacy) |
 | Previous paragraph | `Ctrl+Shift+P` | `P`   `[` (legacy) |
 | Replay paragraph | `Ctrl+R` | `r`   `Ctrl+R` |
 | Next table | `Ctrl+T` | `t` |
@@ -273,16 +304,20 @@ Keys are shared between the Qt GUI and the TUI. The TUI also accepts the legacy 
 | `H` | History: go back to previous position |
 | `L` | History: go forward |
 
-### File operations
+### File & export
 
 | Action | Qt GUI | TUI |
 |---|---|---|
 | Open a file | `Ctrl+O` | `Ctrl+O` |
-| Open a URL | URL toolbar button | `M-x open-url` |
-| Export as Markdown | File → Export | `Ctrl+S` (read mode) |
-| Save edited Markdown | `Ctrl+S` (edit mode) | — |
+| Open a URL | `Ctrl+Shift+O` | `M-x open-url` |
+| Library / Bookshelf | `Ctrl+Shift+B` | `M-x library` |
+| Export as Markdown | `Ctrl+Alt+M` | `M-x export-markdown` |
+| Export as PDF | `Ctrl+Alt+P` | — |
+| Export as Braille (BRF) | `Ctrl+Alt+B` | `M-x export-braille` |
+| Export as Audio | `Ctrl+Alt+A` | `M-x export-audio` |
+| Export Subtitles (SRT/VTT) | `Ctrl+Alt+U` | `M-x export-subtitles` |
 | Reload document | — | `F9` |
-| Quit | `Ctrl+Q` | `Ctrl+Q`   `q` |
+| Quit | `Ctrl+Q` | `Ctrl+Q`   `q` |
 
 ### Editing (Qt GUI only)
 
@@ -290,6 +325,7 @@ Keys are shared between the Qt GUI and the TUI. The TUI also accepts the legacy 
 |---|---|
 | `Ctrl+E` | Toggle edit mode (raw Markdown ↔ rendered view) |
 | `Ctrl+S` | Save in edit mode; export as Markdown in read mode |
+| `Ctrl+Shift+L` | Toggle the live HTML preview pane (enters edit mode if needed) |
 | `Ctrl+Z` / `Ctrl+Y` | Undo / redo |
 | `Ctrl+X` / `Ctrl+C` / `Ctrl+V` | Cut / copy / paste |
 | `Ctrl+C` | Copy selection or current paragraph (read mode) |
@@ -306,27 +342,70 @@ Keys are shared between the Qt GUI and the TUI. The TUI also accepts the legacy 
 
 All matches are highlighted: current match in magenta, others in blue.
 
-### View & display
+### View & reading aids
 
 | Action | Qt GUI | TUI |
 |---|---|---|
 | Cycle color theme | `F5` | `F5` |
-| Choose theme by name | View → Choose Theme… | `M-x theme <name>` |
+| Choose theme by name | `Ctrl+Alt+T` | `M-x theme <name>` |
+| Reload CSS themes | `Ctrl+Shift+R` | — |
+| Open themes folder | `Ctrl+Shift+F` | — |
 | Toggle Contents panel | `Ctrl+\` | — |
-| Toggle Notes panel | `Ctrl+Shift+N` | — |
-| Text spacing / dyslexia font / bionic reading | View → Reading Aids | — |
-| Tune karaoke highlight | View → Reading Aids → Karaoke Highlight… | — |
+| Toggle Notes panel | `Ctrl+Shift+N` | `M-x annotations-list` |
+| Change font | `Ctrl+Alt+F` | — |
+| Text spacing | `Ctrl+Alt+W` | — |
+| Tune karaoke highlight | `Ctrl+Alt+K` | — |
+| Highlight granularity (word/sentence/both) | `Ctrl+Alt+K` (dialog) | `M-x highlight-granularity` |
+| Dyslexia-friendly font | `Ctrl+Alt+X` | — |
+| Bionic reading | `Ctrl+Alt+J` | — |
+| Current-line highlight | `Ctrl+Alt+L` | — |
+| Live HTML preview (edit mode) | `Ctrl+Shift+L` | — |
 | Show reading level | `Ctrl+L` | `M-x reading-level` |
 | Toggle line numbers | — | `F6` |
 | Toggle syntax highlight | — | `F7` |
-| Open README.md (help) | `F1` | `F1` |
 
-### Voice & mode
+### Highlights (Qt GUI)
+
+| Action | Shortcut |
+|---|---|
+| Highlight selection — Yellow / Green / Cyan / Pink / Orange | `Ctrl+Shift+1` … `Ctrl+Shift+5` |
+| Clear all highlights | `Ctrl+Shift+0` |
+
+### Notes / annotations
 
 | Action | Qt GUI | TUI |
 |---|---|---|
-| Voice picker | `Ctrl+Shift+V` | `Ctrl+T` |
-| Speech Cursor mode | `Tab` | `Tab` |
+| Add note at cursor | `Ctrl+Shift+A` | `a`   `M-x annotate` |
+| Edit selected note | `Ctrl+Shift+E` | `M-x annotation-goto` |
+| Delete selected note | `Ctrl+Shift+D` | `M-x annotation-delete` |
+| Toggle Notes panel | `Ctrl+Shift+N` | `M-x annotations-list` |
+| Export notes | `Ctrl+Alt+N` | `M-x annotations-export` |
+
+### Citations (Qt GUI)
+
+| Action | Shortcut |
+|---|---|
+| Import citations | `Ctrl+Alt+I` |
+| Export citations | `Ctrl+Alt+E` |
+| Add citation | `Ctrl+Alt+C` |
+| Add citation by DOI | `Ctrl+Alt+D` |
+| Insert citation at cursor | `Ctrl+Alt+R` |
+| Manage / browse citations | `Ctrl+Alt+G` |
+
+### Tools & help
+
+| Action | Qt GUI | TUI |
+|---|---|---|
+| Transcribe audio file | `Ctrl+Alt+S` | — |
+| Dictate note (record) | `Ctrl+Alt+V` | — |
+| Toggle transcript timestamps | `Ctrl+Alt+Z` | — |
+| Reading statistics | `Ctrl+Shift+S` | `M-x reading-stats` |
+| Clear document cache | `Ctrl+Shift+Delete` | `M-x cache-clear` |
+| Command palette | `F2` | `F2`   `M-x`   `:` |
+| Keyboard cheat sheet | `F3` | `M-x shortcuts`   `?` |
+| Customize shortcuts | `Ctrl+Alt+Q` | — |
+| Open README.md (help) | `F1` | `F1` |
+| About star | `Ctrl+F1` | `M-x about` |
 
 ### Highlighting (Qt GUI)
 
@@ -375,7 +454,13 @@ Open the command palette with `M-x`, `F2`, or `:`. Begin typing any part of a co
 | `export-markdown` | Save the rendered document as a `.md` file |
 | `export-braille` | Export a BRF braille file (requires `louis`) |
 | `export-audio [fmt]` | Synthesize document to audio; `fmt` is `mp3` (default), `ogg`, `mp4`, or `wav` |
+| `export-subtitles` | Write a timestamped **SRT/VTT** caption track synchronized to the speech |
+| `subtitle-format srt\|vtt` | Set the caption format used for subtitle export |
+| `subtitle-word-level` | Toggle one cue per word vs. sentence-grouped cues |
+| `subtitles-with-audio` | Toggle emitting captions automatically alongside audio export |
 | `recent` | Pick from recently opened files |
+| `library` (`bookshelf`) | Browse the document library and reopen a document |
+| `reading-stats` (`stats`) | Show the reading-statistics dashboard |
 | `cache-clear` | Delete the cached version of the current document |
 
 ### Speech
@@ -390,7 +475,8 @@ Open the command palette with `M-x`, `F2`, or `:`. Begin typing any part of a co
 | `rate-down` | Decrease reading rate by 20 wpm |
 | `volume-up` | Increase TTS volume |
 | `volume-down` | Decrease TTS volume |
-| `tts-backend` | Switch TTS engine at runtime |
+| `tts-backend` | Switch TTS engine at runtime (`pyttsx3`/`espeak`/`festival`/`piper`/`coqui`/`dectalk`/`none`) |
+| `highlight-granularity word\|sentence\|both` | Highlight the spoken word, the whole sentence, or both |
 | `tts-voice` | Switch TTS voice by ID |
 | `ssml-on` / `ssml-off` | Enable/disable SSML prosody markup |
 | `speed <name>` | Apply a named speed preset: `skim`, `normal`, `study`, `slow` |
@@ -427,12 +513,25 @@ Open the command palette with `M-x`, `F2`, or `:`. Begin typing any part of a co
 | `footnote-mode` | Switch footnote handling: `inline`, `deferred`, or `skip` |
 | `reading-level` | Show Flesch-Kincaid grade and ease score |
 
-### Abbreviations & Numbers
+### Abbreviations, Pronunciations & Numbers
 
 | Command | Description |
 |---|---|
 | `abbrev-add` | Add a custom abbreviation expansion for TTS |
 | `abbrev-list` | List all active abbreviation expansions |
+| `pron-add <term> <spoken>` | Add/update a pronunciation override for a term |
+| `pron-remove <term>` | Remove a pronunciation override |
+| `pron-list` | List all pronunciation overrides |
+| `pronunciations` | Toggle the pronunciation lexicon on/off |
+
+### Voice & Profile Presets
+
+| Command | Description |
+|---|---|
+| `profile-save <name>` | Save the current settings as a named profile |
+| `profile-load <name>` | Apply a saved profile (voice, rate, theme, font, spacing, highlight) |
+| `profile-list` | List saved profiles |
+| `profile-delete <name>` | Delete a saved profile |
 
 ### Notes & Annotations
 
@@ -506,6 +605,13 @@ In `auto` mode (the default), `star` chooses the first available backend in this
 order: **pyttsx3 → macOS `say` → eSpeak-NG → Festival → DECtalk → silent**. On a
 Mac this guarantees a native Apple voice even without any Python packages.
 
+**Exception — the self-contained Windows binary:** when the bundled DECtalk
+engine is present and actually starts, it is chosen **first**, so the binary
+defaults to the classic **Perfect Paul** voice. star probes a real DECtalk
+startup before preferring it, so on machines without a working DECtalk the
+order above is used unchanged. Switch engines any time with **Speech → Choose
+TTS Engine…** (`Ctrl+Shift+G`) or `M-x tts-backend`.
+
 ### pyttsx3 (preferred when installed)
 
 `pyttsx3` wraps the platform's native TTS engine and provides word-boundary
@@ -550,6 +656,32 @@ The `espeak-ng` or `espeak` binary must be on your system PATH.
 
 Festival speech synthesis (Linux). The `festival` binary must be on your PATH.
 
+### Piper (neural, offline, free)
+
+[Piper](https://github.com/rhasspy/piper) gives natural, neural-quality speech
+**entirely offline** with no subscription or network dependency — the best fit
+for an accessibility-first reader. It ships as a standalone `piper` binary (no
+Python package needed) that STAR drives behind the scenes.
+
+**Setup:**
+
+1. Install the `piper` binary so it is on your `PATH`
+   (releases: [github.com/rhasspy/piper](https://github.com/rhasspy/piper/releases)).
+2. Download a voice model — a `.onnx` file **and** its `.onnx.json` config
+   (voices: [huggingface.co/rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices)).
+3. Point STAR at the model by any of:
+   - setting `piper_model` to the `.onnx` path in `settings.json`,
+   - exporting the `PIPER_MODEL` environment variable, or
+   - dropping the files into a Piper voice directory (e.g. `<config>/piper`,
+     `~/.local/share/piper`, or `%APPDATA%\piper`; `PIPER_VOICE_DIR` is also honored).
+4. Select it with **Speech → Choose TTS Engine…** or `M-x tts-backend piper`.
+
+Like Coqui, Piper is **opt-in** and never chosen in `auto` mode. Word
+highlighting uses the timer (Piper synthesizes a whole utterance to audio, so
+no per-word events are available). The reading rate maps to Piper's length
+scale; if your `piper` build rejects that flag, synthesis falls back to the
+model's default rate automatically.
+
 ### Coqui TTS
 
 Neural TTS via the Coqui TTS Python library. High quality but requires a GPU-capable machine for real-time synthesis.
@@ -562,8 +694,10 @@ pip install TTS
 
 The legendary "Perfect Paul" synthesizer, now open source.
 
+- In the **self-contained Windows build**, `star` drives the bundled `DECtalk.dll` in-process via `ctypes` (the architecture-matched 64-/32-bit engine plus its dictionary are bundled), so the classic DECtalk voice works with no setup — and it is the **default engine/voice** on that build (see the auto-mode note above).
+- All **nine classic speakers** are listed in the voice picker (**Speech → Choose Voice…**, `Ctrl+Shift+V`, or `M-x voice-picker`): **Perfect Paul** (default), Beautiful Betty, Huge Harry, Frail Frank, Doctor Dennis, Kit the Kid, Uppity Ursula, Rough Rita, and Whispering Wendy.
+- Otherwise `star` uses a system DECtalk: set `DECTALK_BIN` to the full path of a `dtalk`/`dectalk` CLI (or have one on `PATH`).
 - Source: [github.com/dectalk/dectalk](https://github.com/dectalk/dectalk)
-- Set `DECTALK_BIN` to the full path of `dtalk`/`dectalk`.
 - Word highlighting uses a timer-based approximation.
 
 ### Silent (fallback)
@@ -577,10 +711,13 @@ M-x tts-backend pyttsx3
 M-x tts-backend applesay     # macOS native `say`
 M-x tts-backend espeak
 M-x tts-backend festival
+M-x tts-backend piper        # neural, offline, free (needs a .onnx model)
 M-x tts-backend coqui
 M-x tts-backend dectalk
 M-x tts-backend none
 ```
+
+In the Qt GUI the same engines are reachable from **Speech → Choose TTS Engine…**.
 
 ---
 
@@ -592,9 +729,114 @@ While TTS is playing, `star` highlights the word currently being spoken and keep
 
 - **pyttsx3** — Word-boundary callbacks from the native SAPI5 / NSSpeechSynthesizer engine confirm the exact audio position. A background timer advances the highlight at the configured speech rate; callbacks correct the timer's estimate to keep the two in sync.
 - **eSpeak-NG (direct)** — Text is wrapped in SSML with `<mark/>` elements before each word. eSpeak-NG outputs `MARK N` to stdout as each word begins; a reader thread fires the highlight callback with accuracy comparable to pyttsx3.
-- **DECtalk / Festival / Coqui** — No word-level events are available. `star` uses the current reading rate (wpm) to advance the highlight on a timer.
+- **DECtalk / Festival / Piper / Coqui** — No word-level events are available. `star` uses the current reading rate (wpm) to advance the highlight on a timer.
 
 The document view scrolls automatically to keep the highlighted word visible. In the terminal TUI the cursor tracks the highlighted line; in Qt the word is scrolled into view without stealing keyboard focus.
+
+**Granularity (word / sentence / both):** by default the single spoken word is highlighted. For readers who find rapid word-by-word movement distracting, switch to **sentence** highlighting (the whole current sentence is banded) or **both** (a soft sentence band with the current word marked on top). Set it in **View → Reading Aids → Karaoke Highlight…** (the *Granularity* selector) or with `M-x highlight-granularity word|sentence|both`. Works in both the Qt GUI and the terminal TUI.
+
+## 🎬 Subtitle Export (SRT / VTT)
+
+When you export a document as audio, STAR can also produce a synchronized
+caption track so the highlight "travels" with the audio into any media player —
+handy for review and for creating accessible study recordings.
+
+- **On their own:** **File → Export → Export Subtitles (SRT / VTT)…** in the Qt
+  GUI, or `M-x export-subtitles` in the TUI. The format follows the file
+  extension you choose (`.srt` or `.vtt`).
+- **Alongside audio:** enable `M-x subtitles-with-audio` (or the
+  `export_subtitles_with_audio` setting) and every audio export drops a matching
+  caption file next to it.
+- **Cue size:** captions are grouped into readable sentence-length lines by
+  default; `M-x subtitle-word-level` switches to one cue per word.
+- **Default format:** `M-x subtitle-format srt|vtt` (setting `subtitle_format`).
+
+Timing is **estimated** from the synthesized audio's total duration
+(apportioned across spoken tokens by length), because file-based TTS synthesis
+exposes no per-word callbacks. No external tools are required.
+
+## 📊 Reading Statistics & Progress
+
+STAR keeps a running tally of your reading so you can see progress at a glance
+— useful when managing heavy reading loads.
+
+- **What's tracked (per document):** total **time read** (accrued only while
+  speech is actually playing), the **furthest word** reached, **progress %**,
+  and the number of **sessions**.
+- **Dashboard:** **Tools → Reading Statistics…** (`Ctrl+Shift+S`) in the Qt GUI,
+  or `M-x reading-stats` in the TUI. It shows overall totals (time and words
+  across all documents), the current document's progress, and a **most-read**
+  list.
+- **Storage:** everything lives in `settings.json` under `reading_stats` and is
+  flushed periodically and on exit, so it survives restarts.
+
+## 🏛️ Library / Bookshelf
+
+Every document you open is remembered in a central library, turning STAR from a
+per-file viewer into a study hub.
+
+- **Open it:** **File → Library / Bookshelf…** (`Ctrl+Shift+B`) in the Qt GUI,
+  or `M-x library` (`bookshelf`) in the TUI.
+- **What it shows:** each document's **title**, **format**, **progress %**, time
+  read, and **last-opened** date, newest first. Type in the filter box to
+  search by title or path.
+- **Reopen:** press **Enter** or double-click an entry (Qt), or pick its number
+  (TUI). Progress is read from your saved reading position so you resume right
+  where you left off.
+- **Storage:** the `library` setting records metadata for every opened
+  document; progress and time merge in from `reading_positions` and
+  `reading_stats`.
+
+## 👁️ Live HTML Preview (edit mode)
+
+While editing Markdown source you can show a **live HTML preview** beside the
+editor that re-renders as you type.
+
+- **Toggle:** **View → Live HTML Preview** or `Ctrl+Shift+L`. Turning it on
+  outside edit mode automatically enters edit mode; the editor and preview sit
+  in a draggable split pane.
+- **Live updates:** the preview re-renders ~300 ms after your last keystroke
+  (debounced) so typing stays responsive, and it follows the current theme.
+- **Preference:** the `qt_edit_preview` setting remembers whether the preview
+  is shown the next time you enter edit mode. The preview pane is hidden
+  automatically when you leave edit mode.
+
+## 🎚️ Voice & Profile Presets
+
+Profiles bundle your most important settings so you can adapt STAR to a task or
+your current fatigue level in one step — e.g. a fast “Skim” profile, a slower
+“Deep Study” profile, or a high-contrast “Low-Light” profile.
+
+- **What's captured:** TTS backend, voice, rate, volume, SSML toggle, theme,
+  font family/size, letter/word/line spacing, the dyslexia-friendly font,
+  bionic reading, current-line highlight, and all karaoke-highlight settings
+  (style, color, speed, lead, granularity).
+- **Qt GUI:** the **Profiles** menu — **Save Current Settings as Profile…**
+  (`Ctrl+Shift+K`), **Load Profile…** (`Ctrl+Shift+J`), **Delete Profile…**
+  (`Ctrl+Shift+Y`). Loading applies everything immediately (re-themes, re-fonts,
+  and re-selects the voice/engine).
+- **TUI:** `M-x profile-save <name>`, `profile-load <name>`, `profile-list`,
+  `profile-delete <name>`.
+- **Storage:** profiles live in `settings.json` under `profiles`.
+
+## 🗣️ Pronunciation Lexicon
+
+Domain vocabulary — drug names, anatomy, gene symbols, acronyms — routinely
+defeats default TTS. The pronunciation lexicon lets you map any term to a
+spoken form so it is read correctly and consistently, on **every** backend.
+
+- **Editor (Qt GUI):** **Speech → Pronunciation Lexicon…** (`Ctrl+Shift+I`)
+  opens a manager to add, edit, and delete entries, with a checkbox to enable
+  or disable the whole lexicon.
+- **TUI:** `M-x pron-add <term> <spoken form>`, `pron-list`,
+  `pron-remove <term>`, and `pronunciations` to toggle it on/off.
+- **How it works:** matching is whole-word and case-insensitive, longer terms
+  win over shorter ones, and overrides are applied **first** — before
+  abbreviation expansion and number normalization — so they are never reshaped
+  by later steps. Example: `CHF → congestive heart failure`, or a phonetic
+  respelling like `Xa cept → zah-sept`.
+- **Storage:** entries live in `settings.json` under `pronunciations`; the
+  `use_pronunciations` flag toggles the feature.
 
 **Highlight timer and SAPI5 pacing (pyttsx3 backend):**
 
@@ -632,8 +874,8 @@ python star.py --tui document.pdf
 | Open… | Open a file via a standard file dialog |
 | Export › Export as Markdown… | Save document as `.md` |
 | Export › Export as PDF… | Save document as `.pdf` (user highlights included) |
-| Export › Export as Braille (BRF)… | Save document as `.brf` (requires `louis`) |
-| Export › Export as Audio (MP3 / OGG / MP4)… | Synthesize document to an audio file (WAV always works; MP3/OGG/MP4 require ffmpeg or pydub) |
+| Export › Export as Braille (BRF)… | Save document as `.brf` (built-in Grade 1; Grade 2 via bundled/installed liblouis) |
+| Export › Export as Audio (MP3 / OGG / MP4)… | Synthesize document to an audio file (WAV always works; MP3/OGG/MP4 via bundled/installed ffmpeg) |
 | Quit | Exit the application |
 
 **Highlight menu**
@@ -714,6 +956,7 @@ Fonts well-suited for readers with dyslexia include **OpenDyslexic**, **Lexie Re
 
 - **Text Spacing…** — a live-preview dialog to independently adjust **line height**, **letter spacing**, and **word spacing**. Generous, adjustable spacing reduces crowding effects and directly supports **WCAG 1.4.12 (Text Spacing)**. Stored in `qt_line_height` (default `1.5`), `qt_letter_spacing` (extra %), and `qt_word_spacing` (extra px). *Cancel reverts; OK keeps.*
 - **Karaoke Highlight…** — a live-preview dialog to tune the spoken-word highlight:
+  - **Granularity** (`highlight_granularity`): `word` (default), `sentence` (band-highlight the whole current sentence — less flicker), or `both` (a soft sentence band with the current word marked on top). Applies to both the Qt GUI and the TUI (`M-x highlight-granularity`).
   - **Style** (`highlight_style`): `background` (filled), `underline`, `box` (wavy underline), `bold`, or `color` (colored text).
   - **Color** (`highlight_color`): any Qt/CSS color name or `#rrggbb`.
   - **Speed** (`highlight_speed`): highlight pacing as a fraction of the speech rate; applies on the next play.
@@ -927,6 +1170,8 @@ M-x footnote-mode skip
 
 `star` uses [Tesseract](https://github.com/tesseract-ocr/tesseract) via `pytesseract` for image-based PDFs and standalone image files.
 
+> **Bundled in the self-contained Windows binary** — the `star.exe` ships the Tesseract engine and English (`eng`) data, so OCR works out of the box with no separate install. The steps below are for running from source or other platforms.
+
 ```bash
 pip install pytesseract pymupdf
 ```
@@ -935,7 +1180,7 @@ pip install pytesseract pymupdf
 |---|---|
 | Linux (Debian/Ubuntu) | `sudo apt install tesseract-ocr tesseract-ocr-eng` |
 | macOS | `brew install tesseract` |
-| Windows | Download from [github.com/tesseract-ocr/tesseract/releases](https://github.com/tesseract-ocr/tesseract/releases) |
+| Windows | Download from [github.com/tesseract-ocr/tesseract/releases](https://github.com/tesseract-ocr/tesseract/releases) (or use the bundled engine in the self-contained build) |
 
 Configure the language pack in `settings.json`:
 
@@ -986,7 +1231,7 @@ CRLF line endings) that embossers expect.
 
 ### Optional contracted Grade 2 (liblouis)
 
-For contracted Grade 2 output, install the `louis` binding and opt in:
+For contracted Grade 2 output, opt in (the self-contained Windows binary already bundles liblouis + tables; from source, install the `louis` binding and liblouis):
 
 ```bash
 pip install louis
@@ -1014,7 +1259,7 @@ translator (still no crash). Useful tables:
 
 `star` can synthesize an entire document to an audio file using whatever TTS backend is currently active. This is useful for creating offline listening copies, sharing recordings, or integrating with other tools.
 
-**Defaults to WAV** — because WAV needs no external tools, it is the default container (`audio_export_format` setting). MP3/OGG/MP4 are still available whenever `ffmpeg` or `pydub` is installed.
+**Defaults to WAV** — because WAV needs no external tools, it is the default container (`audio_export_format` setting). MP3/OGG/MP4 require **ffmpeg**, which is **bundled in the self-contained Windows binary** (see [`BUILD.md`](BUILD.md)); from source they work whenever `ffmpeg` (or `pydub`) is available.
 
 **How to export:**
 
@@ -1039,9 +1284,16 @@ The output format is inferred automatically from the file extension you choose.
 | pyttsx3 | `engine.save_to_file()` → WAV |
 | eSpeak-NG | `-w wav_path` flag |
 | Festival | `text2wave` helper (or Festival Scheme fallback) |
+| Piper | `--output_file` → WAV (neural, offline) |
 | Coqui TTS | Coqui synthesis API → WAV |
-| DECtalk | `-w` flag |
+| DECtalk | `DECtalk.dll` WAV-out (in-process) on Windows; `-w` flag with a CLI |
 | Silent | Not supported (raises an error) |
+
+**Subtitles:** audio export can also emit a synchronized **SRT/VTT** caption
+track — see [Subtitle Export](#-subtitle-export-srt--vtt). Enable
+`M-x subtitles-with-audio` to write one beside every audio file automatically,
+or export captions on their own with **File → Export → Export Subtitles…** /
+`M-x export-subtitles`.
 
 **Format conversion pipeline:** The backend always produces a WAV file first. If the requested format is not WAV, `star` converts it using:
 
@@ -1335,7 +1587,8 @@ th {
 | Key | Default | Description |
 |---|---|---|
 | `theme` | `"dark"` | Color theme: `dark`, `light`, `contrast`, `phosphor` |
-| `tts_backend` | `"auto"` | TTS engine: `auto`, `pyttsx3`, `espeak`, `festival`, `coqui`, `dectalk`, `none` |
+| `tts_backend` | `"auto"` | TTS engine: `auto`, `pyttsx3`, `espeak`, `festival`, `piper`, `coqui`, `dectalk`, `none` |
+| `piper_model` | `""` | Path to a Piper `.onnx` voice model for the `piper` backend (neural, offline). The matching `.onnx.json` must sit beside it. Also honored: `PIPER_MODEL` env var and Piper voice directories. |
 | `tts_rate` | `265` | Reading speed in words per minute |
 | `tts_volume` | `1.0` | Volume from `0.0` (silent) to `1.0` (full) |
 | `tts_voice` | `""` | Voice ID; empty = system default (auto-resolved via `tts_prefer_voice`) |
@@ -1353,10 +1606,14 @@ th {
 | `braille_table` | `"en-ueb-g2.ctb"` | liblouis translation table (only used when `braille_grade2` is true) |
 | `braille_grade2` | `false` | Opt in to contracted Grade 2 via liblouis; otherwise the built-in Grade 1 translator is used |
 | `audio_export_format` | `"wav"` | Default audio export container (WAV needs no external tools) |
+| `subtitle_format` | `"srt"` | Caption format for subtitle export: `srt` or `vtt` |
+| `subtitle_word_level` | `false` | Emit one subtitle cue per word instead of sentence-grouped cues |
+| `export_subtitles_with_audio` | `false` | Also write an SRT/VTT caption track next to every audio export |
 | `highlight_current_word` | `true` | Highlight the spoken word during TTS |
 | `highlight_color` | `"cyan"` | TTS word highlight color (any Qt/CSS color name or `#rrggbb`) |
 | `highlight_style` | `"background"` | Qt karaoke highlight style: `background` (filled), `underline`, `box` (wavy underline), `bold`, `color` (colored text). Tune via **View → Reading Aids → Karaoke Highlight…** |
 | `highlight_lead_words` | `0` | Qt only: words the visual highlight leads (`+`) or lags (`-`) the audio |
+| `highlight_granularity` | `"word"` | Highlight by `word`, whole `sentence` (less flicker), or `both` (sentence band + word). Qt + TUI; set via **Karaoke Highlight…** or `M-x highlight-granularity` |
 | `highlight_speed` | `1.0` | Highlight timer speed as a fraction of `tts_rate`; `1.0` = match speech exactly. Values below `1.0` slow the timer (highlight lags audio); values above `1.0` run it faster. The pacing guard caps how far the timer can lead confirmed audio, so raising this above `1.0` does not cause runaway drift. |
 | `recent_files` | `[]` | Recently opened files (populated automatically) |
 | `recent_files_limit` | `20` | Maximum entries in the recent files list |
@@ -1365,6 +1622,13 @@ th {
 | `qt_font_family` | platform sans-serif | Qt display font family (`Helvetica Neue` / `Segoe UI` / `DejaVu Sans`); serif faces are discouraged for accessibility |
 | `qt_font_size` | `14` | Qt display font size in pt |
 | `qt_hidpi` | `true` | Enable high-DPI scaling in the Qt GUI |
+| `qt_ctrl_pause` | `true` | Tap the `Ctrl` key alone to play/pause speech (JAWS habit); chords like `Ctrl+O` never trigger it |
+| `qt_edit_preview` | `false` | Show a live-rendered HTML preview beside the editor in edit mode (toggle with `Ctrl+Shift+L`) |
+| `reading_stats` | `{}` | Per-document reading time, progress, and session counts (populated automatically) |
+| `library` | `{}` | Library/bookshelf metadata for every opened document (populated automatically) |
+| `profiles` | `{}` | Named setting bundles (voice, rate, theme, font, spacing, highlight) saved via the Profiles menu |
+| `pronunciations` | `{}` | Pronunciation lexicon: `{term: spoken form}` applied before other TTS normalization |
+| `use_pronunciations` | `true` | Apply the pronunciation lexicon while reading |
 | `qt_show_toc` | `true` | Show the Contents panel at startup |
 | `qt_show_notes` | `false` | Show the Notes/annotations panel at startup (hidden by default to maximize the reading area; toggle with **Ctrl+Shift+N**) |
 | `qt_line_height` | `1.5` | Qt line-height multiplier (WCAG 1.4.12). Adjust via **View → Reading Aids → Text Spacing…** |
@@ -1455,8 +1719,14 @@ See the companion documents:
 | Document | What's in it |
 |---|---|
 | [`CHANGELOG.md`](CHANGELOG.md) | Full record of changes, starting with the 0.1.2 release |
+| [`BUILD.md`](BUILD.md) | Building the portable / fully self-contained Windows `star.exe` |
+| [`build-vendor.py`](build-vendor.py) | Downloads the bundled native engines (ffmpeg, Tesseract, liblouis, Pandoc, DECtalk) into `vendor/` |
+| [`PORTING.md`](PORTING.md) | Distribution / single-binary feasibility analysis |
+| [`SUGGESTIONS.md`](SUGGESTIONS.md) | Roadmap of proposed improvements |
 
 **Recently shipped:**
+
+- **Fully self-contained Windows binary** — `star.exe` can now bundle ffmpeg (MP3/OGG/MP4 export), the Tesseract OCR engine with English data, liblouis with its tables (Grade 2 Braille), Pandoc (markup conversion), and the DECtalk engine (`DECtalk.dll` + dictionary, driven in-process via ctypes), so a single file does everything on a clean PC. On that build DECtalk is the default engine with the classic **Perfect Paul** voice, and all nine DECtalk speakers appear in the voice picker. See [`BUILD.md`](BUILD.md).
 
 - **Reading accessibility aids** (Qt GUI) under **View → Reading Aids**: adjustable letter/word/line spacing (WCAG 1.4.12), a dyslexia-friendly font preference, bionic reading, a current-line focus band, and karaoke highlight tuning (style / color / speed / lead).
 - **Notes dock hidden by default** to maximize the reading area (toggle with `Ctrl+Shift+N`).
