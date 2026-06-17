@@ -1,0 +1,74 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "star-reader"
+version = "0.1.3"
+description = "star — Speaking Terminal Access Reader: an accessible document reader with built-in text-to-speech"
+readme = "README.md"
+requires-python = ">=3.8"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+authors = [{ name = "Jon Pielaet" }]
+keywords = [
+    "accessibility",
+    "text-to-speech",
+    "tts",
+    "screen-reader",
+    "document-reader",
+    "braille",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console :: Curses",
+    "Environment :: X11 Applications :: Qt",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Topic :: Adaptive Technologies",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+]
+
+# Backbone of the experience (the "recommended" profile from install.sh):
+# the Qt GUI, cross-platform TTS, and the most common document loaders.
+# Everything else is optional and guarded at import time, so it lives in the
+# extras below.
+dependencies = [
+    "PyQt6",
+    "pyttsx3",
+    "pdfminer.six",
+    "python-docx",
+    "python-pptx",
+    # pyttsx3's macOS driver needs pyobjc to drive NSSpeechSynthesizer.
+    "pyobjc; sys_platform == 'darwin'",
+]
+
+[project.optional-dependencies]
+ocr = ["pytesseract", "pymupdf", "Pillow"]
+formats = ["odfpy", "openpyxl"]
+markup = ["pypandoc"]
+braille = ["louis"]
+audio = ["pydub"]
+transcribe = ["openai-whisper", "sounddevice", "numpy"]
+all = [
+    "pytesseract",
+    "pymupdf",
+    "Pillow",
+    "odfpy",
+    "openpyxl",
+    "pypandoc",
+    "louis",
+    "pydub",
+]
+
+[project.scripts]
+star = "star.app:main"
+
+[tool.setuptools.packages.find]
+include = ["star*"]
+
+[tool.setuptools.package-data]
+star = ["README.md", "LICENSE", "CHANGELOG.md"]
