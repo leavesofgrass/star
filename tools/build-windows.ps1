@@ -37,7 +37,10 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-Set-Location -Path $PSScriptRoot
+# This script lives in tools/, but the build (star.spec, vendor/, dist/) is
+# rooted at the project directory one level up.  Operate from there.
+$root = Split-Path -Parent $PSScriptRoot
+Set-Location -Path $root
 
 function Info($msg) { Write-Host "==> $msg" -ForegroundColor Cyan }
 function Ok($msg)   { Write-Host "OK  $msg" -ForegroundColor Green }
@@ -56,7 +59,7 @@ Ok ("Using " + (& $py --version 2>&1))
 
 # ── Build environment ───────────────────────────────────────────────────────
 if (-not $UseCurrentEnv) {
-    $venv = Join-Path $PSScriptRoot ".venv-build"
+    $venv = Join-Path $root ".venv-build"
     if (-not (Test-Path $venv)) {
         Info "Creating build virtual environment (.venv-build)"
         & $py -m venv $venv
@@ -80,14 +83,19 @@ if (-not $SkipInstall) {
         "python-pptx",
         "openpyxl",
         "odfpy",
-        "windows-curses"
+        "windows-curses",
+        # Dictation / transcription (bundled so the feature works out of the
+        # box).  openai-whisper pulls in torch, numba, tiktoken, etc.; this is
+        # a multi-GB install by design.  sounddevice provides mic capture.
+        "openai-whisper",
+        "sounddevice"
     )
     if ($Ocr) { $deps += @("pytesseract", "PyMuPDF", "Pillow") }
 
     # When the Tesseract engine has been vendored for the self-contained
     # build (see build-vendor.py), its Python wrappers must be bundled too,
     # so OCR actually works in the resulting star.exe.
-    $vendorTess = Join-Path $PSScriptRoot "vendor\tesseract"
+    $vendorTess = Join-Path $root "vendor\tesseract"
     if ((Test-Path $vendorTess) -and (-not $Ocr)) {
         Info "vendor\tesseract present -> adding OCR Python wrappers"
         $deps += @("pytesseract", "PyMuPDF", "Pillow")
@@ -97,11 +105,21 @@ if (-not $SkipInstall) {
     Ok "Dependencies installed"
 }
 
+# ── Stage the Whisper model (offline dictation) ─────────────────────────────
+# Bundle the "base" model so transcription/dictation needs no first-run
+# download.  star.spec picks it up from build\whisper_cache\whisper\base.pt.
+$model = Join-Path $root "build\whisper_cache\whisper\base.pt"
+if (-not (Test-Path $model)) {
+    Info "Staging Whisper 'base' model for offline dictation (~140 MB)"
+    $env:STAR_MODEL_ROOT = Join-Path $root "build\whisper_cache\whisper"
+    & $py -c "import os,whisper; r=os.environ['STAR_MODEL_ROOT']; os.makedirs(r,exist_ok=True); whisper._download(whisper._MODELS['base'], r, False); print('Whisper base model staged')" | Out-Host
+}
+
 # ── Build ───────────────────────────────────────────────────────────────────
-Info "Running PyInstaller (this can take a few minutes)"
+Info "Running PyInstaller (bundling Torch/Whisper makes this slow + large)"
 & $py -m PyInstaller --clean --noconfirm star.spec | Out-Host
 
-$exe = Join-Path $PSScriptRoot "dist\star.exe"
+$exe = Join-Path $root "dist\star.exe"
 if (Test-Path $exe) {
     $size = "{0:N1} MB" -f ((Get-Item $exe).Length / 1MB)
     Ok "Built portable binary: $exe ($size)"

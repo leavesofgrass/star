@@ -18,7 +18,9 @@ import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SRC = ROOT / "star.py"
+# The single-file source of truth (renamed from star.py once the generated
+# ``star/`` package took over the importable name).
+SRC = ROOT / "star-monolith.py"
 PKG = ROOT / "star"
 
 # ---------------------------------------------------------------------------

@@ -7,32 +7,51 @@
 #
 # See BUILD.md for the full, step-by-step instructions (including how to make
 # a console build that also supports the --tui terminal interface).
+#
+# star is now packaged as the ``star/`` package (generated from star-monolith.py
+# by tools/split_star.py); the frozen entry point is the thin ``run_star.py``
+# wrapper, which imports ``star.app.main``.
 
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+import os as _os
+
+from PyInstaller.utils.hooks import (
+    collect_all,
+    collect_data_files,
+    collect_submodules,
+)
 
 block_cipher = None
 
+_here = _os.path.dirname(_os.path.abspath(SPEC))
+
 # ── Bundled data files ──────────────────────────────────────────────────────
 # README.md is opened in-app by the Help command (F1), which resolves it via
-# Path(__file__).parent.  In a frozen build PyInstaller sets __file__ inside
-# the extraction directory, so shipping these at the bundle root keeps Help
-# (and the license/changelog) working.
+# Path(__file__).parent.  __file__ now lives inside the star/ package, so the
+# help docs ship under the bundle's ``star/`` folder (alongside the frozen
+# package modules) rather than at the bundle root.
 datas = [
-    ("README.md", "."),
-    ("LICENSE", "."),
-    ("CHANGELOG.md", "."),
+    ("star/README.md", "star"),
+    ("star/LICENSE", "star"),
+    ("star/CHANGELOG.md", "star"),
 ]
+binaries = []
 
 hiddenimports = [
     # pyttsx3 loads its platform driver dynamically at runtime; PyInstaller's
-    # static analysis cannot see the SAPS5 (Windows) driver import, so name it.
+    # static analysis cannot see the SAPI5 (Windows) driver import, so name it.
     "pyttsx3.drivers",
     "pyttsx3.drivers.sapi5",
     # The SAPI5 driver talks to Windows speech through COM via comtypes.
     "comtypes",
     "comtypes.client",
     "comtypes.stream",
+    # sounddevice (microphone capture for dictation) uses a cffi backend.
+    "cffi",
+    "_cffi_backend",
 ]
+
+# The whole star package (so indirectly-imported submodules are never dropped).
+hiddenimports += collect_submodules("star")
 
 # Packages that ship templates / resource data needed at runtime.  Each collect
 # is guarded so the spec still builds if an optional package is not installed.
@@ -42,21 +61,42 @@ for _pkg in ("pdfminer", "docx", "pptx", "odf", "openpyxl"):
     except Exception:
         pass
 
-# ── Vendored native tools (self-contained build) ────────────────────────────
-# Bundle ffmpeg (audio export), Tesseract + English data (OCR), liblouis + its
-# tables and Python binding (Grade 2 Braille), Pandoc (markup conversion), and
-# DECtalk (DECtalk.dll + dictionary, driven in-process via ctypes).  The whole
-# ``vendor/`` tree is mirrored at the
-# bundle root so star.py's _vendor_dir() finds each tool under sys._MEIPASS at
-# runtime.  Guarded so the spec still builds if a tool has not been downloaded.
-import os as _os
+# ── Dictation / transcription stack (Whisper + Torch) ───────────────────────
+# Bundle openai-whisper and its full dependency stack so the dictation and
+# audio-transcription features work out of the box on a clean Windows machine
+# (no pip, no model download).  This is large (Torch alone is multiple GB) but
+# is intentional: dictation should not require a separate install.  collect_all
+# pulls each package's submodules, data files, and native libraries (e.g. the
+# Torch DLLs, the llvmlite LLVM DLL, the sounddevice PortAudio DLL).
+for _pkg in ("whisper", "torch", "numba", "llvmlite", "tiktoken", "sounddevice"):
+    try:
+        _d, _b, _h = collect_all(_pkg)
+        datas += _d
+        binaries += _b
+        hiddenimports += _h
+    except Exception:
+        pass
 
-_here = _os.path.dirname(_os.path.abspath(SPEC))
+# Bundle the Whisper "base" model so transcription/dictation runs offline on
+# first launch.  tools/build-windows.ps1 (or build-vendor flow) stages it under
+# build/whisper_cache/whisper/base.pt; the runtime hook points Whisper's cache
+# (XDG_CACHE_HOME) at <bundle>/whisper_cache so load_model("base") finds it.
+_whisper_model = _os.path.join(_here, "build", "whisper_cache", "whisper", "base.pt")
+if _os.path.isfile(_whisper_model):
+    datas.append((_whisper_model, "whisper_cache/whisper"))
+
+# ── Vendored native tools (self-contained build) ────────────────────────────
+# Bundle ffmpeg (audio export + Whisper audio decoding), Tesseract + English
+# data (OCR), liblouis + its tables and Python binding (Grade 2 Braille),
+# Pandoc (markup conversion), and DECtalk (DECtalk.dll + dictionary, driven
+# in-process via ctypes).  The whole ``vendor/`` tree is mirrored at the bundle
+# root so star's _vendor_dir() finds each tool under sys._MEIPASS at runtime.
+# Guarded so the spec still builds if a tool has not been downloaded.
 _vendor_root = _os.path.join(_here, "vendor")
 if _os.path.isdir(_vendor_root):
     for _root, _dirs, _files in _os.walk(_vendor_root):
-        # Skip the downloaded installer archive if it lingers.
         for _f in _files:
+            # Skip the downloaded installer archive if it lingers.
             if _f.endswith("setup.exe"):
                 continue
             _src = _os.path.join(_root, _f)
@@ -71,20 +111,18 @@ except Exception:
     pass
 
 a = Analysis(
-    ["star.py"],
-    pathex=[],
-    binaries=[],
+    ["run_star.py"],
+    pathex=[_here],
+    binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=[_os.path.join("tools", "rthook_star.py")],
     excludes=[
-        # Heavy / neural backends are optional and unnecessary for a Windows
-        # demo (Windows uses the built-in SAPI5 voices via pyttsx3).  Excluding
-        # them keeps the bundle from ballooning if they happen to be installed.
+        # Coqui TTS is a heavy, optional neural backend unrelated to dictation;
+        # Windows uses the built-in SAPI5 voices via pyttsx3.
         "TTS",
-        "torch",
         "tensorflow",
         "tkinter",
         # Only one Qt binding is needed; star prefers PyQt6.  Excluding PyQt5

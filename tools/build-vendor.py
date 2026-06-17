@@ -54,7 +54,9 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-VENDOR = Path(__file__).resolve().parent / "vendor"
+# This script lives in tools/, but vendor/ belongs at the project root (one
+# level up) so star.spec and star's _vendor_dir() find it.
+VENDOR = Path(__file__).resolve().parent.parent / "vendor"
 _UA = {"User-Agent": "Mozilla/5.0"}
 
 # ffmpeg: gyan.dev "essentials" build (static, includes libmp3lame/libvorbis/AAC).
