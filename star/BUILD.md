@@ -3,17 +3,21 @@
 This guide produces a **single, self-contained `star.exe`** that runs on Windows
 machines with **no Python and no dependencies installed** — ideal for demoing
 star as a tool. The binary bundles the Python interpreter, the Qt GUI, the
-text-to-speech driver, the document loaders, **and the native engines for MP3
-export (ffmpeg), OCR (Tesseract + English data), Grade 2 Braille (liblouis),
-markup conversion (Pandoc), and the classic DECtalk synthesizer** into one
-file.
+text-to-speech driver, the document loaders, **out-of-the-box voice dictation &
+audio transcription (Whisper + the bundled `base` model), and the native
+engines for MP3 export (ffmpeg), OCR (Tesseract + English data), Grade 2 Braille
+(liblouis), markup conversion (Pandoc), and the classic DECtalk synthesizer**
+into one file.
 
-> Size note: the **fully self-contained** build is large (~300+ MB onefile
-> `.exe`) because it embeds ffmpeg, the Tesseract OCR engine, liblouis, and
-> Pandoc (Pandoc alone adds ~150 MB). It also extracts those tools to a temp
-> folder on each launch, so the **first start takes a few seconds**. If you
-> don't need the native engines, a lean build with just the Python runtime is
-> ~90–100 MB — simply skip the `vendor/` step below.
+> Size note: the **fully self-contained** build is large (~600+ MB onefile
+> `.exe`). The biggest single contributor is the dictation stack — bundling
+> **openai-whisper pulls in PyTorch** (multiple hundred MB) plus the ~140 MB
+> Whisper `base` model — on top of ffmpeg, the Tesseract OCR engine, liblouis,
+> and Pandoc. Because onefile extracts everything to a temp folder on each
+> launch, the **first start takes noticeably longer** with the dictation stack
+> bundled. To trim the size, drop the dictation deps (see
+> [Dictation](#out-of-the-box-dictation-whisper)) and/or skip the `vendor/`
+> step for a lean ~90–100 MB build.
 
 ---
 
@@ -22,12 +26,14 @@ file.
 From a Windows machine with Python 3.8+ and **7-Zip** installed:
 
 ```powershell
-python build-vendor.py          # download ffmpeg + Tesseract + liblouis into vendor/
-powershell -ExecutionPolicy Bypass -File build-windows.ps1
+python tools\build-vendor.py     # download ffmpeg + Tesseract + liblouis into vendor/
+powershell -ExecutionPolicy Bypass -File tools\build-windows.ps1
 ```
 
 The result is **`dist\star.exe`**. Copy it anywhere and double-click to launch
 the GUI. (Skip the first line for a lean build without the native engines.)
+The wrapper installs the dictation deps and stages the Whisper `base` model
+automatically; see [Dictation](#out-of-the-box-dictation-whisper).
 
 ---
 
@@ -38,8 +44,12 @@ the GUI. (Skip the first line for a lean build without the native engines.)
   default demo experience.
 - **Bundled runtime:** PyQt6, `pyttsx3` (Windows SAPI5 voices via `comtypes`),
   `pdfminer.six` (PDF text), `python-docx`, `python-pptx`, `openpyxl`, `odfpy`,
-  and the `windows-curses` runtime, plus `README.md` / `LICENSE` /
-  `CHANGELOG.md` so the in-app **Help (F1)** works.
+  and the `windows-curses` runtime, plus the `star/README.md` / `LICENSE` /
+  `CHANGELOG.md` help docs so the in-app **Help (F1)** works.
+- **Bundled dictation stack:** `openai-whisper` (and its PyTorch backend),
+  `sounddevice` for microphone capture, and the Whisper **`base` model**, so
+  **Tools → Dictate Note** and **Transcribe Audio File** work offline on a
+  clean machine. See [Dictation](#out-of-the-box-dictation-whisper).
 - **Bundled native engines** (when `vendor/` is present — see below):
   - **ffmpeg** → MP3 / OGG / MP4 audio export
   - **Tesseract** + English language data → OCR of images and scanned PDFs
@@ -49,17 +59,19 @@ the GUI. (Skip the first line for a lean build without the native engines.)
   - **DECtalk** → `DECtalk.dll` + dictionary for the classic DECtalk voice,
     driven in-process via ctypes (no separate CLI required)
 
-  At runtime `star.py`'s `_vendor_dir()` finds these under `sys._MEIPASS`; each
+  At runtime `star`'s `_vendor_dir()` finds these under `sys._MEIPASS`; each
   lookup falls back to a system install if the bundled copy is missing, so a
   lean build (no `vendor/`) still runs.
 
-The build is defined by three files in the project root:
+The build is defined by these files:
 
 | File | Purpose |
 |---|---|
-| [`star.spec`](star.spec) | PyInstaller build recipe (hidden imports, bundled data + `vendor/` tree, excludes) |
-| [`build-windows.ps1`](build-windows.ps1) | Convenience wrapper: sets up an env, installs deps, runs PyInstaller |
-| [`build-vendor.py`](build-vendor.py) | Downloads & lays out the native engines (ffmpeg, Tesseract, liblouis) into `vendor/` |
+| [`star.spec`](../star.spec) | PyInstaller build recipe (entry point, hidden imports, bundled data + `vendor/` tree, dictation stack, runtime hook, excludes) |
+| [`run_star.py`](../run_star.py) | Frozen entry point — imports `star.app.main` from the generated `star/` package |
+| [`tools/rthook_star.py`](../tools/rthook_star.py) | PyInstaller runtime hook: puts the bundled ffmpeg on `PATH` and points Whisper's model cache at the bundled `base` model |
+| [`tools/build-windows.ps1`](../tools/build-windows.ps1) | Convenience wrapper: sets up an env, installs deps (incl. the dictation stack), stages the Whisper model, runs PyInstaller |
+| [`tools/build-vendor.py`](../tools/build-vendor.py) | Downloads & lays out the native engines (ffmpeg, Tesseract, liblouis, Pandoc, DECtalk) into `vendor/` |
 
 ---
 
@@ -209,16 +221,54 @@ These three features depend on native engines (not Python packages):
 | Grade 2 (contracted) Braille | liblouis + tables | **bundled** (works anywhere) | falls back to the built-in Grade 1 translator |
 | Markup conversion (RST, Org, LaTeX, …) | Pandoc | **bundled** (works anywhere) | needs `pandoc` on the target's `PATH`; otherwise built-in converters |
 | DECtalk voice | `DECtalk.dll` (ctypes) | **bundled** (in-process engine + dictionary) | needs DECtalk on the target's `PATH` / `DECTALK_BIN`, or a system DECtalk |
+| Voice dictation / transcription | Whisper + PyTorch + `base` model | **bundled** (works offline) | needs `pip install openai-whisper sounddevice` and a downloaded model |
 
-Run `python build-vendor.py` before building to bundle them all (see
-[Vendoring the native engines](#vendoring-the-native-engines-vendor) above).
-Only **OCR** needs Python wrappers (`pytesseract`, `PyMuPDF`, `Pillow`) bundled
-alongside the engine — `build-windows.ps1` installs them automatically when
-`vendor\tesseract` is present (or pass `-Ocr`). ffmpeg, liblouis, and Pandoc
-are driven directly (subprocess / ctypes), so they need no Python package.
+Run `python tools\build-vendor.py` before building to bundle the native
+engines (see [Vendoring the native engines](#vendoring-the-native-engines-vendor)
+above). Only **OCR** needs Python wrappers (`pytesseract`, `PyMuPDF`, `Pillow`)
+bundled alongside the engine — `build-windows.ps1` installs them automatically
+when `vendor\tesseract` is present (or pass `-Ocr`). ffmpeg, liblouis, and
+Pandoc are driven directly (subprocess / ctypes), so they need no Python
+package.
 
 To add more OCR languages, drop extra `*.traineddata` files into
 `vendor/tesseract/tessdata/` before building and rebuild.
+
+---
+
+## Out-of-the-box dictation (Whisper)
+
+star's **Tools → Dictate Note** (record a voice memo) and **Transcribe Audio
+File** features use [OpenAI Whisper](https://github.com/openai/whisper). For
+the portable binary these are bundled so they work with **no install and no
+network**:
+
+- **`openai-whisper` + PyTorch** — the recognition engine. `star` prefers
+  `openai-whisper` (falling back to `faster-whisper` if that is what's
+  installed); `build-windows.ps1` installs `openai-whisper`, which pulls in
+  PyTorch, numba, and tiktoken. `star.spec` bundles the whole stack via
+  `collect_all`.
+- **`sounddevice`** — microphone capture (ships the PortAudio DLL).
+- **The Whisper `base` model** (~140 MB) — staged to
+  `build\whisper_cache\whisper\base.pt` by `build-windows.ps1` and bundled by
+  `star.spec`. At runtime [`tools/rthook_star.py`](../tools/rthook_star.py)
+  points Whisper's cache (`XDG_CACHE_HOME`) at the bundled copy, so
+  `load_model("base")` loads it offline instead of downloading.
+- **ffmpeg on `PATH`** — Whisper shells out to `ffmpeg` to decode audio. The
+  runtime hook prepends the bundled `vendor\ffmpeg` folder to `PATH`, so the
+  vendored ffmpeg satisfies both audio export and Whisper.
+
+The Whisper `base` model is a good speed/accuracy balance for dictation. To
+bundle a different model, stage it under `build\whisper_cache\whisper\` and set
+the default `whisper_model` setting accordingly. The model selection is read
+from the `whisper_model` setting (default `base`).
+
+**This is what makes the binary large** (PyTorch is multiple hundred MB). For a
+smaller build that leaves dictation to an optional user install, remove
+`openai-whisper` / `sounddevice` from the `$deps` list in
+`tools/build-windows.ps1` (or build in an env without them) — `star.spec`'s
+`collect_all` calls are guarded, so the build still succeeds and the feature
+simply shows its “requires Whisper” hint at runtime.
 
 ---
 

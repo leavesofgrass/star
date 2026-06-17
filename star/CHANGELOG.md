@@ -144,6 +144,21 @@ installed.
   the system package manager (Homebrew / apt / dnf / pacman / zypper),
   installing only what is missing. Supports `--dry-run` and per-engine
   selection.
+- **Voice dictation & transcription now bundled in the Windows binary.** The
+  self-contained `star.exe` ships the full Whisper stack — `openai-whisper`
+  with its PyTorch backend, `sounddevice` for microphone capture, and the
+  Whisper **`base` model** — so **Tools → Dictate Note** and **Transcribe
+  Audio File** work **offline, with no install and no first-run download** on a
+  clean machine. A PyInstaller runtime hook
+  ([`tools/rthook_star.py`](tools/rthook_star.py)) puts the bundled ffmpeg on
+  `PATH` (Whisper decodes audio through it) and points Whisper's model cache at
+  the bundled `base` model; `tools/build-windows.ps1` installs the dictation
+  dependencies and stages the model automatically. PyTorch makes this the
+  largest single addition to the bundle (the binary grows to ~600+ MB); the
+  dependencies are guarded, so a build without them still succeeds and the
+  feature falls back to its “requires Whisper” hint. The frozen entry point is
+  now [`run_star.py`](run_star.py), which imports `star.app.main` from the
+  generated package.
 
 ### 📝 Notes for upgrading users
 
