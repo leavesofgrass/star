@@ -33,16 +33,16 @@ function Die  ($m) { Write-Host "  x $m" -ForegroundColor Red; exit 1 }
 
 Say "Installing star dependencies for Windows (profile: $Profile)"
 
-# ── Locate Python 3.8+ ───────────────────────────────────────────────────────
+# ── Locate Python 3.11+ ──────────────────────────────────────────────────────
 $py = $null
 foreach ($cand in @('python', 'py')) {
     if (Get-Command $cand -ErrorAction SilentlyContinue) {
-        $ok = & $cand -c "import sys; print(1 if sys.version_info[:2] >= (3,8) else 0)" 2>$null
+        $ok = & $cand -c "import sys; print(1 if sys.version_info[:2] >= (3,11) else 0)" 2>$null
         if ($ok -eq '1') { $py = $cand; break }
     }
 }
 if (-not $py) {
-    Die "Python 3.8+ not found. Install it from https://www.python.org/downloads/ (check 'Add python.exe to PATH')."
+    Die "Python 3.11+ not found. Install it from https://www.python.org/downloads/ (check 'Add python.exe to PATH')."
 }
 OK ("Using " + (& $py --version 2>&1))
 
@@ -94,8 +94,8 @@ Check-Bin tesseract "needed only for OCR of scanned PDFs/images"
 Write-Host ""
 Write-Host "star is ready." -ForegroundColor Green
 if (-not $NoVenv) {
-    Write-Host "  Run it with:   .\.venv\Scripts\python.exe star.py"
+    Write-Host "  Run it with:   .\.venv\Scripts\star.exe"
 } else {
-    Write-Host "  Run it with:   $py star.py"
+    Write-Host "  Run it with:   $py -m star"
 }
-Write-Host "  Force the terminal UI:  python star.py --tui"
+Write-Host "  Force the terminal UI:  star --tui"

@@ -13,11 +13,11 @@ Inspired by Emacspeak, Kurzweil 1000, Natural Reader, and Central Access Reader.
 
 QUICK START
 -----------
-    python star.py                       # launch Qt GUI (default)
-    python star.py document.pdf          # open a file in the Qt GUI
-    python star.py https://example.com   # fetch and read a URL
-    python star.py --tui                 # force terminal UI mode
-    python star.py --plain paper.pdf     # extract text to stdout
+    star                       # launch Qt GUI (default)
+    star document.pdf          # open a file in the Qt GUI
+    star https://example.com   # fetch and read a URL
+    star --tui                 # force terminal UI mode
+    star --plain paper.pdf     # extract text to stdout
 
     Qt GUI shortcuts
     ----------------
@@ -40,7 +40,7 @@ Copyright (C) 2026 Jon Pielaet
 License: GNU General Public License v3 (or later)
 """
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 __author__ = "Jon Pielaet"
 __copyright__ = "Copyright (C) 2026 Jon Pielaet"
 __license__ = "GPL-3.0-or-later"
@@ -85,7 +85,7 @@ except ImportError:
 # ffmpeg (audio export), Tesseract (OCR), liblouis (Grade 2 Braille), Pandoc
 # (markup conversion), and DECtalk (TTS) are native engines, not Python
 # packages.  When present they are shipped under a ``vendor/`` tree next to
-# star.py (source runs) or at the PyInstaller bundle root (frozen runs).  Each
+# the ``star`` package (source runs) or at the PyInstaller bundle root (frozen runs).  Each
 # lookup falls back to a system install when the bundled copy is absent, so
 # star still runs from source with zero extras.
 

@@ -2891,7 +2891,7 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
         def _show_about(self) -> None:
             """Open README.md as a document (F1 help).
 
-            README.md lives in the same directory as star.py and is the
+            README.md ships alongside the package modules and is the
             canonical reference for every feature, keyboard shortcut, and
             setting.  Opening it in the main window gives the user full TTS,
             navigation, highlighting, and search — far more useful than a

@@ -23,7 +23,7 @@ into one file.
 
 ## TL;DR
 
-From a Windows machine with Python 3.8+ and **7-Zip** installed:
+From a Windows machine with Python 3.11+ and **7-Zip** installed:
 
 ```powershell
 python tools\build-vendor.py     # download ffmpeg + Tesseract + liblouis into vendor/
@@ -78,7 +78,7 @@ The build is defined by these files:
 ## Prerequisites
 
 - **Windows 10/11, 64-bit.**
-- **Python 3.8 or newer**, on `PATH` (`python --version` should work).
+- **Python 3.11 or newer**, on `PATH` (`python --version` should work).
   - Tip: a regular [python.org](https://www.python.org/downloads/) install is
     the smoothest. The Windows Store build of Python also works.
 - For the fully self-contained build: **internet access** (to download the
@@ -305,8 +305,8 @@ python -m build --wheel                    # writes dist/star_reader-<version>-p
 Install the resulting single file anywhere:
 
 ```bash
-pip install dist/star_reader-0.1.3-py3-none-any.whl          # recommended deps
-pip install "dist/star_reader-0.1.3-py3-none-any.whl[all]"    # every optional feature
+pip install dist/star_reader-0.1.4-py3-none-any.whl          # recommended deps
+pip install "dist/star_reader-0.1.4-py3-none-any.whl[all]"    # every optional feature
 ```
 
 The wheel provides a `star` console command and `python -m star`. Packaging is

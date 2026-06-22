@@ -53,17 +53,17 @@ case "$OS" in
 esac
 say "Installing star dependencies for ${PLATFORM} (profile: ${PROFILE})"
 
-# ── Locate a suitable Python (>= 3.8) ────────────────────────────────────────
+# ── Locate a suitable Python (>= 3.11) ───────────────────────────────────────
 PY=""
 for cand in python3 python; do
   if command -v "$cand" >/dev/null 2>&1; then
-    if "$cand" -c 'import sys; raise SystemExit(0 if sys.version_info[:2] >= (3,8) else 1)'; then
+    if "$cand" -c 'import sys; raise SystemExit(0 if sys.version_info[:2] >= (3,11) else 1)'; then
       PY="$cand"; break
     fi
   fi
 done
 if [ -z "$PY" ]; then
-  err "Python 3.8+ not found. Install it first:"
+  err "Python 3.11+ not found. Install it first:"
   if [ "$PLATFORM" = "macOS" ]; then
     err "  brew install python    (or download from https://www.python.org/downloads/)"
   else
@@ -137,9 +137,9 @@ cat <<EOF
 ${BOLD}${GREEN}star is ready.${RESET}
 EOF
 if [ "$USE_VENV" -eq 1 ]; then
-  printf '%s\n' "  Run it with:   ${BOLD}source .venv/bin/activate && python star.py${RESET}"
+  printf '%s\n' "  Run it with:   ${BOLD}source .venv/bin/activate && star${RESET}"
 else
-  printf '%s\n' "  Run it with:   ${BOLD}$PY star.py${RESET}"
+  printf '%s\n' "  Run it with:   ${BOLD}$PY -m star${RESET}"
 fi
-printf '%s\n' "  Force the terminal UI:  ${BOLD}python star.py --tui${RESET}"
+printf '%s\n' "  Force the terminal UI:  ${BOLD}star --tui${RESET}"
 printf '%s\n' "  ${DIM}Optional tools above are only needed for the features noted.${RESET}"

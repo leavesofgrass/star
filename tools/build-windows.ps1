@@ -46,15 +46,15 @@ function Info($msg) { Write-Host "==> $msg" -ForegroundColor Cyan }
 function Ok($msg)   { Write-Host "OK  $msg" -ForegroundColor Green }
 function Die($msg)  { Write-Host "ERR $msg" -ForegroundColor Red; exit 1 }
 
-# ── Locate a Python 3.8+ interpreter ────────────────────────────────────────
+# ── Locate a Python 3.11+ interpreter ───────────────────────────────────────
 $py = $null
 foreach ($cand in @("python", "py")) {
     if (Get-Command $cand -ErrorAction SilentlyContinue) {
-        $ok = & $cand -c "import sys; print(1 if sys.version_info[:2] >= (3,8) else 0)" 2>$null
+        $ok = & $cand -c "import sys; print(1 if sys.version_info[:2] >= (3,11) else 0)" 2>$null
         if ($ok -eq "1") { $py = $cand; break }
     }
 }
-if (-not $py) { Die "Python 3.8+ not found. Install it from https://www.python.org/downloads/" }
+if (-not $py) { Die "Python 3.11+ not found. Install it from https://www.python.org/downloads/" }
 Ok ("Using " + (& $py --version 2>&1))
 
 # ── Build environment ───────────────────────────────────────────────────────

@@ -8,6 +8,30 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.4] — 2026-06-22
+
+### ✨ Added
+
+- **Fat zipapp build (`star.pyz`).** A new `build_zipapp.py` produces a
+  single-file `star.pyz` that bundles star together with its Python
+  dependencies (the `[all]` extras group). It is self-extracting: on first run
+  it unpacks its bundled packages into the per-user config directory (so
+  compiled packages such as PyQt6 and PyMuPDF load from real files on disk),
+  then starts normally. This removes the `pip install` step — running star this
+  way needs only a Python interpreter plus the external engines (ffmpeg,
+  Tesseract, liblouis, eSpeak-NG, DECtalk) on `PATH`. Because it carries
+  compiled packages, the artifact is **platform-specific** (build one per target
+  platform). It is additive and does not replace the self-contained Windows
+  `star.exe`, which additionally bundles the external engines.
+
+### 🔧 Changed
+
+- **Minimum supported Python is now 3.11** (previously 3.8). The
+  `requires-python` constraint, the installer and build scripts, and the build
+  documentation were updated to match.
+
+---
+
 ## [0.1.3] — 2026-06-16
 
 A focused round of reading, speech, and study-workflow additions, all built on

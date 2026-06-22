@@ -1,0 +1,20 @@
+# Build artifacts and binaries — never commit these to the repo.
+
+# PyInstaller (star.exe) and zipapp (star.pyz) output
+dist/
+
+# Vendored native engines fetched by tools/build-vendor.py
+# (ffmpeg, Tesseract, liblouis, Pandoc, DECtalk) — large, re-downloadable.
+vendor/
+
+# PyInstaller work dir, staged Whisper model, zipapp staging, pip temp, etc.
+build/
+
+# Virtual environments (incl. the isolated PyInstaller build env)
+.venv/
+.venv-build/
+
+# Python bytecode caches and packaging metadata
+__pycache__/
+*.py[codz]
+*.egg-info/

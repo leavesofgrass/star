@@ -15,7 +15,8 @@ target machine:
   * **DECtalk**  – the classic DECtalk synthesizer (optional TTS backend)
 
 Resulting layout (mirrored into the PyInstaller bundle root by ``star.spec``;
-``star.py``'s ``_vendor_dir()`` finds each tool here or under ``sys._MEIPASS``)::
+``star``'s ``_vendor_dir()`` (in ``star/_runtime.py``) finds each tool
+here or under ``sys._MEIPASS``)::
 
     vendor/
       ffmpeg/ffmpeg.exe
@@ -29,7 +30,7 @@ Resulting layout (mirrored into the PyInstaller bundle root by ``star.spec``;
         amd64/DECtalk.dll + dtalk_us.dic   (64-bit engine + dictionary)
         ia32/DECtalk.dll  + dtalk_us.dic   (32-bit engine + dictionary)
 
-DECtalk is driven in-process by star.py's ctypes backend (the classic DECtalk
+DECtalk is driven in-process by star's ctypes backend (the classic DECtalk
 voices).  Both architectures are vendored so the backend can load the DLL that
 matches the star.exe it is bundled into (a 64-bit process cannot load a 32-bit
 DLL).  The engine reads ``dtalk_us.dic`` from the DLL's own folder, which is why
@@ -191,7 +192,7 @@ def fetch_liblouis(force: bool) -> None:
 
     # 2) Python binding: generate louis/__init__.py from the source template,
     #    swapping the compile-time SONAME for a runtime lookup of $LIBLOUIS_DLL
-    #    (which star.py points at the bundled DLL).
+    #    (which star points at the bundled DLL).
     zs = zipfile.ZipFile(
         io.BytesIO(_download(LOUIS_BASE + f"liblouis-{LOUIS_VERSION}.zip"))
     )
@@ -237,7 +238,7 @@ def fetch_dectalk(force: bool) -> None:
     if dst.exists():
         shutil.rmtree(dst, ignore_errors=True)
     z = zipfile.ZipFile(io.BytesIO(_download(DECTALK_URL)))
-    # The archive holds per-arch trees (``AMD64/`` and ``IA32/``).  star.py's
+    # The archive holds per-arch trees (``AMD64/`` and ``IA32/``).  star's
     # in-process backend loads the DLL whose architecture matches star.exe and
     # chdirs into its folder so the engine finds dtalk_us.dic, so keep the
     # engine DLL + dictionary (and the language DLL) split by architecture.

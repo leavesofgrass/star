@@ -1,8 +1,8 @@
 # ⭐ star — Speaking Terminal Access Reader
 
-> **Version 0.1.3** — native speech on every platform, dependency-free Braille export, reading-accessibility aids (adjustable spacing, dyslexia-friendly fonts, bionic reading), word- **or sentence-level** highlighting that follows the voice, optional **Piper neural voices** (offline & free), **timestamped SRT/VTT subtitle export**, **reading statistics & a document library**, a **live HTML preview while editing**, **saveable voice/profile presets**, and a **user pronunciation lexicon**.
+> **Version 0.1.4** — native speech on every platform, dependency-free Braille export, reading-accessibility aids (adjustable spacing, dyslexia-friendly fonts, bionic reading), word- **or sentence-level** highlighting that follows the voice, optional **Piper neural voices** (offline & free), **timestamped SRT/VTT subtitle export**, **reading statistics & a document library**, a **live HTML preview while editing**, **saveable voice/profile presets**, and a **user pronunciation lexicon**.
 
-A single-file Python application that reads your documents aloud while you follow along — no installation wizard, no cloud account, no internet required.
+A lightweight, installable Python application that reads your documents aloud while you follow along — one `pip install` (or a single-file `star.pyz`) away, with no cloud account and no internet required.
 
 `star` is an accessible document reader built for students with print disabilities. It opens PDFs, DOCX files, EPUBs, PowerPoint decks, web pages, spreadsheets, and more, then reads them aloud using your platform's built-in text-to-speech engine while highlighting each spoken word. By default `star` launches a windowed Qt GUI; a full-featured curses terminal interface is also available with `--tui`.
 
@@ -64,13 +64,13 @@ A single-file Python application that reads your documents aloud while you follo
 | Reading level | Flesch-Kincaid grade and ease score on demand |
 | Persistent settings | User preferences saved to `settings.json` |
 | `--plain` mode | Extracts clean text to stdout for piping to other tools |
-| Single Python file | `star.py` — zero required dependencies beyond the standard library |
+| Installable package, graceful degradation | Ships as the `star` package — run it with `pip install`, `python -m star`, or a single-file `star.pyz`. Every third-party dependency is optional and guarded, so the core runs on the standard library alone |
 
 ---
 
 ## 📦 Requirements & Installation
 
-**Minimum Python version: 3.8**
+**Minimum Python version: 3.11**
 
 `star` runs with nothing beyond the Python standard library. Every optional package below unlocks additional file formats or features. Install only what you need.
 
@@ -100,11 +100,11 @@ A single pure-Python wheel (`star_reader-<version>-py3-none-any.whl`) installs `
 
 ```bash
 # Recommended dependencies (Qt GUI + TTS + common formats) come with the wheel
-pip install star_reader-0.1.3-py3-none-any.whl
+pip install star_reader-0.1.4-py3-none-any.whl
 
 # Or pull in every optional Python feature (OCR, ODT/XLSX, Pandoc, Braille,
 # transcription, audio conversion):
-pip install "star_reader-0.1.3-py3-none-any.whl[all]"
+pip install "star_reader-0.1.4-py3-none-any.whl[all]"
 ```
 
 The wheel then exposes a `star` console command and `python -m star`:
@@ -118,6 +118,48 @@ star --tui           # force the terminal UI
 Extras let you install exactly what you need: `[ocr]`, `[formats]`, `[markup]`, `[braille]`, `[audio]`, `[transcribe]`, or `[all]`.
 
 > The wheel covers the **Python** side. The native engines below (ffmpeg, Tesseract, liblouis, Pandoc, eSpeak-NG) are not Python packages; on macOS/Linux install them from your system package manager — `python tools/install_native.py` does this for you (see [External Binary Dependencies](#external-binary-dependencies)).
+
+### Single-file build: `star.pyz`
+
+For a build that needs no `pip install` step at all, `star` can be packaged as a
+"fat" zipapp: one file, `star.pyz`, that bundles `star` together with its Python
+dependencies (the `[all]` extras group). Build it on the same platform you intend
+to run it on:
+
+```bash
+python build_zipapp.py        # output: dist/star.pyz
+```
+
+Run it with any Python interpreter:
+
+```bash
+starz                 # launch the Qt GUI
+starz document.pdf    # open a file
+starz --tui           # force the terminal UI
+```
+
+On first run, `star.pyz` extracts its bundled packages into your per-user config
+directory (the same place `star` keeps its settings and document cache) and then
+starts normally; later runs reuse that extracted copy.
+
+What the fat zipapp does and does not remove:
+
+- It removes the dependency-install step — you do not need to `pip install` `star`
+  or its Python packages separately.
+- It does **not** bundle the external engines (ffmpeg, Tesseract, liblouis,
+  eSpeak-NG, DECtalk). Those still have to be on your `PATH` for the features that
+  use them (see [External Binary Dependencies](#external-binary-dependencies)).
+- Because it bundles compiled packages (PyQt6, PyMuPDF), `star.pyz` is
+  **platform-specific**: a file built on Linux runs only on Linux, one built on
+  Windows only on Windows, and so on. Build a separate `star.pyz` for each
+  platform you target.
+
+How it differs from the self-contained Windows `star.exe`: the PyInstaller
+`star.exe` additionally bundles the external engines above (plus Whisper and a
+speech-recognition model), so it runs on a clean Windows machine with nothing
+preinstalled. `star.pyz` is lighter, but it still relies on both a Python
+interpreter and the external engines already being present — it only removes the
+Python dependency-install step, not the system-dependency story.
 
 ### Optional Packages
 
@@ -182,18 +224,20 @@ pip install PyQt6 pyttsx3 pdfminer.six pytesseract pymupdf python-docx python-pp
 ## ▶️ Running
 
 ```bash
-python star.py                        # launch Qt GUI (default when PyQt6/PyQt5 is installed)
-python star.py document.pdf          # open a PDF in the Qt GUI
-python star.py https://example.com   # fetch and read a URL
-python star.py notes.md              # open a Markdown file
-python star.py --tui report.docx     # force terminal UI mode
-python star.py --plain paper.pdf     # extract clean text to stdout (no UI)
-python star.py --rate 200 book.epub  # open with a slower reading speed
-python star.py --theme contrast      # start with the high-contrast theme
-python star.py --list-themes         # print available theme names and exit
-python star.py --list-voices         # list available TTS voices and exit
-python star.py --keytest             # open the key-code diagnostic tool (TUI)
+star                        # launch Qt GUI (default when PyQt6/PyQt5 is installed)
+star document.pdf          # open a PDF in the Qt GUI
+star https://example.com   # fetch and read a URL
+star notes.md              # open a Markdown file
+star --tui report.docx     # force terminal UI mode
+star --plain paper.pdf     # extract clean text to stdout (no UI)
+star --rate 200 book.epub  # open with a slower reading speed
+star --theme contrast      # start with the high-contrast theme
+star --list-themes         # print available theme names and exit
+star --list-voices         # list available TTS voices and exit
+star --keytest             # open the key-code diagnostic tool (TUI)
 ```
+
+The `star` command is provided by the wheel and the installer scripts. Running from a source checkout instead? Use `python -m star …` (or `python run_star.py …`) with the same arguments.
 
 **Default mode:** When PyQt6 or PyQt5 is installed, `star` opens the Qt GUI automatically. If neither is present, it falls back to the terminal TUI. Use `--tui` to force the terminal interface even when Qt is available.
 
@@ -882,14 +926,14 @@ At document load time `star` builds a word-position map that links every TTS wor
 The Qt GUI is the default mode when PyQt6 or PyQt5 is installed. No special flag is needed:
 
 ```bash
-python star.py document.pdf
-python star.py                   # opens to the welcome screen
+star document.pdf
+star                   # opens to the welcome screen
 ```
 
 To force the terminal interface even when Qt is available:
 
 ```bash
-python star.py --tui document.pdf
+star --tui document.pdf
 ```
 
 ### Menu Bar
@@ -1480,7 +1524,7 @@ No built-in theme places red and green as adjacent accent colors, ensuring usabi
 Switch themes:
 - **Qt GUI:** `F5` to cycle, or **View → Choose Theme…** to pick by name
 - **TUI:** `F5` to cycle, or `M-x theme <name>`
-- **Command line:** `python star.py --theme contrast`
+- **Command line:** `star --theme contrast`
 
 ---
 
@@ -1706,14 +1750,14 @@ Default speed presets:
 ## 📰 Plain-Text Mode
 
 ```bash
-python star.py --plain document.pdf
+star --plain document.pdf
 ```
 
 `--plain` skips all UI and writes clean, stripped plain text to stdout — the same text the TTS engine would receive. Useful for:
 
-- **Piping** — `python star.py --plain paper.pdf | festival --tts`
+- **Piping** — `star --plain paper.pdf | festival --tts`
 - **Batch processing** — extract text from many files in a shell script
-- **Word counting** — `python star.py --plain thesis.pdf | wc -w`
+- **Word counting** — `star --plain thesis.pdf | wc -w`
 - **Headless server use** — where no display is available
 
 ---
@@ -1721,7 +1765,7 @@ python star.py --plain document.pdf
 ## 🧰 Command-Line Options
 
 ```
-python star.py [OPTIONS] [FILE_OR_URL]
+star [OPTIONS] [FILE_OR_URL]
 ```
 
 | Option | Description |
@@ -1750,7 +1794,8 @@ See the companion documents:
 | [`CHANGELOG.md`](CHANGELOG.md) | Full record of changes, starting with the 0.1.2 release |
 | [`BUILD.md`](BUILD.md) | Building the portable / fully self-contained Windows `star.exe`, and the cross-platform wheel |
 | [`build-vendor.py`](build-vendor.py) | Downloads the bundled native engines (ffmpeg, Tesseract, liblouis, Pandoc, DECtalk) into `vendor/` |
-| [`tools/split_star.py`](tools/split_star.py) | Generates the importable `star/` package from the single-file `star.py` (see [Project Layout](#-project-layout)) |
+| [`build_zipapp.py`](build_zipapp.py) | Builds the single-file fat `star.pyz` (bundles `star` plus its Python dependencies; see [Project Layout](#-project-layout)) |
+| [`run_star.py`](run_star.py) | Thin source-tree entry script (`from star.app import main`), used by `python run_star.py` and the PyInstaller build |
 | [`tools/install_native.py`](tools/install_native.py) | Installs the native engines on macOS/Linux via the system package manager |
 | [`pyproject.toml`](pyproject.toml) | Wheel packaging metadata (`star` console command, dependency extras) |
 
@@ -1772,20 +1817,16 @@ highlighting.**
 
 ## 🧩 Project Layout
 
-`star` is authored as a **single file**, `star.py`, which still runs on its own
-with nothing beyond the Python standard library (`python star.py`). For
-packaged distribution — the importable `star` module, `python -m star`, the
-`star` console command, and the cross-platform wheel — that single file is
-**mechanically refactored** into a `star/` package by
-[`tools/split_star.py`](tools/split_star.py):
+`star` is a small, importable Python package under [`star/`](star/), and it is
+the canonical source — there is no longer a single-file `star.py` monolith.
+Optional dependencies are imported lazily with graceful fallbacks, so the core
+package runs on nothing but the Python standard library; add extras only for the
+formats and features you want.
 
-```bash
-python tools/split_star.py        # regenerate the star/ package from star.py
-```
-
-The splitter moves exact source by top-level AST node (nothing is re-typed)
-into logical submodules and computes the cross-module imports automatically, so
-the package is a byte-for-byte faithful reorganization of `star.py`:
+Run it as the installed `star` console command, with `python -m star`, or
+straight from a checkout with `python run_star.py`. The same package is the unit
+that ships in every distribution form: the cross-platform wheel, the fat
+`star.pyz` zipapp, and the self-contained Windows `star.exe`. Its modules:
 
 | Module | Responsibility |
 |---|---|
@@ -1800,12 +1841,13 @@ the package is a byte-for-byte faithful reorganization of `star.py`:
 | `star/tts.py` | TTS backends (pyttsx3, eSpeak-NG, DECtalk, Piper, Coqui, Apple `say`, …) and the manager. |
 | `star/tui.py` · `star/gui.py` | The curses terminal UI and the Qt GUI. |
 | `star/app.py` | Command-line entry point (`star.app:main`). |
+| `star/__main__.py` · `run_star.py` | `python -m star`, and the source-tree entry script. |
 
-> **Edit `star.py`, not `star/`.** The `star/` package is generated output —
-> changes belong in `star.py`, after which you re-run `tools/split_star.py`.
-> Before building the wheel, refresh the package and the bundled help docs
-> (`star/README.md`, `LICENSE`, `CHANGELOG.md`) so F1 Help reflects the latest
-> text. See [`BUILD.md`](BUILD.md) for the wheel build.
+> **Edit the package directly.** Changes belong in the relevant `star/` module.
+> When you touch user-facing docs, refresh the copies bundled with the package
+> (`star/README.md`, `star/LICENSE`, `star/CHANGELOG.md`) so F1 Help reflects the
+> latest text. See [`BUILD.md`](BUILD.md) for the wheel and `star.exe` builds, and
+> [`build_zipapp.py`](build_zipapp.py) for the `star.pyz` build.
 
 ---
 
@@ -1813,11 +1855,11 @@ the package is a byte-for-byte faithful reorganization of `star.py`:
 
 Contributions are welcome. Please open an issue before submitting a pull request for anything beyond small bug fixes.
 
-**The single-file rule.** All logic is authored in `star.py`; optional dependencies are imported at runtime with graceful fallbacks, and that pattern must be maintained. Keep contributions **within `star.py`** — the `star/` package is generated from it by [`tools/split_star.py`](tools/split_star.py) (see [Project Layout](#-project-layout)), so never hand-edit files under `star/`. The package and the cross-platform wheel are packaging artifacts, not a mandatory build step: `python star.py` still runs straight from the single file with zero extras. As the project grows, a move toward packaged, signed, single-binary distribution for non-technical users is under active consideration.
+**Keep dependencies optional.** Every third-party package is imported at runtime with graceful fallbacks, and that pattern must be maintained — the core `star` package must keep working with nothing beyond the Python standard library installed. Contributions go into the relevant module under [`star/`](star/) (see [Project Layout](#-project-layout)); there is no single-file monolith to keep in sync. The cross-platform wheel, the fat `star.pyz`, and the self-contained Windows `star.exe` are all built from the package — none of them is required to run from source (`python -m star` or `python run_star.py`).
 
 Other guidelines:
 
-- Target Python 3.8 compatibility. Do not use syntax or standard library features introduced after 3.8.
+- Target Python 3.11 compatibility. Do not use syntax or standard library features introduced after 3.11.
 - All new keybindings must be documented in `README.md` (opened by `F1` in the Qt GUI) and in this file.
 - New M-x commands must be added to both the command dispatch table and the Tab-completion list.
 - New file format handlers should degrade gracefully when the required package is absent.
