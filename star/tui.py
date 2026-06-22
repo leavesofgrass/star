@@ -2,11 +2,20 @@
 from ._runtime import *  # noqa: F401,F403
 from .annotations import _annotation_matches, _format_annotations, _parse_tags
 from .braille import _export_braille
+from .convert import resolve_format, run_batch, supported_formats
 from .documents import Document, _build_word_map, load_document
 from .render import Line, render_markdown
 from .search import LineEditor, SearchEngine
 from .settings import Settings
-from .stats import ReadingStats, _apply_profile_values, _delete_profile, _format_reading_stats, _library_entries, _record_library, _save_profile
+from .stats import (
+    ReadingStats,
+    _apply_profile_values,
+    _delete_profile,
+    _format_reading_stats,
+    _library_entries,
+    _record_library,
+    _save_profile,
+)
 from .themes import _LICENSE_TEXT, _WELCOME_TEXT
 from .tts import Pyttsx3Backend, TTSManager, _SCReader
 from .ttstext import _preprocess_tts_text, _text_to_ssml
@@ -262,6 +271,7 @@ MX_COMMANDS = sorted(
     [
         "about",
         "backend",
+        "batch-convert",
         "book-next",
         "book-prev",
         "close",
@@ -2573,6 +2583,79 @@ class StarApp:
         except Exception as exc:
             self.notify(f"Subtitle export error: {exc}", error=True)
 
+    # ── Batch conversion (M-x batch-convert) ───────────────────────
+    def _batch_convert(self, arg: str = "") -> None:
+        """Convert many files / a folder to one format (M-x batch-convert).
+
+        Prompts in sequence for the input (a file, a folder, or a glob), the
+        output format, and the output directory, then runs the shared batch
+        core.  Conversion is synchronous (like audio export), failure-isolated,
+        and writes a summary log into the output directory.
+        """
+        start = ""
+        if self.doc and self.doc.path:
+            start = str(Path(self.doc.path).parent)
+        self._enter_minibuffer(
+            "Batch convert — file, folder, or glob: ",
+            initial=start,
+            on_commit=self._batch_input_cb,
+        )
+
+    def _batch_input_cb(self, src: str) -> None:
+        src = src.strip()
+        if not src:
+            return
+        self._batch_src = src
+        self._enter_minibuffer(
+            f"Output format ({' / '.join(supported_formats())}): ",
+            initial=str(self.settings.get("batch_format", "markdown")),
+            on_commit=self._batch_fmt_cb,
+            completions=supported_formats(),
+        )
+
+    def _batch_fmt_cb(self, fmt: str) -> None:
+        try:
+            self._batch_fmt = resolve_format(fmt)
+        except ValueError as exc:
+            self.notify(str(exc), error=True)
+            return
+        src = Path(self._batch_src)
+        out_default = str(src if src.is_dir() else src.parent)
+        self._enter_minibuffer(
+            "Output directory: ",
+            initial=out_default,
+            on_commit=self._batch_out_cb,
+        )
+
+    def _batch_out_cb(self, out_dir: str) -> None:
+        out_dir = out_dir.strip()
+        if not out_dir:
+            return
+        src = self._batch_src
+        if any(ch in src for ch in "*?["):
+            import glob as _glob
+
+            paths: List[str] = sorted(_glob.glob(src))
+        else:
+            paths = [src]
+        if not paths:
+            self.notify("No matching input files.", error=True)
+            return
+        self.settings.set("batch_format", self._batch_fmt)
+        self.notify("Batch converting… please wait", dur=5.0)
+        try:
+            summary = run_batch(paths, out_dir, self._batch_fmt, self.settings)
+        except ValueError as exc:
+            self.notify(str(exc), error=True)
+            return
+        msg = (
+            f"Batch: {len(summary.succeeded)}/{summary.total} ok, "
+            f"{len(summary.failed)} failed → {out_dir}"
+        )
+        if summary.log_path:
+            msg += f"  (log: {Path(summary.log_path).name})"
+        self.notify(msg, dur=8.0, error=bool(summary.failed))
+
     def _set_subtitle_format(self, fmt: str) -> None:
         """Set the caption format used for subtitle export (srt | vtt)."""
         fmt = (fmt or "").strip().lower()
@@ -2732,6 +2815,7 @@ class StarApp:
                 if self.doc
                 else self.notify("No document", error=True)
             ),
+            "batch-convert": self._batch_convert,
             "export-markdown": self._export_markdown,
             "export-braille": self._export_braille_cmd,
             "export-audio": lambda: self._export_audio_cmd(arg or ""),

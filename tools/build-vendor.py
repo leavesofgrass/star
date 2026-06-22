@@ -51,6 +51,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -87,6 +88,16 @@ PANDOC_URL = (
 DECTALK_VERSION = "2023-10-30"
 DECTALK_URL = (
     f"https://github.com/dectalk/dectalk/releases/download/{DECTALK_VERSION}/vs2022.zip"
+)
+
+# eSpeak-NG: official Windows installer.  Provides the 64-bit ``libespeak-ng.dll``
+# and the ``espeak-ng-data`` tree, which star drives in-process via ctypes for
+# real, audio-position-tagged word events (used to keep the reading highlight in
+# sync with playback).  1.52.0 is the first release that ships a 64-bit DLL.
+ESPEAK_VERSION = "1.52.0"
+ESPEAK_URL = (
+    f"https://github.com/espeak-ng/espeak-ng/releases/download/{ESPEAK_VERSION}/"
+    "espeak-ng.msi"
 )
 
 
@@ -271,6 +282,63 @@ def fetch_dectalk(force: bool) -> None:
         )
 
 
+def fetch_espeak(force: bool) -> None:
+    dst = VENDOR / "espeak-ng"
+    have = (dst / "libespeak-ng.dll").is_file() and (dst / "espeak-ng-data").is_dir()
+    if have and not force:
+        print("espeak-ng: already present")
+        return
+    if sys.platform != "win32":
+        # The vendored DLL is a Windows binary for the self-contained star.exe.
+        # On macOS/Linux, eSpeak-NG comes from the system package manager
+        # (tools/install_native.py), so nothing is vendored here.
+        print("espeak-ng: skipped (Windows-only vendoring)")
+        return
+    print("espeak-ng: fetching ...")
+    VENDOR.mkdir(parents=True, exist_ok=True)
+    msi = VENDOR / "espeak-ng.msi"
+    msi.write_bytes(_download(ESPEAK_URL))
+    # The MSI keeps its directory tree in the MSI tables, which a plain 7-Zip
+    # extraction flattens (destroying espeak-ng-data/'s sub-structure).  An
+    # administrative install (``msiexec /a``) reconstructs the real tree, needs
+    # no elevation, and makes no system changes — it just lays the files out.
+    work = VENDOR / "_espeak_msi"
+    if work.exists():
+        shutil.rmtree(work, ignore_errors=True)
+    work.mkdir(parents=True, exist_ok=True)
+    print("  extracting with msiexec /a ...")
+    rc = subprocess.run(
+        ["msiexec", "/a", str(msi), "/qn", f"TARGETDIR={work}"],
+        check=False,
+    ).returncode
+    # msiexec may hand off to the Windows Installer service and return before
+    # the files are fully written, so poll briefly for the expected output.
+    deadline = time.monotonic() + 60.0
+    dll_src = None
+    while time.monotonic() < deadline:
+        dll_src = next((p for p in work.rglob("libespeak-ng.dll")), None)
+        if dll_src and (dll_src.parent / "espeak-ng-data").is_dir():
+            break
+        time.sleep(0.5)
+    if dll_src is None or not (dll_src.parent / "espeak-ng-data").is_dir():
+        msi.unlink(missing_ok=True)
+        shutil.rmtree(work, ignore_errors=True)
+        sys.exit(
+            f"ERROR: msiexec admin-extract of espeak-ng.msi failed (rc={rc}); "
+            "libespeak-ng.dll / espeak-ng-data not found."
+        )
+    src_dir = dll_src.parent  # the "eSpeak NG" folder
+    if dst.exists():
+        shutil.rmtree(dst, ignore_errors=True)
+    dst.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(dll_src, dst / "libespeak-ng.dll")
+    shutil.copytree(src_dir / "espeak-ng-data", dst / "espeak-ng-data")
+    msi.unlink(missing_ok=True)
+    shutil.rmtree(work, ignore_errors=True)
+    n = sum(1 for _ in (dst / "espeak-ng-data").rglob("*") if _.is_file())
+    print(f"  -> {dst}  (libespeak-ng.dll + espeak-ng-data: {n} files)")
+
+
 def main() -> None:
     force = "--force" in sys.argv[1:]
     fetch_ffmpeg(force)
@@ -278,6 +346,7 @@ def main() -> None:
     fetch_liblouis(force)
     fetch_pandoc(force)
     fetch_dectalk(force)
+    fetch_espeak(force)
     total = sum(f.stat().st_size for f in VENDOR.rglob("*") if f.is_file())
     print(f"\nvendor/ ready at {VENDOR}  ({total // (1024 * 1024)} MB)")
     print("Next: python -m PyInstaller --clean --noconfirm star.spec")

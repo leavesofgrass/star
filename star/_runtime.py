@@ -40,7 +40,7 @@ Copyright (C) 2026 Jon Pielaet
 License: GNU General Public License v3 (or later)
 """
 
-__version__ = "0.1.4"
+__version__ = "0.1.5"
 __author__ = "Jon Pielaet"
 __copyright__ = "Copyright (C) 2026 Jon Pielaet"
 __license__ = "GPL-3.0-or-later"
@@ -106,6 +106,12 @@ _LIBLOUIS_DIR = _VENDOR / "liblouis"
 _LIBLOUIS_TABLES = _LIBLOUIS_DIR / "tables"
 _PANDOC_BUNDLED = _VENDOR / "pandoc" / "pandoc.exe"
 _DECTALK_DIR = _VENDOR / "dectalk"
+# eSpeak-NG, driven in-process through libespeak-ng via ctypes.  The library
+# delivers per-word events tagged with their audio position, which lets the
+# reading highlight follow actual playback instead of a free-running estimate.
+_ESPEAK_NG_DIR = _VENDOR / "espeak-ng"
+_ESPEAK_NG_DLL = _ESPEAK_NG_DIR / "libespeak-ng.dll"
+_ESPEAK_NG_DATA = _ESPEAK_NG_DIR / "espeak-ng-data"
 
 
 def _find_bundled_dectalk() -> Optional[str]:
@@ -153,6 +159,15 @@ if (_LIBLOUIS_DIR / "liblouis.dll").is_file():
     os.environ.setdefault("LOUIS_TABLEPATH", str(_LIBLOUIS_TABLES))
     if str(_LIBLOUIS_DIR) not in sys.path:
         sys.path.insert(0, str(_LIBLOUIS_DIR))
+
+# Make the vendored libespeak-ng.dll's directory discoverable so the in-process
+# ctypes eSpeak backend (and any co-located dependency DLLs) loads cleanly on
+# the self-contained Windows build.
+if _ESPEAK_NG_DLL.is_file():
+    try:
+        os.add_dll_directory(str(_ESPEAK_NG_DIR))
+    except (AttributeError, OSError):
+        pass
 
 # =============================================================================
 # Optional dependencies — all guarded; star runs with zero extras installed

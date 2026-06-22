@@ -2,15 +2,31 @@
 from ._runtime import *  # noqa: F401,F403
 from .annotations import _annotation_matches, _format_annotations, _parse_tags
 from .braille import _export_braille
-from .citations import _citation_label, _fetch_citation_by_doi, _format_citations, _import_citations
+from .citations import (
+    _citation_label,
+    _fetch_citation_by_doi,
+    _format_citations,
+    _import_citations,
+)
+from .convert import resolve_format, run_batch, supported_formats
 from .documents import Document, _build_word_map, load_document
 from .settings import Settings
-from .stats import ReadingStats, _apply_profile_values, _delete_profile, _fmt_duration, _format_reading_stats, _library_entries, _record_library, _save_profile
+from .stats import (
+    ReadingStats,
+    _apply_profile_values,
+    _delete_profile,
+    _fmt_duration,
+    _format_reading_stats,
+    _library_entries,
+    _record_library,
+    _save_profile,
+)
 from .themes import _load_css_themes, _seed_default_css_themes
 from .transcribe import _record_audio_to_wav, _transcribe_audio
 from .tts import Pyttsx3Backend, TTSManager, _SCReader
 from .ttstext import _preprocess_tts_text, _strip_markdown_for_tts
-from .tui import THEME_NAMES, _HELP_TEXT, _shortcuts_text
+from .tui import _HELP_TEXT, THEME_NAMES, _shortcuts_text
+from .watch import HotFolderWatcher, _make_logger
 
 
 # =============================================================================
@@ -168,6 +184,12 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
         # complete.  Carries the status-bar message to display (success or
         # error text) so the GUI thread can update safely.
         _export_audio_signal = pyqtSignal(str)
+        # Batch conversion runs on a background thread; these carry progress
+        # lines and the final summary back to the GUI thread.
+        _batch_progress_signal = pyqtSignal(str)
+        _batch_done_signal = pyqtSignal(str)
+        # Hot-folder watcher log lines, surfaced in the status bar.
+        _watch_signal = pyqtSignal(str)
         # Emitted from the Whisper background threads so results
         # land on the GUI thread.  transcribe: (text, source_path);
         # dictate: (text, char_pos_str, anchor).
@@ -225,6 +247,8 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             self.settings = settings
             self.doc: Optional[Document] = None
             self.tts_manager = TTSManager(settings)
+            # Active hot-folder watcher (File ▸ Watch Folder), or None.
+            self._watcher = None
             # Reading statistics & progress tracker, driven by a 1-second
             # QTimer poll set up after _setup_ui.
             self.stats = ReadingStats(settings)
@@ -269,6 +293,14 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             self._restore_signal.connect(self._qt_restore_reading_position, _QUEUED)
             # Wire the audio-export completion signal → status bar update.
             self._export_audio_signal.connect(
+                lambda msg: self.statusBar().showMessage(msg), _QUEUED
+            )
+            # Batch-conversion progress / completion (background thread).
+            self._batch_progress_signal.connect(
+                lambda msg: self.statusBar().showMessage(msg), _QUEUED
+            )
+            self._batch_done_signal.connect(self._on_batch_done, _QUEUED)
+            self._watch_signal.connect(
                 lambda msg: self.statusBar().showMessage(msg), _QUEUED
             )
             # Wire the Whisper transcription / dictation result signals.
@@ -561,6 +593,24 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
                     tip="Write a timestamped caption track synchronized to speech",
                 )
             )
+
+            file_menu.addSeparator()
+            file_menu.addAction(
+                _mi(
+                    "Batch Convert…",
+                    "Ctrl+Shift+C",
+                    self._qt_batch_convert,
+                    tip="Convert many files / a folder to one format",
+                )
+            )
+            # Toggle action: text flips to "Stop Watching Folder" while active.
+            self._watch_action = _mi(
+                "Watch Folder…",
+                "Ctrl+Shift+W",
+                self._qt_watch_folder,
+                tip="Auto-convert files dropped into a folder (toggle)",
+            )
+            file_menu.addAction(self._watch_action)
 
             file_menu.addSeparator()
             file_menu.addAction(_mi("Quit", "Ctrl+Q", self.close))
@@ -2991,6 +3041,137 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
 
         # ── Export methods ───────────────────────────────────────────────
 
+        def _qt_batch_convert(self) -> None:
+            """Convert many files / a folder to one format (File ▸ Batch Convert).
+
+            Select multiple files (or, if none are chosen, a folder), pick one
+            output format and one output directory, then run the shared,
+            failure-isolated batch core on a background thread.
+            """
+            sel, _ = QFileDialog.getOpenFileNames(
+                self, "Select documents to convert (Cancel to choose a folder)", ""
+            )
+            paths: List[str] = list(sel)
+            if not paths:
+                folder = QFileDialog.getExistingDirectory(
+                    self, "Select a folder of documents to convert"
+                )
+                if folder:
+                    paths = [folder]
+            if not paths:
+                return
+            fmts = supported_formats()
+            cur = str(self.settings.get("batch_format", "markdown"))
+            idx = fmts.index(cur) if cur in fmts else 0
+            fmt, ok = QInputDialog.getItem(
+                self, "Batch Convert", "Convert everything to:", fmts, idx, False
+            )
+            if not ok or not fmt:
+                return
+            fmt = resolve_format(fmt)
+            self.settings.set("batch_format", fmt)
+            out_dir = QFileDialog.getExistingDirectory(
+                self, "Choose the output directory"
+            )
+            if not out_dir:
+                return
+
+            def _work() -> None:
+                def _progress(done: int, total: int, result) -> None:
+                    state = "ok" if result.ok else "FAILED"
+                    self._batch_progress_signal.emit(
+                        f"Batch {done}/{total}: {Path(result.source).name} — {state}"
+                    )
+
+                summary = run_batch(
+                    paths, out_dir, fmt, self.settings, progress=_progress
+                )
+                lines = [
+                    "Batch conversion complete.",
+                    "",
+                    f"Succeeded: {len(summary.succeeded)} / {summary.total}",
+                    f"Failed: {len(summary.failed)}",
+                    f"Output: {out_dir}",
+                ]
+                if summary.log_path:
+                    lines.append(f"Log: {summary.log_path}")
+                if summary.failed:
+                    lines.append("")
+                    lines.append("Failures:")
+                    for r in summary.failed[:20]:
+                        lines.append(f"  • {Path(r.source).name}: {r.error}")
+                    if len(summary.failed) > 20:
+                        lines.append(
+                            f"  …and {len(summary.failed) - 20} more (see log)."
+                        )
+                self._batch_done_signal.emit("\n".join(lines))
+
+            self.statusBar().showMessage("Batch conversion started…")
+            threading.Thread(target=_work, daemon=True).start()
+
+        def _on_batch_done(self, msg: str) -> None:
+            self.statusBar().showMessage("Batch conversion complete.")
+            QMessageBox.information(self, "Batch Convert", msg)
+
+        def _qt_watch_folder(self) -> None:
+            """Start or stop hot-folder watching from the GUI (toggle).
+
+            Converts files dropped into a chosen folder in the background using
+            the same pipeline as ``star --watch``, so the GUI stays fully usable
+            (and keyboard-driven) while it runs.  Invoking it again stops it.
+            """
+            if self._watcher is not None:
+                try:
+                    self._watcher.stop()
+                finally:
+                    self._watcher = None
+                self._watch_action.setText("Watch Folder…")
+                self.statusBar().showMessage("Stopped watching folder.")
+                return
+            in_dir = QFileDialog.getExistingDirectory(self, "Select a folder to watch")
+            if not in_dir:
+                return
+            out_dir = QFileDialog.getExistingDirectory(
+                self, "Choose the output directory"
+            )
+            if not out_dir:
+                return
+            fmts = supported_formats()
+            cur = str(self.settings.get("watch_format", "markdown"))
+            idx = fmts.index(cur) if cur in fmts else 0
+            fmt, ok = QInputDialog.getItem(
+                self, "Watch Folder", "Convert new files to:", fmts, idx, False
+            )
+            if not ok or not fmt:
+                return
+            fmt = resolve_format(fmt)
+            self.settings.set("watch_format", fmt)
+            # The watcher's own logger writes <output>/star-watch.log (+ stderr);
+            # add a handler that mirrors each line into the status bar.
+            import logging
+
+            logger = _make_logger(Path(out_dir))
+
+            class _StatusHandler(logging.Handler):
+                def emit(_self, record: "logging.LogRecord") -> None:
+                    try:
+                        self._watch_signal.emit(record.getMessage())
+                    except Exception:
+                        pass
+
+            logger.addHandler(_StatusHandler())
+            try:
+                self._watcher = HotFolderWatcher(
+                    in_dir, out_dir, fmt, self.settings, logger=logger
+                )
+                self._watcher.start()
+            except Exception as exc:
+                self._watcher = None
+                self.statusBar().showMessage(f"Watch error: {exc}")
+                return
+            self._watch_action.setText("Stop Watching Folder")
+            self.statusBar().showMessage(f"Watching {in_dir} → {out_dir}  [{fmt}]")
+
         def _qt_export_markdown(self) -> None:
             """Save the current document as a Markdown file."""
             if not self.doc:
@@ -4723,6 +4904,14 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             if self._qt_sc_reader is not None:
                 self._qt_sc_reader.close()
                 self._qt_sc_reader = None
+            # Stop a running hot-folder watcher cleanly (lets an in-progress
+            # conversion finish before the window closes).
+            if self._watcher is not None:
+                try:
+                    self._watcher.stop()
+                except Exception:
+                    pass
+                self._watcher = None
             self.tts_manager.stop()
             self.settings["gui_width"] = self.width()
             self.settings["gui_height"] = self.height()

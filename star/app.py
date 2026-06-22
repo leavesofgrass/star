@@ -4,7 +4,7 @@ from .documents import load_document
 from .gui import _run_qt_gui
 from .settings import Settings
 from .tts import TTSManager
-from .tui import StarApp, THEMES, THEME_NAMES
+from .tui import THEME_NAMES, THEMES, StarApp
 
 
 # =============================================================================
@@ -63,6 +63,25 @@ def main() -> None:
     ap.add_argument(
         "--keytest", action="store_true", help="Run the key-code inspector (diagnostic)"
     )
+    # ── Hot-folder watching (headless batch conversion) ──────────────────
+    ap.add_argument(
+        "--watch",
+        metavar="DIR",
+        default="",
+        help="Watch DIR and convert each file dropped into it (headless mode); "
+        "requires --output",
+    )
+    ap.add_argument(
+        "--output",
+        metavar="DIR",
+        default="",
+        help="Output directory for --watch conversions",
+    )
+    ap.add_argument(
+        "--format",
+        default="",
+        help="Output format for --watch (default: markdown)",
+    )
     args = ap.parse_args()
 
     settings = Settings()
@@ -99,6 +118,10 @@ def main() -> None:
         _run_keytest()
         return
 
+    if args.watch:
+        _run_watch(args, settings)
+        return
+
     # GUI is the default mode when Qt is available; use --tui to force terminal.
     # --gui keeps working as an explicit opt-in (and errors if Qt missing).
     if args.gui:
@@ -124,6 +147,33 @@ def main() -> None:
         print(f"star crashed: {e}", file=sys.stderr)
         traceback.print_exc()
         sys.exit(1)
+
+
+def _run_watch(args: "argparse.Namespace", settings: Settings) -> None:
+    """Run the headless hot-folder watcher (``star --watch``).
+
+    Validates the output directory and format (reusing the batch feature's
+    format validation), then blocks until interrupted.
+    """
+    from .convert import resolve_format, supported_formats
+    from .watch import HotFolderWatcher
+
+    if not args.output:
+        print("--watch requires --output <dir>", file=sys.stderr)
+        sys.exit(2)
+    in_dir = Path(args.watch)
+    if not in_dir.is_dir():
+        print(f"--watch: not a directory: {in_dir}", file=sys.stderr)
+        sys.exit(2)
+    fmt = args.format or str(settings.get("watch_format", "markdown"))
+    try:
+        fmt = resolve_format(fmt)
+    except ValueError as exc:
+        print(exc, file=sys.stderr)
+        print("Supported formats: " + ", ".join(supported_formats()), file=sys.stderr)
+        sys.exit(2)
+    watcher = HotFolderWatcher(args.watch, args.output, fmt, settings)
+    watcher.run_forever()
 
 
 def _run_keytest() -> None:

@@ -137,6 +137,19 @@ DEFAULTS: Dict[str, Any] = {
     # is the true throttle, so running the timer at full speed keeps the
     # highlight tight to the audio instead of lagging behind it.
     "highlight_speed": 1.0,
+    # ── Batch conversion & hot-folder watching ───────────
+    # Default output format for batch conversion and the --watch hot-folder
+    # (any of: markdown | text | braille; see convert.supported_formats()).
+    "batch_format": "markdown",
+    "watch_format": "markdown",
+    # Hot-folder debounce: a file is only converted once its size has held
+    # steady for watch_stable_seconds (polled every watch_poll_interval),
+    # so files still being copied in are never read half-written.
+    "watch_stable_seconds": 2.0,
+    "watch_poll_interval": 0.5,
+    # Move each source into <input>/processed/ after a successful conversion
+    # (failures always go to <input>/failed/).
+    "watch_move_processed": True,
 }
 
 # =============================================================================

@@ -1,10 +1,10 @@
 # ⭐ star — Speaking Terminal Access Reader
 
-> **Version 0.1.4** — native speech on every platform, dependency-free Braille export, reading-accessibility aids (adjustable spacing, dyslexia-friendly fonts, bionic reading), word- **or sentence-level** highlighting that follows the voice, optional **Piper neural voices** (offline & free), **timestamped SRT/VTT subtitle export**, **reading statistics & a document library**, a **live HTML preview while editing**, **saveable voice/profile presets**, and a **user pronunciation lexicon**.
+> **Version 0.1.5** — *star* is an accessible, **GUI-first** document reader with built-in text-to-speech: it opens PDFs, Word/EPUB/PowerPoint, web pages, spreadsheets and more, reads them aloud, and highlights each word as it is spoken. **New in this release:** **playback-synced highlighting** — eSpeak-NG now runs **in-process via libespeak-ng**, whose word events carry their audio position, so the highlight follows the actual audio instead of racing ahead; **batch conversion** — convert many files or a whole folder to Markdown, plain text, or Braille in one step (**File ▸ Batch Convert**, or `M-x batch-convert`); **hot-folder watching** — auto-convert files dropped into a folder, unattended, from the GUI (**File ▸ Watch Folder**) or headless (`star --watch <in> --output <out> --format <fmt>`); and the **Qt GUI as the primary interface**, with a keyboard shortcut for every command. The keyboard-driven terminal UI remains available with `--tui`.
 
 A lightweight, installable Python application that reads your documents aloud while you follow along — one `pip install` (or a single-file `star.pyz`) away, with no cloud account and no internet required.
 
-`star` is an accessible document reader built for students with print disabilities. It opens PDFs, DOCX files, EPUBs, PowerPoint decks, web pages, spreadsheets, and more, then reads them aloud using your platform's built-in text-to-speech engine while highlighting each spoken word. By default `star` launches a windowed Qt GUI; a full-featured curses terminal interface is also available with `--tui`.
+`star` is an accessible document reader built for students with print disabilities. It opens PDFs, DOCX files, EPUBs, PowerPoint decks, web pages, spreadsheets, and more, then reads them aloud using your platform's built-in text-to-speech engine while highlighting each spoken word. The **Qt GUI is star's primary interface** — it launches by default and is where ongoing development is focused. A full-featured curses terminal interface remains available as a secondary option with `--tui`, for headless or text-only environments.
 
 `star` was designed with graduate nursing, public health, and biomedical engineering students in mind — people who work with dense, heavily formatted documents and need a reading tool that gets out of the way. The interface is intentionally simple enough for a high school student to pick up in under five minutes, while the keyboard command set scales to the needs of power users.
 
@@ -16,11 +16,11 @@ A lightweight, installable Python application that reads your documents aloud wh
 
 | Feature | Detail |
 |---|---|
-| Qt GUI (default) | Windowed application with menu bar, toolbar, and dock panels; launches automatically when PyQt6/PyQt5 is installed |
-| Terminal TUI (fallback) | Full-featured curses interface; force it with `--tui` |
-| Built-in TTS | pyttsx3 (SAPI5 / NSSpeechSynthesizer / eSpeak-NG), **macOS `say` (native, default on Mac)**, eSpeak-NG direct, DECtalk, Festival, **Piper (neural, offline, free)**, Coqui |
+| Qt GUI (primary) | The main interface: windowed application with menu bar, toolbar, dock panels, and a keyboard shortcut for every command; launches by default when PyQt6/PyQt5 is installed |
+| Terminal TUI (secondary) | Full-featured, fully keyboard-driven curses interface for headless / text-only use; force it with `--tui` |
+| Built-in TTS | pyttsx3 (SAPI5 / NSSpeechSynthesizer / eSpeak-NG), **macOS `say` (native, default on Mac)**, **eSpeak-NG (in-process libespeak-ng, or CLI)**, DECtalk, Festival, **Piper (neural, offline, free)**, Coqui |
 | Native macOS voices | Apple system voices (incl. **Eloquence US English**) work out of the box with no extra packages |
-| eSpeak-NG word callbacks | eSpeak-NG uses SSML `<mark/>` events for accurate per-word highlighting — not just a timer estimate |
+| eSpeak-NG playback sync | Driven in-process via **libespeak-ng** (ctypes); its per-word events carry their audio position, so the highlight follows the actual audio, not a timer estimate |
 | Default reading rate | **265 wpm** — intentionally brisk; adjustable at runtime |
 | TTS word highlighting | Spoken word highlighted live; works in both Qt and terminal modes |
 | Highlight granularity | Highlight by **word** (default), whole **sentence** (less flicker), or **both** — Qt and TUI |
@@ -64,6 +64,7 @@ A lightweight, installable Python application that reads your documents aloud wh
 | Reading level | Flesch-Kincaid grade and ease score on demand |
 | Persistent settings | User preferences saved to `settings.json` |
 | `--plain` mode | Extracts clean text to stdout for piping to other tools |
+| Batch & hot-folder convert | Convert many files / a folder at once, or auto-convert a watched folder — from the CLI, the Qt GUI, or the TUI |
 | Installable package, graceful degradation | Ships as the `star` package — run it with `pip install`, `python -m star`, or a single-file `star.pyz`. Every third-party dependency is optional and guarded, so the core runs on the standard library alone |
 
 ---
@@ -100,11 +101,11 @@ A single pure-Python wheel (`star_reader-<version>-py3-none-any.whl`) installs `
 
 ```bash
 # Recommended dependencies (Qt GUI + TTS + common formats) come with the wheel
-pip install star_reader-0.1.4-py3-none-any.whl
+pip install star_reader-0.1.5-py3-none-any.whl
 
 # Or pull in every optional Python feature (OCR, ODT/XLSX, Pandoc, Braille,
 # transcription, audio conversion):
-pip install "star_reader-0.1.4-py3-none-any.whl[all]"
+pip install "star_reader-0.1.5-py3-none-any.whl[all]"
 ```
 
 The wheel then exposes a `star` console command and `python -m star`:
@@ -115,7 +116,7 @@ star document.pdf    # open a file
 star --tui           # force the terminal UI
 ```
 
-Extras let you install exactly what you need: `[ocr]`, `[formats]`, `[markup]`, `[braille]`, `[audio]`, `[transcribe]`, or `[all]`.
+Extras let you install exactly what you need: `[ocr]`, `[formats]`, `[markup]`, `[braille]`, `[audio]`, `[transcribe]`, `[watch]`, or `[all]`.
 
 > The wheel covers the **Python** side. The native engines below (ffmpeg, Tesseract, liblouis, Pandoc, eSpeak-NG) are not Python packages; on macOS/Linux install them from your system package manager — `python tools/install_native.py` does this for you (see [External Binary Dependencies](#external-binary-dependencies)).
 
@@ -181,16 +182,17 @@ Python dependency-install step, not the system-dependency story.
 | `openai-whisper` *or* `faster-whisper` | Speech recognition for audio transcription and voice dictation of notes | `pip install openai-whisper` |
 | `sounddevice` + `numpy` | Microphone capture for voice dictation (transcription of files needs only Whisper) | `pip install sounddevice numpy` |
 | `windows-curses` | Windows terminal (curses) support for `--tui` mode | `pip install windows-curses` |
+| `watchdog` | Hot-folder watching (`--watch` / GUI Watch Folder); falls back to directory polling if absent | `pip install watchdog` |
 
 ### External Binary Dependencies
 
-> **Self-contained Windows binary:** since v.0.1.3, the portable `star.exe` bundles **ffmpeg**, the **Tesseract** engine + English data, **liblouis** + tables, **Pandoc**, the **DECtalk** engine (`DECtalk.dll` + dictionary), and **Whisper** (with PyTorch and the `base` speech-recognition model) for offline voice dictation & transcription, so none of the tools below need to be installed on the target machine.
+> **Self-contained Windows binary:** since v.0.1.3, the portable `star.exe` bundles **ffmpeg**, the **Tesseract** engine + English data, **liblouis** + tables, **Pandoc**, the **DECtalk** engine (`DECtalk.dll` + dictionary), **eSpeak-NG** (`libespeak-ng.dll` + data, driven in-process via ctypes for playback-synced word highlighting), and **Whisper** (with PyTorch and the `base` speech-recognition model) for offline voice dictation & transcription, so none of the tools below need to be installed on the target machine.
 
 > **macOS / Linux:** these engines come from your system package manager. Run **`python tools/install_native.py`** to install whatever is missing (ffmpeg, Tesseract + English data, liblouis, Pandoc, and eSpeak-NG on Linux) via Homebrew / apt / dnf / pacman / zypper. Add `--dry-run` to preview the commands or name specific engines (e.g. `python tools/install_native.py ffmpeg pandoc`).
 
 - **Tesseract** — required by `pytesseract` for OCR. Download from [github.com/tesseract-ocr/tesseract](https://github.com/tesseract-ocr/tesseract/releases) or install via your system package manager. *(Bundled in the self-contained Windows build.)*
 - **liblouis** — only for contracted **Grade 2** Braille; Grade 1 BRF export is built in and needs nothing. *(Bundled in the self-contained Windows build.)*
-- **eSpeak-NG** — required for the eSpeak-NG backend and for accurate per-word callbacks. See [TTS Backends](#tts-backends).
+- **eSpeak-NG** — the eSpeak voice. *(The self-contained Windows build bundles `libespeak-ng.dll` + data and drives it in-process via ctypes for playback-synced highlighting.)* On macOS/Linux, install eSpeak-NG from your package manager; `star` loads the system `libespeak-ng` in-process when present, or falls back to the `espeak-ng` CLI. See [TTS Backends](#tts-backends).
 - **DECtalk** — the self-contained Windows build drives `DECtalk.dll` in-process (no setup needed). Otherwise set `DECTALK_BIN` to the path of a `dtalk`/`dectalk` CLI, or install system DECtalk. Source: [github.com/dectalk/dectalk](https://github.com/dectalk/dectalk). *(Bundled in the self-contained Windows build.)*
 - **Pandoc** — optional fallback for exotic formats. See [pandoc.org](https://pandoc.org/). *(Bundled in the self-contained Windows build.)*
 - **ffmpeg** — needed for audio export (MP3, OGG, MP4). WAV export works without it. Download from [ffmpeg.org](https://ffmpeg.org/download.html) or install via your package manager (`sudo apt install ffmpeg`, `brew install ffmpeg`). *(Bundled in the self-contained Windows build.)*
@@ -239,7 +241,7 @@ star --keytest             # open the key-code diagnostic tool (TUI)
 
 The `star` command is provided by the wheel and the installer scripts. Running from a source checkout instead? Use `python -m star …` (or `python run_star.py …`) with the same arguments.
 
-**Default mode:** When PyQt6 or PyQt5 is installed, `star` opens the Qt GUI automatically. If neither is present, it falls back to the terminal TUI. Use `--tui` to force the terminal interface even when Qt is available.
+**Default mode:** The Qt GUI is star's primary interface — it opens automatically when PyQt6/PyQt5 is installed. Without Qt, star falls back to the secondary terminal TUI; use `--tui` to force the terminal interface even when Qt is available.
 
 ---
 
@@ -512,7 +514,9 @@ All standard Emacs line-editing keys work inside the minibuffer (`C-a`, `C-e`, `
 
 ## 🅼 M-x Commands
 
-Open the command palette with `M-x`, `F2`, or `:`. Begin typing any part of a command name and press `Tab` to complete.
+These are the commands of the **secondary terminal UI**, opened with `M-x`, `F2`, or `:` — begin typing any part of a command name and press `Tab` to complete.
+
+> In the primary **Qt GUI** you rarely need the palette: the same actions live in the menus, each with its own keyboard shortcut (see **Keyboard Shortcuts** above, and **Help → Keyboard Shortcuts**, `F3`).
 
 ### Document
 
@@ -523,6 +527,7 @@ Open the command palette with `M-x`, `F2`, or `:`. Begin typing any part of a co
 | `close` | Close the current document |
 | `reload` | Reload the current document from disk |
 | `export-markdown` | Save the rendered document as a `.md` file |
+| `batch-convert` | Convert many files / a folder to one format (Markdown, text, or Braille) |
 | `export-braille` | Export a BRF braille file (requires `louis`) |
 | `export-audio [fmt]` | Synthesize document to audio; `fmt` is `mp3` (default), `ogg`, `mp4`, or `wav` |
 | `export-subtitles` | Write a timestamped **SRT/VTT** caption track synchronized to the speech |
@@ -713,7 +718,9 @@ fixes the long-standing issue of Macs falling back to the robotic eSpeak voice.
 
 ### eSpeak-NG
 
-`star` drives eSpeak-NG directly as a subprocess. When an `on_word` callback is requested, `star` wraps the text in SSML with `<mark name="N"/>` tags between each word and runs eSpeak-NG in SSML mode (`-m`). eSpeak-NG emits `MARK N` lines to stdout as each word is spoken; a background reader thread fires the word-highlight callback with the same accuracy as pyttsx3's native callbacks.
+`star` prefers to drive eSpeak-NG **in process through libespeak-ng** (via `ctypes`). The library reports a per-word event for every spoken word, tagged with the word's *audio position* (milliseconds into the output stream), which `star` forwards to the reading highlight — so the highlight follows actual playback instead of a free-running estimate. This is used automatically when the shared library is available: the bundled `libespeak-ng.dll` in the self-contained Windows build, or a system `libespeak-ng` on Linux/macOS.
+
+When the library is not present, `star` falls back to driving the `espeak-ng` command-line binary as a subprocess. The CLI reports no per-word events, so in that mode the highlight is paced by the reading-rate timer.
 
 | Platform | Install |
 |---|---|
@@ -721,7 +728,7 @@ fixes the long-standing issue of Macs falling back to the robotic eSpeak voice.
 | macOS | `brew install espeak` |
 | Windows | Download from [github.com/espeak-ng/espeak-ng/releases](https://github.com/espeak-ng/espeak-ng/releases) |
 
-The `espeak-ng` or `espeak` binary must be on your system PATH.
+Installing eSpeak-NG provides both the `libespeak-ng` shared library (which `star` loads in-process) and the `espeak-ng` binary (the subprocess fallback); for that fallback the binary must be on your `PATH`.
 
 ### Festival
 
@@ -799,7 +806,7 @@ While TTS is playing, `star` highlights the word currently being spoken and keep
 **How it works:**
 
 - **pyttsx3** — Word-boundary callbacks from the native SAPI5 / NSSpeechSynthesizer engine confirm the exact audio position. A background timer advances the highlight at the configured speech rate; callbacks correct the timer's estimate to keep the two in sync.
-- **eSpeak-NG (direct)** — Text is wrapped in SSML with `<mark/>` elements before each word. eSpeak-NG outputs `MARK N` to stdout as each word begins; a reader thread fires the highlight callback with accuracy comparable to pyttsx3.
+- **eSpeak-NG** — When libespeak-ng is available it is driven in-process; its per-word events carry each word's audio position, so the highlight tracks playback directly. With only the `espeak-ng` CLI available, no per-word events are reported and the highlight falls back to the reading-rate timer.
 - **DECtalk / Festival / Piper / Coqui** — No word-level events are available. `star` uses the current reading rate (wpm) to advance the highlight on a timer.
 
 The document view scrolls automatically to keep the highlighted word visible. In the terminal TUI the cursor tracks the highlighted line; in Qt the word is scrolled into view without stealing keyboard focus.
@@ -1762,6 +1769,59 @@ star --plain document.pdf
 
 ---
 
+## 🗂️ Batch Conversion & Hot-Folder Watching
+
+Both features drive the **same** single-file load → export pipeline star already
+uses, over the headless export formats: **markdown** (`.md`), **text** (`.txt`),
+and **braille** (`.brf`). (Audio and subtitle export need speech synthesis and
+stay in the interactive `export-audio` / `export-subtitles` commands.)
+
+### Batch conversion
+
+Convert many documents — selected files or a whole folder — to one format in a
+single step:
+
+- **Qt GUI:** **File ▸ Batch Convert** (`Ctrl+Shift+C`).
+- **Terminal UI:** `M-x batch-convert`.
+
+You pick the inputs, one output format, and one output directory. Each file is
+converted independently: a corrupt, password-protected, or unsupported file is
+**recorded and skipped**, never aborting the run. Outputs reuse the source
+basename (collisions are disambiguated, never overwritten), and a timestamped
+summary — what succeeded, what failed and *why*, and where outputs were written
+— is saved as `star-batch-<timestamp>.log` in the output directory.
+
+### Hot-folder watching
+
+Watch a folder and convert anything dropped into it, unattended.
+
+```bash
+# Headless: convert every file added to ./inbox into ./out as Markdown
+star --watch ./inbox --output ./out --format markdown
+```
+
+`--format` accepts the same names as batch conversion (`markdown`, `text`,
+`braille`; default `markdown`). You can also start/stop it from the **Qt GUI**
+with **File ▸ Watch Folder** (`Ctrl+Shift+W`, a toggle) while you keep working.
+
+Behavior:
+
+- **Partial-write safe:** a file is converted only after its size has stayed
+  steady for a moment, so a file still being copied in is never read
+  half-written.
+- **Source disposition:** on success the source moves to `<input>/processed/`;
+  on failure it moves to `<input>/failed/` (so failures aren't reprocessed on
+  restart or mistaken for successes). Name clashes are disambiguated.
+- **Logging:** every attempt is logged with a timestamp to
+  `<output>/star-watch.log`.
+- **Clean shutdown:** Ctrl+C / SIGTERM stop it without interrupting a file that
+  is mid-conversion.
+- Uses [`watchdog`](https://pypi.org/project/watchdog/) for real filesystem
+  events when installed (the `[watch]` extra); otherwise it falls back to
+  directory polling.
+
+---
+
 ## 🧰 Command-Line Options
 
 ```
@@ -1777,6 +1837,9 @@ star [OPTIONS] [FILE_OR_URL]
 | `--rate RATE` | Initial TTS reading rate in wpm |
 | `--theme THEME` | Initial color theme: `dark`, `light`, `contrast`, `phosphor` |
 | `--backend BACKEND` | TTS backend: `auto`, `pyttsx3`, `espeak`, `festival`, `coqui`, `dectalk`, `none` |
+| `--watch DIR` | Watch DIR and convert files dropped into it (headless hot-folder mode); requires `--output` |
+| `--output DIR` | Output directory for `--watch` conversions |
+| `--format FMT` | Output format for `--watch`: `markdown`, `text`, or `braille` (default: markdown) |
 | `--keytest` | Open the key-code diagnostic tool (TUI only) |
 | `--list-themes` | Print available theme names and exit |
 | `--list-voices` | Print available TTS voice IDs and exit |

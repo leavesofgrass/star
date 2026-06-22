@@ -84,6 +84,10 @@ if (-not $SkipInstall) {
         "openpyxl",
         "odfpy",
         "windows-curses",
+        # Hot-folder watching (File > Watch Folder / --watch); without it the
+        # watcher still works via directory polling, but watchdog gives real
+        # filesystem events.
+        "watchdog",
         # Dictation / transcription (bundled so the feature works out of the
         # box).  openai-whisper pulls in torch, numba, tiktoken, etc.; this is
         # a multi-GB install by design.  sounddevice provides mic capture.

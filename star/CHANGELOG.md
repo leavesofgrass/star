@@ -8,6 +8,74 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.5] 2026-06-23
+
+### ✨ Added
+
+- **In-process eSpeak-NG via libespeak-ng (ctypes).** A new backend drives
+  eSpeak-NG through its C library instead of the `espeak-ng` command line. The
+  library reports a per-word event for every spoken word, tagged with the
+  word's audio position (milliseconds into the output stream), which `star`
+  forwards to the reading highlight. It is preferred automatically when the
+  shared library is available — the bundled `libespeak-ng.dll` in the
+  self-contained Windows build, or a system `libespeak-ng` on Linux/macOS — and
+  falls back to the `espeak-ng` command-line backend otherwise. Speech is
+  synthesized in short sentence-sized chunks, so pausing, stopping, or switching
+  away silences playback promptly instead of running on in the background.
+- **Bundled libespeak-ng in the self-contained Windows build.**
+  `tools/build-vendor.py` now fetches eSpeak-NG (1.52.0) and vendors its 64-bit
+  `libespeak-ng.dll` plus the `espeak-ng-data` tree, so `star.exe` speaks with
+  eSpeak — and the playback-synced highlight — with no separate install.
+- **Batch conversion.** Convert many documents — selected files or a whole
+  folder — to one output format (Markdown, plain text, or Braille/BRF) in a
+  single step, via **File ▸ Batch Convert** (`Ctrl+Shift+C`) in the Qt GUI or
+  `M-x batch-convert` in the terminal UI. Each file runs through the existing
+  single-file load→export pipeline; a corrupt, password-protected, or
+  unsupported file is recorded and skipped instead of aborting the run. Outputs
+  reuse the source basename (collisions disambiguated, never overwritten), and a
+  timestamped summary — what succeeded, what failed and why, and where outputs
+  went — is written alongside the outputs.
+- **Hot-folder watching.** Watch a folder and convert files dropped into it,
+  unattended: `star --watch <input_dir> --output <output_dir> --format <fmt>`
+  for headless use, or **File ▸ Watch Folder** (`Ctrl+Shift+W`, a toggle) from
+  the Qt GUI. Built on the batch core (same formats and validation). Files are
+  debounced (processed only once their size has stabilised, so a file still
+  being copied in is never read half-written); every attempt is logged with a
+  timestamp to `<output>/star-watch.log`; successful sources move to
+  `<input>/processed/` and failures to `<input>/failed/` (collisions
+  disambiguated, never overwritten); and Ctrl+C / SIGTERM shut it down cleanly
+  without interrupting a file mid-conversion. Uses `watchdog` when installed
+  (the new `[watch]` optional-dependency group) and falls back to directory
+  polling otherwise.
+- **Every Qt menu item now has a keyboard shortcut**, keeping star fully
+  keyboard-drivable.
+
+### 🔧 Changed
+
+- **The Qt GUI is now star's primary interface.** Ongoing development is focused
+  on the Qt GUI, so it is the default and the recommended way to run star. The
+  curses terminal UI (`--tui`) remains fully supported and keyboard-driven as a
+  secondary interface for headless or text-only environments.
+
+### 🐛 Fixed
+
+- **Reading highlight no longer runs ahead of the audio.** The highlight is
+  now anchored to the engine's actual word progress rather than a free-running
+  words-per-minute estimate:
+  - With eSpeak-NG driven through libespeak-ng, the highlight follows each
+    word's reported audio position, so it tracks playback across the whole
+    document instead of drifting further ahead over time.
+  - For backends that report real word events (pyttsx3 and libespeak-ng), the
+    highlight now waits for the first event before starting, so it begins when
+    audio actually begins rather than when synthesis was requested — removing a
+    constant head start.
+  - Note: the previous attempt to read `<mark>` events from the `espeak-ng`
+    command line could never work (the CLI does not emit them), so the
+    command-line backend remains timer-paced; use libespeak-ng for synced
+    highlighting.
+
+---
+
 ## [0.1.4] — 2026-06-22
 
 ### ✨ Added
