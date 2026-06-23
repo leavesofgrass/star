@@ -27,13 +27,13 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 - **Automated releases.** A tag-triggered workflow builds the universal wheel +
   sdist, the Windows `star.pyz`, and the Windows `star.exe`, and publishes a
   GitHub Release with generated notes.
-- **The dictation stack is now opt-in for the Windows binary.** The multi-GB
-  Whisper + PyTorch dictation stack is no longer bundled into `star.exe` by
-  default — it dominated the build time and artifact size, and (in CI) the
-  download time. Build the lean, fast binary as usual; pass `-Dictation` to
-  `tools/build-windows.ps1` (or run the release workflow with `dictation: true`)
-  to bundle offline voice dictation. A lean `star.exe` reports dictation as
-  unavailable in `star --deps` and is otherwise fully functional.
+- **Optional lean Windows build.** The Windows `star.exe` still bundles the
+  offline dictation stack (Whisper + PyTorch + the `base` model) **by default**,
+  so users get voice dictation out of the box. A new `-Lean` switch on
+  `tools/build-windows.ps1` (or the release workflow's `lean: true` input) skips
+  that multi-GB stack for a fast, small build — useful for quick test builds and
+  CI iteration; a lean `star.exe` reports dictation as unavailable in
+  `star --deps` and is otherwise fully functional.
 
 ---
 

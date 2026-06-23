@@ -4,19 +4,19 @@ This guide produces a **single, self-contained `star.exe`** that runs on Windows
 machines with **no Python and no dependencies installed** — ideal for demoing
 star as a tool. The binary bundles the Python interpreter, the Qt GUI, the
 text-to-speech driver, the document loaders, the study & writing aids (summarize,
-Anki export, spell check, translation, feeds, the difficult-word overlay), and —
-when the `vendor/` tree is present — the native engines for MP3 export (ffmpeg),
-OCR (Tesseract + English data), Grade 2 Braille (liblouis), markup conversion
-(Pandoc), and the classic DECtalk synthesizer. Offline voice dictation &
-transcription (Whisper) is **opt-in** via `-Dictation`.
+Anki export, spell check, translation, feeds, the difficult-word overlay),
+**out-of-the-box offline voice dictation & transcription (Whisper + the bundled
+`base` model)**, and — when the `vendor/` tree is present — the native engines
+for MP3 export (ffmpeg), OCR (Tesseract + English data), Grade 2 Braille
+(liblouis), markup conversion (Pandoc), and the classic DECtalk synthesizer.
 
-> Size note: the **default build is lean** (no dictation) — a few hundred MB,
-> plus the `vendor/` engines if you include them. Adding `-Dictation` bundles
-> **openai-whisper + PyTorch** (multiple hundred MB) plus the ~140 MB Whisper
-> `base` model, pushing the binary well past 700 MB and making the **first start
-> noticeably slower** (onefile extracts everything to a temp folder on each
-> launch). Build lean unless you specifically need offline dictation; see
-> [Dictation](#out-of-the-box-dictation-whisper).
+> Size note: the **full default build is large** (~700+ MB onefile `.exe`). The
+> biggest single contributor is the dictation stack — **openai-whisper pulls in
+> PyTorch** (multiple hundred MB) plus the ~140 MB Whisper `base` model — on top
+> of the bundled `vendor/` engines. Because onefile extracts everything to a temp
+> folder on each launch, the **first start takes noticeably longer**. For a fast,
+> small build, pass `-Lean` to skip the dictation stack (see
+> [Dictation](#out-of-the-box-dictation-whisper)) and/or omit the `vendor/` step.
 
 ---
 
@@ -32,9 +32,9 @@ powershell -ExecutionPolicy Bypass -File tools\build-windows.ps1
 The result is **`dist\star.exe`**. Copy it anywhere and double-click to launch
 the GUI. (Skip the first line for a lean build without the native engines.)
 
-By default this is a **lean build without offline dictation** (no PyTorch/Whisper)
-— fast to build and far smaller. Add `-Dictation` to bundle offline voice
-dictation; see [Dictation](#out-of-the-box-dictation-whisper).
+By default this bundles **offline voice dictation** (PyTorch/Whisper + the `base`
+model) so users get it out of the box. For a fast, small build without it, pass
+`-Lean`; see [Dictation](#out-of-the-box-dictation-whisper).
 
 ---
 
@@ -47,11 +47,11 @@ dictation; see [Dictation](#out-of-the-box-dictation-whisper).
   `pdfminer.six` (PDF text), `python-docx`, `python-pptx`, `openpyxl`, `odfpy`,
   and the `windows-curses` runtime, plus the `star/README.md` / `LICENSE` /
   `CHANGELOG.md` help docs so the in-app **Help (F1)** works.
-- **Optional dictation stack (with `-Dictation`):** `openai-whisper` (and its
-  PyTorch backend), `sounddevice` for microphone capture, and the Whisper
-  **`base` model**, so **Tools → Dictate Note** and **Transcribe Audio File**
-  work offline on a clean machine. **Off by default** (multi-GB) — see
-  [Dictation](#out-of-the-box-dictation-whisper).
+- **Bundled dictation stack (default; skip with `-Lean`):** `openai-whisper`
+  (and its PyTorch backend), `sounddevice` for microphone capture, and the
+  Whisper **`base` model**, so **Tools → Dictate Note** and **Transcribe Audio
+  File** work offline on a clean machine. This is the largest contributor to the
+  binary size — see [Dictation](#out-of-the-box-dictation-whisper).
 - **Bundled study & writing aids:** `sumy` (with NLTK's `punkt` tokenizer data
   staged under `build/nltk_data`) for **Tools → Summarize Document**, `genanki`
   for **File → Export → Anki Flashcards**, and `pyspellchecker` for edit-mode
@@ -77,7 +77,7 @@ The build is defined by these files:
 | [`star.spec`](../star.spec) | PyInstaller build recipe (entry point, hidden imports, bundled data + `vendor/` tree, dictation stack, runtime hook, excludes) |
 | [`run_star.py`](../run_star.py) | Frozen entry point — imports `star.app.main` from the generated `star/` package |
 | [`tools/rthook_star.py`](../tools/rthook_star.py) | PyInstaller runtime hook: puts the bundled ffmpeg on `PATH`, points Whisper's model cache at the bundled `base` model, and points `NLTK_DATA` at the bundled `punkt` data |
-| [`tools/build-windows.ps1`](../tools/build-windows.ps1) | Convenience wrapper: sets up an env, installs deps (the study/writing aids always; the dictation stack only with `-Dictation`), stages the NLTK `punkt` data (and the Whisper model with `-Dictation`), runs PyInstaller |
+| [`tools/build-windows.ps1`](../tools/build-windows.ps1) | Convenience wrapper: sets up an env, installs deps (study/writing aids + the dictation stack by default; `-Lean` skips dictation), stages the NLTK `punkt` data and the Whisper model, runs PyInstaller |
 | [`tools/build-vendor.py`](../tools/build-vendor.py) | Downloads & lays out the native engines (ffmpeg, Tesseract, liblouis, Pandoc, DECtalk) into `vendor/` |
 
 ---
@@ -257,30 +257,19 @@ To add more OCR languages, drop extra `*.traineddata` files into
 
 ---
 
-## Out-of-the-box dictation (Whisper) — opt-in
+## Out-of-the-box dictation (Whisper)
 
 star's **Tools → Dictate Note** (record a voice memo) and **Transcribe Audio
-File** features use [OpenAI Whisper](https://github.com/openai/whisper).
-
-**By default the portable binary is built LEAN — the dictation stack is _not_
-bundled.** The Whisper + PyTorch stack is multiple GB and dominates both the
-build time and the artifact size, so it is **opt-in**. A lean exe reports
-dictation as unavailable in `star --deps`; every other feature works unchanged,
-and a user can still `pip install openai-whisper sounddevice` from source.
-
-Build the full exe with offline dictation bundled:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File tools\build-windows.ps1 -Dictation
-```
-
-The `-Dictation` switch sets the `STAR_BUNDLE_DICTATION` environment variable
-that `star.spec` reads; with it, the build bundles:
+File** features use [OpenAI Whisper](https://github.com/openai/whisper). For the
+portable binary these are **bundled by default** so they work with **no install
+and no network** — Windows users can't reasonably set up the recognition stack
+themselves, so it ships in the exe:
 
 - **`openai-whisper` + PyTorch** — the recognition engine. `star` prefers
   `openai-whisper` (falling back to `faster-whisper` if that is what's
-  installed); `-Dictation` installs `openai-whisper`, which pulls in PyTorch,
-  numba, and tiktoken. `star.spec` bundles the whole stack via `collect_all`.
+  installed); `build-windows.ps1` installs `openai-whisper`, which pulls in
+  PyTorch, numba, and tiktoken. `star.spec` bundles the whole stack via
+  `collect_all`.
 - **`sounddevice`** — microphone capture (ships the PortAudio DLL).
 - **The Whisper `base` model** (~140 MB) — staged to
   `build\whisper_cache\whisper\base.pt` by `build-windows.ps1` and bundled by
@@ -297,8 +286,11 @@ the default `whisper_model` setting accordingly (read from the `whisper_model`
 setting, default `base`).
 
 **The dictation stack is what makes the binary large** (PyTorch is multiple
-hundred MB). Omitting it (the default) is what keeps the lean exe small and the
-automated release build fast.
+hundred MB). For a fast, small build that leaves dictation to an optional user
+install, pass `-Lean` to `build-windows.ps1` (it sets the `STAR_LEAN`
+environment variable that `star.spec` reads) — `star.spec`'s `collect_all` calls
+are guarded, so the lean build still succeeds and the feature simply shows its
+“requires Whisper” hint at runtime.
 
 ---
 

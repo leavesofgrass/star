@@ -3,11 +3,12 @@ name: Release
 on:
   push:
     tags: ["v*"]
-  # Manual runs can opt into the heavy dictation build; tag pushes stay lean.
+  # Tag pushes build the full exe (dictation bundled).  Manual runs can opt into
+  # a fast, lean exe (no Whisper/Torch) for quick checks.
   workflow_dispatch:
     inputs:
-      dictation:
-        description: "Bundle the offline dictation stack (Whisper + Torch) into star.exe — large/slow"
+      lean:
+        description: "Build a LEAN star.exe (skip the Whisper + Torch dictation stack) — fast/small"
         type: boolean
         default: false
 
@@ -69,9 +70,10 @@ jobs:
   # tools/build-windows.ps1 creates an isolated venv, installs the runtime deps,
   # stages the offline NLTK data, and runs PyInstaller.
   #
-  # By default this builds a LEAN exe: the multi-GB Whisper/Torch dictation stack
-  # is OPT-IN (it dominates build time and size).  A manual workflow_dispatch run
-  # with `dictation: true` adds `-Dictation` to bundle it; tag pushes stay lean.
+  # By default this builds the FULL exe: the multi-GB Whisper/Torch dictation
+  # stack is bundled so Windows users get offline dictation out of the box.  A
+  # manual workflow_dispatch run with `lean: true` adds `-Lean` for a fast, small
+  # build with no dictation; tag pushes always build full.
   #
   # Note: this also produces an exe WITHOUT the vendored native tools (ffmpeg,
   # Tesseract, liblouis, Pandoc, DECtalk).  To ship a fully self-contained exe,
@@ -90,11 +92,11 @@ jobs:
       - name: Build star.exe
         shell: pwsh
         run: |
-          if ('${{ inputs.dictation }}' -eq 'true') {
-            Write-Host 'Building star.exe WITH the dictation stack (large/slow)'
-            ./tools/build-windows.ps1 -Dictation
+          if ('${{ inputs.lean }}' -eq 'true') {
+            Write-Host 'Building LEAN star.exe (no Torch/Whisper)'
+            ./tools/build-windows.ps1 -Lean
           } else {
-            Write-Host 'Building lean star.exe (no Torch/Whisper)'
+            Write-Host 'Building full star.exe with offline dictation (Torch/Whisper)'
             ./tools/build-windows.ps1
           }
       - uses: actions/upload-artifact@v4

@@ -29,7 +29,7 @@ A lightweight, installable Python application that reads your documents aloud wh
 | User text highlights | Select any passage and highlight it in yellow, green, cyan, pink, or orange; persists across sessions and exports to PDF |
 | Annotations / notes panel | Add tagged notes anywhere in a document via a dock panel (Qt) or pager (TUI); full-text + `#tag` search; persists per-document; exports to Markdown, JSON, BibTeX, or RIS |
 | Citation manager | Import/export BibTeX, RIS, and CSL-JSON; link citations to notes |
-| Voice dictation & transcription | Transcribe audio files and dictate notes by voice via Whisper; bundled offline in the Windows binary built with `-Dictation` (opt-in — off by default), optional from source |
+| Voice dictation & transcription | Transcribe audio files and dictate notes by voice via Whisper; **bundled (offline) in the self-contained Windows binary**, optional from source |
 | Keyboard cheat sheet | Built-in shortcut reference (`?` in TUI, Help → Keyboard Shortcuts in Qt); GUI/TUI bindings aligned |
 | Table of Contents panel | Auto-built from document headings in Qt mode; click any entry to jump there |
 | EPUB NCX / NAV navigation | Parses EPUB 2 NCX and EPUB 3 NAV documents for chapter-level navigation |
@@ -207,7 +207,7 @@ Python dependency-install step, not the system-dependency story.
 
 ### External Binary Dependencies
 
-> **Self-contained Windows binary:** since v.0.1.3, the portable `star.exe` bundles **ffmpeg**, the **Tesseract** engine + English data, **liblouis** + tables, **Pandoc**, the **DECtalk** engine (`DECtalk.dll` + dictionary), and **eSpeak-NG** (`libespeak-ng.dll` + data, driven in-process via ctypes for playback-synced word highlighting), so none of the tools below need to be installed on the target machine. Offline **Whisper** voice dictation & transcription (PyTorch + the `base` model) is **opt-in** — build with `-Dictation` — because that stack is multiple GB; the default binary is lean.
+> **Self-contained Windows binary:** since v.0.1.3, the portable `star.exe` bundles **ffmpeg**, the **Tesseract** engine + English data, **liblouis** + tables, **Pandoc**, the **DECtalk** engine (`DECtalk.dll` + dictionary), and **eSpeak-NG** (`libespeak-ng.dll` + data, driven in-process via ctypes for playback-synced word highlighting), and **Whisper** (with PyTorch and the `base` speech-recognition model) for offline voice dictation & transcription, so none of the tools below need to be installed on the target machine.
 
 > **macOS / Linux:** these engines come from your system package manager. Run **`python tools/install_native.py`** to install whatever is missing (ffmpeg, Tesseract + English data, liblouis, Pandoc, and eSpeak-NG on Linux) via Homebrew / apt / dnf / pacman / zypper. Add `--dry-run` to preview the commands or name specific engines (e.g. `python tools/install_native.py ffmpeg pandoc`).
 
@@ -1176,7 +1176,7 @@ pip install sounddevice numpy       # plus this for microphone dictation
 
 `faster-whisper` is also supported as a lighter alternative. The model size is configurable with the `whisper_model` setting (`tiny`, `base`, `small`, `medium`, `large`). When Whisper is not installed, these menu items simply explain how to enable them — nothing else is affected.
 
-> **Optional in the Windows binary (`-Dictation`)** — when built with `-Dictation`, the `star.exe` ships `openai-whisper` (with its PyTorch backend), `sounddevice` for microphone capture, and the Whisper **`base` model**, so transcription and dictation work offline with no install and no first-run download. It is **off by default** because that stack is the single biggest contributor to the binary's size (see [`BUILD.md`](BUILD.md)).
+> **Bundled in the self-contained Windows binary** — the `star.exe` ships `openai-whisper` (with its PyTorch backend), `sounddevice` for microphone capture, and the Whisper **`base` model**, so transcription and dictation work offline with no install and no first-run download. This is the single biggest contributor to the binary's size (see [`BUILD.md`](BUILD.md)).
 
 ---
 

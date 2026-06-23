@@ -35,14 +35,14 @@ _console = bool(_os.environ.get("STAR_CONSOLE"))
 _exe_name = "star-console" if _console else "star"
 
 # Whether to bundle the offline dictation / transcription stack (openai-whisper
-# + Torch + numba/llvmlite/tiktoken/sounddevice + the Whisper model).  That
-# stack is multiple GB and dominates both the build time and the artifact size,
-# so it is OPT-IN: set ``STAR_BUNDLE_DICTATION=1`` to include it.  Off by default
-# keeps the exe small and the automated release build fast and reliable.  See
-# ``tools/build-windows.ps1 -Dictation`` and ``docs/RELEASING.md``.  star's code
+# + Torch + numba/llvmlite/tiktoken/sounddevice + the Whisper model).  Windows
+# users can't reasonably set this up themselves, so it is bundled BY DEFAULT for
+# out-of-the-box voice dictation & transcription.  The stack is large (multiple
+# GB), so set ``STAR_LEAN=1`` to skip it for a fast, small build (quick test
+# builds, CI iteration); see ``tools/build-windows.ps1 -Lean``.  star's code
 # guards the whisper/sounddevice imports, so a lean exe simply reports dictation
 # as unavailable in ``star --deps`` and every other feature works unchanged.
-_bundle_dictation = bool(_os.environ.get("STAR_BUNDLE_DICTATION"))
+_bundle_dictation = not _os.environ.get("STAR_LEAN")
 
 # ── Bundled data files ──────────────────────────────────────────────────────
 # README.md is opened in-app by the Help command (F1), which resolves it via
@@ -81,13 +81,13 @@ for _pkg in ("pdfminer", "docx", "pptx", "odf", "openpyxl"):
     except Exception:
         pass
 
-# ── Dictation / transcription stack (Whisper + Torch) — OPT-IN ──────────────
-# When enabled, bundle openai-whisper and its full dependency stack so the
-# dictation and audio-transcription features work out of the box on a clean
-# Windows machine (no pip, no model download).  This is large (Torch alone is
-# multiple GB); collect_all pulls each package's submodules, data files, and
-# native libraries (the Torch DLLs, the llvmlite LLVM DLL, the sounddevice
-# PortAudio DLL).  Skipped by default — see _bundle_dictation above.
+# ── Dictation / transcription stack (Whisper + Torch) — bundled by default ──
+# Bundle openai-whisper and its full dependency stack so the dictation and
+# audio-transcription features work out of the box on a clean Windows machine
+# (no pip, no model download).  This is large (Torch alone is multiple GB);
+# collect_all pulls each package's submodules, data files, and native libraries
+# (the Torch DLLs, the llvmlite LLVM DLL, the sounddevice PortAudio DLL).
+# Skipped only for a lean build (STAR_LEAN=1) — see _bundle_dictation above.
 if _bundle_dictation:
     for _pkg in ("whisper", "torch", "numba", "llvmlite", "tiktoken", "sounddevice"):
         try:
@@ -186,7 +186,7 @@ _excludes = [
     "PyQt5",
 ]
 if not _bundle_dictation:
-    # Lean (default) build: explicitly exclude the dictation stack so it is
+    # Lean build (STAR_LEAN=1): explicitly exclude the dictation stack so it is
     # never pulled in transitively — star imports whisper/sounddevice under
     # guarded try/except, and PyInstaller would otherwise follow those imports
     # and bundle multi-GB Torch if it happened to be installed in the build env.
