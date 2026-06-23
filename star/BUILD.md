@@ -50,6 +50,11 @@ automatically; see [Dictation](#out-of-the-box-dictation-whisper).
   `sounddevice` for microphone capture, and the Whisper **`base` model**, so
   **Tools → Dictate Note** and **Transcribe Audio File** work offline on a
   clean machine. See [Dictation](#out-of-the-box-dictation-whisper).
+- **Bundled study & writing aids:** `sumy` (with NLTK's `punkt` tokenizer data
+  staged under `build/nltk_data`) for **Tools → Summarize Document**, `genanki`
+  for **File → Export → Anki Flashcards**, and `pyspellchecker` for edit-mode
+  spell checking (**Edit → Check Spelling**). All three, and the data they
+  need, are bundled so the features work offline with no extra install.
 - **Bundled native engines** (when `vendor/` is present — see below):
   - **ffmpeg** → MP3 / OGG / MP4 audio export
   - **Tesseract** + English language data → OCR of images and scanned PDFs
@@ -69,8 +74,8 @@ The build is defined by these files:
 |---|---|
 | [`star.spec`](../star.spec) | PyInstaller build recipe (entry point, hidden imports, bundled data + `vendor/` tree, dictation stack, runtime hook, excludes) |
 | [`run_star.py`](../run_star.py) | Frozen entry point — imports `star.app.main` from the generated `star/` package |
-| [`tools/rthook_star.py`](../tools/rthook_star.py) | PyInstaller runtime hook: puts the bundled ffmpeg on `PATH` and points Whisper's model cache at the bundled `base` model |
-| [`tools/build-windows.ps1`](../tools/build-windows.ps1) | Convenience wrapper: sets up an env, installs deps (incl. the dictation stack), stages the Whisper model, runs PyInstaller |
+| [`tools/rthook_star.py`](../tools/rthook_star.py) | PyInstaller runtime hook: puts the bundled ffmpeg on `PATH`, points Whisper's model cache at the bundled `base` model, and points `NLTK_DATA` at the bundled `punkt` data |
+| [`tools/build-windows.ps1`](../tools/build-windows.ps1) | Convenience wrapper: sets up an env, installs deps (incl. the dictation stack and the study/writing aids), stages the Whisper model and the NLTK `punkt` data, runs PyInstaller |
 | [`tools/build-vendor.py`](../tools/build-vendor.py) | Downloads & lays out the native engines (ffmpeg, Tesseract, liblouis, Pandoc, DECtalk) into `vendor/` |
 
 ---
@@ -200,13 +205,27 @@ Either way the output is **`dist\star.exe`**.
 
 The default build is **windowed**, so the curses terminal UI (`star.exe --tui`)
 has no console to draw in. To build a variant that also supports `--tui` and
-prints to a console:
+prints CLI output (`--version`, `--list-themes`, `--plain`, …) to a console, set
+the `STAR_CONSOLE` environment variable before running PyInstaller:
 
-1. Edit [`star.spec`](star.spec) and set `console=True` in the `EXE(...)` call.
-2. Rebuild: `python -m PyInstaller --clean --noconfirm star.spec`.
+```powershell
+$env:STAR_CONSOLE = "1"
+python -m PyInstaller --noconfirm star.spec
+```
 
-A console window will then appear alongside the GUI. Most demos want the clean
-windowed build, so `console=False` is the default.
+This produces **`dist\star-console.exe`** *alongside* the windowed
+`dist\star.exe` (it uses a different output name, so the two coexist and you can
+keep both). Unset the variable (or open a fresh shell) to go back to the
+default windowed build:
+
+```powershell
+Remove-Item Env:\STAR_CONSOLE
+python -m PyInstaller --noconfirm star.spec
+```
+
+Most demos want the clean windowed build, so windowed is the default; the
+console variant is handy for verifying the new CLI commands and the `--tui`
+terminal mode end to end.
 
 ---
 
@@ -305,8 +324,8 @@ python -m build --wheel                    # writes dist/star_reader-<version>-p
 Install the resulting single file anywhere:
 
 ```bash
-pip install dist/star_reader-0.1.5-py3-none-any.whl          # recommended deps
-pip install "dist/star_reader-0.1.5-py3-none-any.whl[all]"    # every optional feature
+pip install dist/star_reader-0.1.6-py3-none-any.whl          # recommended deps
+pip install "dist/star_reader-0.1.6-py3-none-any.whl[all]"    # every optional feature
 ```
 
 The wheel provides a `star` console command and `python -m star`. Packaging is

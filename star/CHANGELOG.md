@@ -8,7 +8,59 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.1.5] 2026-06-23
+## [0.1.6] 2026-06-23
+
+### ✨ Added
+
+- **Document summarization.** A new **Tools ▸ Summarize Document**
+  (`Ctrl+Shift+U`) condenses the open document to its key sentences using the
+  LexRank algorithm (via the optional `sumy` package) and shows the result in a
+  read-only dialog. The number of sentences is configurable through the
+  `summary_sentences` setting (default 7). Summarization runs on a background
+  thread so the window stays responsive on long documents. Requires
+  `pip install sumy`; the menu item prompts to install it when absent. The
+  NLTK sentence-tokenizer data it needs is fetched automatically on first use.
+- **Anki flashcard export.** **File ▸ Export ▸ Anki Flashcards…**
+  (`Ctrl+Alt+H`) turns the current document's notes into an Anki deck
+  (`.apkg`): each note becomes one card with the highlighted passage on the
+  front and your note on the back. Requires the optional `genanki` package;
+  the menu item prompts to install it when absent, and prompts you to add a
+  note first if the document has none.
+- **Spell checking in edit mode.** While editing a document's Markdown source,
+  misspelled words are underlined with a red squiggle, rechecked as you type.
+  **Edit ▸ Check Spelling** (`F7`) counts the misspellings and lists them in a
+  dialog, in or out of edit mode. Both use the optional `pyspellchecker`
+  package and degrade gracefully — edit mode stays fully usable, and the menu
+  item prompts to install it — when it is absent.
+- **New optional-dependency groups.** `summarize` (`sumy`), `flashcards`
+  (`genanki`), and `spellcheck` (`pyspellchecker`), all folded into the `all`
+  extra, plus a comment-annotated `requirements-optional.txt` mirroring the
+  optional packages for `pip install -r` users.
+
+### 🐛 Fixed
+
+- **Reading highlight no longer runs ahead of eSpeak-NG speech.** In its
+  in-process (libespeak-ng) mode, eSpeak synthesizes a whole sentence's audio
+  in a burst and reports all of that sentence's word events at once — well
+  before the words are actually heard — which made the highlight race up to a
+  sentence ahead of the audio. star now paces each word event to the word's
+  real audio position (which the engine reports per event) and only advances
+  the highlight when that moment arrives, so the highlight follows playback
+  instead of synthesis. The highlight timer also tracks these playback-accurate
+  events tightly (within a single word) for this backend. A new
+  `espeak_highlight_offset_ms` setting (default 120) compensates for audio
+  output latency — raise it if highlights still lead the audio, lower it toward
+  0 if they lag.
+
+### 📝 Notes
+
+- Summarize Document uses `Ctrl+Shift+U` rather than `Ctrl+Shift+S`, which was
+  already bound to Reading Statistics. Every new command has both a menu entry
+  and a keyboard shortcut, keeping star fully keyboard-drivable.
+
+---
+
+## [0.1.5] 2026-06-22
 
 ### ✨ Added
 

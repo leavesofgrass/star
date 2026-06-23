@@ -1,6 +1,6 @@
 # ⭐ star — Speaking Terminal Access Reader
 
-> **Version 0.1.5** — *star* is an accessible, **GUI-first** document reader with built-in text-to-speech: it opens PDFs, Word/EPUB/PowerPoint, web pages, spreadsheets and more, reads them aloud, and highlights each word as it is spoken. **New in this release:** **playback-synced highlighting** — eSpeak-NG now runs **in-process via libespeak-ng**, whose word events carry their audio position, so the highlight follows the actual audio instead of racing ahead; **batch conversion** — convert many files or a whole folder to Markdown, plain text, or Braille in one step (**File ▸ Batch Convert**, or `M-x batch-convert`); **hot-folder watching** — auto-convert files dropped into a folder, unattended, from the GUI (**File ▸ Watch Folder**) or headless (`star --watch <in> --output <out> --format <fmt>`); and the **Qt GUI as the primary interface**, with a keyboard shortcut for every command. The keyboard-driven terminal UI remains available with `--tui`.
+> **Version 0.1.6** — *star* is an accessible, **GUI-first** document reader with built-in text-to-speech: it opens PDFs, Word/EPUB/PowerPoint, web pages, spreadsheets and more, reads them aloud, and highlights each word as it is spoken. **New in this release:** **document summarization** — condense the open document to its key sentences with LexRank (**Tools ▸ Summarize Document**, `Ctrl+Shift+U`); **Anki flashcard export** — turn your notes into a study deck (**File ▸ Export ▸ Anki Flashcards**, `Ctrl+Alt+H`); and **spell checking in edit mode** — misspelled words are underlined in red as you type, with a count on demand (**Edit ▸ Check Spelling**, `F7`). These join earlier work — playback-synced highlighting via in-process eSpeak-NG, batch conversion, and hot-folder watching — with the **Qt GUI as the primary interface** and a keyboard shortcut for every command. The keyboard-driven terminal UI remains available with `--tui`.
 
 A lightweight, installable Python application that reads your documents aloud while you follow along — one `pip install` (or a single-file `star.pyz`) away, with no cloud account and no internet required.
 
@@ -101,11 +101,11 @@ A single pure-Python wheel (`star_reader-<version>-py3-none-any.whl`) installs `
 
 ```bash
 # Recommended dependencies (Qt GUI + TTS + common formats) come with the wheel
-pip install star_reader-0.1.5-py3-none-any.whl
+pip install star_reader-0.1.6-py3-none-any.whl
 
 # Or pull in every optional Python feature (OCR, ODT/XLSX, Pandoc, Braille,
 # transcription, audio conversion):
-pip install "star_reader-0.1.5-py3-none-any.whl[all]"
+pip install "star_reader-0.1.6-py3-none-any.whl[all]"
 ```
 
 The wheel then exposes a `star` console command and `python -m star`:
@@ -183,6 +183,9 @@ Python dependency-install step, not the system-dependency story.
 | `sounddevice` + `numpy` | Microphone capture for voice dictation (transcription of files needs only Whisper) | `pip install sounddevice numpy` |
 | `windows-curses` | Windows terminal (curses) support for `--tui` mode | `pip install windows-curses` |
 | `watchdog` | Hot-folder watching (`--watch` / GUI Watch Folder); falls back to directory polling if absent | `pip install watchdog` |
+| `sumy` | Extractive document summarization (**Tools ▸ Summarize Document**) | `pip install sumy` |
+| `genanki` | Anki flashcard (`.apkg`) export (**File ▸ Export ▸ Anki Flashcards**) | `pip install genanki` |
+| `pyspellchecker` | Spell checking in edit mode (**Edit ▸ Check Spelling**) | `pip install pyspellchecker` |
 
 ### External Binary Dependencies
 
@@ -806,7 +809,7 @@ While TTS is playing, `star` highlights the word currently being spoken and keep
 **How it works:**
 
 - **pyttsx3** — Word-boundary callbacks from the native SAPI5 / NSSpeechSynthesizer engine confirm the exact audio position. A background timer advances the highlight at the configured speech rate; callbacks correct the timer's estimate to keep the two in sync.
-- **eSpeak-NG** — When libespeak-ng is available it is driven in-process; its per-word events carry each word's audio position, so the highlight tracks playback directly. With only the `espeak-ng` CLI available, no per-word events are reported and the highlight falls back to the reading-rate timer.
+- **eSpeak-NG** — When libespeak-ng is available it is driven in-process. It synthesizes a whole sentence's audio in a burst and reports every word event at once, so rather than highlight on the raw events (which would race ahead of the sound), `star` paces each word to the audio position the engine reports for it — the highlight follows what is actually being heard, not what was just synthesized. The `espeak_highlight_offset_ms` setting (default 120) nudges that timing to compensate for audio-output latency: raise it if highlights still lead the speech, lower it toward 0 if they lag. With only the `espeak-ng` CLI available, no per-word events are reported and the highlight falls back to the reading-rate timer.
 - **DECtalk / Festival / Piper / Coqui** — No word-level events are available. `star` uses the current reading rate (wpm) to advance the highlight on a timer.
 
 The document view scrolls automatically to keep the highlighted word visible. In the terminal TUI the cursor tracks the highlighted line; in Qt the word is scrolled into view without stealing keyboard focus.
@@ -1492,6 +1495,38 @@ When edit mode is active the status bar shows **✏ EDIT MODE — Markdown sourc
 ### What “edit mode” edits
 
 The editor works on the Markdown representation of the document (the same text that `M-x export-markdown` would produce). For formats like PDF or DOCX this is a converted approximation — useful for fixing OCR errors or adding annotations, but not a round-trip back to the original binary format.
+
+---
+
+## 🧠 Study & Writing Aids
+
+Three optional helpers turn star from a reader into a study tool. Each is gated behind an optional package and degrades gracefully — the menu item always appears and tells you what to `pip install` when its package is missing, so the rest of star is unaffected.
+
+### Summarize a document
+
+**Tools ▸ Summarize Document** (`Ctrl+Shift+U`) condenses the open document to its most important sentences using the extractive **LexRank** algorithm, and shows the result in a read-only dialog you can read aloud or copy. The number of sentences is controlled by the `summary_sentences` setting (default `7`). Summarization runs on a background thread, so the window stays responsive even on a long document.
+
+```
+pip install sumy        # or: pip install "star-reader[summarize]"
+```
+
+The first run quietly downloads the small NLTK sentence-tokenizer data it needs.
+
+### Export notes as Anki flashcards
+
+**File ▸ Export ▸ Anki Flashcards…** (`Ctrl+Alt+H`) turns the current document's notes into an Anki deck (`.apkg`): each note becomes one card with the highlighted passage on the **front** and your note on the **back**. Import the file into Anki to study. (Add a note or two first — the command tells you if the document has none.)
+
+```
+pip install genanki     # or: pip install "star-reader[flashcards]"
+```
+
+### Spell check while editing
+
+In **edit mode** (`Ctrl+E`), misspelled words are underlined with a red squiggle and re-checked as you type. **Edit ▸ Check Spelling** (`F7`) counts the misspellings and lists them in a dialog, whether or not you are currently editing.
+
+```
+pip install pyspellchecker   # or: pip install "star-reader[spellcheck]"
+```
 
 ---
 

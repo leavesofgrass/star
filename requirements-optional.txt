@@ -1,0 +1,37 @@
+# star — optional Python dependencies
+# ====================================
+#
+# The canonical source of truth for star's dependency groups is the
+# [project.optional-dependencies] table in pyproject.toml.  This file mirrors
+# the optional packages for users who prefer `pip install -r`, with a short
+# note on what each one enables.  Everything here is guarded at import time:
+# star runs with none of it installed, and each feature simply prints an
+# install hint until its package is present.
+#
+# Install everything at once with the "all" extra instead:
+#     pip install "star-reader[all]"
+
+# --- Documents & formats ----------------------------------------------------
+pytesseract        # OCR for scanned PDFs / images (with the Tesseract engine)
+pymupdf            # Fast PDF rasterization for OCR
+Pillow             # Image handling for OCR
+odfpy              # OpenDocument (.odt) loading
+openpyxl           # Excel (.xlsx) spreadsheet loading
+pypandoc           # Pandoc-backed conversion for formats without a native loader
+
+# --- Braille & audio --------------------------------------------------------
+louis              # Contracted Grade 2 Braille (Grade 1 BRF export is built in)
+pydub              # MP3 / OGG / MP4 audio-export fallback when ffmpeg is absent
+
+# --- Speech recognition -----------------------------------------------------
+openai-whisper     # Audio transcription and voice dictation of notes
+sounddevice        # Microphone capture for voice dictation
+numpy              # Required by the capture / Whisper pipeline
+
+# --- Hot-folder watching ----------------------------------------------------
+watchdog           # Real filesystem events for `star --watch` (falls back to polling)
+
+# --- Study & writing aids ---------------------------------------------------
+sumy               # Extractive document summarization (Tools ▸ Summarize Document)
+genanki            # Anki flashcard (.apkg) export (File ▸ Export ▸ Anki Flashcards)
+pyspellchecker     # Spell checking in edit mode (Edit ▸ Check Spelling)

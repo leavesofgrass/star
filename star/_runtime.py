@@ -40,7 +40,7 @@ Copyright (C) 2026 Jon Pielaet
 License: GNU General Public License v3 (or later)
 """
 
-__version__ = "0.1.5"
+__version__ = "0.1.6"
 __author__ = "Jon Pielaet"
 __copyright__ = "Copyright (C) 2026 Jon Pielaet"
 __license__ = "GPL-3.0-or-later"
@@ -411,6 +411,29 @@ try:
     _AUDIO_IN = True
 except ImportError:
     _AUDIO_IN = False
+
+# --- Live document-camera capture: OpenCV (UVC webcam-class devices) ----------
+# Used by the live-capture feature (capture.py) to grab frames from a connected
+# UVC document camera (e.g. a Czur unit, which presents as a standard webcam).
+# Optional and fully guarded: when OpenCV is absent the feature is simply
+# unavailable and the rest of star runs unchanged.  On Windows, device *names*
+# (OpenCV only exposes indices) come from the optional ``pygrabber`` DirectShow
+# helper when present; index probing is the fallback everywhere.
+try:
+    import cv2 as _cv2
+
+    _OPENCV = True
+except ImportError:
+    _OPENCV = False
+    _cv2 = None  # type: ignore[assignment]
+
+try:
+    from pygrabber.dshow_graph import FilterGraph as _DShowFilterGraph
+
+    _PYGRABBER = True
+except ImportError:
+    _PYGRABBER = False
+    _DShowFilterGraph = None  # type: ignore[assignment]
 
 # =============================================================================
 # Metadata & paths

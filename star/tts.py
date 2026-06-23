@@ -1354,6 +1354,10 @@ class ESpeakLibBackend(TTSBackend):
         # Set on stop()/supersede so the worker loop and any in-flight synth
         # callback bail out promptly (responsive silencing).
         self._stop_evt = threading.Event()
+        # Seconds added to each word's audio-position target when pacing the
+        # highlight, to compensate for output-device latency.  TTSManager keeps
+        # it in sync with the espeak_highlight_offset_ms setting.
+        self._hl_offset = 0.12
         self._ensure_library()
 
     # -- library lifecycle ------------------------------------------------
@@ -1558,18 +1562,26 @@ class ESpeakLibBackend(TTSBackend):
 
         chunks = self._chunk_offsets(text)
 
-        # One synth callback per chunk, capturing that chunk's base offset.  It
-        # fires on libespeak-ng's audio thread and forwards each WORD event's
-        # character offset (text_position is 1-based, relative to the chunk) to
-        # on_word; TTSManager maps the absolute offset to a word-map index
-        # exactly as it does for pyttsx3.  Returning a NON-ZERO value aborts the
-        # chunk's synthesis from inside the callback — together with
-        # espeak_Cancel() in stop(), this silences a cancelled utterance
-        # promptly instead of letting queued audio play on.  (text_position
-        # counts characters for the ASCII/Latin text that dominates here;
+        # Highlight pacing.  In PLAYBACK mode libespeak-ng synthesizes a whole
+        # chunk's audio in a burst and delivers ALL of that chunk's WORD events
+        # nearly at once — well ahead of when each word is actually heard — so
+        # firing on_word the instant the event arrives made the highlight race a
+        # sentence ahead of the audio.  Each WORD event, however, carries an
+        # ``audio_position`` (ms into the chunk's output stream) telling us when
+        # the word is heard.  We therefore enqueue every event with a wall-clock
+        # target time (chunk playback start + audio_position + a latency offset)
+        # and a dedicated pacer thread fires on_word at that time, so the
+        # highlight follows actual playback instead of synthesis.
+        #
+        # (text_position is a 1-based character index into the chunk; adding the
+        # chunk's base offset yields an absolute plain-text offset, which
+        # TTSManager maps to a word-map index exactly as it does for pyttsx3.
+        # It counts characters for the ASCII/Latin text that dominates here;
         # non-ASCII input could need a byte->char correction, tracked as a
         # follow-up.)
-        def _make_cb(base_offset: int):
+        pace_q: "queue.Queue" = queue.Queue()
+
+        def _make_cb(base_offset: int, chunk_start: float):
             def _synth_cb(wav, numsamples, evp):
                 if self._gen != my_gen or self._stop_evt.is_set():
                     return 1  # abort this chunk's synthesis
@@ -1579,7 +1591,19 @@ class ESpeakLibBackend(TTSBackend):
                         while evp[i].type != 0:  # espeakEVENT_LIST_TERMINATED
                             e = evp[i]
                             if e.type == self._EVENT_WORD:
-                                on_word(base_offset + e.text_position - 1, e.length)
+                                target = (
+                                    chunk_start
+                                    + e.audio_position / 1000.0
+                                    + self._hl_offset
+                                )
+                                pace_q.put(
+                                    (
+                                        target,
+                                        base_offset + e.text_position - 1,
+                                        e.length,
+                                        my_gen,
+                                    )
+                                )
                             i += 1
                 except Exception:
                     pass
@@ -1587,18 +1611,50 @@ class ESpeakLibBackend(TTSBackend):
 
             return _synth_cb
 
+        def _pace() -> None:
+            # Fire each queued word highlight at its scheduled playback time.
+            # Sleeps are interruptible via _stop_evt for prompt silencing, and
+            # any item from a superseded utterance (gen mismatch) is dropped.
+            while True:
+                try:
+                    item = pace_q.get(timeout=0.2)
+                except queue.Empty:
+                    if self._stop_evt.is_set() or self._gen != my_gen:
+                        return
+                    continue
+                if item is None:
+                    return  # end-of-utterance sentinel
+                target, offset, length, gen = item
+                if gen != self._gen or self._stop_evt.is_set():
+                    continue
+                delay = target - time.monotonic()
+                if delay > 0 and self._stop_evt.wait(delay):
+                    continue  # stopped while waiting
+                if gen != self._gen or self._stop_evt.is_set():
+                    continue
+                if on_word:
+                    try:
+                        on_word(offset, length)
+                    except Exception:
+                        pass
+
+        pacer = threading.Thread(target=_pace, daemon=True)
+        pacer.start()
+
         def _run() -> None:
             try:
                 for chunk_text, base in chunks:
                     if self._gen != my_gen or self._stop_evt.is_set():
                         break
-                    cb = type(self)._callback_type(_make_cb(base))
+                    # Reference point for this chunk's word targets, captured
+                    # just before synthesis.  espeak_Synth queues audio and
+                    # returns; espeak_Synchronize then blocks until this chunk
+                    # finishes playing, so chunks play back to back from here.
+                    chunk_start = time.monotonic()
+                    cb = type(self)._callback_type(_make_cb(base, chunk_start))
                     self._cb = cb  # keep a live ref for this chunk
                     lib.espeak_SetSynthCallback(cb)
                     raw = chunk_text.encode("utf-8", "replace")
-                    # In PLAYBACK mode espeak_Synth queues and returns;
-                    # Synchronize blocks until this chunk finishes playing,
-                    # bounding how far ahead synthesis runs.
                     lib.espeak_Synth(
                         raw, len(raw) + 1, 0, 0, 0, self._CHARS_UTF8, None, None
                     )
@@ -1606,9 +1662,13 @@ class ESpeakLibBackend(TTSBackend):
             except Exception:
                 pass
             finally:
-                # Only the current utterance's worker clears state / fires
-                # on_done; a newer speak() or stop() bumps _gen.
+                # Signal the pacer to drain and exit.  Only the current
+                # utterance's worker waits for the last highlights to paint and
+                # then clears state / fires on_done; a newer speak()/stop()
+                # bumps _gen so a superseded worker skips both.
+                pace_q.put(None)
                 if self._gen == my_gen:
+                    pacer.join(timeout=1.0)
                     self._speaking = False
                     if on_done:
                         on_done()
@@ -1634,6 +1694,10 @@ class ESpeakLibBackend(TTSBackend):
 
     def set_volume(self, vol: float) -> None:
         self._volume = int(vol * 100)
+
+    def set_highlight_offset_ms(self, ms: int) -> None:
+        """Latency compensation (ms) added to each paced highlight target."""
+        self._hl_offset = max(0.0, float(ms) / 1000.0)
 
     def set_voice(self, voice_id: str) -> None:
         if voice_id:
@@ -2398,6 +2462,11 @@ class TTSManager:
         # speak() call, which precedes audible output by the engine's start-up
         # latency and otherwise gives the highlight a constant head start.
         self._expect_callbacks: bool = False
+        # True when the active backend paces its word callbacks to real audio
+        # position (the in-process eSpeak-NG backend).  Those callbacks are
+        # playback-accurate, so the highlight timer can track them tightly
+        # instead of allowing the looser slack SAPI5's lagging callbacks need.
+        self._paced_playback: bool = False
         self._select_backend(settings["tts_backend"])
 
     def _select_backend(self, preference: str) -> None:
@@ -2562,6 +2631,16 @@ class TTSManager:
         # (they may not on all Windows/SAPI5 configurations).  The timer is
         # always started as the primary highlight mechanism.
         if isinstance(self._backend, (Pyttsx3Backend, ESpeakLibBackend)):
+            # The in-process eSpeak-NG backend paces its callbacks to real audio
+            # position, so they are playback-accurate (unlike SAPI5's, which lag
+            # and burst).  Flag that for the timer, and keep the backend's
+            # latency-compensation offset in sync with the user setting so the
+            # highlight is not painted slightly before the word is heard.
+            self._paced_playback = isinstance(self._backend, ESpeakLibBackend)
+            if self._paced_playback:
+                self._backend.set_highlight_offset_ms(
+                    int(self._settings.get("espeak_highlight_offset_ms", 120))
+                )
 
             def on_word_cb(location: int, length: int) -> None:
                 """Translate TTS-relative location back to a word-map index.
@@ -2600,6 +2679,7 @@ class TTSManager:
             self._backend.speak(text, on_word=on_word_cb, on_done=on_done)
         else:
             self._expect_callbacks = False
+            self._paced_playback = False
             self._backend.speak(text, on_done=on_done)
 
         # Always start the timer — it is the reliable baseline for all backends.
@@ -2635,8 +2715,12 @@ class TTSManager:
         # stays -1 in SSML mode and for non-pyttsx3 backends (guard inactive).
         #
         # 4 words of slack covers the typical SAPI5 callback delay (1-3 words
-        # late) without letting the highlight race too far ahead of audio.
-        _MAX_AHEAD = 4
+        # late) without letting the highlight race too far ahead of audio.  The
+        # in-process eSpeak-NG backend paces its callbacks to actual playback
+        # position, so its confirmed index is itself accurate: cap the lead at a
+        # single word so the highlight sits on the word being spoken rather than
+        # drifting up to four ahead.
+        _MAX_AHEAD = 1 if self._paced_playback else 4
         # If no callback has arrived within this many seconds the guard is
         # bypassed entirely: SAPI5 sometimes stops firing callbacks mid-text,
         # and without this escape the highlight would freeze while speech

@@ -92,7 +92,13 @@ if (-not $SkipInstall) {
         # box).  openai-whisper pulls in torch, numba, tiktoken, etc.; this is
         # a multi-GB install by design.  sounddevice provides mic capture.
         "openai-whisper",
-        "sounddevice"
+        "sounddevice",
+        # Study & writing aids (bundled so they work in star.exe with no extra
+        # install): sumy = document summarization, genanki = Anki flashcard
+        # export, pyspellchecker = edit-mode spell checking.
+        "sumy",
+        "genanki",
+        "pyspellchecker"
     )
     if ($Ocr) { $deps += @("pytesseract", "PyMuPDF", "Pillow") }
 
@@ -117,6 +123,16 @@ if (-not (Test-Path $model)) {
     Info "Staging Whisper 'base' model for offline dictation (~140 MB)"
     $env:STAR_MODEL_ROOT = Join-Path $root "build\whisper_cache\whisper"
     & $py -c "import os,whisper; r=os.environ['STAR_MODEL_ROOT']; os.makedirs(r,exist_ok=True); whisper._download(whisper._MODELS['base'], r, False); print('Whisper base model staged')" | Out-Host
+}
+
+# ── Stage NLTK punkt data (offline document summarization) ──────────────────
+# sumy's sentence tokenizer needs NLTK's punkt / punkt_tab data.  Download it
+# into build\nltk_data so star.spec bundles it and Summarize works offline.
+$nltkData = Join-Path $root "build\nltk_data"
+if (-not (Test-Path (Join-Path $nltkData "tokenizers\punkt_tab"))) {
+    Info "Staging NLTK punkt tokenizer data for offline summarization"
+    $env:STAR_NLTK_DIR = $nltkData
+    & $py -c "import os,nltk; d=os.environ['STAR_NLTK_DIR']; os.makedirs(d,exist_ok=True); nltk.download('punkt',download_dir=d); nltk.download('punkt_tab',download_dir=d); print('NLTK punkt data staged')" | Out-Host
 }
 
 # ── Build ───────────────────────────────────────────────────────────────────

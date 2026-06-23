@@ -24,6 +24,16 @@ block_cipher = None
 
 _here = _os.path.dirname(_os.path.abspath(SPEC))
 
+# Console vs. windowed build.  The default is the clean windowed GUI build
+# (``star.exe``, no console window).  Set the environment variable
+# ``STAR_CONSOLE=1`` to instead produce a console variant that also supports the
+# curses ``--tui`` terminal mode and prints CLI output (e.g. ``--list-themes``,
+# ``--version``) to a console.  The console variant is named ``star-console.exe``
+# so it sits alongside the windowed ``star.exe`` in dist/ instead of replacing
+# it.
+_console = bool(_os.environ.get("STAR_CONSOLE"))
+_exe_name = "star-console" if _console else "star"
+
 # ── Bundled data files ──────────────────────────────────────────────────────
 # README.md is opened in-app by the Help command (F1), which resolves it via
 # Path(__file__).parent.  __file__ now lives inside the star/ package, so the
@@ -77,6 +87,22 @@ for _pkg in ("whisper", "torch", "numba", "llvmlite", "tiktoken", "sounddevice")
     except Exception:
         pass
 
+# ── Study & writing aids (summarize / flashcards / spell check) ──────────────
+# sumy (LexRank summarization), genanki (Anki .apkg export), and pyspellchecker
+# (edit-mode spell checking) each ship data files inside their package
+# (stopword lists, Anki deck templates, compressed dictionaries), and sumy
+# pulls in nltk.  collect_all bundles every package's submodules + data so the
+# features work in the frozen build with no extra install.  Guarded so the spec
+# still builds when one of these optional packages is absent.
+for _pkg in ("sumy", "genanki", "pyspellchecker", "nltk"):
+    try:
+        _d, _b, _h = collect_all(_pkg)
+        datas += _d
+        binaries += _b
+        hiddenimports += _h
+    except Exception:
+        pass
+
 # Bundle the Whisper "base" model so transcription/dictation runs offline on
 # first launch.  tools/build-windows.ps1 (or build-vendor flow) stages it under
 # build/whisper_cache/whisper/base.pt; the runtime hook points Whisper's cache
@@ -84,6 +110,21 @@ for _pkg in ("whisper", "torch", "numba", "llvmlite", "tiktoken", "sounddevice")
 _whisper_model = _os.path.join(_here, "build", "whisper_cache", "whisper", "base.pt")
 if _os.path.isfile(_whisper_model):
     datas.append((_whisper_model, "whisper_cache/whisper"))
+
+# Bundle NLTK's punkt sentence-tokenizer data so document summarization works
+# offline (sumy's Tokenizer needs it, and otherwise downloads it on first use).
+# tools/build-windows.ps1 stages it under build/nltk_data; the runtime hook
+# points NLTK_DATA at <bundle>/nltk_data so the frozen app finds it.
+_nltk_data = _os.path.join(_here, "build", "nltk_data")
+if _os.path.isdir(_nltk_data):
+    for _root, _dirs, _files in _os.walk(_nltk_data):
+        for _f in _files:
+            _src = _os.path.join(_root, _f)
+            _rel = _os.path.relpath(_root, _nltk_data)
+            _dest = (
+                "nltk_data/" + _rel.replace("\\", "/") if _rel != "." else "nltk_data"
+            )
+            datas.append((_src, _dest))
 
 # ── Vendored native tools (self-contained build) ────────────────────────────
 # Bundle ffmpeg (audio export + Whisper audio decoding), Tesseract + English
@@ -144,15 +185,16 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name="star",
+    name=_exe_name,
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,
     runtime_tmpdir=None,
-    # Windowed GUI build (no console window flashes on launch).  For a build
-    # that also supports the curses --tui mode, set console=True (see BUILD.md).
-    console=False,
+    # Windowed GUI build by default (no console window flashes on launch).  Set
+    # STAR_CONSOLE=1 for a console build that also supports the curses --tui mode
+    # and prints CLI output (see BUILD.md).
+    console=_console,
     disable_windowed_traceback=False,
     target_arch=None,
     codesign_identity=None,

@@ -14,6 +14,10 @@ into the environment the libraries expect:
   verifies the checkpoint's checksum and loads it read-only, so the read-only
   bundle directory is fine; if the model is somehow absent it falls back to its
   normal download behaviour.
+* **NLTK data path** — document summarization (sumy) tokenizes sentences with
+  NLTK's ``punkt`` data. The build stages it under ``<bundle>/nltk_data``;
+  point ``NLTK_DATA`` there so summarization works offline. If the data is
+  absent, ``summarize_document`` still falls back to downloading it on demand.
 """
 
 import os
@@ -28,3 +32,7 @@ if _base:
     _whisper_cache = os.path.join(_base, "whisper_cache")
     if os.path.isdir(_whisper_cache):
         os.environ.setdefault("XDG_CACHE_HOME", _whisper_cache)
+
+    _nltk_data = os.path.join(_base, "nltk_data")
+    if os.path.isdir(_nltk_data):
+        os.environ.setdefault("NLTK_DATA", _nltk_data)

@@ -10,7 +10,9 @@ from .citations import (
 )
 from .convert import resolve_format, run_batch, supported_formats
 from .documents import Document, _build_word_map, load_document
+from .flashcards import _GENANKI, export_anki_deck
 from .settings import Settings
+from .spellcheck import _SPELL, SpellHighlighter, misspelled_words
 from .stats import (
     ReadingStats,
     _apply_profile_values,
@@ -21,13 +23,13 @@ from .stats import (
     _record_library,
     _save_profile,
 )
+from .summarize import _SUMY, summarize_document
 from .themes import _load_css_themes, _seed_default_css_themes
 from .transcribe import _record_audio_to_wav, _transcribe_audio
 from .tts import Pyttsx3Backend, TTSManager, _SCReader
 from .ttstext import _preprocess_tts_text, _strip_markdown_for_tts
 from .tui import _HELP_TEXT, THEME_NAMES, _shortcuts_text
 from .watch import HotFolderWatcher, _make_logger
-
 
 # =============================================================================
 # Optional Qt GUI
@@ -197,6 +199,9 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
         _dictate_signal = pyqtSignal(str, str, str)
         _dictate_partial_signal = pyqtSignal(str)  # live streaming dictation preview
         _doi_signal = pyqtSignal(str)  # Crossref DOI lookup result (JSON or ERROR:)
+        # Document summarization runs on a background thread (LexRank can be
+        # slow on long documents); carries (summary, error_message).
+        _summary_signal = pyqtSignal(str, str)
 
         # Per-theme CSS colors used by _md_to_html and _apply_qt_theme.
         _PALETTES: Dict[str, Dict[str, str]] = {
@@ -308,6 +313,8 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             self._dictate_signal.connect(self._qt_on_dictated, _QUEUED)
             self._dictate_partial_signal.connect(self._qt_on_dictate_partial, _QUEUED)
             self._doi_signal.connect(self._qt_on_doi, _QUEUED)
+            # Wire the summarization result signal → GUI thread.
+            self._summary_signal.connect(self._qt_on_summary, _QUEUED)
 
             # Reading-statistics poll: a 1-second timer feeds self.stats while
             # speech is playing.
@@ -345,6 +352,9 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             # Edit mode state.  False = read-only (normal), True = editable.
             self._qt_edit_mode: bool = False
             self._qt_edit_dirty: bool = False  # unsaved changes in edit mode
+            # Spell-check syntax highlighter, attached only while editing and
+            # only when pyspellchecker (and a Qt QSyntaxHighlighter) is present.
+            self._spell_highlighter = None
 
             # Intercept keyboard events on the editor so Tab and arrow keys
             # can be processed for SC mode without fighting Qt's focus chain.
@@ -593,6 +603,14 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
                     tip="Write a timestamped caption track synchronized to speech",
                 )
             )
+            export_menu.addAction(
+                _mi(
+                    "Anki Flashcards…",
+                    "Ctrl+Alt+H",
+                    self._qt_export_anki,
+                    tip="Export this document's notes as an Anki deck (.apkg)",
+                )
+            )
 
             file_menu.addSeparator()
             file_menu.addAction(
@@ -755,6 +773,7 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
                     None,
                     ("Toggle Edit Mode", self._qt_edit_mode_toggle, "Ctrl+E"),
                     ("Save", self._qt_save, "Ctrl+S"),
+                    ("Check Spelling", self._qt_check_spelling, "F7"),
                 ],
             )
 
@@ -895,6 +914,16 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
                 )
             )
             tools_menu.addSeparator()
+            tools_menu.addAction(
+                _mi(
+                    "Summarize Document…",
+                    # Ctrl+Shift+S is already Reading Statistics; the summarizer
+                    # uses Ctrl+Shift+U instead.
+                    "Ctrl+Shift+U",
+                    self._qt_summarize,
+                    tip="Condense the document to a few key sentences (LexRank)",
+                )
+            )
             tools_menu.addAction(
                 _mi(
                     "Reading Statistics…",
@@ -2411,6 +2440,13 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             self.editor.document().contentsChanged.connect(
                 self._qt_on_edit_contents_changed
             )
+            # Attach the red-squiggle spell highlighter while editing (only when
+            # pyspellchecker and a Qt QSyntaxHighlighter are both available).
+            if _SPELL and SpellHighlighter is not None:
+                try:
+                    self._spell_highlighter = SpellHighlighter(self.editor.document())
+                except Exception:  # noqa: BLE001
+                    self._spell_highlighter = None
             # If the live-preview preference is on, show the preview pane now
             # and render the current source into it.
             if self.settings.get("qt_edit_preview", False):
@@ -2453,6 +2489,13 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
                 )
             except (RuntimeError, TypeError):
                 pass
+            # Detach the spell highlighter so it stops re-checking the read-only view.
+            if self._spell_highlighter is not None:
+                try:
+                    self._spell_highlighter.setDocument(None)
+                except Exception:  # noqa: BLE001
+                    pass
+                self._spell_highlighter = None
             self._qt_edit_mode = False
             self._qt_edit_dirty = False
             # The preview pane is only meaningful while editing; hide it.
@@ -2465,6 +2508,43 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             self._apply_block_spacing()
             self._qt_apply_user_highlights()
             self.statusBar().showMessage("Read mode")
+
+        def _qt_check_spelling(self) -> None:
+            """Count and report misspelled words in the current text (F7).
+
+            Works whether or not the live red-squiggle highlighter is running:
+            it checks the editable source in edit mode, otherwise the loaded
+            document's plain text.
+            """
+            if not _SPELL:
+                QMessageBox.information(
+                    self,
+                    "Spell check unavailable",
+                    "Spell checking requires pyspellchecker:\n\n"
+                    "    pip install pyspellchecker",
+                )
+                return
+            if self._qt_edit_mode:
+                text = self.editor.toPlainText()
+            elif self.doc:
+                text = self.doc.plain_text or ""
+            else:
+                self.statusBar().showMessage("Open a document to check spelling")
+                return
+            bad = sorted(misspelled_words(text))
+            if not bad:
+                QMessageBox.information(
+                    self, "Spell check", "No misspelled words found."
+                )
+                return
+            preview = ", ".join(bad[:25])
+            if len(bad) > 25:
+                preview += ", …"
+            QMessageBox.information(
+                self,
+                "Spell check",
+                f"{len(bad)} misspelled word(s) found:\n\n{preview}",
+            )
 
         # ─ live HTML preview (edit mode) ──────────────────────────────────
 
@@ -2545,6 +2625,68 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             buttons = QDialogButtonBox(_ok_btn)
             buttons.accepted.connect(dlg.accept)
             lay.addWidget(buttons)
+            dlg.exec() if _QT == "PyQt6" else dlg.exec_()
+
+        def _qt_summarize(self) -> None:
+            """Summarize the current document with LexRank and show the result.
+
+            Runs on a background thread because LexRank can take a moment on a
+            long document; the result is delivered to the GUI thread via
+            _summary_signal.
+            """
+            if not _SUMY:
+                QMessageBox.information(
+                    self,
+                    "Summarization unavailable",
+                    "Document summarization requires sumy:\n\n    pip install sumy",
+                )
+                return
+            if not self.doc:
+                self.statusBar().showMessage("Open a document to summarize")
+                return
+            text = self.doc.plain_text or ""
+            if not text.strip():
+                self.statusBar().showMessage("Nothing to summarize")
+                return
+            n = int(self.settings.get("summary_sentences", 7))
+            self.statusBar().showMessage("Summarizing…")
+
+            def _work() -> None:
+                try:
+                    summary = summarize_document(text, n)
+                    self._summary_signal.emit(summary, "")
+                except Exception as exc:  # noqa: BLE001
+                    self._summary_signal.emit("", str(exc))
+
+            threading.Thread(target=_work, daemon=True).start()
+
+        def _qt_on_summary(self, summary: str, error: str) -> None:
+            """Main-thread handler: show the summary (or an error) in a dialog."""
+            if error:
+                QMessageBox.warning(self, "Summarization failed", error)
+                self.statusBar().showMessage("Summarization failed")
+                return
+            if not summary:
+                self.statusBar().showMessage("Summary was empty")
+                return
+            title = self.doc.title if self.doc else "Document"
+            dlg = QDialog(self)
+            dlg.setWindowTitle(f"Summary — {title}")
+            dlg.resize(560, 420)
+            lay = QVBoxLayout(dlg)
+            view = QTextEdit()
+            view.setReadOnly(True)
+            view.setPlainText(summary)
+            view.setAccessibleName("Document summary")
+            lay.addWidget(view)
+            try:
+                _ok_btn = QDialogButtonBox.StandardButton.Ok
+            except AttributeError:
+                _ok_btn = QDialogButtonBox.Ok  # type: ignore[attr-defined]
+            buttons = QDialogButtonBox(_ok_btn)
+            buttons.accepted.connect(dlg.accept)
+            lay.addWidget(buttons)
+            self.statusBar().showMessage("Summary ready")
             dlg.exec() if _QT == "PyQt6" else dlg.exec_()
 
         def _qt_library(self) -> None:
@@ -4111,6 +4253,50 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
                 self.statusBar().showMessage(f"Exported {len(items)} note(s) → {dest}")
             except OSError as exc:
                 self.statusBar().showMessage(f"Export error: {exc}")
+
+        def _qt_export_anki(self) -> None:
+            """Export the current document's notes as an Anki deck (.apkg).
+
+            Each note becomes a card: the highlighted passage on the front, the
+            user's note on the back.  Requires genanki and at least one note.
+            """
+            if not _GENANKI:
+                QMessageBox.information(
+                    self,
+                    "Anki export unavailable",
+                    "Anki flashcard export requires genanki:\n\n"
+                    "    pip install genanki",
+                )
+                return
+            if not self.doc:
+                self.statusBar().showMessage("No document loaded")
+                return
+            items = self._qt_load_annotations()
+            if not items:
+                QMessageBox.information(
+                    self,
+                    "No notes to export",
+                    "Add a note or two first — each note becomes a flashcard.",
+                )
+                return
+            title = self.doc.title or Path(self.doc.path or "document").stem
+            p = Path(self.doc.path) if self.doc.path else Path(title)
+            default = str(p.parent / (p.stem + ".apkg"))
+            dest, _flt = QFileDialog.getSaveFileName(
+                self, "Export Anki Flashcards", default, "Anki Deck (*.apkg)"
+            )
+            if not dest:
+                return
+            if not dest.lower().endswith(".apkg"):
+                dest += ".apkg"
+            try:
+                export_anki_deck(items, title, dest)
+                self.statusBar().showMessage(
+                    f"Exported {len(items)} flashcard(s) → {dest}"
+                )
+            except Exception as exc:  # noqa: BLE001
+                QMessageBox.warning(self, "Anki export failed", str(exc))
+                self.statusBar().showMessage(f"Anki export error: {exc}")
 
         # ── Citation manager ──────────────────────────────
 

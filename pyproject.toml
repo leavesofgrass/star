@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "star-reader"
-version = "0.1.5"
+version = "0.1.6"
 description = "star — Speaking Terminal Access Reader: an accessible document reader with built-in text-to-speech"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -53,6 +53,12 @@ markup = ["pypandoc"]
 braille = ["louis"]
 audio = ["pydub"]
 transcribe = ["openai-whisper", "sounddevice", "numpy"]
+# Extractive document summarization (Tools ▸ Summarize Document) via sumy.
+summarize = ["sumy"]
+# Anki flashcard export (File ▸ Export ▸ Anki Flashcards) via genanki.
+flashcards = ["genanki"]
+# Spell checking in edit mode (Edit ▸ Check Spelling) via pyspellchecker.
+spellcheck = ["pyspellchecker"]
 # Hot-folder watching (star --watch) uses watchdog for real filesystem events.
 # It lives in its own lightweight group because it is only needed for that one
 # headless feature; star falls back to directory polling when it is absent.
@@ -69,6 +75,9 @@ all = [
     "louis",
     "pydub",
     "watchdog",
+    "sumy",
+    "genanki",
+    "pyspellchecker",
 ]
 
 [project.scripts]

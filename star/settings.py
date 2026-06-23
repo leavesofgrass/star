@@ -1,7 +1,6 @@
 """Persistent settings store and the default settings table."""
 from ._runtime import *  # noqa: F401,F403
 
-
 # =============================================================================
 # Default settings
 # =============================================================================
@@ -137,6 +136,14 @@ DEFAULTS: Dict[str, Any] = {
     # is the true throttle, so running the timer at full speed keeps the
     # highlight tight to the audio instead of lagging behind it.
     "highlight_speed": 1.0,
+    # In-process eSpeak-NG (libespeak-ng) highlight latency compensation, in
+    # milliseconds.  That backend paces each word highlight to the word's actual
+    # audio position reported by the engine; this offset is added to that target
+    # so the highlight is not painted slightly *before* the word is heard (which
+    # is unavoidable otherwise, because audio reaches the speakers a little after
+    # the engine queues it).  Increase it if highlights still run ahead of the
+    # audio; lower it toward 0 if they lag behind.
+    "espeak_highlight_offset_ms": 120,
     # ── Batch conversion & hot-folder watching ───────────
     # Default output format for batch conversion and the --watch hot-folder
     # (any of: markdown | text | braille; see convert.supported_formats()).
