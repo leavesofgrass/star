@@ -55,12 +55,14 @@ def translate_text(
     Raises ``RuntimeError`` with install guidance when deep-translator is not
     available.
     """
+    # Empty input is a no-op that needs neither the package nor a network call,
+    # so short-circuit it before the availability guard.
+    text = (text or "").strip()
+    if not text:
+        return ""
     if not _DEEP_TRANSLATOR:
         raise RuntimeError(
             "Translation requires deep-translator:\n    pip install deep-translator"
         )
-    text = (text or "").strip()
-    if not text:
-        return ""
     translator = GoogleTranslator(source=source_lang, target=target_lang)
     return translator.translate(text)
