@@ -8,6 +8,58 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.7] 2026-06-23
+
+### ✨ Added
+
+- **Document translation.** A new **Tools ▸ Translate Document…**
+  (`Ctrl+Shift+X`) translates the open document into any of 15 common languages
+  via Google Translate (no API key, no account). A picker dialog chooses the
+  target language and shows the result in a read-only pane; the network call
+  runs on a background thread so the window stays responsive, and the input is
+  capped at 15 000 characters per request to stay within rate limits. Requires
+  the optional `deep-translator` package; the menu item prompts to install it
+  when absent.
+- **RSS / Atom feed reading.** **File ▸ Open Feed…** (`Ctrl+Shift+M`) fetches a
+  feed URL, lists its articles, and opens the chosen one in the reader through
+  star's normal URL-loading path. Useful for tracking arXiv, PubMed, bioRxiv,
+  or journal feeds without leaving star. Requires the optional `feedparser`
+  package; the menu item prompts to install it when absent.
+- **Difficult-word overlay.** **View ▸ Reading Aids ▸ Highlight Difficult
+  Words** (`Ctrl+Alt+O`) tints uncommon / academic vocabulary by word
+  frequency, giving a visual pre-scan of dense terminology before reading. The
+  overlay is non-destructive (it rides the existing extra-selection pipeline,
+  sitting under user highlights and the TTS word highlight), persists across
+  sessions (`qt_vocab_highlight`), and recomputes on each document load.
+  Requires the optional `wordfreq` package.
+- **Dependency status report.** A new `star --deps` flag prints the
+  availability of every optional dependency, grouped by area, with a one-line
+  description and a copy-paste install hint for anything missing — backed by a
+  new `star.diagnostics` module that is the single source of truth for star's
+  optional dependencies.
+- **New optional-dependency groups.** `translate` (`deep-translator`), `feeds`
+  (`feedparser`), and `vocab` (`wordfreq`), all folded into the `all` extra and
+  mirrored in `requirements-optional.txt`.
+
+### 🧪 Tests
+
+- **General dependency harness.** `tests/test_dependencies.py` verifies the new
+  diagnostics registry against the codebase: a completeness check fails if any
+  import guard is ever added without being registered, and a per-dependency
+  consistency check asserts that anything reported as available really does
+  import. `tests/test_features.py` covers the translation, feed, and
+  difficult-word logic, including their graceful-degradation paths.
+
+### 📝 Notes
+
+- The three new commands use `Ctrl+Shift+X`, `Ctrl+Shift+M`, and `Ctrl+Alt+O`
+  — the more intuitive `Ctrl+Shift+L/F` and `Ctrl+Alt+W` were already bound
+  (live preview, themes folder, text spacing). All three are also reachable
+  from the F2 command palette, which now additionally lists Summarize, Anki
+  export, and Check Spelling for completeness.
+
+---
+
 ## [0.1.6] 2026-06-23
 
 ### ✨ Added

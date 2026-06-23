@@ -1,6 +1,6 @@
 # ⭐ star — Speaking Terminal Access Reader
 
-> **Version 0.1.6** — *star* is an accessible, **GUI-first** document reader with built-in text-to-speech: it opens PDFs, Word/EPUB/PowerPoint, web pages, spreadsheets and more, reads them aloud, and highlights each word as it is spoken. **New in this release:** **document summarization** — condense the open document to its key sentences with LexRank (**Tools ▸ Summarize Document**, `Ctrl+Shift+U`); **Anki flashcard export** — turn your notes into a study deck (**File ▸ Export ▸ Anki Flashcards**, `Ctrl+Alt+H`); and **spell checking in edit mode** — misspelled words are underlined in red as you type, with a count on demand (**Edit ▸ Check Spelling**, `F7`). These join earlier work — playback-synced highlighting via in-process eSpeak-NG, batch conversion, and hot-folder watching — with the **Qt GUI as the primary interface** and a keyboard shortcut for every command. The keyboard-driven terminal UI remains available with `--tui`.
+> **Version 0.1.7** — *star* is an accessible, **GUI-first** document reader with built-in text-to-speech: it opens PDFs, Word/EPUB/PowerPoint, web pages, spreadsheets and more, reads them aloud, and highlights each word as it is spoken. **New in this release:** **document translation** — translate the open document into 15 languages with no API key (**Tools ▸ Translate Document**, `Ctrl+Shift+X`); **RSS / Atom feed reading** — open a feed and read any article in place (**File ▸ Open Feed**, `Ctrl+Shift+M`); a **difficult-word overlay** — tint uncommon academic vocabulary before you read (**View ▸ Reading Aids ▸ Highlight Difficult Words**, `Ctrl+Alt+O`); and **`star --deps`**, a one-command report of which optional dependencies are installed and how to add the rest. These join earlier work — document summarization, Anki flashcard export, spell-check in edit mode, playback-synced highlighting via in-process eSpeak-NG, batch conversion, and hot-folder watching — with the **Qt GUI as the primary interface** and a keyboard shortcut for every command. The keyboard-driven terminal UI remains available with `--tui`.
 
 A lightweight, installable Python application that reads your documents aloud while you follow along — one `pip install` (or a single-file `star.pyz`) away, with no cloud account and no internet required.
 
@@ -56,6 +56,10 @@ A lightweight, installable Python application that reads your documents aloud wh
 | Live HTML preview | Optional split-pane preview that re-renders the Markdown live while you edit |
 | Voice & profile presets | Save voice, rate, theme, font, spacing, and highlight settings as named profiles; switch in one step |
 | Pronunciation lexicon | User-editable term → spoken-form dictionary so drug names, anatomy, and acronyms are read correctly |
+| Document translation | Translate the current document into 15 common languages from **Tools → Translate Document** (Google backend, no API key); optional via `deep-translator` |
+| RSS / journal feeds | Paste a feed URL in **File → Open Feed…**, browse the articles, and open any one in the reader; optional via `feedparser` |
+| Difficult-word overlay | **View → Reading Aids → Highlight Difficult Words** tints uncommon / academic vocabulary by word frequency so dense terms stand out before reading; optional via `wordfreq` |
+| Dependency status report | `star --deps` lists every optional dependency, whether it is installed, and how to add the rest |
 | Screen reader compatible | AT-SPI2 accessibility metadata; cursor parked at minibuffer (TUI) |
 | Four built-in themes | dark (default), light, contrast, phosphor — all colorblind-friendly |
 | CSS theme customization | Drop any `.css` file into the themes folder; star picks it up instantly via View → Reload CSS Themes |
@@ -101,11 +105,11 @@ A single pure-Python wheel (`star_reader-<version>-py3-none-any.whl`) installs `
 
 ```bash
 # Recommended dependencies (Qt GUI + TTS + common formats) come with the wheel
-pip install star_reader-0.1.6-py3-none-any.whl
+pip install star_reader-0.1.7-py3-none-any.whl
 
 # Or pull in every optional Python feature (OCR, ODT/XLSX, Pandoc, Braille,
 # transcription, audio conversion):
-pip install "star_reader-0.1.6-py3-none-any.whl[all]"
+pip install "star_reader-0.1.7-py3-none-any.whl[all]"
 ```
 
 The wheel then exposes a `star` console command and `python -m star`:
@@ -1500,7 +1504,7 @@ The editor works on the Markdown representation of the document (the same text t
 
 ## 🧠 Study & Writing Aids
 
-Three optional helpers turn star from a reader into a study tool. Each is gated behind an optional package and degrades gracefully — the menu item always appears and tells you what to `pip install` when its package is missing, so the rest of star is unaffected.
+These optional helpers turn star from a reader into a study tool. Each is gated behind an optional package and degrades gracefully — the menu item always appears and tells you what to `pip install` when its package is missing, so the rest of star is unaffected.
 
 ### Summarize a document
 
@@ -1526,6 +1530,32 @@ In **edit mode** (`Ctrl+E`), misspelled words are underlined with a red squiggle
 
 ```
 pip install pyspellchecker   # or: pip install "star-reader[spellcheck]"
+```
+
+### Translate a document
+
+**Tools ▸ Translate Document** (`Ctrl+Shift+X`) translates the open document into any of 15 common languages using Google Translate — no API key and no account required. A small dialog picks the target language and shows the translation in a read-only pane you can read aloud or copy. The request runs on a background thread so the window stays responsive, and the input is capped at 15,000 characters per request to stay within the free service's limits (the status bar tells you when a long document was truncated).
+
+```
+pip install deep-translator   # or: pip install "star-reader[translate]"
+```
+
+Translation is the one study aid that needs a network connection; everything else in star works fully offline.
+
+### Highlight difficult words
+
+**View ▸ Reading Aids ▸ Highlight Difficult Words** (`Ctrl+Alt+O`) tints uncommon and academic vocabulary directly in the document, so dense terminology stands out before you start reading. Words are judged by their **frequency** in everyday English — anything rarer than a configurable threshold (and at least four letters long) gets a soft yellow background. The overlay is non-destructive: it sits beneath your own highlights and the spoken-word highlight, persists across sessions (`qt_vocab_highlight`), and recomputes whenever you open a new document. Toggle it off from the same menu item.
+
+```
+pip install wordfreq          # or: pip install "star-reader[vocab]"
+```
+
+### Read RSS / Atom feeds
+
+**File ▸ Open Feed…** (`Ctrl+Shift+M`) fetches a feed URL — an arXiv listing, a PubMed search, a journal's table of contents, a blog — and lists its articles in a chooser. Pick one (double-click or **Open**) and it loads in star's reader like any other web page, ready to be read aloud. It turns star into the single place you track new literature, instead of a tool you only reach for after finding something elsewhere.
+
+```
+pip install feedparser        # or: pip install "star-reader[feeds]"
 ```
 
 ---
@@ -1878,6 +1908,7 @@ star [OPTIONS] [FILE_OR_URL]
 | `--keytest` | Open the key-code diagnostic tool (TUI only) |
 | `--list-themes` | Print available theme names and exit |
 | `--list-voices` | Print available TTS voice IDs and exit |
+| `--deps` | Print the status of every optional dependency (installed or not, with install hints) and exit |
 | `--version` | Print version number and exit |
 | `--help` | Print help summary and exit |
 
@@ -1961,8 +1992,24 @@ Other guidelines:
 - All new keybindings must be documented in `README.md` (opened by `F1` in the Qt GUI) and in this file.
 - New M-x commands must be added to both the command dispatch table and the Tab-completion list.
 - New file format handlers should degrade gracefully when the required package is absent.
+- **Register every new optional dependency.** When you add a guarded import (`try: import x … except ImportError`), add a matching entry to `OPTIONAL_DEPENDENCIES` in [`star/diagnostics.py`](star/diagnostics.py) so it shows up in `star --deps`. The test suite enforces this — a new import guard with no registry entry fails `tests/test_dependencies.py`.
 - Follow the existing code style — no external formatters mandated, but keep lines ≤ 100 characters and write docstrings for all public functions.
 - This project is licensed under the GPL v3. By submitting a pull request you agree your contribution will be released under the same license.
+
+### Running the tests
+
+The suite lives in [`tests/`](tests/) and runs on `pytest`:
+
+```bash
+pip install -e ".[test]"   # installs pytest
+pytest                     # run everything
+pytest tests/test_dependencies.py -v   # just the dependency harness
+```
+
+The tests are written to pass with **none** of the optional packages installed — checks that need a given package `skip` when it is absent rather than failing, so a clean `pip install -e ".[test]"` checkout goes green. Two suites are worth knowing about:
+
+- **`tests/test_dependencies.py`** — the dependency harness. It treats `star.diagnostics.OPTIONAL_DEPENDENCIES` as the source of truth and enforces two guarantees: *completeness* (every import guard in the codebase is registered, so nothing is silently dropped from `star --deps`) and *consistency* (anything the harness reports as available really does import). Install an optional extra and re-run to exercise its real behavior.
+- **`tests/test_features.py`** — unit tests for the study/reading features, including each one's graceful-degradation path (a clear error or empty result when its package is absent).
 
 ---
 

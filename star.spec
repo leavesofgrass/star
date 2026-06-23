@@ -87,14 +87,25 @@ for _pkg in ("whisper", "torch", "numba", "llvmlite", "tiktoken", "sounddevice")
     except Exception:
         pass
 
-# ── Study & writing aids (summarize / flashcards / spell check) ──────────────
-# sumy (LexRank summarization), genanki (Anki .apkg export), and pyspellchecker
-# (edit-mode spell checking) each ship data files inside their package
-# (stopword lists, Anki deck templates, compressed dictionaries), and sumy
-# pulls in nltk.  collect_all bundles every package's submodules + data so the
-# features work in the frozen build with no extra install.  Guarded so the spec
-# still builds when one of these optional packages is absent.
-for _pkg in ("sumy", "genanki", "pyspellchecker", "nltk"):
+# ── Study & writing aids (summarize / flashcards / spell check / translate /
+#    feeds / difficult-word overlay) ──────────────────────────────────────────
+# Each of these optional packages ships data files inside its package that
+# PyInstaller's import analysis would otherwise miss:
+#   sumy            – stopword lists (+ pulls in nltk)
+#   genanki         – Anki deck templates
+#   pyspellchecker  – compressed frequency dictionaries
+#   wordfreq        – the compressed word-frequency tables the difficult-word
+#                     overlay reads (essential; the feature fails without them)
+#   langcodes/ftfy  – language-data and text-cleanup tables wordfreq depends on
+#   deep_translator – translation backend (lazy imports collect_all pins down)
+#   feedparser      – RSS / Atom parser (pure code, bundled for completeness)
+# collect_all bundles every package's submodules + data so the features work in
+# the frozen build with no extra install.  Guarded so the spec still builds when
+# one of these optional packages is absent.
+for _pkg in (
+    "sumy", "genanki", "pyspellchecker", "nltk",
+    "deep_translator", "feedparser", "wordfreq", "langcodes", "ftfy",
+):
     try:
         _d, _b, _h = collect_all(_pkg)
         datas += _d

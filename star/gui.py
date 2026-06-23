@@ -10,6 +10,7 @@ from .citations import (
 )
 from .convert import resolve_format, run_batch, supported_formats
 from .documents import Document, _build_word_map, load_document
+from .feeds import _FEEDPARSER, fetch_feed
 from .flashcards import _GENANKI, export_anki_deck
 from .settings import Settings
 from .spellcheck import _SPELL, SpellHighlighter, misspelled_words
@@ -26,9 +27,11 @@ from .stats import (
 from .summarize import _SUMY, summarize_document
 from .themes import _load_css_themes, _seed_default_css_themes
 from .transcribe import _record_audio_to_wav, _transcribe_audio
+from .translate import _DEEP_TRANSLATOR, COMMON_LANGUAGES, translate_text
 from .tts import Pyttsx3Backend, TTSManager, _SCReader
 from .ttstext import _preprocess_tts_text, _strip_markdown_for_tts
 from .tui import _HELP_TEXT, THEME_NAMES, _shortcuts_text
+from .vocab import _WORDFREQ, DEFAULT_THRESHOLD, find_difficult_words
 from .watch import HotFolderWatcher, _make_logger
 
 # =============================================================================
@@ -202,6 +205,12 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
         # Document summarization runs on a background thread (LexRank can be
         # slow on long documents); carries (summary, error_message).
         _summary_signal = pyqtSignal(str, str)
+        # Translation runs on a background thread (it makes a network call);
+        # carries (translated_text, error_message).
+        _translate_signal = pyqtSignal(str, str)
+        # Feed fetching runs on a background thread (network call); carries
+        # (entries_list, error_message) — the list is passed as a Python object.
+        _feed_signal = pyqtSignal(object, str)
 
         # Per-theme CSS colors used by _md_to_html and _apply_qt_theme.
         _PALETTES: Dict[str, Dict[str, str]] = {
@@ -272,6 +281,12 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             self._hl_fmt = QTextCharFormat()
             self._rebuild_hl_fmt()
 
+            # Cached extra-selections for the difficult-word overlay (View ▸
+            # Reading Aids ▸ Highlight Difficult Words).  Computed once per
+            # document when the overlay is on, then merged into the selection
+            # list alongside user highlights so a TTS repaint never wipes them.
+            self._vocab_selections: List[Any] = []
+
             # Session counter — incremented by every new speak() invocation.
             # The timer thread closes over the session value at speak() time;
             # _apply_word_highlight drops any delivery whose session no longer
@@ -315,6 +330,9 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             self._doi_signal.connect(self._qt_on_doi, _QUEUED)
             # Wire the summarization result signal → GUI thread.
             self._summary_signal.connect(self._qt_on_summary, _QUEUED)
+            # Wire the translation / feed-fetch result signals → GUI thread.
+            self._translate_signal.connect(self._qt_on_translation, _QUEUED)
+            self._feed_signal.connect(self._qt_on_feed, _QUEUED)
 
             # Reading-statistics poll: a 1-second timer feeds self.stats while
             # speech is playing.
@@ -567,6 +585,14 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             # File menu
             file_menu: QMenu = mb.addMenu("File")
             file_menu.addAction(_mi("Open…", "Ctrl+O", self._open_dialog))
+            file_menu.addAction(
+                _mi(
+                    "Open Feed…",
+                    "Ctrl+Shift+M",
+                    self._qt_open_feed,
+                    tip="Open an RSS / Atom feed and pick an article to read",
+                )
+            )
             file_menu.addAction(_mi("Open URL…", "Ctrl+Shift+O", self._qt_open_url))
             file_menu.addAction(
                 _mi(
@@ -880,6 +906,15 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
                 checked=bool(self.settings.get("qt_current_line_highlight", False)),
             )
             aids_menu.addAction(self._current_line_act)
+            self._vocab_act = _mi(
+                "Highlight Difficult Words",
+                "Ctrl+Alt+O",
+                self._qt_toggle_vocab_highlight,
+                tip="Tint uncommon / academic vocabulary (by word frequency)",
+                checkable=True,
+                checked=bool(self.settings.get("qt_vocab_highlight", False)),
+            )
+            aids_menu.addAction(self._vocab_act)
 
             # Tools menu — transcription, dictation, and maintenance.
             tools_menu: QMenu = mb.addMenu("Tools")
@@ -922,6 +957,14 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
                     "Ctrl+Shift+U",
                     self._qt_summarize,
                     tip="Condense the document to a few key sentences (LexRank)",
+                )
+            )
+            tools_menu.addAction(
+                _mi(
+                    "Translate Document…",
+                    "Ctrl+Shift+X",
+                    self._qt_translate,
+                    tip="Translate the document into another language (Google)",
                 )
             )
             tools_menu.addAction(
@@ -1227,6 +1270,9 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             self._qt_build_annotations()
             # Restore any saved user highlights for this document.
             self._qt_apply_user_highlights()
+            # Rebuild the difficult-word overlay for the new document (no-op
+            # unless the overlay is toggled on); also repaints the highlights.
+            self._qt_refresh_vocab_highlight()
 
             # Read Qt plain text NOW (main thread required) then hand off.
             qt_plain = self.editor.document().toPlainText()
@@ -2689,6 +2735,198 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             self.statusBar().showMessage("Summary ready")
             dlg.exec() if _QT == "PyQt6" else dlg.exec_()
 
+        def _qt_translate(self) -> None:
+            """Translate the current document into another language.
+
+            Opens a dialog with a language picker and a result pane; the
+            network call runs on a background thread and its result is
+            delivered to the GUI thread via _translate_signal.
+            """
+            if not _DEEP_TRANSLATOR:
+                QMessageBox.information(
+                    self,
+                    "Translation unavailable",
+                    "Document translation requires deep-translator:\n\n"
+                    "    pip install deep-translator",
+                )
+                return
+            if not self.doc or not (self.doc.plain_text or "").strip():
+                QMessageBox.information(
+                    self, "Nothing to translate", "Open a document first."
+                )
+                return
+
+            dlg = QDialog(self)
+            dlg.setWindowTitle(f"Translate — {self.doc.title}")
+            dlg.resize(560, 460)
+            lay = QVBoxLayout(dlg)
+
+            row = QHBoxLayout()
+            row.addWidget(QLabel("Translate to:"))
+            combo = QComboBox()
+            for name, code in COMMON_LANGUAGES:
+                combo.addItem(name, code)
+            row.addWidget(combo, 1)
+            go_btn = QPushButton("Translate")
+            row.addWidget(go_btn)
+            lay.addLayout(row)
+
+            view = QTextEdit()
+            view.setReadOnly(True)
+            view.setAccessibleName("Translation result")
+            lay.addWidget(view)
+            self._translate_view = view
+            self._translate_btn = go_btn
+
+            try:
+                _close_btn = QDialogButtonBox.StandardButton.Close
+            except AttributeError:
+                _close_btn = QDialogButtonBox.Close  # type: ignore[attr-defined]
+            buttons = QDialogButtonBox(_close_btn)
+            buttons.rejected.connect(dlg.reject)
+            lay.addWidget(buttons)
+
+            def _do() -> None:
+                code = str(combo.itemData(combo.currentIndex()) or "en")
+                self._qt_do_translate(code)
+
+            go_btn.clicked.connect(_do)
+            dlg.exec() if _QT == "PyQt6" else dlg.exec_()
+            # Drop the widget references so a late result is ignored safely.
+            self._translate_view = None
+            self._translate_btn = None
+
+        def _qt_do_translate(self, code: str) -> None:
+            """Kick off a background translation of the current document."""
+            if not self.doc:
+                return
+            text = self.doc.plain_text or ""
+            truncated = len(text) > 15000
+            text = text[:15000]
+            if getattr(self, "_translate_btn", None) is not None:
+                self._translate_btn.setEnabled(False)
+            if getattr(self, "_translate_view", None) is not None:
+                self._translate_view.setPlainText("Translating…")
+            self.statusBar().showMessage(
+                "Translating first 15000 characters…"
+                if truncated
+                else "Translating…"
+            )
+
+            def _work() -> None:
+                try:
+                    result = translate_text(text, target_lang=code)
+                    self._translate_signal.emit(result, "")
+                except Exception as exc:  # noqa: BLE001
+                    self._translate_signal.emit("", str(exc))
+
+            threading.Thread(target=_work, daemon=True).start()
+
+        def _qt_on_translation(self, result: str, error: str) -> None:
+            """Main-thread handler: show the translation (or an error)."""
+            btn = getattr(self, "_translate_btn", None)
+            view = getattr(self, "_translate_view", None)
+            try:
+                if btn is not None:
+                    btn.setEnabled(True)
+                if error:
+                    if view is not None:
+                        view.setPlainText("")
+                    QMessageBox.warning(self, "Translation failed", error)
+                    self.statusBar().showMessage("Translation failed")
+                    return
+                if view is not None:
+                    view.setPlainText(result or "")
+                self.statusBar().showMessage("Translation ready")
+            except RuntimeError:
+                # The dialog (and its widgets) was closed before the result
+                # arrived; nothing left to update.
+                pass
+
+        def _qt_open_feed(self) -> None:
+            """Prompt for a feed URL, fetch it, and pick an article to open."""
+            if not _FEEDPARSER:
+                QMessageBox.information(
+                    self,
+                    "Feed reading unavailable",
+                    "Reading RSS / Atom feeds requires feedparser:\n\n"
+                    "    pip install feedparser",
+                )
+                return
+            url, ok = QInputDialog.getText(
+                self, "Open Feed", "Enter an RSS / Atom feed URL:"
+            )
+            if not ok or not url.strip():
+                return
+            url = url.strip()
+            self.statusBar().showMessage(f"Fetching feed {url} …")
+
+            def _work() -> None:
+                try:
+                    entries = fetch_feed(url)
+                    self._feed_signal.emit(entries, "")
+                except Exception as exc:  # noqa: BLE001
+                    self._feed_signal.emit([], str(exc))
+
+            threading.Thread(target=_work, daemon=True).start()
+
+        def _qt_on_feed(self, entries: Any, error: str) -> None:
+            """Main-thread handler: list the feed's entries; open the chosen one."""
+            if error or not entries:
+                QMessageBox.information(
+                    self, "Feed", "No entries found — check the URL."
+                )
+                self.statusBar().showMessage("No feed entries")
+                return
+
+            dlg = QDialog(self)
+            dlg.setWindowTitle("Feed")
+            dlg.resize(620, 460)
+            lay = QVBoxLayout(dlg)
+            lay.addWidget(QLabel("Choose an article to open:"))
+            lst = QListWidget()
+            for ent in entries:
+                published = ent.get("published", "")
+                label = ent.get("title", "") or ent.get("url", "")
+                if published:
+                    label = f"{label}  —  {published}"
+                item = QListWidgetItem(label)
+                item.setData(_USER_ROLE, ent.get("url", ""))
+                if ent.get("summary"):
+                    item.setToolTip(re.sub(r"<[^>]+>", "", ent["summary"])[:400])
+                lst.addItem(item)
+            lay.addWidget(lst)
+
+            try:
+                _btns = (
+                    QDialogButtonBox.StandardButton.Open
+                    | QDialogButtonBox.StandardButton.Cancel
+                )
+            except AttributeError:
+                _btns = QDialogButtonBox.Open | QDialogButtonBox.Cancel  # type: ignore[attr-defined]
+            buttons = QDialogButtonBox(_btns)
+            lay.addWidget(buttons)
+
+            chosen = {"url": ""}
+
+            def _accept_current() -> None:
+                item = lst.currentItem()
+                if item is not None:
+                    chosen["url"] = str(item.data(_USER_ROLE) or "")
+                dlg.accept()
+
+            def _accept_item(item: Any) -> None:
+                chosen["url"] = str(item.data(_USER_ROLE) or "")
+                dlg.accept()
+
+            buttons.accepted.connect(_accept_current)
+            buttons.rejected.connect(dlg.reject)
+            lst.itemDoubleClicked.connect(_accept_item)
+
+            dlg.exec() if _QT == "PyQt6" else dlg.exec_()
+            if chosen["url"]:
+                self._open_path(chosen["url"])
+
         def _qt_library(self) -> None:
             """Browse the library/bookshelf; open the chosen document.
 
@@ -3579,10 +3817,13 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
                 ("_dyslexia_font_act", "qt_dyslexia_font"),
                 ("_bionic_act", "qt_bionic_reading"),
                 ("_current_line_act", "qt_current_line_highlight"),
+                ("_vocab_act", "qt_vocab_highlight"),
             ):
                 act = getattr(self, attr, None)
                 if act is not None:
                     act.setChecked(bool(self.settings.get(key, False)))
+            # A profile may have flipped the difficult-word overlay; rebuild it.
+            self._qt_refresh_vocab_highlight()
 
         def _qt_save_profile(self) -> None:
             """Save the current settings as a named profile."""
@@ -3801,7 +4042,81 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
                 sel.format = fmt
                 sel.cursor = cur
                 selections.append(sel)
-            return selections
+            # Difficult-word overlay paints *under* user highlights (so a user
+            # highlight always wins where they overlap) and under the TTS word
+            # highlight, which _apply_word_highlight appends on top of all of
+            # these.
+            return self._vocab_selections + selections
+
+        def _compute_vocab_selections(self) -> None:
+            """Rebuild the difficult-word overlay's extra-selection cache.
+
+            Scans the rendered document once, flags words whose English Zipf
+            frequency is below the threshold, and stores one ExtraSelection per
+            occurrence so _get_user_highlight_selections can merge them in
+            cheaply on every repaint (including each TTS word step).
+            """
+            self._vocab_selections = []
+            if not (_WORDFREQ and self.doc):
+                return
+            plain = self.editor.document().toPlainText()
+            if not plain:
+                return
+            difficult = find_difficult_words(plain)
+            if not difficult:
+                return
+            doc_obj = self.editor.document()
+            doc_len = doc_obj.characterCount()
+            fmt = QTextCharFormat()
+            fmt.setBackground(QColor("#fffacd"))  # lemon chiffon (light yellow)
+            selections: List[Any] = []
+            for m in re.finditer(r"[A-Za-z]+", plain):
+                if m.group(0).lower() not in difficult:
+                    continue
+                start, end = m.start(), m.end()
+                if end > doc_len:
+                    break
+                cur = QTextCursor(doc_obj)
+                cur.setPosition(start)
+                cur.setPosition(end, _KEEP_ANCHOR)
+                sel = QTextEdit.ExtraSelection()
+                sel.format = fmt
+                sel.cursor = cur
+                selections.append(sel)
+                if len(selections) >= 5000:
+                    # Soft cap: a pathologically long document can't flood the
+                    # overlay with selections (and slow every repaint).
+                    break
+            self._vocab_selections = selections
+
+        def _qt_refresh_vocab_highlight(self) -> None:
+            """Recompute the overlay (when on) and repaint all extra-selections."""
+            if self.settings.get("qt_vocab_highlight", False):
+                self._compute_vocab_selections()
+            else:
+                self._vocab_selections = []
+            self._qt_apply_user_highlights()
+
+        def _qt_toggle_vocab_highlight(self) -> None:
+            """Toggle the difficult-word overlay on the current document."""
+            if not _WORDFREQ:
+                QMessageBox.information(
+                    self,
+                    "Vocabulary overlay unavailable",
+                    "Highlighting difficult words requires wordfreq:\n\n"
+                    "    pip install wordfreq",
+                )
+                if hasattr(self, "_vocab_act"):
+                    self._vocab_act.setChecked(False)
+                return
+            new = not bool(self.settings.get("qt_vocab_highlight", False))
+            self.settings["qt_vocab_highlight"] = new
+            if hasattr(self, "_vocab_act"):
+                self._vocab_act.setChecked(new)
+            self._qt_refresh_vocab_highlight()
+            self.statusBar().showMessage(
+                "Highlight difficult words: " + ("ON" if new else "OFF")
+            )
 
         # ── Table of Contents panel ───────────────────────────────────────────
 
@@ -4724,6 +5039,7 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             return [
                 ("Open File…", self._open_dialog),
                 ("Open URL…", self._qt_open_url),
+                ("Open Feed…", self._qt_open_feed),
                 ("Play / Pause", self._tts_toggle),
                 ("Stop", self._tts_stop),
                 ("Play from Cursor", self._qt_play_from_cursor),
@@ -4763,9 +5079,12 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
                 ("Toggle Contents Panel", self._qt_toggle_toc),
                 ("Library / Bookshelf…", self._qt_library),
                 ("Reading Statistics…", self._qt_reading_stats),
+                ("Summarize Document…", self._qt_summarize),
+                ("Translate Document…", self._qt_translate),
                 ("Transcribe Audio File…", self._qt_transcribe_file),
                 ("Dictate Note…", self._qt_dictate_note),
                 ("Copy", self._qt_copy),
+                ("Check Spelling", self._qt_check_spelling),
                 ("Toggle Edit Mode", self._qt_edit_mode_toggle),
                 ("Toggle Live HTML Preview", self._qt_toggle_preview),
                 ("Save", self._qt_save),
@@ -4774,7 +5093,9 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
                 ("Export as Braille (BRF)…", self._qt_export_brf),
                 ("Export as Audio…", self._qt_export_audio),
                 ("Export Subtitles (SRT / VTT)…", self._qt_export_subtitles),
+                ("Export as Anki Flashcards…", self._qt_export_anki),
                 ("Tune Karaoke Highlight…", self._qt_karaoke_dialog),
+                ("Highlight Difficult Words", self._qt_toggle_vocab_highlight),
                 ("Reading Level", self._qt_reading_level),
                 ("Change Font…", self._qt_change_font_dialog),
                 ("Next Theme", self._next_theme),

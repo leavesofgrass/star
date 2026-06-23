@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "star-reader"
-version = "0.1.6"
+version = "0.1.7"
 description = "star — Speaking Terminal Access Reader: an accessible document reader with built-in text-to-speech"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -59,6 +59,13 @@ summarize = ["sumy"]
 flashcards = ["genanki"]
 # Spell checking in edit mode (Edit ▸ Check Spelling) via pyspellchecker.
 spellcheck = ["pyspellchecker"]
+# Translate the document into another language (Tools ▸ Translate Document).
+translate = ["deep-translator"]
+# Read RSS / Atom feeds and open an article (File ▸ Open Feed) via feedparser.
+feeds = ["feedparser"]
+# Highlight uncommon / academic vocabulary (View ▸ Reading Aids ▸ Highlight
+# Difficult Words) via wordfreq.
+vocab = ["wordfreq"]
 # Hot-folder watching (star --watch) uses watchdog for real filesystem events.
 # It lives in its own lightweight group because it is only needed for that one
 # headless feature; star falls back to directory polling when it is absent.
@@ -78,6 +85,9 @@ all = [
     "sumy",
     "genanki",
     "pyspellchecker",
+    "deep-translator",
+    "feedparser",
+    "wordfreq",
 ]
 
 [project.scripts]

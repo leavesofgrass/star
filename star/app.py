@@ -63,6 +63,11 @@ def main() -> None:
     ap.add_argument(
         "--keytest", action="store_true", help="Run the key-code inspector (diagnostic)"
     )
+    ap.add_argument(
+        "--deps",
+        action="store_true",
+        help="Print the status of every optional dependency and exit",
+    )
     # ── Hot-folder watching (headless batch conversion) ──────────────────
     ap.add_argument(
         "--watch",
@@ -85,6 +90,12 @@ def main() -> None:
     args = ap.parse_args()
 
     settings = Settings()
+
+    if args.deps:
+        from .diagnostics import format_dependency_report
+
+        sys.stdout.write(format_dependency_report())
+        return
 
     if args.list_themes:
         for name in THEME_NAMES:

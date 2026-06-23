@@ -95,10 +95,15 @@ if (-not $SkipInstall) {
         "sounddevice",
         # Study & writing aids (bundled so they work in star.exe with no extra
         # install): sumy = document summarization, genanki = Anki flashcard
-        # export, pyspellchecker = edit-mode spell checking.
+        # export, pyspellchecker = edit-mode spell checking, deep-translator =
+        # document translation, feedparser = RSS/Atom feed reading, wordfreq =
+        # the difficult-word overlay (ships the frequency data it needs).
         "sumy",
         "genanki",
-        "pyspellchecker"
+        "pyspellchecker",
+        "deep-translator",
+        "feedparser",
+        "wordfreq"
     )
     if ($Ocr) { $deps += @("pytesseract", "PyMuPDF", "Pillow") }
 

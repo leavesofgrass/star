@@ -35,3 +35,6 @@ watchdog           # Real filesystem events for `star --watch` (falls back to po
 sumy               # Extractive document summarization (Tools ▸ Summarize Document)
 genanki            # Anki flashcard (.apkg) export (File ▸ Export ▸ Anki Flashcards)
 pyspellchecker     # Spell checking in edit mode (Edit ▸ Check Spelling)
+deep-translator    # Translate the document into another language (Tools ▸ Translate Document)
+feedparser         # Read RSS / Atom feeds and open an article (File ▸ Open Feed)
+wordfreq           # Highlight uncommon / academic vocabulary (View ▸ Reading Aids ▸ Highlight Difficult Words)
