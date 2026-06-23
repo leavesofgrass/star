@@ -142,6 +142,16 @@ OPTIONAL_DEPENDENCIES: List[Dict[str, Any]] = [
         "enables": "The primary windowed interface",
         "install": "pip install PyQt6",
     },
+    {
+        "key": "curses", "label": "Terminal UI (curses)", "group": "Interface",
+        "module": "star._runtime", "attr": "_CURSES", "kind": "bool",
+        # The real signal is the _curses C extension: on Windows the stdlib
+        # `curses` package directory exists but `_curses` is only present once
+        # windows-curses is installed.
+        "probe": ["_curses"],
+        "enables": "The keyboard-driven --tui terminal interface",
+        "install": "pip install windows-curses  (Windows only; built in elsewhere)",
+    },
     # ── Export & study aids ────────────────────────────────────────────────
     {
         "key": "braille2", "label": "Grade 2 Braille (liblouis)",

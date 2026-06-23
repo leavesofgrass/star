@@ -143,6 +143,28 @@ def main() -> None:
         _run_qt_gui(settings, args.file)
         return
 
+    if not _CURSES:
+        # The curses --tui interface is unavailable — most commonly Windows
+        # without the windows-curses package.  Fall back to the Qt GUI when it
+        # is available; otherwise explain how to get a working interface.
+        if _QT:
+            print(
+                "Terminal UI unavailable (curses not installed); launching the "
+                "Qt GUI instead.\n"
+                "Install windows-curses to enable --tui on Windows.",
+                file=sys.stderr,
+            )
+            _run_qt_gui(settings, args.file)
+            return
+        print(
+            "No usable interface available.\n"
+            "  - The terminal UI (--tui) needs curses; on Windows: "
+            "pip install windows-curses\n"
+            "  - The Qt GUI needs PyQt6 or PyQt5: pip install PyQt6",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     os.environ.setdefault("ESCDELAY", "25")
 
     def _tui(stdscr: "curses.window") -> None:

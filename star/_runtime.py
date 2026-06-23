@@ -51,7 +51,6 @@ __license__ = "GPL-3.0-or-later"
 
 import argparse
 import csv
-import curses
 import hashlib
 import json
 import os
@@ -73,11 +72,26 @@ from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-# Windows curses shim
+# Curses (terminal UI / --tui mode).  curses is in the Python standard library,
+# but on Windows the underlying ``_curses`` C extension is not built into
+# CPython — it is supplied by the optional ``windows-curses`` package.  Import
+# windows_curses first (its mere installation makes stdlib ``curses`` importable
+# on Windows), then guard the curses import itself so a machine without it can
+# still run the Qt GUI and the command-line modes; only the curses ``--tui``
+# interface is unavailable.  ``curses`` is left as ``None`` when absent — every
+# curses call lives inside the TUI runtime path, never at import time.
 try:
     import windows_curses  # noqa: F401
 except ImportError:
     pass
+
+try:
+    import curses
+
+    _CURSES = True
+except ImportError:
+    curses = None  # type: ignore[assignment]
+    _CURSES = False
 
 # =============================================================================
 # Bundled native tools (vendored for the self-contained Windows build)

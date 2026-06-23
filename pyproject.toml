@@ -44,6 +44,11 @@ dependencies = [
     "python-pptx",
     # pyttsx3's macOS driver needs pyobjc to drive NSSpeechSynthesizer.
     "pyobjc; sys_platform == 'darwin'",
+    # curses is stdlib on Linux/macOS, but on Windows the underlying _curses C
+    # extension ships only via windows-curses.  Declaring it here lets a plain
+    # `pip install` of the wheel import and run on Windows; without it, the
+    # import is still guarded (the Qt GUI works, only the --tui mode is lost).
+    "windows-curses; sys_platform == 'win32'",
 ]
 
 [project.optional-dependencies]
