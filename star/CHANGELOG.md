@@ -8,6 +8,35 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.8] 2026-06-23
+
+### ✨ Added
+
+- **Published to PyPI.** star is now installable with `pip install star-reader`
+  (or `pipx install star-reader`) — no manual wheel download. The release
+  workflow publishes the wheel and sdist via PyPI **trusted publishing** (OIDC,
+  no stored API token): pre-release tags (e.g. `v0.1.8-rc1`) go to TestPyPI and
+  final tags to PyPI. See [`docs/RELEASING.md`](RELEASING.md).
+
+### 🏗️ Build & CI
+
+- **Continuous integration.** A GitHub Actions test matrix (Linux / Windows /
+  macOS × Python 3.11–3.13, with one leg that installs the optional packages so
+  the real-behaviour tests run) and a non-blocking `ruff` lint gate run on every
+  push and pull request.
+- **Automated releases.** A tag-triggered workflow builds the universal wheel +
+  sdist, the Windows `star.pyz`, and the Windows `star.exe`, and publishes a
+  GitHub Release with generated notes.
+- **The dictation stack is now opt-in for the Windows binary.** The multi-GB
+  Whisper + PyTorch dictation stack is no longer bundled into `star.exe` by
+  default — it dominated the build time and artifact size, and (in CI) the
+  download time. Build the lean, fast binary as usual; pass `-Dictation` to
+  `tools/build-windows.ps1` (or run the release workflow with `dictation: true`)
+  to bundle offline voice dictation. A lean `star.exe` reports dictation as
+  unavailable in `star --deps` and is otherwise fully functional.
+
+---
+
 ## [0.1.7] 2026-06-23
 
 ### ✨ Added

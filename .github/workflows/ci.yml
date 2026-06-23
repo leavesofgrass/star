@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel superseded runs on the same ref so a force-push doesn't pile up jobs.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # CI runners have no display.  Qt's offscreen platform plugin lets any widget
+  # code (and the offscreen GUI smoke tests) run headlessly.  Harmless on
+  # Windows/macOS, required on Linux.
+  QT_QPA_PLATFORM: offscreen
+  # Keep stdout UTF-8 everywhere so the --deps report (and any Unicode in test
+  # output) never trips the Windows cp1252 console.
+  PYTHONUTF8: "1"
+
+jobs:
+  test:
+    name: test (${{ matrix.os }}, py${{ matrix.python }}${{ matrix.extras && ', extras' || '' }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      # star is pure-Python and cross-platform.  The matrix covers the min and
+      # max supported Python on every OS, fills in 3.12 on the cheap Linux
+      # runner, and runs one Linux leg with the optional packages installed so
+      # the "real behaviour" tests run instead of only the skip paths.
+      matrix:
+        include:
+          - { os: ubuntu-latest,  python: "3.11" }
+          - { os: ubuntu-latest,  python: "3.12" }
+          - { os: ubuntu-latest,  python: "3.13", extras: true }
+          - { os: windows-latest, python: "3.11" }
+          - { os: windows-latest, python: "3.13" }
+          - { os: macos-latest,   python: "3.13" }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+
+      - name: Install Qt runtime libraries (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libegl1 libgl1 libxkbcommon0 libdbus-1-3 libxcb-cursor0
+
+      - name: Install star (with test extra)
+        run: python -m pip install -e ".[test]"
+
+      - name: Install pure-Python optional features (extras leg)
+        if: matrix.extras
+        # These extras have no native build step, so they install cleanly on any
+        # runner and unlock the real-behaviour tests for translation, feeds, the
+        # difficult-word overlay, summarisation, flashcards, and spell check.
+        run: >
+          python -m pip install
+          deep-translator feedparser wordfreq sumy genanki pyspellchecker
+
+      - name: Run the test suite
+        run: python -m pytest
+
+  lint:
+    name: lint (ruff)
+    runs-on: ubuntu-latest
+    # Non-blocking for now: the gate is established here and tightened later
+    # (roadmap), so a style nit never walls a correctness-green PR.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install ruff
+        run: python -m pip install ruff
+
+      - name: Lint
+        # ruff honours .gitignore, so the vendored/build/venv trees are skipped.
+        run: ruff check .

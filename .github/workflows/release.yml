@@ -1,0 +1,159 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  # Manual runs can opt into the heavy dictation build; tag pushes stay lean.
+  workflow_dispatch:
+    inputs:
+      dictation:
+        description: "Bundle the offline dictation stack (Whisper + Torch) into star.exe — large/slow"
+        type: boolean
+        default: false
+
+# The release job creates a GitHub Release and uploads the built artifacts.
+permissions:
+  contents: write
+
+env:
+  QT_QPA_PLATFORM: offscreen
+  PYTHONUTF8: "1"
+
+jobs:
+  # ── Universal wheel + sdist ────────────────────────────────────────────────
+  # star is pure Python, so the wheel is `py3-none-any` and one build serves
+  # every platform.  twine check guards the long-description rendering ahead of
+  # the eventual PyPI publish (roadmap item 2).
+  wheel:
+    name: Build wheel + sdist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: python -m pip install build twine
+      - run: python -m build
+      - run: python -m twine check dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel
+          path: dist/*
+
+  # ── Windows fat zipapp (star.pyz) ──────────────────────────────────────────
+  # build_zipapp.py installs the [all] extras into a staging tree and runs its
+  # own smoke test (imports PyQt6 + PyMuPDF from the extraction cache).  The .pyz
+  # is platform-specific because it carries compiled extensions, so it is built
+  # per-OS; macOS/Linux .pyz builds arrive with roadmap item 3.
+  windows-pyz:
+    name: Build Windows star.pyz
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Build star.pyz
+        run: python build_zipapp.py
+      - name: Stamp platform into the filename
+        shell: bash
+        run: mv dist/star.pyz dist/star-windows-x64.pyz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pyz-windows
+          path: dist/star-windows-x64.pyz
+
+  # ── Windows self-contained binary (star.exe) ───────────────────────────────
+  # tools/build-windows.ps1 creates an isolated venv, installs the runtime deps,
+  # stages the offline NLTK data, and runs PyInstaller.
+  #
+  # By default this builds a LEAN exe: the multi-GB Whisper/Torch dictation stack
+  # is OPT-IN (it dominates build time and size).  A manual workflow_dispatch run
+  # with `dictation: true` adds `-Dictation` to bundle it; tag pushes stay lean.
+  #
+  # Note: this also produces an exe WITHOUT the vendored native tools (ffmpeg,
+  # Tesseract, liblouis, Pandoc, DECtalk).  To ship a fully self-contained exe,
+  # run `python tools/build-vendor.py` before the build step (needs 7-Zip on
+  # PATH) — see docs/RELEASING.md.
+  windows-exe:
+    name: Build Windows star.exe
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Build star.exe
+        shell: pwsh
+        run: |
+          if ('${{ inputs.dictation }}' -eq 'true') {
+            Write-Host 'Building star.exe WITH the dictation stack (large/slow)'
+            ./tools/build-windows.ps1 -Dictation
+          } else {
+            Write-Host 'Building lean star.exe (no Torch/Whisper)'
+            ./tools/build-windows.ps1
+          }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: exe-windows
+          path: dist/star.exe
+
+  # ── Publish to TestPyPI (pre-release tags: vX.Y.Z-rcN) ─────────────────────
+  # Uses PyPI trusted publishing (OIDC) — no API token is stored.  The repo must
+  # be registered as a trusted publisher for the project and a `testpypi`
+  # environment configured; see docs/RELEASING.md.  Skipped on manual runs.
+  publish-testpypi:
+    name: Publish to TestPyPI
+    needs: [wheel]
+    if: startsWith(github.ref, 'refs/tags/v') && contains(github.ref_name, '-')
+    runs-on: ubuntu-latest
+    environment: testpypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  # ── Publish to PyPI (final tags: vX.Y.Z) ───────────────────────────────────
+  publish-pypi:
+    name: Publish to PyPI
+    needs: [wheel]
+    if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  # ── Publish the GitHub Release ─────────────────────────────────────────────
+  release:
+    name: Publish GitHub Release
+    needs: [wheel, windows-pyz, windows-exe]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: List collected artifacts
+        run: ls -R artifacts
+      - name: Create / update the release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true

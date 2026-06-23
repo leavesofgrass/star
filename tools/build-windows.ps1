@@ -23,8 +23,19 @@
 .PARAMETER SkipInstall
     Do not run pip install; just run PyInstaller (deps assumed present).
 
+.PARAMETER Dictation
+    Bundle the offline dictation / transcription stack (openai-whisper + Torch +
+    the Whisper "base" model) into the exe.  This is OPT-IN because it is
+    multiple GB and dominates the build time and artifact size.  Without it the
+    exe is small and fast to build, and star simply reports dictation as
+    unavailable in `star --deps`; every other feature works unchanged.
+
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File build-windows.ps1
+
+.EXAMPLE
+    # Full build with offline voice dictation bundled (large, slow):
+    powershell -ExecutionPolicy Bypass -File build-windows.ps1 -Dictation
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File build-windows.ps1 -UseCurrentEnv -SkipInstall
@@ -33,7 +44,8 @@
 param(
     [switch]$UseCurrentEnv,
     [switch]$Ocr,
-    [switch]$SkipInstall
+    [switch]$SkipInstall,
+    [switch]$Dictation
 )
 
 $ErrorActionPreference = "Stop"
@@ -88,11 +100,6 @@ if (-not $SkipInstall) {
         # watcher still works via directory polling, but watchdog gives real
         # filesystem events.
         "watchdog",
-        # Dictation / transcription (bundled so the feature works out of the
-        # box).  openai-whisper pulls in torch, numba, tiktoken, etc.; this is
-        # a multi-GB install by design.  sounddevice provides mic capture.
-        "openai-whisper",
-        "sounddevice",
         # Study & writing aids (bundled so they work in star.exe with no extra
         # install): sumy = document summarization, genanki = Anki flashcard
         # export, pyspellchecker = edit-mode spell checking, deep-translator =
@@ -107,6 +114,15 @@ if (-not $SkipInstall) {
     )
     if ($Ocr) { $deps += @("pytesseract", "PyMuPDF", "Pillow") }
 
+    # Dictation / transcription is OPT-IN (-Dictation): openai-whisper pulls in
+    # torch, numba, tiktoken, etc. — a multi-GB install that dominates build
+    # time and size.  Omitted by default to keep the exe small and the build
+    # fast; star reports dictation as unavailable until installed.
+    if ($Dictation) {
+        Info "Including offline dictation stack (openai-whisper + Torch) -- large/slow build"
+        $deps += @("openai-whisper", "sounddevice")
+    }
+
     # When the Tesseract engine has been vendored for the self-contained
     # build (see build-vendor.py), its Python wrappers must be bundled too,
     # so OCR actually works in the resulting star.exe.
@@ -120,14 +136,16 @@ if (-not $SkipInstall) {
     Ok "Dependencies installed"
 }
 
-# ── Stage the Whisper model (offline dictation) ─────────────────────────────
+# ── Stage the Whisper model (offline dictation) — only when -Dictation ──────
 # Bundle the "base" model so transcription/dictation needs no first-run
 # download.  star.spec picks it up from build\whisper_cache\whisper\base.pt.
-$model = Join-Path $root "build\whisper_cache\whisper\base.pt"
-if (-not (Test-Path $model)) {
-    Info "Staging Whisper 'base' model for offline dictation (~140 MB)"
-    $env:STAR_MODEL_ROOT = Join-Path $root "build\whisper_cache\whisper"
-    & $py -c "import os,whisper; r=os.environ['STAR_MODEL_ROOT']; os.makedirs(r,exist_ok=True); whisper._download(whisper._MODELS['base'], r, False); print('Whisper base model staged')" | Out-Host
+if ($Dictation) {
+    $model = Join-Path $root "build\whisper_cache\whisper\base.pt"
+    if (-not (Test-Path $model)) {
+        Info "Staging Whisper 'base' model for offline dictation (~140 MB)"
+        $env:STAR_MODEL_ROOT = Join-Path $root "build\whisper_cache\whisper"
+        & $py -c "import os,whisper; r=os.environ['STAR_MODEL_ROOT']; os.makedirs(r,exist_ok=True); whisper._download(whisper._MODELS['base'], r, False); print('Whisper base model staged')" | Out-Host
+    }
 }
 
 # ── Stage NLTK punkt data (offline document summarization) ──────────────────
@@ -141,7 +159,15 @@ if (-not (Test-Path (Join-Path $nltkData "tokenizers\punkt_tab"))) {
 }
 
 # ── Build ───────────────────────────────────────────────────────────────────
-Info "Running PyInstaller (bundling Torch/Whisper makes this slow + large)"
+# Tell star.spec whether to bundle the dictation stack.  Set explicitly each way
+# so a stale env var from a previous shell can never leak into a lean build.
+if ($Dictation) {
+    $env:STAR_BUNDLE_DICTATION = "1"
+    Info "Running PyInstaller WITH the dictation stack (Torch/Whisper) -- slow + large"
+} else {
+    Remove-Item Env:STAR_BUNDLE_DICTATION -ErrorAction SilentlyContinue
+    Info "Running PyInstaller (lean build; pass -Dictation to bundle Torch/Whisper)"
+}
 & $py -m PyInstaller --clean --noconfirm star.spec | Out-Host
 
 $exe = Join-Path $root "dist\star.exe"

@@ -1,0 +1,5 @@
+# Keep CI workflows and shell scripts LF so they run correctly on Linux/macOS
+# runners regardless of a committer's core.autocrlf setting.
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.sh   text eol=lf

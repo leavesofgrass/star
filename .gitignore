@@ -18,3 +18,7 @@ build/
 __pycache__/
 *.py[codz]
 *.egg-info/
+
+# Local planning / roadmap docs — working notes, not for the public repo.
+Suggestions.md
+Prompts.md

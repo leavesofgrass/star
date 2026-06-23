@@ -34,6 +34,16 @@ _here = _os.path.dirname(_os.path.abspath(SPEC))
 _console = bool(_os.environ.get("STAR_CONSOLE"))
 _exe_name = "star-console" if _console else "star"
 
+# Whether to bundle the offline dictation / transcription stack (openai-whisper
+# + Torch + numba/llvmlite/tiktoken/sounddevice + the Whisper model).  That
+# stack is multiple GB and dominates both the build time and the artifact size,
+# so it is OPT-IN: set ``STAR_BUNDLE_DICTATION=1`` to include it.  Off by default
+# keeps the exe small and the automated release build fast and reliable.  See
+# ``tools/build-windows.ps1 -Dictation`` and ``docs/RELEASING.md``.  star's code
+# guards the whisper/sounddevice imports, so a lean exe simply reports dictation
+# as unavailable in ``star --deps`` and every other feature works unchanged.
+_bundle_dictation = bool(_os.environ.get("STAR_BUNDLE_DICTATION"))
+
 # ── Bundled data files ──────────────────────────────────────────────────────
 # README.md is opened in-app by the Help command (F1), which resolves it via
 # Path(__file__).parent.  __file__ now lives inside the star/ package, so the
@@ -71,21 +81,22 @@ for _pkg in ("pdfminer", "docx", "pptx", "odf", "openpyxl"):
     except Exception:
         pass
 
-# ── Dictation / transcription stack (Whisper + Torch) ───────────────────────
-# Bundle openai-whisper and its full dependency stack so the dictation and
-# audio-transcription features work out of the box on a clean Windows machine
-# (no pip, no model download).  This is large (Torch alone is multiple GB) but
-# is intentional: dictation should not require a separate install.  collect_all
-# pulls each package's submodules, data files, and native libraries (e.g. the
-# Torch DLLs, the llvmlite LLVM DLL, the sounddevice PortAudio DLL).
-for _pkg in ("whisper", "torch", "numba", "llvmlite", "tiktoken", "sounddevice"):
-    try:
-        _d, _b, _h = collect_all(_pkg)
-        datas += _d
-        binaries += _b
-        hiddenimports += _h
-    except Exception:
-        pass
+# ── Dictation / transcription stack (Whisper + Torch) — OPT-IN ──────────────
+# When enabled, bundle openai-whisper and its full dependency stack so the
+# dictation and audio-transcription features work out of the box on a clean
+# Windows machine (no pip, no model download).  This is large (Torch alone is
+# multiple GB); collect_all pulls each package's submodules, data files, and
+# native libraries (the Torch DLLs, the llvmlite LLVM DLL, the sounddevice
+# PortAudio DLL).  Skipped by default — see _bundle_dictation above.
+if _bundle_dictation:
+    for _pkg in ("whisper", "torch", "numba", "llvmlite", "tiktoken", "sounddevice"):
+        try:
+            _d, _b, _h = collect_all(_pkg)
+            datas += _d
+            binaries += _b
+            hiddenimports += _h
+        except Exception:
+            pass
 
 # ── Study & writing aids (summarize / flashcards / spell check / translate /
 #    feeds / difficult-word overlay) ──────────────────────────────────────────
@@ -118,9 +129,11 @@ for _pkg in (
 # first launch.  tools/build-windows.ps1 (or build-vendor flow) stages it under
 # build/whisper_cache/whisper/base.pt; the runtime hook points Whisper's cache
 # (XDG_CACHE_HOME) at <bundle>/whisper_cache so load_model("base") finds it.
-_whisper_model = _os.path.join(_here, "build", "whisper_cache", "whisper", "base.pt")
-if _os.path.isfile(_whisper_model):
-    datas.append((_whisper_model, "whisper_cache/whisper"))
+# Only meaningful when the dictation stack is bundled (opt-in).
+if _bundle_dictation:
+    _whisper_model = _os.path.join(_here, "build", "whisper_cache", "whisper", "base.pt")
+    if _os.path.isfile(_whisper_model):
+        datas.append((_whisper_model, "whisper_cache/whisper"))
 
 # Bundle NLTK's punkt sentence-tokenizer data so document summarization works
 # offline (sumy's Tokenizer needs it, and otherwise downloads it on first use).
@@ -162,6 +175,23 @@ try:
 except Exception:
     pass
 
+_excludes = [
+    # Coqui TTS is a heavy, optional neural backend unrelated to dictation;
+    # Windows uses the built-in SAPI5 voices via pyttsx3.
+    "TTS",
+    "tensorflow",
+    "tkinter",
+    # Only one Qt binding is needed; star prefers PyQt6.  Excluding PyQt5
+    # avoids bundling a second, unused Qt.
+    "PyQt5",
+]
+if not _bundle_dictation:
+    # Lean (default) build: explicitly exclude the dictation stack so it is
+    # never pulled in transitively — star imports whisper/sounddevice under
+    # guarded try/except, and PyInstaller would otherwise follow those imports
+    # and bundle multi-GB Torch if it happened to be installed in the build env.
+    _excludes += ["whisper", "torch", "numba", "llvmlite", "tiktoken", "sounddevice"]
+
 a = Analysis(
     ["run_star.py"],
     pathex=[_here],
@@ -171,16 +201,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[_os.path.join("tools", "rthook_star.py")],
-    excludes=[
-        # Coqui TTS is a heavy, optional neural backend unrelated to dictation;
-        # Windows uses the built-in SAPI5 voices via pyttsx3.
-        "TTS",
-        "tensorflow",
-        "tkinter",
-        # Only one Qt binding is needed; star prefers PyQt6.  Excluding PyQt5
-        # avoids bundling a second, unused Qt.
-        "PyQt5",
-    ],
+    excludes=_excludes,
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,

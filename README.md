@@ -1,6 +1,8 @@
 # ⭐ star — Speaking Terminal Access Reader
 
-> **Version 0.1.7** — *star* is an accessible, **GUI-first** document reader with built-in text-to-speech: it opens PDFs, Word/EPUB/PowerPoint, web pages, spreadsheets and more, reads them aloud, and highlights each word as it is spoken. **New in this release:** **document translation** — translate the open document into 15 languages with no API key (**Tools ▸ Translate Document**, `Ctrl+Shift+X`); **RSS / Atom feed reading** — open a feed and read any article in place (**File ▸ Open Feed**, `Ctrl+Shift+M`); a **difficult-word overlay** — tint uncommon academic vocabulary before you read (**View ▸ Reading Aids ▸ Highlight Difficult Words**, `Ctrl+Alt+O`); and **`star --deps`**, a one-command report of which optional dependencies are installed and how to add the rest. These join earlier work — document summarization, Anki flashcard export, spell-check in edit mode, playback-synced highlighting via in-process eSpeak-NG, batch conversion, and hot-folder watching — with the **Qt GUI as the primary interface** and a keyboard shortcut for every command. The keyboard-driven terminal UI remains available with `--tui`.
+[![CI](https://github.com/leavesofgrass/star/actions/workflows/ci.yml/badge.svg)](https://github.com/leavesofgrass/star/actions/workflows/ci.yml)
+
+> **Version 0.1.8** — *star* is an accessible, **GUI-first** document reader with built-in text-to-speech: it opens PDFs, Word/EPUB/PowerPoint, web pages, spreadsheets and more, reads them aloud, and highlights each word as it is spoken. **Now on PyPI:** `pip install star-reader` (or `pipx install star-reader`), with automated **CI** testing every change across Windows, macOS, and Linux and one-command release builds. **Recent reader features:** **document translation** — translate the open document into 15 languages with no API key (**Tools ▸ Translate Document**, `Ctrl+Shift+X`); **RSS / Atom feed reading** — open a feed and read any article in place (**File ▸ Open Feed**, `Ctrl+Shift+M`); a **difficult-word overlay** — tint uncommon academic vocabulary before you read (**View ▸ Reading Aids ▸ Highlight Difficult Words**, `Ctrl+Alt+O`); and **`star --deps`**, a one-command report of which optional dependencies are installed and how to add the rest. These join earlier work — document summarization, Anki flashcard export, spell-check in edit mode, playback-synced highlighting via in-process eSpeak-NG, batch conversion, and hot-folder watching — with the **Qt GUI as the primary interface** and a keyboard shortcut for every command. The keyboard-driven terminal UI remains available with `--tui`.
 
 A lightweight, installable Python application that reads your documents aloud while you follow along — one `pip install` (or a single-file `star.pyz`) away, with no cloud account and no internet required.
 
@@ -27,7 +29,7 @@ A lightweight, installable Python application that reads your documents aloud wh
 | User text highlights | Select any passage and highlight it in yellow, green, cyan, pink, or orange; persists across sessions and exports to PDF |
 | Annotations / notes panel | Add tagged notes anywhere in a document via a dock panel (Qt) or pager (TUI); full-text + `#tag` search; persists per-document; exports to Markdown, JSON, BibTeX, or RIS |
 | Citation manager | Import/export BibTeX, RIS, and CSL-JSON; link citations to notes |
-| Voice dictation & transcription | Transcribe audio files and dictate notes by voice via Whisper; **bundled (offline) in the self-contained Windows binary**, optional from source |
+| Voice dictation & transcription | Transcribe audio files and dictate notes by voice via Whisper; bundled offline in the Windows binary built with `-Dictation` (opt-in — off by default), optional from source |
 | Keyboard cheat sheet | Built-in shortcut reference (`?` in TUI, Help → Keyboard Shortcuts in Qt); GUI/TUI bindings aligned |
 | Table of Contents panel | Auto-built from document headings in Qt mode; click any entry to jump there |
 | EPUB NCX / NAV navigation | Parses EPUB 2 NCX and EPUB 3 NAV documents for chapter-level navigation |
@@ -79,7 +81,19 @@ A lightweight, installable Python application that reads your documents aloud wh
 
 `star` runs with nothing beyond the Python standard library. Every optional package below unlocks additional file formats or features. Install only what you need.
 
-### Easiest: the installer scripts
+### Easiest: install from PyPI
+
+star is published on PyPI, so on any platform with Python 3.11+:
+
+```bash
+pipx install star-reader      # isolated app install (recommended)
+# or
+pip install star-reader       # into the current environment
+```
+
+Then run `star` (or `python -m star`). This pulls the GUI, TTS, and common document loaders; add optional features with extras — `pip install "star-reader[all]"` for everything, or individual groups such as `star-reader[translate,vocab]`. Run `star --deps` to see what's installed and what each missing piece unlocks.
+
+### From a source checkout: the installer scripts
 
 The installer creates an isolated virtual environment (`.venv`) and pulls in the GUI, TTS, and common document-format packages for your platform. It never modifies your system Python unless you pass `--no-venv`.
 
@@ -105,11 +119,11 @@ A single pure-Python wheel (`star_reader-<version>-py3-none-any.whl`) installs `
 
 ```bash
 # Recommended dependencies (Qt GUI + TTS + common formats) come with the wheel
-pip install star_reader-0.1.7-py3-none-any.whl
+pip install star_reader-0.1.8-py3-none-any.whl
 
 # Or pull in every optional Python feature (OCR, ODT/XLSX, Pandoc, Braille,
 # transcription, audio conversion):
-pip install "star_reader-0.1.7-py3-none-any.whl[all]"
+pip install "star_reader-0.1.8-py3-none-any.whl[all]"
 ```
 
 The wheel then exposes a `star` console command and `python -m star`:
@@ -193,7 +207,7 @@ Python dependency-install step, not the system-dependency story.
 
 ### External Binary Dependencies
 
-> **Self-contained Windows binary:** since v.0.1.3, the portable `star.exe` bundles **ffmpeg**, the **Tesseract** engine + English data, **liblouis** + tables, **Pandoc**, the **DECtalk** engine (`DECtalk.dll` + dictionary), **eSpeak-NG** (`libespeak-ng.dll` + data, driven in-process via ctypes for playback-synced word highlighting), and **Whisper** (with PyTorch and the `base` speech-recognition model) for offline voice dictation & transcription, so none of the tools below need to be installed on the target machine.
+> **Self-contained Windows binary:** since v.0.1.3, the portable `star.exe` bundles **ffmpeg**, the **Tesseract** engine + English data, **liblouis** + tables, **Pandoc**, the **DECtalk** engine (`DECtalk.dll` + dictionary), and **eSpeak-NG** (`libespeak-ng.dll` + data, driven in-process via ctypes for playback-synced word highlighting), so none of the tools below need to be installed on the target machine. Offline **Whisper** voice dictation & transcription (PyTorch + the `base` model) is **opt-in** — build with `-Dictation` — because that stack is multiple GB; the default binary is lean.
 
 > **macOS / Linux:** these engines come from your system package manager. Run **`python tools/install_native.py`** to install whatever is missing (ffmpeg, Tesseract + English data, liblouis, Pandoc, and eSpeak-NG on Linux) via Homebrew / apt / dnf / pacman / zypper. Add `--dry-run` to preview the commands or name specific engines (e.g. `python tools/install_native.py ffmpeg pandoc`).
 
@@ -1162,7 +1176,7 @@ pip install sounddevice numpy       # plus this for microphone dictation
 
 `faster-whisper` is also supported as a lighter alternative. The model size is configurable with the `whisper_model` setting (`tiny`, `base`, `small`, `medium`, `large`). When Whisper is not installed, these menu items simply explain how to enable them — nothing else is affected.
 
-> **Bundled in the self-contained Windows binary** — the `star.exe` ships `openai-whisper` (with its PyTorch backend), `sounddevice` for microphone capture, and the Whisper **`base` model**, so transcription and dictation work offline with no install and no first-run download. This is the single biggest contributor to the binary's size (see [`BUILD.md`](BUILD.md)).
+> **Optional in the Windows binary (`-Dictation`)** — when built with `-Dictation`, the `star.exe` ships `openai-whisper` (with its PyTorch backend), `sounddevice` for microphone capture, and the Whisper **`base` model**, so transcription and dictation work offline with no install and no first-run download. It is **off by default** because that stack is the single biggest contributor to the binary's size (see [`BUILD.md`](BUILD.md)).
 
 ---
 

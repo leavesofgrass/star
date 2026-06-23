@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "star-reader"
-version = "0.1.7"
+version = "0.1.8rc1"
 description = "star — Speaking Terminal Access Reader: an accessible document reader with built-in text-to-speech"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -50,6 +50,12 @@ dependencies = [
     # import is still guarded (the Qt GUI works, only the --tui mode is lost).
     "windows-curses; sys_platform == 'win32'",
 ]
+
+[project.urls]
+Homepage = "https://github.com/leavesofgrass/star"
+Repository = "https://github.com/leavesofgrass/star"
+Changelog = "https://github.com/leavesofgrass/star/blob/main/star/CHANGELOG.md"
+Issues = "https://github.com/leavesofgrass/star/issues"
 
 [project.optional-dependencies]
 ocr = ["pytesseract", "pymupdf", "Pillow"]
@@ -103,3 +109,24 @@ include = ["star*"]
 
 [tool.setuptools.package-data]
 star = ["README.md", "LICENSE", "CHANGELOG.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+# ruff honours .gitignore, so the vendored/build/venv trees are skipped.
+
+[tool.ruff.lint]
+# star deliberately uses `from ._runtime import *` as a shared-import hub, which
+# trips the star-import checks (F403/F405).  Line length (E501) is enforced by
+# convention/review rather than the (currently non-blocking) lint gate.
+ignore = ["F403", "F405", "E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# _runtime.py is the shared-import hub: it imports stdlib + optional packages
+# and re-exports them to every module via a dynamically-built __all__, which
+# ruff cannot see statically, so every re-export looks like an unused import.
+"star/_runtime.py" = ["F401"]
