@@ -22,3 +22,6 @@ __pycache__/
 # Local planning / roadmap docs — working notes, not for the public repo.
 Suggestions.md
 Prompts.md
+
+# Maintainer-only docs (release runbook, etc.) — kept local, not public.
+docs/

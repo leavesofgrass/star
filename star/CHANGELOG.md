@@ -16,7 +16,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
   (or `pipx install star-reader`) — no manual wheel download. The release
   workflow publishes the wheel and sdist via PyPI **trusted publishing** (OIDC,
   no stored API token): pre-release tags (e.g. `v0.1.8-rc1`) go to TestPyPI and
-  final tags to PyPI. See [`docs/RELEASING.md`](RELEASING.md).
+  final tags to PyPI.
 
 ### 🏗️ Build & CI
 
