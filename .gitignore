@@ -23,5 +23,6 @@ __pycache__/
 Suggestions.md
 Prompts.md
 
-# Maintainer-only docs (release runbook, etc.) — kept local, not public.
-docs/
+# The docs/ tree is the public documentation set and is tracked in git
+# (installation, usage_guide, features, configuration, architecture, and the
+# RELEASING runbook).  Do NOT ignore it.
