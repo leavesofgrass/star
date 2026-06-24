@@ -1,8 +1,15 @@
 <#
 .SYNOPSIS
-    Build a portable, single-file Windows binary of star (dist\star.exe).
+    [DEPRECATED] Build a portable, single-file Windows binary of star (dist\star.exe).
 
 .DESCRIPTION
+    DEPRECATED MANUAL FALLBACK.  The primary, stable distribution artifact is now
+    the pure-Python wheel (`python -m build`, published to PyPI — install with
+    `pipx install star-reader`).  This PyInstaller path is retained only for
+    maintainers who specifically need a self-contained .exe; it is no longer built
+    by CI on tag pushes, and it requires the explicit -AllowDeprecatedExe opt-in
+    below before it will run.
+
     Wraps PyInstaller using star.spec.  By default it creates an isolated
     build virtual environment (.venv-build), installs PyInstaller plus the
     recommended runtime dependencies, and produces a windowed, onefile
@@ -10,6 +17,11 @@
 
     The resulting dist\star.exe is self-contained and portable: copy it
     anywhere and double-click to launch the GUI.
+
+.PARAMETER AllowDeprecatedExe
+    Required opt-in acknowledging that the .exe build is deprecated.  Without it
+    (or the STAR_ALLOW_EXE=1 environment variable) this script refuses to run and
+    points you at the wheel build instead.
 
 .PARAMETER UseCurrentEnv
     Skip creating .venv-build and build with the currently active Python
@@ -46,10 +58,26 @@ param(
     [switch]$UseCurrentEnv,
     [switch]$Ocr,
     [switch]$SkipInstall,
-    [switch]$Lean
+    [switch]$Lean,
+    [switch]$AllowDeprecatedExe
 )
 
 $ErrorActionPreference = "Stop"
+
+# ── Deprecation gate ──────────────────────────────────────────────────────────
+# The wheel is the primary, stable artifact.  The .exe is a manual fallback only,
+# so require an explicit opt-in to avoid surprising anyone who runs this by habit.
+if (-not $AllowDeprecatedExe -and $env:STAR_ALLOW_EXE -ne "1") {
+    Write-Host "ERR The self-contained star.exe build is DEPRECATED." -ForegroundColor Red
+    Write-Host ""
+    Write-Host "The primary distribution artifact is the pure-Python wheel:" -ForegroundColor Yellow
+    Write-Host "    python -m build           # -> dist/star_reader-<version>-py3-none-any.whl"
+    Write-Host "    pipx install star-reader  # or: pip install star-reader"
+    Write-Host ""
+    Write-Host "If you really need the deprecated .exe, re-run with -AllowDeprecatedExe" -ForegroundColor Yellow
+    Write-Host "(or set STAR_ALLOW_EXE=1).  See star/BUILD.md for details."
+    exit 1
+}
 # This script lives in tools/, but the build (star.spec, vendor/, dist/) is
 # rooted at the project directory one level up.  Operate from there.
 $root = Split-Path -Parent $PSScriptRoot

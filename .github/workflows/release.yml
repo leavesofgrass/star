@@ -7,8 +7,16 @@ on:
   # a fast, lean exe (no Whisper/Torch) for quick checks.
   workflow_dispatch:
     inputs:
+      build_pyz:
+        description: "Also build the Windows star.pyz fat zipapp (not built on tag pushes)"
+        type: boolean
+        default: false
+      build_exe:
+        description: "Also build the DEPRECATED self-contained Windows star.exe (manual fallback only)"
+        type: boolean
+        default: false
       lean:
-        description: "Build a LEAN star.exe (skip the Whisper + Torch dictation stack) — fast/small"
+        description: "If building the deprecated exe, make it LEAN (skip the Whisper + Torch dictation stack) — fast/small"
         type: boolean
         default: false
 
@@ -42,13 +50,19 @@ jobs:
           name: wheel
           path: dist/*
 
-  # ── Windows fat zipapp (star.pyz) ──────────────────────────────────────────
+  # ── Windows fat zipapp (star.pyz) — manual opt-in only ─────────────────────
+  # The wheel (above) is the only automated release artifact.  The .pyz is NOT
+  # built on tag pushes and is NOT attached to the GitHub Release; users who want
+  # one build it themselves with `python build_zipapp.py` (see docs/installation.md).
+  # Build it here only via a manual workflow_dispatch run with `build_pyz: true`.
+  #
   # build_zipapp.py installs the [all] extras into a staging tree and runs its
   # own smoke test (imports PyQt6 + PyMuPDF from the extraction cache).  The .pyz
   # is platform-specific because it carries compiled extensions, so it is built
-  # per-OS; macOS/Linux .pyz builds arrive with roadmap item 3.
+  # per-OS.
   windows-pyz:
-    name: Build Windows star.pyz
+    name: Build Windows star.pyz (manual)
+    if: github.event_name == 'workflow_dispatch' && inputs.build_pyz
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -66,21 +80,23 @@ jobs:
           name: pyz-windows
           path: dist/star-windows-x64.pyz
 
-  # ── Windows self-contained binary (star.exe) ───────────────────────────────
+  # ── Windows self-contained binary (star.exe) — DEPRECATED manual fallback ───
+  # The wheel (above) is the primary, stable artifact.  The PyInstaller star.exe
+  # is retained only as a manual fallback: it is NOT built on tag pushes and is
+  # NOT attached to the GitHub Release.  Build it only via a manual
+  # workflow_dispatch run with `build_exe: true` (optionally `lean: true`).
+  #
   # tools/build-windows.ps1 creates an isolated venv, installs the runtime deps,
-  # stages the offline NLTK data, and runs PyInstaller.
+  # stages the offline NLTK data, and runs PyInstaller.  It also requires the
+  # explicit -AllowDeprecatedExe opt-in (passed below).
   #
-  # By default this builds the FULL exe: the multi-GB Whisper/Torch dictation
-  # stack is bundled so Windows users get offline dictation out of the box.  A
-  # manual workflow_dispatch run with `lean: true` adds `-Lean` for a fast, small
-  # build with no dictation; tag pushes always build full.
-  #
-  # Note: this also produces an exe WITHOUT the vendored native tools (ffmpeg,
+  # Note: this produces an exe WITHOUT the vendored native tools (ffmpeg,
   # Tesseract, liblouis, Pandoc, DECtalk).  To ship a fully self-contained exe,
   # run `python tools/build-vendor.py` before the build step (needs 7-Zip on
   # PATH) — see docs/RELEASING.md.
   windows-exe:
-    name: Build Windows star.exe
+    name: Build Windows star.exe (deprecated)
+    if: github.event_name == 'workflow_dispatch' && inputs.build_exe
     runs-on: windows-latest
     timeout-minutes: 120
     steps:
@@ -89,15 +105,15 @@ jobs:
         with:
           python-version: "3.13"
           cache: pip
-      - name: Build star.exe
+      - name: Build star.exe (deprecated manual fallback)
         shell: pwsh
         run: |
           if ('${{ inputs.lean }}' -eq 'true') {
             Write-Host 'Building LEAN star.exe (no Torch/Whisper)'
-            ./tools/build-windows.ps1 -Lean
+            ./tools/build-windows.ps1 -Lean -AllowDeprecatedExe
           } else {
             Write-Host 'Building full star.exe with offline dictation (Torch/Whisper)'
-            ./tools/build-windows.ps1
+            ./tools/build-windows.ps1 -AllowDeprecatedExe
           }
       - uses: actions/upload-artifact@v4
         with:
@@ -147,9 +163,13 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@release/v1
 
   # ── Publish the GitHub Release ─────────────────────────────────────────────
+  # The automated release is wheel + sdist only (published to PyPI above and
+  # attached here).  Neither the star.pyz nor the deprecated star.exe is a
+  # dependency or attached to releases — build those manually if you need them
+  # (see windows-pyz / windows-exe above and docs/installation.md).
   release:
     name: Publish GitHub Release
-    needs: [wheel, windows-pyz, windows-exe]
+    needs: [wheel]
     runs-on: ubuntu-latest
     steps:
       - name: Download all build artifacts

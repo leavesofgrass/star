@@ -1,5 +1,25 @@
 # 🏗️ Building a Portable Windows Binary
 
+> ## ⚠️ Deprecated — manual fallback only
+>
+> **The pure-Python wheel is star's primary, stable distribution artifact.** Most
+> users should install from PyPI:
+>
+> ```bash
+> pipx install star-reader      # or: pip install star-reader
+> ```
+>
+> and maintainers should ship releases via the wheel + sdist that `python -m build`
+> produces (CI publishes these to PyPI automatically). See
+> [Building the cross-platform wheel](#building-the-cross-platform-wheel-recommended).
+>
+> The self-contained `star.exe` described below is **deprecated**: CI no longer
+> builds it on tag pushes and it is no longer attached to GitHub Releases. The
+> build path is retained only for maintainers who specifically need a single-file
+> Windows binary, and it now requires an explicit opt-in
+> (`tools/build-windows.ps1 -AllowDeprecatedExe`, or `STAR_ALLOW_EXE=1`). Prefer
+> the wheel unless you have a hard requirement for a no-Python-install binary.
+
 This guide produces a **single, self-contained `star.exe`** that runs on Windows
 machines with **no Python and no dependencies installed** — ideal for demoing
 star as a tool. The binary bundles the Python interpreter, the Qt GUI, the
@@ -26,7 +46,8 @@ From a Windows machine with Python 3.11+ and **7-Zip** installed:
 
 ```powershell
 python tools\build-vendor.py     # download ffmpeg + Tesseract + liblouis into vendor/
-powershell -ExecutionPolicy Bypass -File tools\build-windows.ps1
+# -AllowDeprecatedExe is required: the .exe is a deprecated manual fallback.
+powershell -ExecutionPolicy Bypass -File tools\build-windows.ps1 -AllowDeprecatedExe
 ```
 
 The result is **`dist\star.exe`**. Copy it anywhere and double-click to launch
@@ -312,10 +333,10 @@ are guarded, so the lean build still succeeds and the feature simply shows its
 
 ---
 
-## Cross-platform install: the wheel (macOS / Linux / Windows)
+## Building the cross-platform wheel (recommended)
 
-For distribution that is **not** a frozen single binary, build a normal Python
-wheel. Because `star` is pure Python, **one** wheel
+This is star's **primary, stable distribution artifact** and the path most
+maintainers and users should take. Because `star` is pure Python, **one** wheel
 (`star_reader-<version>-py3-none-any.whl`, tagged `py3-none-any`) installs on
 macOS, Linux, and Windows alike.
 
@@ -327,8 +348,8 @@ python -m build --wheel                    # writes dist/star_reader-<version>-p
 Install the resulting single file anywhere:
 
 ```bash
-pip install dist/star_reader-0.1.8-py3-none-any.whl          # recommended deps
-pip install "dist/star_reader-0.1.8-py3-none-any.whl[all]"    # every optional feature
+pip install dist/star_reader-0.1.9-py3-none-any.whl          # recommended deps
+pip install "dist/star_reader-0.1.9-py3-none-any.whl[all]"    # every optional feature
 ```
 
 The wheel provides a `star` console command and `python -m star`. Packaging is

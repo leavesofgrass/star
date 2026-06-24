@@ -1,5 +1,13 @@
 # -*- mode: python ; coding: utf-8 -*-
 #
+# DEPRECATED — manual fallback only.
+# The primary, stable distribution artifact is the pure-Python wheel
+# (`python -m build`, published to PyPI: `pipx install star-reader`).  This
+# PyInstaller spec is retained only for maintainers who specifically need a
+# self-contained .exe; CI no longer builds it on tag pushes.  Do not invoke it
+# directly — use `tools/build-windows.ps1 -AllowDeprecatedExe`, which sets up the
+# environment and stages the offline data this spec expects.  See BUILD.md.
+#
 # PyInstaller build spec for a portable, single-file Windows binary of star.
 #
 #   Build:   pyinstaller --clean star.spec
