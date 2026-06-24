@@ -1,10 +1,14 @@
-"""Command-line entry point and argument handling."""
+"""Command-line entry point and argument handling.
+
+Imports are branched by mode: only ``_runtime`` (cheap) and ``Settings`` load at
+import time.  The heavy stacks — the Qt GUI (``.gui``), the curses TUI
+(``.tui``), the document loaders (``.documents``), and the TTS manager
+(``.tts``) — are imported lazily inside the branch of :func:`main` that needs
+them, so ``--version`` / ``--deps`` / ``--list-themes`` stay nearly instant and a
+GUI launch never pays for the TUI stack (or vice versa).
+"""
 from ._runtime import *  # noqa: F401,F403
-from .documents import load_document
-from .gui import _run_qt_gui
 from .settings import Settings
-from .tts import TTSManager
-from .tui import THEME_NAMES, THEMES, StarApp
 
 
 # =============================================================================
@@ -36,7 +40,10 @@ def main() -> None:
         help="Force terminal UI mode even when Qt is available",
     )
     ap.add_argument(
-        "--theme", default="", help=f"Color theme: {', '.join(THEME_NAMES)}"
+        "--theme",
+        default="",
+        help="Initial color theme name (e.g. dark, light, contrast, phosphor; "
+        "see --list-themes)",
     )
     ap.add_argument(
         "--rate",
@@ -98,18 +105,25 @@ def main() -> None:
         return
 
     if args.list_themes:
+        from .tui import THEME_NAMES
+
         for name in THEME_NAMES:
             print(name)
         return
 
-    if args.theme and args.theme in THEMES:
-        settings["theme"] = args.theme
+    if args.theme:
+        from .tui import THEMES
+
+        if args.theme in THEMES:
+            settings["theme"] = args.theme
     if args.rate > 0:
         settings["tts_rate"] = args.rate
     if args.backend:
         settings["tts_backend"] = args.backend
 
     if args.list_voices:
+        from .tts import TTSManager
+
         mgr = TTSManager(settings)
         voices = mgr.list_voices()
         if voices:
@@ -120,6 +134,8 @@ def main() -> None:
         return
 
     if args.plain and args.file:
+        from .documents import load_document
+
         doc = load_document(args.file, settings)
         sys.stdout.write(doc.plain_text)
         sys.stdout.write("\n")
@@ -135,11 +151,16 @@ def main() -> None:
 
     # GUI is the default mode when Qt is available; use --tui to force terminal.
     # --gui keeps working as an explicit opt-in (and errors if Qt missing).
+    # The .gui / .tui stacks are imported lazily so only the chosen one loads.
     if args.gui:
+        from .gui import _run_qt_gui
+
         _run_qt_gui(settings, args.file)  # errors internally if _QT is None
         return
 
     if not args.tui and _QT:
+        from .gui import _run_qt_gui
+
         _run_qt_gui(settings, args.file)
         return
 
@@ -154,6 +175,8 @@ def main() -> None:
                 "Install windows-curses to enable --tui on Windows.",
                 file=sys.stderr,
             )
+            from .gui import _run_qt_gui
+
             _run_qt_gui(settings, args.file)
             return
         print(
@@ -166,6 +189,8 @@ def main() -> None:
         sys.exit(1)
 
     os.environ.setdefault("ESCDELAY", "25")
+
+    from .tui import StarApp
 
     def _tui(stdscr: "curses.window") -> None:
         app = StarApp(stdscr, settings, initial_path=args.file)

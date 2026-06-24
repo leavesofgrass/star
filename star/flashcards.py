@@ -10,12 +10,9 @@ front and the user's note (``note``) is the back.  The result is a standard
 
 from ._runtime import *  # noqa: F401,F403
 
-try:
-    import genanki
-
-    _GENANKI = True
-except ImportError:
-    _GENANKI = False
+# Detected cheaply; genanki is imported lazily by the functions below the first
+# time an Anki deck is exported.
+_GENANKI = _module_available("genanki")
 
 
 # A note type ("model") needs an id that is stable across exports so Anki
@@ -29,6 +26,8 @@ def _model() -> "genanki.Model":
     """Return star's shared Anki note type, building it on first use."""
     global _STAR_MODEL
     if _STAR_MODEL is None:
+        import genanki  # deferred from startup
+
         _STAR_MODEL = genanki.Model(
             _STAR_MODEL_ID,
             "star Annotation",
@@ -62,6 +61,8 @@ def export_anki_deck(annotations: List[Dict[str, Any]], title: str, path: str) -
     """
     if not _GENANKI:
         raise RuntimeError("Anki export requires genanki:\n    pip install genanki")
+    import genanki  # deferred from startup
+
     title = (title or "star Deck").strip() or "star Deck"
     deck = genanki.Deck(_deck_id(title), title)
     model = _model()

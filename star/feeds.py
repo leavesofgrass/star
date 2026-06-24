@@ -13,12 +13,9 @@ feed URL into that list.
 
 from ._runtime import *  # noqa: F401,F403
 
-try:
-    import feedparser
-
-    _FEEDPARSER = True
-except ImportError:
-    _FEEDPARSER = False
+# Detected cheaply; feedparser (which pulls in its own parsing stack) is imported
+# lazily by fetch_feed() the first time a feed is opened.
+_FEEDPARSER = _module_available("feedparser")
 
 
 # Cap the number of entries returned so a busy firehose feed cannot flood the
@@ -41,6 +38,8 @@ def fetch_feed(url: str) -> List[Dict[str, str]]:
         raise RuntimeError(
             "Feed reading requires feedparser:\n    pip install feedparser"
         )
+    import feedparser  # deferred: keeps its parsing stack off the startup path
+
     parsed = feedparser.parse((url or "").strip())
     entries: List[Dict[str, str]] = []
     for entry in parsed.entries[:_MAX_ENTRIES]:

@@ -14,12 +14,10 @@ in a document before speech begins.
 
 from ._runtime import *  # noqa: F401,F403
 
-try:
-    from wordfreq import zipf_frequency
-
-    _WORDFREQ = True
-except ImportError:
-    _WORDFREQ = False
+# wordfreq loads a sizeable frequency database at import time, so we detect it
+# cheaply with find_spec and defer the real import to find_difficult_words() —
+# the first (and only) place it is used.  This keeps it off the startup path.
+_WORDFREQ = _module_available("wordfreq")
 
 
 # Zipf ~4 is roughly the boundary of "rare"; 4.5 also catches the moderately
@@ -44,6 +42,8 @@ def find_difficult_words(text: str, threshold: float = DEFAULT_THRESHOLD) -> "se
     """
     if not _WORDFREQ or not text:
         return set()
+    from wordfreq import zipf_frequency  # deferred: loads the frequency DB lazily
+
     difficult: "set[str]" = set()
     seen: "set[str]" = set()
     for match in _WORD_RE.finditer(text):

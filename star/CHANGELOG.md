@@ -8,6 +8,66 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.9] 2026-06-23
+
+### ⚡ Performance
+
+- **Much faster startup.** Heavy optional packages (PyTorch/Whisper, Coqui,
+  wordfreq, sounddevice, the document loaders PyMuPDF/openpyxl/python-docx/
+  python-pptx/pdfminer, and the study-aid libraries) are no longer imported at
+  launch — they are detected cheaply with `importlib.util.find_spec` and imported
+  lazily on first use. `star/app.py` also branches its imports so each mode loads
+  only its own UI stack. On a fully-loaded install, `import star.app` dropped from
+  ~3.0 s to ~0.2 s.
+
+### ✨ Added
+
+- **`STAR_VENDOR_DIR`.** Point this environment variable at a directory of
+  vendored native engines (ffmpeg, Tesseract, liblouis, Pandoc, DECtalk,
+  libespeak-ng) and star will load them from there. This is the supported way to
+  add the native engines — including the in-process **DECtalk.dll** and
+  **libespeak-ng.dll** the old `star.exe` bundled — to a wheel / pipx / source
+  install. See [`docs/installation.md`](../docs/installation.md).
+- **Source checkouts auto-detect `vendor/`.** A source run now also looks for the
+  `vendor/` tree at the project root (where `tools/build-vendor.py` assembles it),
+  fixing a long-standing mismatch where star only checked `star/vendor`.
+
+### 📚 Documentation
+
+- **Modular `docs/` tree.** The deep reference material that had accumulated in
+  the root `README.md` now lives in a structured [`docs/`](../docs/) directory
+  (`installation.md`, `usage_guide.md`, `features.md`, `configuration.md`,
+  `architecture.md`). `README.md` is now a concise introduction-and-links portal.
+- **Quick command reference.** `docs/usage_guide.md` adds a single table mapping
+  every primary feature to its **GUI menu path**, **keyboard shortcut**, and
+  **TUI palette command** in one place.
+
+### 🏗️ Build & CI
+
+- **Wheel + PyPI is the only automated release output.** The pure-Python wheel
+  (`py3-none-any`) plus sdist, published to PyPI (and attached to the GitHub
+  Release), is now the canonical, stable distribution. `pyproject.toml` documents
+  this explicitly.
+- **Windows `star.pyz` no longer built by CI.** The fat zipapp is no longer built
+  on tag pushes or attached to releases — it is now build-it-yourself (`python
+  build_zipapp.py`; a manual `workflow_dispatch` with `build_pyz: true` can still
+  produce one). See [`docs/installation.md`](../docs/installation.md).
+- **Windows `star.exe` deprecated to a manual fallback.** The PyInstaller
+  `star.exe` is no longer built on tag pushes and is no longer attached to the
+  GitHub Release. The build logic is preserved but gated behind an explicit
+  opt-in (`tools/build-windows.ps1 -AllowDeprecatedExe`, or a manual
+  `workflow_dispatch` with `build_exe: true`) for maintainers who still need it.
+  See [`BUILD.md`](BUILD.md).
+
+### ♻️ Refactor
+
+- **`star/gui.py` is now a package (`star/gui/`).** The monolithic Qt GUI module
+  was split into a package with a re-export shim, and the self-contained
+  `_HelpWindow` dialog was extracted into its own module. Public imports
+  (`from star.gui import _run_qt_gui`) are unchanged.
+
+---
+
 ## [0.1.8] 2026-06-23
 
 ### ✨ Added

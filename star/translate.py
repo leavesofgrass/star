@@ -13,12 +13,9 @@ while still offering translation to users who do have a network connection.
 
 from ._runtime import *  # noqa: F401,F403
 
-try:
-    from deep_translator import GoogleTranslator
-
-    _DEEP_TRANSLATOR = True
-except ImportError:
-    _DEEP_TRANSLATOR = False
+# Detected cheaply; deep-translator (which pulls in requests + bs4) is imported
+# lazily by translate_text() the first time a translation is requested.
+_DEEP_TRANSLATOR = _module_available("deep_translator")
 
 
 # Display name -> ISO-639-1 code.  A deliberately small, high-coverage set so
@@ -64,5 +61,7 @@ def translate_text(
         raise RuntimeError(
             "Translation requires deep-translator:\n    pip install deep-translator"
         )
+    from deep_translator import GoogleTranslator  # deferred: pulls requests + bs4
+
     translator = GoogleTranslator(source=source_lang, target=target_lang)
     return translator.translate(text)

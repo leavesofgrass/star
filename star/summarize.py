@@ -9,16 +9,9 @@ follows.
 
 from ._runtime import *  # noqa: F401,F403
 
-try:
-    from sumy.nlp.stemmers import Stemmer
-    from sumy.nlp.tokenizers import Tokenizer
-    from sumy.parsers.plaintext import PlaintextParser
-    from sumy.summarizers.lex_rank import LexRankSummarizer
-    from sumy.utils import get_stop_words
-
-    _SUMY = True
-except ImportError:
-    _SUMY = False
+# Detected cheaply; sumy (and the NLP stack it pulls in) is imported lazily by
+# _build_summary() the first time a document is summarized.
+_SUMY = _module_available("sumy")
 
 
 # sumy's tokenizer, stemmer, and stop-word list are all language-specific;
@@ -28,6 +21,13 @@ _LANGUAGE = "english"
 
 def _build_summary(text: str, sentence_count: int) -> str:
     """Run LexRank over *text* and return up to *sentence_count* sentences."""
+    # Deferred from startup: sumy pulls in a sizeable NLP stack.
+    from sumy.nlp.stemmers import Stemmer
+    from sumy.nlp.tokenizers import Tokenizer
+    from sumy.parsers.plaintext import PlaintextParser
+    from sumy.summarizers.lex_rank import LexRankSummarizer
+    from sumy.utils import get_stop_words
+
     parser = PlaintextParser.from_string(text, Tokenizer(_LANGUAGE))
     summarizer = LexRankSummarizer(Stemmer(_LANGUAGE))
     summarizer.stop_words = get_stop_words(_LANGUAGE)

@@ -261,7 +261,7 @@ class CoquiBackend(TTSBackend):
         self._rate = rate
         self._volume = volume
         self._model_name = voice or self._DEFAULT_MODEL
-        self._tts_obj = None  # lazily initialized _CoquiTTS instance
+        self._tts_obj = None  # lazily initialized Coqui TTS instance (see _load_coqui)
         self._speaking = False
         self._stop_flag = threading.Event()
         self._play_proc: Optional[subprocess.Popen] = None
@@ -281,7 +281,7 @@ class CoquiBackend(TTSBackend):
             gpu = torch.cuda.is_available()
         except ImportError:
             gpu = False
-        self._tts_obj = _CoquiTTS(
+        self._tts_obj = _load_coqui()(
             model_name=self._model_name,
             progress_bar=False,
             gpu=gpu,
@@ -414,7 +414,7 @@ class CoquiBackend(TTSBackend):
         if not _COQUI:
             return []
         try:
-            all_models = _CoquiTTS().list_models().list_tts_models()
+            all_models = _load_coqui()().list_models().list_tts_models()
             return [
                 {
                     "id": m,
@@ -938,7 +938,7 @@ class Pyttsx3Backend(TTSBackend):
         if not _PYTTSX3:
             return False
         try:
-            eng = _pyttsx3.Engine()
+            eng = _load_pyttsx3().Engine()
             eng.stop()
             return True
         except Exception:
@@ -956,7 +956,7 @@ class Pyttsx3Backend(TTSBackend):
         a fresh COM object unconditionally and never touches the cache, so each
         speech session always gets a clean SAPI5 voice.
         """
-        eng = _pyttsx3.Engine()
+        eng = _load_pyttsx3().Engine()
         eng.setProperty("rate", self._rate)
         eng.setProperty("volume", self._volume)
         if self._voice:
@@ -2309,8 +2309,8 @@ class _SCReader:
 
     # ── internal ──────────────────────────────────────────────────────
 
-    def _build(self) -> "_pyttsx3.Engine":  # type: ignore[name-defined]
-        eng = _pyttsx3.Engine()
+    def _build(self) -> Any:
+        eng = _load_pyttsx3().Engine()
         eng.setProperty("rate", self._rate)
         eng.setProperty("volume", self._volume)
         return eng
@@ -2363,7 +2363,7 @@ class _SCReader:
             eng = eng_ref[0]
             try:
                 if needs_rebuild or eng is None:
-                    eng = _pyttsx3.Engine()
+                    eng = _load_pyttsx3().Engine()
                     eng.setProperty("rate", rate)
                     eng.setProperty("volume", volume)
                     eng_ref[0] = eng

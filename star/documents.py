@@ -719,7 +719,7 @@ def _load_xlsx(path: str) -> str:
             "Install openpyxl:  `pip install openpyxl`\n"
         )
     try:
-        wb = _openpyxl.load_workbook(path, read_only=True, data_only=True)
+        wb = _load_openpyxl().load_workbook(path, read_only=True, data_only=True)
         parts: List[str] = [f"# {Path(path).name}", ""]
         for ws in wb.worksheets:
             parts.append(f"## {ws.title}")
@@ -753,7 +753,7 @@ def _load_docx(path: str) -> str:
             "Install python-docx:  `pip install python-docx`\n"
         )
     try:
-        doc = _docx_lib.Document(path)
+        doc = _load_docx().Document(path)
         out: List[str] = []
         for para in doc.paragraphs:
             sn = para.style.name.lower()
@@ -913,36 +913,42 @@ def _load_pdf(path: str) -> str:
         )
     try:
         if _PDF == "layout":
+            extract_pages, LTTextBoxHorizontal = _load_pdf_pages()
             parts: List[str] = []
-            for pnum, page in enumerate(_pdf_pages(path), 1):  # type: ignore[name-defined]
+            for pnum, page in enumerate(extract_pages(path), 1):
                 page_texts = [
                     el.get_text().strip()
                     for el in page
-                    if isinstance(el, LTTextBoxHorizontal)  # type: ignore[name-defined]
+                    if isinstance(el, LTTextBoxHorizontal)
                     and el.get_text().strip()
                 ]
                 if not page_texts and _OCR and _PYMUPDF:
-                    doc = _fitz.open(path)
-                    pix = doc[pnum - 1].get_pixmap(matrix=_fitz.Matrix(2, 2))
-                    img = _PIL_Image.frombytes(
+                    fitz = _load_fitz()
+                    pytesseract, Image = _load_ocr()
+                    doc = fitz.open(path)
+                    pix = doc[pnum - 1].get_pixmap(matrix=fitz.Matrix(2, 2))
+                    img = Image.frombytes(
                         "RGB", [pix.width, pix.height], pix.samples
                     )
                     doc.close()
-                    page_texts = [_tesseract.image_to_string(img).strip()]
+                    page_texts = [pytesseract.image_to_string(img).strip()]
                 parts.append(f"\n---\n*Page {pnum}*\n")
                 parts.extend(page_texts)
             return "\n".join(parts)
         elif _PDF == "simple":
-            return _strip_markdown_for_tts(_pdf_text(path) or "")  # type: ignore[name-defined]
+            extract_text = _load_pdf_text()
+            return _strip_markdown_for_tts(extract_text(path) or "")
         elif _OCR and _PYMUPDF:
-            doc = _fitz.open(path)
+            fitz = _load_fitz()
+            pytesseract, Image = _load_ocr()
+            doc = fitz.open(path)
             parts = []
             for pnum, page in enumerate(doc, 1):
-                pix = page.get_pixmap(matrix=_fitz.Matrix(2, 2))
-                img = _PIL_Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
+                img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
                 parts.append(
                     f"\n---\n*Page {pnum}*\n\n"
-                    + _tesseract.image_to_string(img).strip()
+                    + pytesseract.image_to_string(img).strip()
                 )
             doc.close()
             return "\n".join(parts)
@@ -959,8 +965,9 @@ def _load_image_ocr(path: str) -> str:
             "Also install Tesseract binary: https://github.com/tesseract-ocr/tesseract\n"
         )
     try:
-        img = _PIL_Image.open(path).convert("RGB")
-        text = _tesseract.image_to_string(img)
+        pytesseract, Image = _load_ocr()
+        img = Image.open(path).convert("RGB")
+        text = pytesseract.image_to_string(img)
         return f"# {Path(path).name}\n\n{text.strip()}\n"
     except Exception as e:
         return f"# OCR Error\n\n```\n{e}\n```\n"
@@ -1404,7 +1411,7 @@ def _load_pptx(path: str) -> str:
             "Install it with: pip install python-pptx"
         )
 
-    prs = _pptx_lib.Presentation(path)
+    prs = _load_pptx().Presentation(path)
     sections = []
 
     for slide_num, slide in enumerate(prs.slides, start=1):

@@ -26,7 +26,7 @@ def _transcribe_audio(
     Raises RuntimeError with install guidance when no backend is available.
     """
     if _WHISPER == "openai":
-        model = _whisper.load_model(model_name)
+        model = _load_whisper().load_model(model_name)
         result = model.transcribe(path)
         if timestamps:
             segs = result.get("segments", []) or []
@@ -39,7 +39,7 @@ def _transcribe_audio(
             )
         return str(result.get("text", "")).strip()
     if _WHISPER == "faster":
-        model = _FasterWhisper(model_name)
+        model = _load_faster_whisper()(model_name)
         segments, _info = model.transcribe(path)
         if timestamps:
             return "\n".join(
@@ -62,9 +62,10 @@ def _record_audio_to_wav(seconds: float, samplerate: int = 16000) -> str:
         )
     import wave
 
+    sd = _load_sounddevice()
     frames = int(seconds * samplerate)
-    rec = _sounddevice.rec(frames, samplerate=samplerate, channels=1, dtype="int16")
-    _sounddevice.wait()
+    rec = sd.rec(frames, samplerate=samplerate, channels=1, dtype="int16")
+    sd.wait()
     tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
     tmp.close()
     with wave.open(tmp.name, "wb") as w:

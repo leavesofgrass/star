@@ -40,7 +40,7 @@ Copyright (C) 2026 Jon Pielaet
 License: GNU General Public License v3 (or later)
 """
 
-__version__ = "0.1.8"
+__version__ = "0.1.9"
 __author__ = "Jon Pielaet"
 __copyright__ = "Copyright (C) 2026 Jon Pielaet"
 __license__ = "GPL-3.0-or-later"
@@ -93,6 +93,29 @@ except ImportError:
     curses = None  # type: ignore[assignment]
     _CURSES = False
 
+# ----------------------------------------------------------------------------
+# Lazy optional-dependency detection.
+# ----------------------------------------------------------------------------
+# Heavy optional packages (Whisper -> PyTorch, Coqui's ML stack, wordfreq's
+# frequency data, sounddevice, …) used to be imported eagerly at module load.
+# Because every star module does ``from ._runtime import *``, that meant *every*
+# launch paid the multi-second cost of importing them even when the feature was
+# never used.  We now detect availability cheaply with importlib.util.find_spec
+# (which locates a module WITHOUT executing it) and defer the real import to a
+# ``_load_*`` helper called the first time the feature actually runs.  The
+# ``_HAS``/string flags keep the same meaning, so star --deps and feature gating
+# are unchanged; only the up-front import cost is removed.
+from importlib.util import find_spec as _find_spec
+
+
+def _module_available(name: str) -> bool:
+    """True when *name* can be imported, without importing it (keeps startup fast)."""
+    try:
+        return _find_spec(name) is not None
+    except (ImportError, ValueError, ModuleNotFoundError):
+        # Broken parent package or namespace-package edge case → treat as absent.
+        return False
+
 # =============================================================================
 # Bundled native tools (vendored for the self-contained Windows build)
 # =============================================================================
@@ -105,11 +128,41 @@ except ImportError:
 
 
 def _vendor_dir() -> Path:
-    """Directory that holds the vendored native tools."""
+    """Directory that holds the vendored native tools (ffmpeg, Tesseract,
+    liblouis, Pandoc, DECtalk, libespeak-ng).
+
+    Resolution order:
+
+    1. ``STAR_VENDOR_DIR`` — an explicit directory the user points star at.  This
+       is the supported way to supply the native engines to a wheel / pipx /
+       source install (the wheel does not bundle them).  Lay the folder out like
+       the repo ``vendor/`` tree (``ffmpeg/ffmpeg.exe``, ``tesseract/``,
+       ``liblouis/``, ``pandoc/pandoc.exe``, ``dectalk/<arch>/DECtalk.dll``,
+       ``espeak-ng/libespeak-ng.dll`` + ``espeak-ng-data``).
+    2. ``sys._MEIPASS`` — the PyInstaller onefile extraction dir (frozen builds
+       stage the tree at the bundle root).
+    3. ``star/vendor`` next to this package, then ``vendor/`` at the project root
+       (one level up) — the location ``tools/build-vendor.py`` assembles, so a
+       source checkout finds it automatically.
+    """
+    override = os.environ.get("STAR_VENDOR_DIR")
+    if override:
+        p = Path(override).expanduser()
+        if p.is_dir():
+            return p
     base = getattr(sys, "_MEIPASS", None)  # PyInstaller onefile extraction dir
     if base:
         return Path(base)
-    return Path(__file__).resolve().parent / "vendor"
+    # Source / wheel runs: prefer a ``vendor/`` beside the package, then one at
+    # the project root (one level up) — the location ``tools/build-vendor.py``
+    # assembles, so a source checkout finds it with no env var.
+    pkg_vendor = Path(__file__).resolve().parent / "vendor"
+    if pkg_vendor.is_dir():
+        return pkg_vendor
+    repo_vendor = Path(__file__).resolve().parent.parent / "vendor"
+    if repo_vendor.is_dir():
+        return repo_vendor
+    return pkg_vendor
 
 
 _VENDOR = _vendor_dir()
@@ -187,98 +240,127 @@ if _ESPEAK_NG_DLL.is_file():
 # Optional dependencies — all guarded; star runs with zero extras installed
 # =============================================================================
 
+# Document loaders are detected cheaply with find_spec and imported lazily by
+# the ``_load_*`` helpers below, called from documents.py the first time a file
+# of that type is opened.  This keeps PyMuPDF, openpyxl, python-docx/pptx,
+# pdfminer, etc. off the startup path entirely.
+
 # --- PDF: pdfminer.six -------------------------------------------------------
-try:
-    from pdfminer.high_level import extract_pages as _pdf_pages
-    from pdfminer.high_level import extract_text as _pdf_text
+if _module_available("pdfminer.layout"):
+    _PDF = "layout"
+elif _module_available("pdfminer.high_level"):
+    _PDF = "simple"
+else:
+    _PDF = ""
+
+
+def _load_pdf_text():
+    """Return pdfminer's ``extract_text`` (deferred from startup)."""
+    from pdfminer.high_level import extract_text
+
+    return extract_text
+
+
+def _load_pdf_pages():
+    """Return ``(extract_pages, LTTextBoxHorizontal)`` from pdfminer (deferred)."""
+    from pdfminer.high_level import extract_pages
     from pdfminer.layout import LTTextBoxHorizontal
 
-    _PDF = "layout"
-except ImportError:
-    try:
-        from pdfminer.high_level import extract_text as _pdf_text  # type: ignore
+    return extract_pages, LTTextBoxHorizontal
 
-        _PDF = "simple"
-    except ImportError:
-        _PDF = ""
 
 # --- OCR: pytesseract + PyMuPDF ---------------------------------------------
-try:
-    import pytesseract as _tesseract
-    from PIL import Image as _PIL_Image
+_OCR = _module_available("pytesseract") and _module_available("PIL")
 
-    _OCR = True
+
+def _load_ocr():
+    """Return ``(pytesseract, PIL.Image)``, wiring the bundled Tesseract if present."""
+    import pytesseract
+    from PIL import Image
+
     # Point pytesseract at the bundled Tesseract engine + language data when
     # present, so OCR works with no separate Tesseract install.
     if _TESSERACT_BUNDLED.is_file():
         try:
-            _tesseract.pytesseract.tesseract_cmd = str(_TESSERACT_BUNDLED)
+            pytesseract.pytesseract.tesseract_cmd = str(_TESSERACT_BUNDLED)
             if _TESSDATA_BUNDLED.is_dir():
                 os.environ.setdefault("TESSDATA_PREFIX", str(_TESSDATA_BUNDLED))
         except Exception:
             pass
-except ImportError:
-    _OCR = False
+    return pytesseract, Image
 
-try:
-    import fitz as _fitz  # PyMuPDF
 
-    _PYMUPDF = True
-except ImportError:
-    _PYMUPDF = False
+# --- PDF rasterizer: PyMuPDF -------------------------------------------------
+_PYMUPDF = _module_available("fitz")
+
+
+def _load_fitz():
+    """Return the PyMuPDF (``fitz``) module (deferred from startup)."""
+    import fitz
+
+    return fitz
+
 
 # --- DOCX: python-docx -------------------------------------------------------
-try:
-    import docx as _docx_lib
+_DOCX = _module_available("docx")
 
-    _DOCX = True
-except ImportError:
-    _DOCX = False
+
+def _load_docx():
+    """Return the python-docx (``docx``) module (deferred from startup)."""
+    import docx
+
+    return docx
+
 
 # --- ODT: odfpy --------------------------------------------------------------
-try:
-    from odf.opendocument import load as _odf_load
-    from odf.text import H, ListItem, P
-    from odf.text import List as OdfList
-
-    _ODT = True
-except ImportError:
-    _ODT = False
+# Availability only; the ODT loader in documents.py imports odf locally.
+_ODT = _module_available("odf")
 
 # --- PowerPoint: python-pptx --------------------------------------------------
-try:
-    import pptx as _pptx_lib
+_PPTX = _module_available("pptx")
 
-    _PPTX = True
-except ImportError:
-    _PPTX = False
-    _pptx_lib = None
+
+def _load_pptx():
+    """Return the python-pptx (``pptx``) module (deferred from startup)."""
+    import pptx
+
+    return pptx
 
 
 # --- XLSX: openpyxl ----------------------------------------------------------
-try:
-    import openpyxl as _openpyxl
+_XLSX = _module_available("openpyxl")
 
-    _XLSX = True
-except ImportError:
-    _XLSX = False
+
+def _load_openpyxl():
+    """Return the openpyxl module (deferred from startup)."""
+    import openpyxl
+
+    return openpyxl
 
 # --- TTS: pyttsx3 ------------------------------------------------------------
-try:
-    import pyttsx3 as _pyttsx3
+# Detected without importing; the real import is deferred to _load_pyttsx3(),
+# called the first time a pyttsx3 engine is built.
+_PYTTSX3 = _module_available("pyttsx3")
 
-    _PYTTSX3 = True
-except ImportError:
-    _PYTTSX3 = False
+
+def _load_pyttsx3():
+    """Import and return the pyttsx3 module (deferred from startup)."""
+    import pyttsx3
+
+    return pyttsx3
+
 
 # --- TTS: Coqui TTS (neural) -------------------------------------------------
-try:
-    from TTS.api import TTS as _CoquiTTS  # type: ignore[import]
+# Coqui pulls in a large ML stack, so it is detected via find_spec and imported
+# lazily by _load_coqui() only when the Coqui backend is actually selected.
+_COQUI = _module_available("TTS")
 
-    _COQUI = True
-except (ImportError, Exception):  # also catches missing dependencies
-    _COQUI = False
-    _CoquiTTS = None  # type: ignore[assignment]
+
+def _load_coqui():
+    """Import and return the Coqui ``TTS`` class (deferred from startup)."""
+    from TTS.api import TTS  # type: ignore[import]
+
+    return TTS
 
 # --- TTS: Piper (neural, local, offline) -------------------------------------
 # Piper ships as a standalone binary that reads text on stdin and writes a WAV
@@ -406,25 +488,42 @@ _PANDOC_BIN = (
 # Used for dictation and recording transcription.  Both the model library and
 # a microphone capture library are optional; every code path is guarded so the
 # program runs identically when they are absent.
-try:
-    import whisper as _whisper  # openai-whisper
-
+# Whisper pulls in PyTorch — a multi-second import — so it is never imported at
+# startup.  Detect which backend is installed (cheap), and defer the real import
+# to _load_whisper() / _load_faster_whisper(), called only when a transcription
+# or dictation actually runs.
+if _module_available("whisper"):
     _WHISPER = "openai"
-except ImportError:
-    try:
-        from faster_whisper import WhisperModel as _FasterWhisper  # type: ignore
+elif _module_available("faster_whisper"):
+    _WHISPER = "faster"
+else:
+    _WHISPER = ""
 
-        _WHISPER = "faster"
-    except ImportError:
-        _WHISPER = ""
 
-try:
-    import numpy as _np
-    import sounddevice as _sounddevice  # microphone capture
+def _load_whisper():
+    """Import and return the openai-whisper module (deferred from startup)."""
+    import whisper
 
-    _AUDIO_IN = True
-except ImportError:
-    _AUDIO_IN = False
+    return whisper
+
+
+def _load_faster_whisper():
+    """Import and return faster-whisper's WhisperModel class (deferred from startup)."""
+    from faster_whisper import WhisperModel  # type: ignore
+
+    return WhisperModel
+
+
+# Microphone capture (numpy + sounddevice).  Detected without importing; the
+# sounddevice module is loaded lazily by _load_sounddevice() at record time.
+_AUDIO_IN = _module_available("numpy") and _module_available("sounddevice")
+
+
+def _load_sounddevice():
+    """Import and return the sounddevice module (deferred from startup)."""
+    import sounddevice
+
+    return sounddevice
 
 # --- Live document-camera capture: OpenCV (UVC webcam-class devices) ----------
 # Used by the live-capture feature (capture.py) to grab frames from a connected

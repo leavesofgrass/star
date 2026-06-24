@@ -12,12 +12,9 @@ class is set to ``None`` and the GUI degrades gracefully.
 
 from ._runtime import *  # noqa: F401,F403
 
-try:
-    from spellchecker import SpellChecker
-
-    _SPELL = True
-except ImportError:
-    _SPELL = False
+# Detected cheaply; the spellchecker package (which loads a word-frequency list)
+# is imported lazily by _checker() the first time spell checking runs.
+_SPELL = _module_available("spellchecker")
 
 # QSyntaxHighlighter lives in QtGui and is not part of the _runtime re-export.
 try:
@@ -41,6 +38,8 @@ def _checker() -> "Optional[SpellChecker]":
     """Return the shared SpellChecker, built lazily, or None if unavailable."""
     global _CHECKER
     if _CHECKER is None and _SPELL:
+        from spellchecker import SpellChecker  # deferred: loads a word-frequency list
+
         _CHECKER = SpellChecker()
     return _CHECKER
 
