@@ -43,23 +43,27 @@ that ships in every distribution form.
 ### The `star/gui/` package
 
 The Qt GUI began as a single ~5,600-line `star/gui.py` whose entire contents were
-nested inside one `_run_qt_gui()` function (a `StarWindow(QMainWindow)` plus a
-`_HelpWindow(QDialog)`). As of 0.1.9 it is a **package** so the Qt code can be
-split into focused modules without changing any public import:
+nested inside one `_run_qt_gui()` function (a `StarWindow(QMainWindow)` nested in
+that closure). As of 0.1.9 it became a **package**, and `StarWindow` was
+subsequently lifted out of the closure and split into focused responsibility
+**mixins** — so new GUI work no longer lands in one giant class:
 
 | Module | Responsibility |
 |---|---|
 | `star/gui/__init__.py` | Re-export shim: exposes `_run_qt_gui` so `from star.gui import _run_qt_gui` (used by `star/app.py`) keeps working unchanged. |
-| `star/gui/runner.py` | `_run_qt_gui()` — Qt-binding compatibility shims, `QApplication` setup, and assembly/launch of the window. Builds `StarWindow` and the help dialog and shows the window. |
-| `star/gui/help_window.py` | The `_HelpWindow` dialog, extracted as a class factory (`build_help_window_class(...)`) that receives the closure dependencies (`StarWindow`, the Qt enum-compat constants) it needs. |
+| `star/gui/runner.py` | `_run_qt_gui()` — `QApplication` setup, the crash-log excepthook, and launch. Lazily imports and shows `StarWindow`. |
+| `star/gui/main_window.py` | `StarWindow(QMainWindow)` — window assembly (`__init__`, `_setup_ui`, the menu/toolbar builders) — plus the `_RSVPOverlay` widget. |
+| `star/gui/mixin_*.py` | `StarWindow`'s methods grouped by responsibility (playback, navigation, export, annotations, citations, graph, …); each is a mixin that `StarWindow` inherits. |
+| `star/gui/_qtcompat.py` | Shared PyQt5/PyQt6 enum-compatibility constants. |
+| `star/gui/graph_view.py` | The knowledge-graph dock and relation dialogs. |
 
-Because the original classes were defined inside a function closure (capturing
-Qt-binding-specific constants like the PyQt5/PyQt6 `QTextCursor.MoveMode` and
-`Qt.ConnectionType` values), the extraction uses **class factories** that take
-those captured values as explicit parameters — preserving the exact runtime
-behavior while moving code out of the monolith. The remaining `StarWindow` class
-is a candidate for the same treatment in a follow-up (it needs a Qt environment
-to verify, since the GUI cannot be exercised headlessly).
+The Qt-heavy modules (`main_window.py`, the `mixin_*.py` modules, `_qtcompat.py`,
+`graph_view.py`) reference Qt at module scope, so they are imported **lazily**
+from inside `_run_qt_gui()` — after its `_QT` guard — which keeps `import
+star.gui` safe when PyQt is absent (the graceful-degradation invariant). The
+PyQt5/PyQt6 enum-compat constants (e.g. `QTextCursor.MoveMode`, `Qt.ConnectionType`)
+were captured closure values in the monolith; they now live in `_qtcompat.py` and
+are imported by the modules that need them.
 
 ---
 

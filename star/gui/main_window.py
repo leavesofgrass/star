@@ -7,8 +7,8 @@ responsibility mixins without further growing runner.py.  See
 docs/architecture.md.
 
 IMPORT SAFETY: this module references Qt names at module scope, so it is only
-import-safe when PyQt is installed.  Like graph_view.py / help_window.py /
-_qtcompat.py it must be imported lazily — runner.py imports it from inside
+import-safe when PyQt is installed.  Like graph_view.py / _qtcompat.py /
+the mixin_*.py modules it must be imported lazily — runner.py imports it from inside
 _run_qt_gui(), after the _QT guard — so `import star.gui` stays safe when PyQt
 is absent (the graceful-degradation invariant).
 """

@@ -2,14 +2,13 @@
 
 WHY THIS MODULE EXISTS: this is the bulk of the former monolithic star/gui.py,
 which packed its entire ~5,600-line implementation into a single _run_qt_gui()
-function (a StarWindow(QMainWindow) plus a _HelpWindow(QDialog), both nested in
-that closure).  As of 0.1.9 the GUI is a package (star/gui/) so it can be split
-into focused modules.  As of the StarWindow split this file keeps only
-_run_qt_gui() — Qt application setup, the crash-log excepthook, and launch.
-StarWindow and the _RSVPOverlay widget live in star/gui/main_window.py (itself
-composed of the responsibility mixins in star/gui/mixin_*.py); the help dialog
-is in star/gui/help_window.py.  All three are Qt-heavy and imported lazily,
-after the _QT guard, so `import star.gui` stays safe when PyQt is absent.
+function (a StarWindow(QMainWindow), nested in that closure).  As of 0.1.9 the
+GUI is a package (star/gui/) so it can be split into focused modules.  As of the
+StarWindow split this file keeps only _run_qt_gui() — Qt application setup, the
+crash-log excepthook, and launch.  StarWindow and the _RSVPOverlay widget live
+in star/gui/main_window.py (itself composed of the responsibility mixins in
+star/gui/mixin_*.py); it is Qt-heavy and imported lazily, after the _QT guard,
+so `import star.gui` stays safe when PyQt is absent.
 Public imports are preserved by star/gui/__init__.py
 (`from star.gui import _run_qt_gui`).  See docs/architecture.md.
 """
@@ -30,12 +29,6 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             file=sys.stderr,
         )
         sys.exit(1)
-
-    # PyQt5/PyQt6 enum-compat constants live in star/gui/_qtcompat.py (shared by
-    # StarWindow and the mixin modules).  _run_qt_gui itself only needs the two
-    # the help-window factory takes; imported lazily — after the `_QT` guard —
-    # so `import star.gui` stays safe when PyQt is absent.
-    from ._qtcompat import _KEEP_ANCHOR, _QUEUED
 
     # High DPI support — must be set before QApplication().
     # Use the module-level Qt object so PyQt6's C-extension type checks
@@ -95,14 +88,6 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
     # `import star.gui` stays safe when PyQt is absent.
     from .main_window import StarWindow
 
-    # _HelpWindow was extracted to star/gui/help_window.py.  Build it here so
-    # it still closes over StarWindow and the Qt enum-compat constants
-    # (_QUEUED, _KEEP_ANCHOR) exactly as it did when it was nested inline.
-    from .help_window import build_help_window_class
-
-    _HelpWindow = build_help_window_class(StarWindow, _QUEUED, _KEEP_ANCHOR)
-
-    # ──────────────────────────────────────────────────────────────────────
     window = StarWindow(settings, initial_path)
     window.show()
     sys.exit(app.exec() if _QT == "PyQt6" else app.exec_())

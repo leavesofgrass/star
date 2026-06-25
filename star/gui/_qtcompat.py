@@ -12,7 +12,7 @@ can import them:
 
 IMPORT SAFETY: this module references Qt names (``Qt``, ``QTextCursor``, …) at
 module scope, so it is **only import-safe when PyQt is installed**.  Like
-``help_window.py`` and ``graph_view.py``, it must be imported lazily — from
+``graph_view.py`` and the ``mixin_*.py`` modules, it must be imported lazily — from
 inside ``_run_qt_gui`` or a StarWindow method — never at the top of an eagerly
 imported module.  ``runner.py`` keeps ``import star.gui`` safe without PyQt by
 importing this module only after its ``_QT`` check passes.
