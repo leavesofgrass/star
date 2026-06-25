@@ -13,53 +13,19 @@ _run_qt_gui(), after the _QT guard — so `import star.gui` stays safe when PyQt
 is absent (the graceful-degradation invariant).
 """
 from .._runtime import *  # noqa: F401,F403
-from ..annotations import _annotation_matches, _format_annotations, _parse_tags
-from ..braille import _export_braille
-from ..citations import (
-    _citation_label,
-    _fetch_citation_by_doi,
-    _format_citations,
-    _import_citations,
-)
-from ..convert import resolve_format, run_batch, supported_formats
-from ..documents import Document, _build_word_map, load_document
-from ..feeds import _FEEDPARSER, fetch_feed
-from ..flashcards import _GENANKI, export_anki_deck
+from ..documents import Document
 from ..i18n import available_languages, get_language, set_language, tr
 from ..settings import Settings
-from ..spellcheck import _SPELL, SpellHighlighter, misspelled_words
 from ..stats import (
     ReadingStats,
-    _apply_profile_values,
-    _delete_profile,
-    _fmt_duration,
-    _format_reading_stats,
-    _library_entries,
-    _record_library,
-    _save_profile,
 )
-from ..summarize import _SUMY, summarize_document
 from ..themes import _load_css_themes, _seed_default_css_themes
-from ..transcribe import _record_audio_to_wav, _transcribe_audio
-from ..translate import _DEEP_TRANSLATOR, COMMON_LANGUAGES, translate_text
-from ..tts import Pyttsx3Backend, TTSManager, _SCReader
-from ..ttstext import _preprocess_tts_text, _strip_markdown_for_tts
-from ..tui import _HELP_TEXT, THEME_NAMES, _shortcuts_text
-from ..vocab import _WORDFREQ, DEFAULT_THRESHOLD, find_difficult_words
-from ..watch import HotFolderWatcher, _make_logger
+from ..tts import TTSManager, _SCReader
 from ._qtcompat import (
-    _DOC_SELECTION,
-    _FULL_WIDTH_SEL,
-    _KEEP_ANCHOR,
     _LEFT_DOCK,
-    _PCT_SPACING,
-    _PROPORTIONAL,
     _QUEUED,
     _RIGHT_DOCK,
-    _SINGLE_UNDERLINE,
-    _USER_ROLE,
     _WA_STYLED_BG,
-    _WAVE_UNDERLINE,
 )
 from .mixin_aiddialogs import AidDialogsMixin
 from .mixin_commands import CommandsMixin

@@ -6,8 +6,6 @@ state of its own.  IMPORT SAFETY: references Qt at module scope — imported
 lazily by main_window.py (itself imported by runner.py after the _QT guard).
 """
 from .._runtime import *  # noqa: F401,F403
-from ..documents import Document
-from ..settings import Settings
 from ..tui import _shortcuts_text
 
 

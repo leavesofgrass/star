@@ -6,7 +6,6 @@ state of its own.  IMPORT SAFETY: references Qt at module scope — imported
 lazily by main_window.py (itself imported by runner.py after the _QT guard).
 """
 from .._runtime import *  # noqa: F401,F403
-from ..settings import Settings
 from ..stats import _apply_profile_values, _delete_profile, _save_profile
 from ._qtcompat import _USER_ROLE
 

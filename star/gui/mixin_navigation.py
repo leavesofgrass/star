@@ -6,7 +6,7 @@ state of its own.  IMPORT SAFETY: references Qt at module scope — imported
 lazily by main_window.py (itself imported by runner.py after the _QT guard).
 """
 from .._runtime import *  # noqa: F401,F403
-from ..documents import Document, _build_word_map
+from ..documents import _build_word_map
 from ..feeds import _FEEDPARSER, fetch_feed
 from ..spellcheck import _SPELL, SpellHighlighter, misspelled_words
 from ..stats import _fmt_duration, _format_reading_stats, _library_entries

@@ -8,7 +8,6 @@ lazily by main_window.py (itself imported by runner.py after the _QT guard).
 from .._runtime import *  # noqa: F401,F403
 from ..documents import Document, _build_word_map, load_document
 from ..stats import _record_library
-from ..tts import TTSManager
 from ..tui import THEME_NAMES
 
 

@@ -7,7 +7,6 @@ lazily by main_window.py (itself imported by runner.py after the _QT guard).
 """
 from .._runtime import *  # noqa: F401,F403
 from ..citations import _fetch_citation_by_doi
-from ..documents import Document
 
 
 class DocOpsMixin:
@@ -15,7 +14,7 @@ class DocOpsMixin:
 
     def _qt_open_archive(self) -> None:
         """Open a ZIP / TAR / 7z / RAR archive (File ▸ Open Archive…)."""
-        from ..archive import is_archive, list_members
+        from ..archive import list_members
         dest, _ = QFileDialog.getOpenFileName(
             self,
             "Open Archive",
@@ -102,7 +101,6 @@ class DocOpsMixin:
                 status_lbl.setText("Enter a DOI first")
                 return
             status_lbl.setText(f"Looking up {doi!r}…")
-            from ..citations import _fetch_citation_by_doi
             def _do():
                 try:
                     c = _fetch_citation_by_doi(doi)
