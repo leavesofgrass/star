@@ -4,48 +4,17 @@ WHY THIS MODULE EXISTS: this is the bulk of the former monolithic star/gui.py,
 which packed its entire ~5,600-line implementation into a single _run_qt_gui()
 function (a StarWindow(QMainWindow) plus a _HelpWindow(QDialog), both nested in
 that closure).  As of 0.1.9 the GUI is a package (star/gui/) so it can be split
-into focused modules; this file keeps _run_qt_gui and StarWindow, while the
-self-contained help dialog moved to star/gui/help_window.py.  The behavior is
-unchanged — the extraction passes the closure-captured values (the StarWindow
-class and the Qt enum-compat constants) into a class factory instead of relying
-on lexical scope.  Public imports are preserved by star/gui/__init__.py
+into focused modules.  As of the StarWindow split this file keeps only
+_run_qt_gui() — Qt application setup, the crash-log excepthook, and launch.
+StarWindow and the _RSVPOverlay widget live in star/gui/main_window.py (itself
+composed of the responsibility mixins in star/gui/mixin_*.py); the help dialog
+is in star/gui/help_window.py.  All three are Qt-heavy and imported lazily,
+after the _QT guard, so `import star.gui` stays safe when PyQt is absent.
+Public imports are preserved by star/gui/__init__.py
 (`from star.gui import _run_qt_gui`).  See docs/architecture.md.
 """
 from .._runtime import *  # noqa: F401,F403
-from ..annotations import _annotation_matches, _format_annotations, _parse_tags
-from ..braille import _export_braille
-from ..citations import (
-    _citation_label,
-    _fetch_citation_by_doi,
-    _format_citations,
-    _import_citations,
-)
-from ..convert import resolve_format, run_batch, supported_formats
-from ..documents import Document, _build_word_map, load_document
-from ..feeds import _FEEDPARSER, fetch_feed
-from ..flashcards import _GENANKI, export_anki_deck
-from ..i18n import available_languages, get_language, set_language, tr
 from ..settings import Settings
-from ..spellcheck import _SPELL, SpellHighlighter, misspelled_words
-from ..stats import (
-    ReadingStats,
-    _apply_profile_values,
-    _delete_profile,
-    _fmt_duration,
-    _format_reading_stats,
-    _library_entries,
-    _record_library,
-    _save_profile,
-)
-from ..summarize import _SUMY, summarize_document
-from ..themes import _load_css_themes, _seed_default_css_themes
-from ..transcribe import _record_audio_to_wav, _transcribe_audio
-from ..translate import _DEEP_TRANSLATOR, COMMON_LANGUAGES, translate_text
-from ..tts import Pyttsx3Backend, TTSManager, _SCReader
-from ..ttstext import _preprocess_tts_text, _strip_markdown_for_tts
-from ..tui import _HELP_TEXT, THEME_NAMES, _shortcuts_text
-from ..vocab import _WORDFREQ, DEFAULT_THRESHOLD, find_difficult_words
-from ..watch import HotFolderWatcher, _make_logger
 
 # =============================================================================
 # Optional Qt GUI
