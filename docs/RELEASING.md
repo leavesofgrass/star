@@ -81,21 +81,45 @@ set to `true` the jobs run; otherwise they **skip** (the build and GitHub Releas
 still run, so you can exercise the whole pipeline before the trusted publisher is
 active).
 
-`ENABLE_PYPI` is currently **`true`**, so every final `v*` tag publishes to PyPI
-automatically. To pause publishing, set *Settings → Secrets and variables →
+`ENABLE_PYPI` is currently **`true`**, so every final `v*` tag runs the publish
+job — which then **waits for manual approval** before uploading to PyPI (the
+`pypi` environment has a required reviewer; see *Trusted-publisher hardening*
+below). To pause publishing entirely, set *Settings → Secrets and variables →
 Actions → Variables → `ENABLE_PYPI`* to anything other than `true` (or remove it).
 
 ### One-time setup (already done for this repo)
 
 1. **Register the trusted publisher on PyPI / TestPyPI.** Project → *Publishing* →
    add a GitHub Actions trusted publisher: Owner `leavesofgrass`, Repository
-   `star`, Workflow `release.yml`, Environment `pypi` (and `testpypi` on
-   TestPyPI).
-2. **Create the GitHub environments** `pypi` and `testpypi` (Repo *Settings →
-   Environments*), optionally with required reviewers as a release gate.
+   `star`, Workflow `release.yml`, **Environment `pypi`** (and **`testpypi`** on
+   TestPyPI). The Environment field is **required** for the hardening below to
+   mean anything — without it, PyPI accepts an OIDC token minted by *any* job in
+   the repo.
+2. **GitHub environments** `pypi` and `testpypi` exist (Repo *Settings →
+   Environments*) and are hardened — see below.
 3. **Rehearse on TestPyPI first.** Push a pre-release tag (`v0.1.11-rc1`), confirm
    `pip install -i https://test.pypi.org/simple/ star-reader` works, then push the
    final `v0.1.11` tag.
+
+### Trusted-publisher hardening
+
+Applied per [PyPI's security model](https://docs.pypi.org/trusted-publishers/security-model/):
+
+- **Per-job `id-token: write`** (not workflow-level) — only the publish jobs can
+  mint an OIDC token.
+- **`pypi` environment requires a reviewer** — a final `v*` tag pauses the
+  `publish-pypi` job until a maintainer approves the deployment (the run shows a
+  *Review deployments* button). TestPyPI stays automatic for rehearsals.
+- **Deployment policy: `v*` tags only** on both environments — the environment
+  refuses to deploy from any other ref, even if the workflow is modified to
+  trigger on something else.
+- **Ruleset "Protect release tags (v\*)"** — blocks deletion / force-moving of
+  `v*` tags (admin bypass).
+- **`pypa/gh-action-pypi-publish` is SHA-pinned** to a commit (not `@release/v1`).
+
+> **Verify on PyPI:** the trusted publisher's **Environment name** must be set to
+> `pypi` (and `testpypi` on TestPyPI). That is the half GitHub cannot enforce — if
+> it is blank, the environment gate above can be bypassed.
 
 ## Build-it-yourself artifacts
 
