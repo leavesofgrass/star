@@ -144,3 +144,109 @@ def _parse_tags(raw: str) -> List[str]:
     """Split a comma/space/`#`-separated tag string into a clean tag list."""
     parts = re.split(r"[,\s]+", (raw or "").strip())
     return [p.lstrip("#").strip() for p in parts if p.strip().lstrip("#")]
+
+
+# =============================================================================
+# Knowledge-graph relations between annotations
+# =============================================================================
+
+RELATION_TYPES = [
+    "CONFLICTS_WITH",
+    "SUPPORTS",
+    "IS_EXAMPLE_OF",
+    "CITES",
+    "CONTRADICTS",
+    "DEFINES",
+    "EXTENDS",
+    "SEE_ALSO",
+    "PRECEDES",
+    "FOLLOWS",
+]
+
+
+def _save_settings(settings: Any) -> None:
+    # The helpers accept either a Settings instance or a plain dict (tests), so
+    # only persist when the object actually supports it.
+    save = getattr(settings, "save", None)
+    if callable(save):
+        save()
+
+
+def _ensure_id(ann: Dict[str, Any]) -> str:
+    """Return *ann*'s stable id, assigning a fresh one in place if absent."""
+    aid = ann.get("id")
+    if not aid:
+        aid = uuid.uuid4().hex[:8]
+        ann["id"] = aid
+    return aid
+
+
+def get_annotation_by_id(
+    settings: Any, doc_path: str, ann_id: str
+) -> "Optional[Dict[str, Any]]":
+    """Return the annotation with *ann_id* in *doc_path*, or None."""
+    for ann in settings["annotations"].get(doc_path, []) or []:
+        if _ensure_id(ann) == ann_id:
+            return ann
+    return None
+
+
+def add_relation(
+    settings: Any,
+    src_doc: str,
+    src_id: str,
+    rel_type: str,
+    tgt_doc: str,
+    tgt_id: str,
+    note: str = "",
+) -> bool:
+    """Append a directed relation edge from one annotation to another."""
+    src = get_annotation_by_id(settings, src_doc, src_id)
+    if src is None:
+        return False
+    src.setdefault("relations", []).append(
+        {
+            "rel_type": rel_type,
+            "target_doc": tgt_doc,
+            "target_id": tgt_id,
+            "note": note or "",
+        }
+    )
+    _save_settings(settings)
+    return True
+
+
+def remove_relation(settings: Any, src_doc: str, src_id: str, rel_index: int) -> bool:
+    """Delete the relation at *rel_index* on the given source annotation."""
+    src = get_annotation_by_id(settings, src_doc, src_id)
+    if src is None:
+        return False
+    rels = src.get("relations") or []
+    if 0 <= rel_index < len(rels):
+        rels.pop(rel_index)
+        _save_settings(settings)
+        return True
+    return False
+
+
+def all_relations(settings: Any):
+    """Yield ``(src_doc, annotation, relation)`` for every edge across all docs."""
+    for doc, anns in (settings["annotations"] or {}).items():
+        for ann in anns or []:
+            _ensure_id(ann)
+            for rel in ann.get("relations") or []:
+                yield doc, ann, rel
+
+
+def get_related(settings: Any, doc_path: str, ann_id: str):
+    """Return ``[(relation, target_annotation_or_None), ...]`` for one annotation."""
+    src = get_annotation_by_id(settings, doc_path, ann_id)
+    if src is None:
+        return []
+    out = []
+    for rel in src.get("relations") or []:
+        tgt = get_annotation_by_id(
+            settings, rel.get("target_doc", ""), rel.get("target_id", "")
+        )
+        out.append((rel, tgt))
+    return out

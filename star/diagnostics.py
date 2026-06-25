@@ -227,6 +227,41 @@ OPTIONAL_DEPENDENCIES: List[Dict[str, Any]] = [
         "enables": "Instant --watch reaction (polling is the fallback)",
         "install": _extra("watch"),
     },
+    # ── Knowledge graph ────────────────────────────────────────────────────
+    {
+        "key": "spacy", "label": "spaCy (NER)", "group": "Knowledge graph",
+        "module": None, "attr": None, "kind": "probe", "probe": ["spacy"],
+        "enables": "Named-entity concept extraction for the knowledge graph",
+        "install": "pip install spacy && python -m spacy download en_core_web_sm",
+    },
+    {
+        "key": "nltk", "label": "NLTK (NER fallback)", "group": "Knowledge graph",
+        "module": None, "attr": None, "kind": "probe", "probe": ["nltk"],
+        "enables": "Concept extraction when spaCy is absent",
+        "install": "pip install nltk",
+    },
+    {
+        "key": "graphviz", "label": "Graphviz (graph layout)",
+        "group": "Knowledge graph",
+        "module": None, "attr": None, "kind": "probe", "probe": ["graphviz"],
+        "enables": "High-quality graph layout and SVG/DOT export (pure-Python fallback otherwise)",
+        "install": "pip install graphviz  (also needs the graphviz binary)",
+    },
+    {
+        "key": "plantuml", "label": "PlantUML (diagram render)",
+        "group": "Knowledge graph",
+        "module": None, "attr": None, "kind": "probe", "probe": ["plantuml"],
+        "enables": "Render PlantUML graph exports to SVG",
+        "install": "pip install plantuml",
+    },
+    {
+        "key": "pyyaml", "label": "PyYAML (front matter)",
+        "group": "Knowledge graph",
+        "module": None, "attr": None, "kind": "probe", "probe": ["yaml"],
+        "enables": "Richer YAML front-matter parsing for Obsidian vault import "
+        "(a built-in parser is used otherwise)",
+        "install": "pip install pyyaml",
+    },
     # ── Live document-camera capture ───────────────────────────────────────
     {
         "key": "opencv", "label": "OpenCV (document camera)", "group": "Capture",

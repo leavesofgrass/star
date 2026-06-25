@@ -48,8 +48,22 @@ DEFAULTS: Dict[str, Any] = {
     "cache_max_size_mb": 100,
     "qt_show_toc": True,
     "qt_show_notes": False,  # Notes/annotations dock hidden until first used
-    "annotations": {},  # {path: [{"char_pos", "word_idx", "anchor", "note", "tags", "cite", "ts"}]}
+    "annotations": {},  # {path: [{"char_pos", "word_idx", "anchor", "note", "tags", "cite", "ts", "id", "relations"}]}
     "annotation_filter_presets": {},  # {name: filter-query} saved note filters
+    # Knowledge graph: typed relations between annotations across documents.
+    "graph": {
+        "auto_rebuild_on_annotation_change": True,
+        "default_layout": "spring",  # "spring" | "dot" | "neato" | "fdp"
+        "node_color_by": "doc",  # "doc" | "tag" | "rel_type"
+        "show_orphan_nodes": False,  # include nodes that have no edges
+        "concept_domain": "general",  # "general" | "legal" | "medical" | "sociological"
+        "last_export_dir": "",
+    },
+    # Obsidian vault import/export.
+    "vault": {
+        "last_vault_dir": "",
+        "default_link_relation": "SEE_ALSO",  # type for untyped [[wikilinks]] on import
+    },
     "citations": [],  # citation library: list of CSL-ish dicts (see _citation_label)
     "whisper_model": "base",  # Whisper model size for dictation/transcription
     "transcribe_timestamps": False,  # prefix [hh:mm:ss] segment times in transcripts

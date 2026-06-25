@@ -8,6 +8,56 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.10] 2026-06-24
+
+### ✨ Added
+
+- **Knowledge graph.** Annotations can now be linked across documents with typed,
+  directed relations — `CONFLICTS_WITH`, `SUPPORTS`, `IS_EXAMPLE_OF`, `CITES`,
+  `CONTRADICTS`, `DEFINES`, `EXTENDS`, `SEE_ALSO`, `PRECEDES`, `FOLLOWS`. Each
+  annotation gains a stable `id` and an optional `relations` list, assigned
+  lazily so existing notes keep working unchanged.
+  - **New `Graph` menu** (`Alt+G`) in the Qt GUI: Show Graph View
+    (`Ctrl+Shift+Q`), Rebuild, Add/Edit Relation, Extract Concepts, Auto-Suggest
+    Relations, Export (SVG / PlantUML / DOT / JSON), and open external
+    SVG/DOT/PlantUML files. An interactive **knowledge-graph dock** renders the
+    graph (colour-coded by relation type); double-clicking a node navigates to
+    that annotation in its document.
+  - **TUI commands**: `graph-show`, `graph-rebuild`, `graph-add-relation`,
+    `graph-extract-concepts`, `graph-suggest-relations`, and
+    `graph-export-svg` / `-dot` / `-plantuml` / `-json`.
+  - **Concept extraction**: spaCy → NLTK → a pure-regex, domain-aware fallback
+    (`general` / `legal` / `medical` / `sociological`), plus auto-suggested
+    relations from concepts that match existing notes.
+  - **Export** to SVG, PlantUML, DOT, and JSON. SVG works with no external
+    packages via a built-in spring-layout renderer; `graphviz` is used for nicer
+    layout when installed.
+  - New optional dependencies (`spacy`, `nltk`, `graphviz`, `plantuml`) — all
+    guarded; the feature works fully without them. See
+    [`docs/knowledge-graph.md`](../docs/knowledge-graph.md).
+- **`graph` settings block** — layout, node colouring, concept domain, orphan
+  visibility, and last export directory.
+- **Obsidian vault import/export.** Import an [Obsidian](https://obsidian.md)
+  vault (a folder of Markdown notes) two ways — into the **knowledge graph**
+  (each note becomes a library document plus a `#obsidian-note` graph node, and
+  `[[wikilinks]]`, including typed Dataview `rel:: [[target]]` fields, become
+  relations) or into the **library / bookshelf only** (notes registered as
+  documents, no graph) — and export the graph back out as linked Markdown.
+  **File ▸ Import Obsidian Vault…** / **File ▸ Export ▸ Obsidian Vault…**, or
+  `M-x import-vault` / `export-vault`. Front matter is parsed with a built-in
+  reader (`pyyaml` optional, now registered, for richer YAML). See
+  [`docs/obsidian.md`](../docs/obsidian.md).
+- **`vault` settings block** — last vault directory and the default relation type
+  for untyped wikilinks.
+
+### 🧩 Internal
+
+- New pure-Python, Qt-free modules: `star/graph.py`, `star/ner.py`,
+  `star/export_graph.py`; the Qt viewer lives in `star/gui/graph_view.py` and is
+  imported lazily.
+
+---
+
 ## [0.1.9] 2026-06-23
 
 ### ⚡ Performance

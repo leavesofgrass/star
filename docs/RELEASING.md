@@ -41,8 +41,8 @@ is added without registering it in `star.diagnostics`.
 4. **Commit** the version bump on `main` (or via PR).
 5. **Tag and push**:
    ```bash
-   git tag v0.1.9
-   git push origin v0.1.9
+   git tag v0.1.10
+   git push origin v0.1.10
    ```
 
 Pushing a `v*` tag triggers
@@ -69,8 +69,8 @@ The release workflow publishes the wheel and sdist to PyPI using
 [**trusted publishing**](https://docs.pypi.org/trusted-publishers/) (OIDC) — no
 API token is ever stored in the repo. The routing is by tag:
 
-- **Pre-release tag** (contains a hyphen, e.g. `v0.1.9-rc1`) → **TestPyPI**.
-- **Final tag** (e.g. `v0.1.9`) → **PyPI**.
+- **Pre-release tag** (contains a hyphen, e.g. `v0.1.10-rc1`) → **TestPyPI**.
+- **Final tag** (e.g. `v0.1.10`) → **PyPI**.
 
 Manual `workflow_dispatch` runs do not publish (no tag ref).
 
@@ -93,9 +93,9 @@ Actions → Variables → `ENABLE_PYPI`* to anything other than `true` (or remov
    TestPyPI).
 2. **Create the GitHub environments** `pypi` and `testpypi` (Repo *Settings →
    Environments*), optionally with required reviewers as a release gate.
-3. **Rehearse on TestPyPI first.** Push a pre-release tag (`v0.1.9-rc1`), confirm
+3. **Rehearse on TestPyPI first.** Push a pre-release tag (`v0.1.10-rc1`), confirm
    `pip install -i https://test.pypi.org/simple/ star-reader` works, then push the
-   final `v0.1.9` tag.
+   final `v0.1.10` tag.
 
 ## Build-it-yourself artifacts
 
@@ -121,6 +121,6 @@ pwsh tools/build-windows.ps1 -AllowDeprecatedExe # DEPRECATED exe       -> dist/
 
 ## Pre-release tags
 
-Use a suffix (e.g. `v0.1.9-rc1`) for a dry run: the workflow still builds the
+Use a suffix (e.g. `v0.1.10-rc1`) for a dry run: the workflow still builds the
 wheel, routes the publish to TestPyPI, and creates a (pre-)release you can inspect
 before cutting the final tag.

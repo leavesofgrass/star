@@ -17,6 +17,7 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 - [User highlights](#user-highlights)
 - [Annotations / notes](#annotations--notes)
 - [Citation manager](#citation-manager-qt-gui)
+- [Knowledge graph](#knowledge-graph)
 - [Voice dictation & transcription](#voice-dictation--transcription-optional)
 - [Table of contents & EPUB / DAISY navigation](#table-of-contents--epub--daisy-navigation)
 - [Document caching](#document-caching)
@@ -48,6 +49,8 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 | User text highlights | Highlight passages in yellow, green, cyan, pink, or orange; persists across sessions and exports to PDF |
 | Annotations / notes panel | Tagged notes anywhere in a document; full-text + `#tag` search; persists per-document; exports to Markdown, JSON, BibTeX, or RIS |
 | Citation manager | Import/export BibTeX, RIS, and CSL-JSON; link citations to notes |
+| Knowledge graph | Link annotations across documents with typed relations; extract concepts; interactive graph view; export to SVG / PlantUML / DOT / JSON |
+| Obsidian vaults | Import an Obsidian vault (notes + `[[wikilinks]]` + tags) into the knowledge graph, and export the graph back as linked Markdown notes |
 | Voice dictation & transcription | Transcribe audio files and dictate notes by voice via Whisper (optional) |
 | Table of Contents panel | Auto-built from document headings in Qt mode; click any entry to jump there |
 | EPUB NCX / NAV navigation | Parses EPUB 2 NCX and EPUB 3 NAV documents for chapter-level navigation |
@@ -363,6 +366,38 @@ documents (stored under `citations` in `settings.json`).
 
 Linking a citation to a note records its key in the note's `cite` field (shown as
 `@key`), so exported study notes carry proper attribution.
+
+---
+
+## Knowledge graph
+
+Link annotations **across documents** into a typed, directed graph — turning a
+flat notes list into a navigable web of how ideas relate. Each annotation becomes
+a node (it gains a stable `id` and an optional `relations` list, assigned lazily
+so existing notes keep working); edges carry a relation type and an optional
+label.
+
+- **Relation types:** `CONFLICTS_WITH`, `SUPPORTS`, `IS_EXAMPLE_OF`, `CITES`,
+  `CONTRADICTS`, `DEFINES`, `EXTENDS`, `SEE_ALSO`, `PRECEDES`, `FOLLOWS`.
+- **Add / edit relations:** select a note, then **Graph → Add Relation…** /
+  **Edit Relations…** (Qt), or `M-x graph-add-relation` (TUI).
+- **Graph view:** **Graph → Show Graph View** (`Ctrl+Shift+Q`) opens an
+  interactive dock rendering the graph colour-coded by relation type;
+  double-click a node to jump to that annotation. The TUI shows the DOT source
+  via `M-x graph-show`.
+- **Concept extraction:** **Graph → Extract Concepts…** finds candidate concepts
+  (spaCy → NLTK → a domain-aware regex fallback: `general` / `legal` / `medical`
+  / `sociological`); **Auto-Suggest Relations…** lists concepts that already
+  appear in your notes.
+- **Export:** SVG, PlantUML, DOT, and JSON (**Graph → Export Graph**). SVG works
+  with no external packages via a built-in spring layout; `graphviz` is used for
+  nicer layout when installed.
+- **Optional dependencies:** `spacy`, `nltk`, `graphviz`, `plantuml` — all
+  guarded; the feature works fully without them.
+
+See the dedicated **[Knowledge Graph guide](knowledge-graph.md)** for the
+complete walkthrough, every relation type's meaning, and the full
+shortcut/command table.
 
 ---
 

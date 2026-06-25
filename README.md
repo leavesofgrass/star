@@ -62,6 +62,9 @@ are in the **[Installation guide](docs/installation.md)**.
 - **Study tools:** notes & annotations, a citation manager, summarization, Anki
   flashcard export, document translation (15 languages, no API key), RSS/Atom
   feed reading, and a difficult-word overlay.
+- **Knowledge graph:** link annotations across documents with typed relations
+  (`CONFLICTS_WITH`, `SUPPORTS`, `CITES`, …), extract concepts, view the graph
+  interactively, and export to SVG/PlantUML/DOT/JSON.
 - **Export:** Markdown, PDF (with highlights), BRF braille, TTS audio
   (WAV/MP3/OGG/MP4), and synchronized SRT/VTT subtitles.
 - **Accessibility-first:** NVDA/JAWS/Orca/VoiceOver compatible, four
@@ -81,6 +84,7 @@ See the **[full feature reference](docs/features.md)** for everything.
 | **[Installation](docs/installation.md)** | PyPI / wheel / zipapp install, optional packages, native engines, platform notes |
 | **[Usage Guide](docs/usage_guide.md)** | Running star, the **quick command reference**, full keyboard map, M-x commands, CLI options |
 | **[Features](docs/features.md)** | The complete feature reference |
+| **[Knowledge Graph](docs/knowledge-graph.md)** | Typed relations between annotations, concept extraction, graph view, and export |
 | **[Configuration](docs/configuration.md)** | Every `settings.json` key |
 | **[Architecture & Contributing](docs/architecture.md)** | Package layout, distribution artifacts, contributing, tests |
 | [Changelog](star/CHANGELOG.md) | Full record of changes |
