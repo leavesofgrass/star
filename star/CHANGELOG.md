@@ -8,6 +8,148 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.11] 2026-06-25
+
+### ✨ Added
+
+#### Epic I — Archive ingestion
+
+- **`star/archive.py`** — new pure-Python archive-member module.  Supports ZIP
+  and TAR (.tar, .tar.gz, .tgz, .tar.xz, .tar.bz2) via stdlib; `.7z` via
+  optional `py7zr`; `.rar` via optional `rarfile`.  Ref form:
+  `/abs/book.zip!inner/paper.pdf`.  API: `is_archive`, `is_archive_ref`,
+  `make_ref`, `parse_ref`, `list_members`, `open_member` (context manager),
+  `build_index_markdown`.
+- **Archive loading in `load_document`** — opening an archive ref extracts the
+  member to a temp file, loads it by format, and keys annotations/library by the
+  ref.  Opening an archive directly produces a Markdown member index and registers
+  each member in the library under its ref.
+- **File ▸ Open Archive…** (Qt GUI) — pick an archive, select a member from the
+  member list, and open it.
+- **`M-x open-archive`** (TUI) — same workflow from the command palette.
+- **Bookshelf** — archive members appear grouped by their `"source"` archive.
+- **New `[archive]` extra:** `pip install "star-reader[archive]"` pulls in `py7zr`
+  and `rarfile` for .7z / .rar support (ZIP and TAR are always available).
+- **diagnostics** — `py7zr` and `rarfile` registered as `probe`-kind entries.
+
+#### Epic II — Metadata & discovery
+
+- **ISBN validation** (`star.citations._valid_isbn`) — checksum-valid ISBN-10
+  and ISBN-13 detection (hyphens/spaces stripped).
+- **OpenLibrary ISBN lookup** (`star.citations._fetch_metadata_by_isbn`) — fetches
+  title, author, year, and publisher from the OpenLibrary Books API (keyless,
+  no account required); returns `(dict, message)` with a clear "unavailable"
+  message when offline.
+- **`star/discovery.py`** — `search_library(settings, query, doi, isbn, author)`:
+  AND-combined library search over title/author/path/annotation text plus exact
+  DOI/ISBN matching.
+- **Library metadata** — `library[key]["meta"]` dict (`title`, `author`, `year`,
+  `doi`, `isbn`, `publisher`) persisted in settings.
+- **Metadata Editor dialog** (Qt GUI: File ▸ Edit Document Metadata…) — inline
+  form with "Look up DOI" and "Look up ISBN" buttons that auto-fill fields.
+- **`M-x metadata-edit`** (TUI) — field-by-field metadata editing with DOI/ISBN
+  lookup from the command palette.
+- **`M-x library-search`** (TUI) — multi-criteria library search.
+
+#### Epic III — Sentence-level karaoke video export
+
+- **`star/video.py`** — `export_video(document, settings, out_path, tts_backend)`.
+  Pipeline: TTS → WAV → sentence-span timing cues → PNG frames (one per
+  sentence, current sentence highlighted / rest dimmed) → ffmpeg concat →
+  MP4 with soft SRT subtitle track.
+- **Renderers** (in priority order): Qt offscreen (`QTextDocument` → `QImage`
+  with per-span `QTextCharFormat` highlight); Pillow fallback (word-wrapped
+  text, translucent highlight rectangle).
+- **`_sentence_spans`** — character-offset sentence segmentation reusing
+  `_SENTENCE_SPLIT_RE` from `_runtime`.
+- **File ▸ Export ▸ Video (MP4)…** (`Ctrl+Alt+V`, Qt GUI) — runs on a background
+  thread; status bar shows progress and confirms the path.
+- **`M-x export-video`** (TUI) — same pipeline from the TUI command palette.
+- **New `[video]` extra:** `pip install "star-reader[video]"` pulls in `Pillow`
+  for the fallback renderer (Qt is the primary renderer, already in the base
+  deps; ffmpeg must be on PATH).
+- **diagnostics** — `pillow_video` registered as a `probe`-kind entry.
+- **`"video"` settings block** — `resolution`, `theme`, `font_scale`, `subtitles`
+  (`soft|none`), `last_export_dir`.
+
+#### Epic IV — RSVP reading mode
+
+- **RSVP (Rapid Serial Visual Presentation)** — one-word-at-a-time reading aid
+  that synchronises with TTS playback, recognized as an accessibility aid for
+  many dyslexic readers.
+- **Qt GUI:** floating overlay (`_RSVPOverlay`) drawn on top of the document
+  with a rounded dark-background panel.  Shows the current word in large type
+  plus optional previous/next context words.  Toggle with `Ctrl+Alt+E`
+  (**View ▸ Reading Aids ▸ RSVP Mode**); position picker opens a 3×3 grid dialog
+  (**View ▸ Reading Aids ▸ RSVP Position…**).
+- **TUI:** RSVP overlay drawn in the document viewport between the content and
+  the status bar.  Toggle with `M-x rsvp-mode`; position with `M-x rsvp-position`.
+- **9 placement positions** — `top-left`, `top-center`, `top-right`,
+  `center-left`, `center`, `center-right`, `bottom-left`, `bottom-center`,
+  `bottom-right` — so readers with limited visual field can place the panel
+  where it is easiest to see.
+- **Settings:** `qt_rsvp_mode` (bool), `qt_rsvp_position` (str),
+  `qt_rsvp_font_size` (int, default 48), `qt_rsvp_context` (bool, default true),
+  `tui_rsvp_mode` (bool), `tui_rsvp_position` (str).
+
+#### Epic V — UI internationalization (i18n)
+
+- **Localized chrome** — star's own menus, toolbar button labels, and dock
+  titles can now be shown in a language other than English.  Ships with
+  **Spanish, French, German, and Portuguese**; English is the source language.
+- **`star/i18n.py`** — a small, gettext-style layer: `tr(text)` returns the
+  active language's translation or the English source unchanged when none
+  exists, so any untranslated string degrades quietly to English.  Catalogs are
+  plain JSON in `star/locale/<code>.json` loaded at runtime — **no build
+  tooling** (unlike Qt's native `.ts`/`.qm` workflow).  API: `tr`,
+  `set_language`, `get_language`, `available_languages`, `language_codes`.
+- **View ▸ Interface Language** (Qt GUI) — pick a language from the live list;
+  the menu bar and toolbar are rebuilt in place immediately (no restart), and
+  the choice persists.
+- **Adding a language** needs no code: drop a `star/locale/<code>.json` catalog
+  and add one row to `LANGUAGES` — see `star/locale/README.md`.
+- **Settings:** `ui_language` (ISO-639-1 code, default `"en"`).
+
+### 📦 Packaging
+
+- **Knowledge-graph / Obsidian optional dependencies are now installable through
+  the standard paths.** New `graph` (`graphviz`, `plantuml`, `pyyaml`) and `ner`
+  (`spacy`, `nltk`) extras in `pyproject.toml`; the light `graph` deps are now in
+  `[all]`. The `install.sh` / `install.ps1` `--all` profile — which had drifted —
+  now installs the full optional set (document formats, study aids, hot-folder
+  watching, and the graph/Obsidian helpers) and prints how to add the heavier
+  `[transcribe]` and `[ner]` extras. spaCy stays opt-in (it also needs a language
+  model, `python -m spacy download en_core_web_sm`).
+- **New extras:** `archive` (`py7zr`, `rarfile`), `video` (`Pillow`).
+
+### 🧩 Internal
+
+- New modules: `star/archive.py`, `star/discovery.py`, `star/video.py`,
+  `star/i18n.py`.
+- New data: `star/locale/{es,fr,de,pt}.json` UI catalogs (shipped via
+  `package-data`) and `star/locale/README.md`.
+- `star/citations.py` gains `_valid_isbn` and `_fetch_metadata_by_isbn`.
+- `star/documents.py` — archive-ref and direct-archive dispatch in
+  `load_document`; `_record_archive_members` helper.
+- `star/settings.py` — `"video"` settings block (all keys optional); RSVP
+  settings block.
+- `star/diagnostics.py` — `py7zr`, `rarfile`, `pillow_video` probe entries;
+  new "Archive" group.
+- `star/gui/runner.py` — `_RSVPOverlay` widget; RSVP hooks in
+  `_apply_word_highlight`; Reading Aids submenu entries.  Menu-bar and toolbar
+  building extracted into `_build_menu_bar` / `_build_toolbar` so they can be
+  rebuilt on a language switch; menu labels routed through `tr()`; new
+  `_set_ui_language` and an Interface Language submenu.
+- `star/tui.py` — `_draw_rsvp`, `_rsvp_mode_cmd`, `_rsvp_position_cmd`;
+  RSVP state variables; `_fillrow_range` helper.
+- `star/settings.py` — `ui_language` default.
+- `tests/test_rsvp.py` — 18 tests covering position geometry, settings
+  defaults, and word-extraction edge cases.
+- `tests/test_i18n.py` — 29 tests covering `tr()` fallback, language switching,
+  and catalog integrity audits.
+
+---
+
 ## [0.1.10] 2026-06-24
 
 ### ✨ Added

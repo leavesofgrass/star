@@ -19,6 +19,7 @@ Open it from the TUI with `M-x settings`.
 | Key | Default | Description |
 |---|---|---|
 | `theme` | `"dark"` | Color theme: `dark`, `light`, `contrast`, `phosphor` |
+| `ui_language` | `"en"` | UI-chrome language (menus, toolbar, docks): `en`, `es`, `fr`, `de`, `pt`. See [Interface language](features.md#interface-language-i18n) |
 | `tts_backend` | `"auto"` | TTS engine: `auto`, `pyttsx3`, `espeak`, `festival`, `piper`, `coqui`, `dectalk`, `none` |
 | `piper_model` | `""` | Path to a Piper `.onnx` voice model for the `piper` backend (neural, offline). The matching `.onnx.json` must sit beside it. Also honored: `PIPER_MODEL` env var and Piper voice directories. |
 | `tts_rate` | `265` | Reading speed in words per minute |

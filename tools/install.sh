@@ -101,7 +101,15 @@ if [ "$PLATFORM" = "macOS" ]; then
   TTS_PKGS+=(pyobjc)
 fi
 COMMON_PKGS=(pdfminer.six python-docx python-pptx)
-EXTRA_PKGS=(pytesseract pymupdf odfpy openpyxl pypandoc louis pydub)
+# Everything optional that pip can install without a multi-GB ML stack: document
+# formats, study/writing aids, hot-folder watching, and the knowledge-graph /
+# Obsidian helpers.  (Voice dictation [transcribe] and the spaCy NER backend
+# [ner] are heavier and installed separately — see the closing notes.)
+EXTRA_PKGS=(
+  pytesseract pymupdf odfpy openpyxl pypandoc louis pydub
+  sumy genanki pyspellchecker deep-translator feedparser wordfreq watchdog
+  graphviz plantuml pyyaml
+)
 
 PKGS=()
 case "$PROFILE" in
@@ -143,3 +151,8 @@ else
 fi
 printf '%s\n' "  Force the terminal UI:  ${BOLD}star --tui${RESET}"
 printf '%s\n' "  ${DIM}Optional tools above are only needed for the features noted.${RESET}"
+if [ "$PROFILE" = "all" ]; then
+  printf '%s\n' "  ${DIM}Heavier optional extras (not installed):${RESET}"
+  printf '%s\n' "  ${DIM}  voice dictation:  pip install \"star-reader[transcribe]\"  (Whisper + PyTorch)${RESET}"
+  printf '%s\n' "  ${DIM}  spaCy NER:        pip install \"star-reader[ner]\" && python -m spacy download en_core_web_sm${RESET}"
+fi

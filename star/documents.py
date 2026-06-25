@@ -1244,6 +1244,39 @@ def _load_via_pandoc(path: str) -> Optional[str]:
 
 def load_document(path: str, settings: Settings) -> Document:
     """Load any supported document format and return a Document object."""
+    # ── Archive member ref: /abs/book.zip!inner/paper.pdf ─────────────────
+    from .archive import is_archive_ref, is_archive, parse_ref, list_members, open_member, build_index_markdown
+    if is_archive_ref(path):
+        parsed = parse_ref(path)
+        if parsed:
+            archive_path, member = parsed
+            try:
+                with open_member(archive_path, member) as tmp:
+                    tmp_doc = load_document(tmp, settings)
+                tmp_doc.path = path
+                tmp_doc.title = tmp_doc.title or Path(member).name
+                return tmp_doc
+            except Exception as e:
+                doc = Document(path=path, format="text")
+                doc.markdown = f"# Archive Error\n\n```\n{e}\n```\n"
+                doc.plain_text = str(e)
+                doc.title = Path(path).name
+                return doc
+
+    # ── Opening an archive directly → build member index ─────────────────
+    if is_archive(path) and not path.lower().endswith((".epub", ".daisy")):
+        try:
+            members = list_members(path)
+        except Exception as e:
+            members = []
+        md = build_index_markdown(path, members)
+        doc = Document(path=path, format="archive")
+        doc.markdown = md
+        doc.plain_text = md
+        doc.title = Path(path).name
+        _record_archive_members(path, members, settings)
+        return doc
+
     doc = Document(path=path)
     fmt = _detect_format(path)
     doc.format = fmt
@@ -1795,3 +1828,31 @@ def _epub_extract_chapters(path: str) -> "List[Tuple[str, str]]":
             seen.add(href)
             unique.append((title, href))
     return unique
+
+
+# ---------------------------------------------------------------------------
+# Archive helpers (called from load_document)
+# ---------------------------------------------------------------------------
+
+
+def _record_archive_members(archive_path: str, members: List[str], settings: Any) -> None:
+    """Register archive members in the library under their ref keys."""
+    from .archive import make_ref
+    try:
+        library: Dict[str, Any] = settings.get("library") or {}
+        changed = False
+        for member in members:
+            ref = make_ref(archive_path, member)
+            if ref not in library:
+                library[ref] = {
+                    "title": Path(member).name,
+                    "format": _detect_format(member),
+                    "added": str(Path(archive_path).stat().st_mtime),
+                    "last_opened": "",
+                    "source": f"archive:{archive_path}",
+                }
+                changed = True
+        if changed:
+            settings.set("library", library)
+    except Exception:
+        pass

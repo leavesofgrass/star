@@ -30,9 +30,10 @@ Then run `star` (or `python -m star`). This pulls the GUI, TTS, and common
 document loaders; add optional features with extras — `pip install
 "star-reader[all]"` for the full feature set, or individual groups such as
 `star-reader[translate,vocab]`. Note that `[all]` deliberately **excludes** the
-multi-GB Whisper/PyTorch dictation stack (`[transcribe]`) and Coqui TTS; install
-those separately if you want them. Run `star --deps` to see what's installed and
-what each missing piece unlocks.
+multi-GB Whisper/PyTorch dictation stack (`[transcribe]`), Coqui TTS, and the
+spaCy NER backend (`[ner]`, which also needs a language model); install those
+separately if you want them. Run `star --deps` to see what's installed and what
+each missing piece unlocks.
 
 The **pure-Python wheel** behind this install is star's primary, stable
 distribution artifact.
@@ -71,11 +72,11 @@ then copy that one file anywhere and:
 
 ```bash
 # Recommended dependencies (Qt GUI + TTS + common formats) come with the wheel
-pip install star_reader-0.1.10-py3-none-any.whl
+pip install star_reader-0.1.11-py3-none-any.whl
 
 # Or pull in the optional Python features (OCR, ODT/XLSX, Pandoc, Braille,
 # audio conversion, study aids, feeds, vocab, watch):
-pip install "star_reader-0.1.10-py3-none-any.whl[all]"
+pip install "star_reader-0.1.11-py3-none-any.whl[all]"
 ```
 
 > **`[all]` excludes the heavy ML stacks on purpose.** It does **not** install
@@ -96,7 +97,8 @@ star --tui           # force the terminal UI
 ```
 
 Extras let you install exactly what you need: `[ocr]`, `[formats]`, `[markup]`,
-`[braille]`, `[audio]`, `[transcribe]`, `[watch]`, or `[all]`.
+`[braille]`, `[audio]`, `[transcribe]`, `[watch]`, `[graph]` (knowledge-graph /
+Obsidian helpers), `[ner]` (spaCy/NLTK concept extraction), or `[all]`.
 
 > The wheel covers the **Python** side. The native engines below (ffmpeg,
 > Tesseract, liblouis, Pandoc, eSpeak-NG) are not Python packages; on

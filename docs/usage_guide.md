@@ -53,7 +53,10 @@ trigger it).
 | Open a file | File ▸ Open… | `Ctrl+O` | `M-x open` (`Ctrl+O`) |
 | Open a URL | File ▸ Open URL… | `Ctrl+Shift+O` | `M-x open-url` |
 | Open an RSS / Atom feed | File ▸ Open Feed… | `Ctrl+Shift+M` | — |
+| Open an archive | File ▸ Open Archive… | — | `M-x open-archive` |
+| Edit document metadata | File ▸ Edit Document Metadata… | — | `M-x metadata-edit` |
 | Library / Bookshelf | File ▸ Library / Bookshelf… | `Ctrl+Shift+B` | `M-x library` |
+| Library search | — | — | `M-x library-search` |
 | Batch convert files | File ▸ Batch Convert | `Ctrl+Shift+C` | `M-x batch-convert` |
 | Watch a hot folder | File ▸ Watch Folder | `Ctrl+Shift+W` | (`star --watch` CLI) |
 | Export as Markdown | File ▸ Export ▸ Export as Markdown… | `Ctrl+Alt+M` | `M-x export-markdown` |
@@ -61,6 +64,7 @@ trigger it).
 | Export as Braille (BRF) | File ▸ Export ▸ Export as Braille… | `Ctrl+Alt+B` | `M-x export-braille` |
 | Export as Audio | File ▸ Export ▸ Export as Audio… | `Ctrl+Alt+A` | `M-x export-audio` |
 | Export subtitles (SRT/VTT) | File ▸ Export ▸ Export Subtitles… | `Ctrl+Alt+U` | `M-x export-subtitles` |
+| Export karaoke video (MP4) | File ▸ Export ▸ Video (MP4)… | `Ctrl+Alt+V` | `M-x export-video` |
 | Export Anki flashcards | File ▸ Export ▸ Anki Flashcards… | `Ctrl+Alt+H` | — |
 | Quit | File ▸ Quit | `Ctrl+Q` | `M-x quit` (`q`) |
 | Play / pause | (Playback toolbar) | `Space` · tap `Ctrl` | `M-x play` / `pause` (`Space`) |
@@ -101,7 +105,10 @@ trigger it).
 | Bionic reading | View ▸ Reading Aids ▸ Bionic Reading | `Ctrl+Alt+J` | — |
 | Current-line highlight | View ▸ Reading Aids ▸ Current-Line Highlight | `Ctrl+Alt+L` | — |
 | Highlight difficult words | View ▸ Reading Aids ▸ Highlight Difficult Words | `Ctrl+Alt+O` | — |
+| RSVP mode | View ▸ Reading Aids ▸ RSVP Mode | `Ctrl+Alt+E` | `M-x rsvp-mode` |
+| RSVP position | View ▸ Reading Aids ▸ RSVP Position… | — | `M-x rsvp-position` |
 | Show reading level | View ▸ Reading Level | `Ctrl+L` | `M-x reading-level` |
+| Interface language | View ▸ Interface Language | — | — |
 | Highlight selection (5 colors) | Highlight ▸ Yellow … Orange | `Ctrl+Shift+1` … `Ctrl+Shift+5` | — |
 | Clear all highlights | Highlight ▸ Clear All Highlights | `Ctrl+Shift+0` | — |
 | Add note at cursor | Notes ▸ Add Note at Cursor… | `Ctrl+Shift+A` | `M-x annotate` (`a`) |
@@ -219,12 +226,16 @@ bracket keys as fallbacks.
 |---|---|---|
 | Open a file | `Ctrl+O` | `Ctrl+O` |
 | Open a URL | `Ctrl+Shift+O` | `M-x open-url` |
+| Open an archive | File ▸ Open Archive… | `M-x open-archive` |
+| Edit document metadata | File ▸ Edit Document Metadata… | `M-x metadata-edit` |
 | Library / Bookshelf | `Ctrl+Shift+B` | `M-x library` |
+| Library search | — | `M-x library-search` |
 | Export as Markdown | `Ctrl+Alt+M` | `M-x export-markdown` |
 | Export as PDF | `Ctrl+Alt+P` | — |
 | Export as Braille (BRF) | `Ctrl+Alt+B` | `M-x export-braille` |
 | Export as Audio | `Ctrl+Alt+A` | `M-x export-audio` |
 | Export Subtitles (SRT/VTT) | `Ctrl+Alt+U` | `M-x export-subtitles` |
+| Export karaoke video (MP4) | `Ctrl+Alt+V` | `M-x export-video` |
 | Reload document | — | `F9` |
 | Quit | `Ctrl+Q` | `Ctrl+Q`   `q` |
 
@@ -268,6 +279,8 @@ All matches are highlighted: current match in magenta, others in blue.
 | Dyslexia-friendly font | `Ctrl+Alt+X` | — |
 | Bionic reading | `Ctrl+Alt+J` | — |
 | Current-line highlight | `Ctrl+Alt+L` | — |
+| RSVP mode | `Ctrl+Alt+E` | `M-x rsvp-mode` |
+| RSVP position picker | — | `M-x rsvp-position` |
 | Live HTML preview (edit mode) | `Ctrl+Shift+L` | — |
 | Show reading level | `Ctrl+L` | `M-x reading-level` |
 | Toggle line numbers | — | `F6` |
@@ -340,15 +353,25 @@ complete.
 | `export-markdown` | Save the rendered document as a `.md` file |
 | `batch-convert` | Convert many files / a folder to one format (Markdown, text, or Braille) |
 | `export-braille` | Export a BRF braille file (requires `louis`) |
+| `open-archive [path]` | Open an archive (ZIP/TAR/.7z/.rar) and browse its members |
 | `export-audio [fmt]` | Synthesize document to audio; `fmt` is `mp3` (default), `ogg`, `mp4`, or `wav` |
 | `export-subtitles` | Write a timestamped **SRT/VTT** caption track synchronized to the speech |
+| `export-video [path]` | Export a sentence-synchronized karaoke MP4 video |
 | `subtitle-format srt\|vtt` | Set the caption format used for subtitle export |
 | `subtitle-word-level` | Toggle one cue per word vs. sentence-grouped cues |
 | `subtitles-with-audio` | Toggle emitting captions automatically alongside audio export |
 | `recent` | Pick from recently opened files |
 | `library` (`bookshelf`) | Browse the document library and reopen a document |
+| `library-search` | Multi-criteria search over the library (title, DOI, ISBN, author, annotation text) |
 | `reading-stats` (`stats`) | Show the reading-statistics dashboard |
 | `cache-clear` | Delete the cached version of the current document |
+
+### Library & Metadata
+
+| Command | Description |
+|---|---|
+| `metadata-edit` | Edit the current document's metadata (title, author, year, DOI, ISBN, publisher) with optional DOI/ISBN lookup |
+| `library-search` | Search the library by title/path/annotation (`query`), DOI, ISBN, and/or author |
 
 ### Speech
 
@@ -399,6 +422,8 @@ complete.
 | `table-mode` | Switch table reading: `structured`, `flat`, or `skip` |
 | `footnote-mode` | Switch footnote handling: `inline`, `deferred`, or `skip` |
 | `reading-level` | Show Flesch-Kincaid grade and ease score |
+| `rsvp-mode` | Toggle RSVP one-word-at-a-time overlay on/off |
+| `rsvp-position` | Choose the panel position (9 named positions) |
 
 ### Abbreviations, Pronunciations & Numbers
 
@@ -490,9 +515,10 @@ visually without moving the cursor.
 
 ### Qt menus
 
-**File menu** — Open…, Open URL…, Open Feed…, Library / Bookshelf…, Batch
-Convert, Watch Folder, Export ▸ (Markdown / PDF / Braille (BRF) / Audio /
-Subtitles / Anki Flashcards), Quit.
+**File menu** — Open…, Open URL…, Open Archive…, Open Feed…, Edit Document
+Metadata…, Library / Bookshelf…, Batch Convert, Watch Folder, Export ▸
+(Markdown / PDF / Braille (BRF) / Audio / Subtitles / Video (MP4) / Anki
+Flashcards), Quit.
 
 **Highlight menu** — Highlight Yellow / Green / Cyan / Pink / Orange, Clear All
 Highlights. (`Ctrl+H` is the **Next Heading** shortcut, matching NVDA/JAWS

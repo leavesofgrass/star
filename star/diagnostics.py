@@ -262,6 +262,27 @@ OPTIONAL_DEPENDENCIES: List[Dict[str, Any]] = [
         "(a built-in parser is used otherwise)",
         "install": "pip install pyyaml",
     },
+    # ── Archive ingestion ──────────────────────────────────────────────────
+    {
+        "key": "py7zr", "label": "7-Zip archives (py7zr)", "group": "Archive",
+        "module": None, "attr": None, "kind": "probe", "probe": ["py7zr"],
+        "enables": "Open .7z archive files",
+        "install": _extra("archive"),
+    },
+    {
+        "key": "rarfile", "label": "RAR archives (rarfile)", "group": "Archive",
+        "module": None, "attr": None, "kind": "probe", "probe": ["rarfile"],
+        "enables": "Open .rar archive files",
+        "install": _extra("archive"),
+    },
+    # ── Video export ───────────────────────────────────────────────────────
+    {
+        "key": "pillow_video", "label": "Pillow (video frame renderer)",
+        "group": "Export & study",
+        "module": None, "attr": None, "kind": "probe", "probe": ["PIL"],
+        "enables": "Render karaoke video frames when Qt is unavailable",
+        "install": _extra("video"),
+    },
     # ── Live document-camera capture ───────────────────────────────────────
     {
         "key": "opencv", "label": "OpenCV (document camera)", "group": "Capture",

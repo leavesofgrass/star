@@ -25,12 +25,17 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 - [OCR support](#ocr-support)
 - [Math normalization](#math-normalization)
 - [Braille support](#braille-support)
+- [Archive ingestion](#archive-ingestion)
+- [Metadata editor & library search](#metadata-editor--library-search)
+- [Karaoke video export](#karaoke-video-export)
+- [RSVP reading mode](#rsvp-reading-mode)
 - [Audio export](#audio-export)
 - [Speed presets, bookmarks & history](#speed-presets-bookmarks--history)
 - [Document editing](#document-editing-qt-gui)
 - [Study & writing aids](#study--writing-aids)
 - [Screen reader compatibility](#screen-reader-compatibility)
 - [Color themes & CSS customization](#color-themes--css-customization)
+- [Interface language (i18n)](#interface-language-i18n)
 - [Batch conversion & hot-folder watching](#batch-conversion--hot-folder-watching)
 
 ---
@@ -62,7 +67,13 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 | Speed presets | Named presets (skim/normal/study/slow) switchable at runtime |
 | Bookmarks / history | Named bookmarks and within-session position history |
 | Document editing | `Ctrl+E` toggles raw-Markdown edit mode; `Ctrl+S` saves back to the original file |
-| Export | Markdown, PDF (with highlights), BRF braille, TTS audio, and SRT/VTT subtitles |
+| Archive ingestion | Open ZIP, TAR, .7z, and .rar archives; browse members; load any member by format; archive refs persisted in library and annotations |
+| Metadata editor | Edit title, author, year, DOI, ISBN, publisher per document; one-click DOI / ISBN lookup (CrossRef / OpenLibrary) |
+| Library search | AND-combined search over title, author, DOI, ISBN, and annotation full-text |
+| Karaoke video export | Sentence-synchronized MP4: TTS audio + rendered page frames with highlight advancing sentence by sentence; soft SRT subtitle track |
+| RSVP reading mode | One-word-at-a-time display at a fixed on-screen point; 9 placement positions for limited-visual-field accessibility; prev/next context words; syncs with TTS |
+| Interface language | Localize the menus, toolbar, and docks (English, Spanish, French, German, Portuguese); switch live from View ▸ Interface Language |
+| Export | Markdown, PDF (with highlights), BRF braille, TTS audio, SRT/VTT subtitles, and karaoke MP4 video |
 | Reading statistics | Per-document time read, progress %, and session count, with totals and a most-read dashboard |
 | Library / bookshelf | Searchable list of every opened document with progress and last-opened time |
 | Live HTML preview | Optional split-pane preview that re-renders the Markdown live while you edit |
@@ -86,6 +97,10 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 
 | Format | Extension(s) | Package(s) Required |
 |---|---|---|
+| ZIP archive | `.zip` | built-in (stdlib) |
+| TAR archive | `.tar`, `.tar.gz`, `.tgz`, `.tar.xz`, `.tar.bz2` | built-in (stdlib) |
+| 7-Zip archive | `.7z` | `py7zr` (`[archive]` extra) |
+| RAR archive | `.rar` | `rarfile` (`[archive]` extra) |
 | PDF (text layer) | `.pdf` | `pdfminer.six` |
 | PDF (scanned / image) | `.pdf` | `pytesseract`, `pymupdf` |
 | Microsoft Word | `.docx` | `python-docx` |
@@ -538,6 +553,146 @@ tables: `en-ueb-g1.ctb`, `en-ueb-g2.ctb`, `es-g1.ctb`, `nemeth.ctb`.
 
 ---
 
+## Archive ingestion
+
+`star` can open archive files as containers and read their members directly —
+no manual extraction required.
+
+**Supported archive formats:**
+
+| Format | Extension(s) | Notes |
+|---|---|---|
+| ZIP | `.zip` | stdlib; always available (DAISY ZIPs use the DAISY handler, not this one) |
+| TAR | `.tar`, `.tar.gz`, `.tgz`, `.tar.xz`, `.tar.bz2` | stdlib; always available |
+| 7-Zip | `.7z` | requires `py7zr` (`pip install "star-reader[archive]"`) |
+| RAR | `.rar` | requires `rarfile` (`pip install "star-reader[archive]"`) |
+
+**Opening an archive directly** produces a Markdown index listing its readable
+members. Each member is registered in the library so you can reopen it later.
+Click any entry or type its ref directly.
+
+**Opening an archive member** uses the ref form
+`/path/to/archive.zip!inner/paper.pdf`. The member is extracted to a temp file,
+loaded in its native format (PDF, EPUB, Markdown, …), and keyed in the library
+and annotations by the ref — so notes survive across sessions.
+
+- **Qt GUI:** **File ▸ Open Archive…** — pick the archive from a dialog, then
+  select a member from the list that appears.
+- **TUI:** `M-x open-archive [path]` — same workflow from the command palette.
+- **CLI / open directly:** `star /path/to/book.zip!chapter1.pdf`
+
+**Filtering:** only readable members are shown: documents (`.pdf`, `.epub`,
+`.docx`, `.md`, `.txt`, etc.). System junk (`__MACOSX/`, `.DS_Store`, dotfiles)
+and directory entries are filtered out automatically.
+
+---
+
+## Metadata editor & library search
+
+Each document in the library can carry structured metadata: **title**, **author**,
+**year**, **DOI**, **ISBN**, and **publisher**. Metadata is stored in the
+`"meta"` sub-dict of the library entry and persists in `settings.json`.
+
+### Editing metadata
+
+- **Qt GUI:** **File ▸ Edit Document Metadata…** — a dialog with one field per
+  attribute. The **Look up DOI** button fetches the citation from CrossRef (requires
+  a network connection and the DOI in the `doi` field). The **Look up ISBN** button
+  fetches title, author, year, and publisher from the
+  [OpenLibrary Books API](https://openlibrary.org/developers/api) (keyless, no
+  account needed).
+- **TUI:** `M-x metadata-edit` — field-by-field editing with DOI/ISBN lookup from
+  the command palette.
+
+ISBN entry accepts any notation: `978-3-16-148410-0`, `9783161484100`, or
+`0-306-40615-2`. star validates the checksum (ISBN-10 mod-11 and ISBN-13 mod-10)
+before sending a lookup request.
+
+### Cross-library search
+
+`M-x library-search` (TUI) opens a multi-criteria search over the entire
+document library:
+
+| Criterion | Matches |
+|---|---|
+| `query` | Title, author, path, and annotation text (all notes for the document) |
+| `doi` | Exact DOI match (normalized — `https://doi.org/`, `doi:` prefix stripped) |
+| `isbn` | Exact ISBN match (normalized — hyphens and spaces stripped) |
+| `author` | Case-insensitive substring in the stored author field |
+
+All criteria are AND-combined: only documents satisfying every non-empty
+criterion are returned. With no criteria the entire library is returned in
+last-opened order.
+
+---
+
+## Karaoke video export
+
+`star` can produce a sentence-synchronized karaoke MP4 video from any document:
+a rendered page image where the current sentence is highlighted while the TTS
+voice reads it aloud — useful for study, accessibility demonstrations, or
+sharing content as video.
+
+See the dedicated **[Karaoke Video Export guide](video-export.md)** for the full
+walkthrough, settings reference, and troubleshooting.
+
+**Quick start:**
+
+- **Qt GUI:** **File ▸ Export ▸ Video (MP4)…** (`Ctrl+Alt+V`) — choose an output
+  path; the export runs in the background and the status bar confirms the file.
+- **TUI:** `M-x export-video [path]` — same pipeline from the command palette.
+
+**Requirements:** a TTS engine (any backend), **ffmpeg** on PATH, and Qt or Pillow
+for frame rendering. `pip install "star-reader[video]"` adds Pillow as a fallback
+renderer.
+
+---
+
+## RSVP reading mode
+
+RSVP (Rapid Serial Visual Presentation) shows one word at a time at a fixed
+point on screen, synchronized with TTS playback.  This eliminates the need to
+track moving text across a line — a recognized aid for many dyslexic readers and
+readers with limited visual field.
+
+**Activation**
+
+| Interface | Action |
+|---|---|
+| Qt GUI | **View ▸ Reading Aids ▸ RSVP Mode** (`Ctrl+Alt+E`) |
+| TUI | `M-x rsvp-mode` |
+
+**Placement** — 9 positions let you choose where the word panel appears so it
+falls within your comfortable field of view:
+
+| | Left | Center | Right |
+|---|---|---|---|
+| **Top** | `top-left` | `top-center` *(default)* | `top-right` |
+| **Middle** | `center-left` | `center` | `center-right` |
+| **Bottom** | `bottom-left` | `bottom-center` | `bottom-right` |
+
+- **Qt GUI:** **View ▸ Reading Aids ▸ RSVP Position…** opens a 3×3 button grid;
+  click any cell to move the panel instantly.
+- **TUI:** `M-x rsvp-position` cycles through or lets you select a position.
+
+**Display** — the Qt overlay shows the current word in large type (default 48 pt)
+with optional previous/next context words in a smaller face so you can orient
+yourself without losing the focal point.  The TUI overlay uses a background-filled
+row that spans the word and its context.
+
+**Settings**
+
+| Key | Default | Description |
+|---|---|---|
+| `qt_rsvp_mode` | `false` | Enable RSVP overlay at startup |
+| `qt_rsvp_position` | `"top-center"` | Initial panel position |
+| `qt_rsvp_font_size` | `48` | Current-word font size in pt |
+| `qt_rsvp_context` | `true` | Show prev/next context words |
+| `tui_rsvp_mode` | `false` | Enable RSVP overlay in TUI at startup |
+| `tui_rsvp_position` | `"top-center"` | Initial panel position in TUI |
+
+---
+
 ## Audio export
 
 `star` can synthesize an entire document to an audio file using the active TTS
@@ -695,9 +850,46 @@ margin/border properties work, but CSS variables (`var()`) and `:root {}` do not
 readers: **Text Spacing…** (line height / letter / word spacing — WCAG 1.4.12),
 **Karaoke Highlight…** (granularity, style, color, speed, lead/lag),
 **Dyslexia-Friendly Font** (prefers OpenDyslexic / Atkinson Hyperlegible / Lexend
-/ Comic Sans), **Bionic Reading**, and **Current-Line Highlight**. star applies
-high-DPI scaling by default (`qt_hidpi`), so the window renders crisp on 4K/HiDPI
-displays.
+/ Comic Sans), **Bionic Reading**, **Current-Line Highlight**, and **RSVP Mode**
+(one word at a time at a chosen screen position — see
+[RSVP reading mode](#rsvp-reading-mode)). star applies high-DPI scaling by
+default (`qt_hidpi`), so the window renders crisp on 4K/HiDPI displays.
+
+---
+
+## Interface language (i18n)
+
+star can localize its own **chrome** — the menu bar, toolbar button labels, and
+dock titles — independently of the document being read. (Document *content* is
+handled separately by **Tools ▸ Translate Document…**.)
+
+**Shipped languages:** English (source), **Español**, **Français**, **Deutsch**,
+**Português**.
+
+**Switching** — Qt GUI: **View ▸ Interface Language**, then pick a language. The
+menu bar and toolbar are rebuilt immediately (no restart) and the choice is
+saved to `ui_language` in settings. Native language names are shown
+untranslated so you can always find your own.
+
+**How it works** — each language is a flat JSON catalog of
+`{english_source: translation}` in `star/locale/<code>.json`, loaded at runtime
+by `star/i18n.py`. There is **no build step** (unlike Qt's native `.ts`/`.qm`
+workflow). Any string without a catalog entry falls back to its English source,
+so a partial catalog degrades gracefully rather than showing blanks.
+
+**Adding a language** — no code changes to the GUI are required:
+
+1. Copy `star/locale/es.json` to `star/locale/<code>.json` and translate the
+   values (leave the English keys untouched).
+2. Add a `(native name, code)` row to `LANGUAGES` in `star/i18n.py`.
+3. The language appears in **View ▸ Interface Language** on next launch.
+
+See [`star/locale/README.md`](../star/locale/README.md) for the full
+contributor guide.
+
+| Setting | Default | Description |
+|---|---|---|
+| `ui_language` | `"en"` | ISO-639-1 code of the UI-chrome language |
 
 ---
 
@@ -739,4 +931,5 @@ installed (the `[watch]` extra); otherwise falls back to directory polling.
 ---
 
 See also: [Usage Guide](usage_guide.md) · [Installation](installation.md) ·
-[Configuration](configuration.md) · [Architecture](architecture.md).
+[Configuration](configuration.md) · [Architecture](architecture.md) ·
+[Karaoke Video Export](video-export.md).

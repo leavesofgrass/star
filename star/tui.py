@@ -395,6 +395,16 @@ MX_COMMANDS = sorted(
         "annotation-delete",
         "annotations-export",
         "shortcuts",
+        # Epic I — Archive ingestion
+        "open-archive",
+        # Epic II — Metadata & discovery
+        "metadata-edit",
+        "library-search",
+        # Epic III — Video export
+        "export-video",
+        # RSVP reading mode
+        "rsvp-mode",
+        "rsvp-position",
     ]
 )
 
@@ -423,6 +433,22 @@ def _fillrow(win: "curses.window", y: int, attr: int = 0, ch: str = " ") -> None
         return
     try:
         win.addstr(y, 0, ch * (w - 1), attr)
+    except curses.error:
+        pass
+
+
+def _fillrow_range(
+    win: "curses.window", y: int, x: int, width: int, attr: int = 0
+) -> None:
+    """Fill a horizontal range [x, x+width) on row y with spaces."""
+    h, w = win.getmaxyx()
+    if y < 0 or y >= h or x < 0 or x >= w:
+        return
+    width = min(width, w - x)
+    if width <= 0:
+        return
+    try:
+        win.addstr(y, x, " " * width, attr)
     except curses.error:
         pass
 
@@ -500,6 +526,8 @@ _SHORTCUTS: List[Tuple[str, List[Tuple[str, str, str]]]] = [
             ("Text spacing / karaoke", "Ctrl+Alt+W / Ctrl+Alt+K", "—"),
             ("Dyslexia font / bionic", "Ctrl+Alt+X / Ctrl+Alt+J", "—"),
             ("Current-line highlight", "Ctrl+Alt+L", "—"),
+            ("RSVP mode (one word at a time)", "Ctrl+Alt+R", "M-x rsvp-mode"),
+            ("RSVP position (quadrant)", "View ▸ RSVP Position…", "M-x rsvp-position"),
             ("Reload / open CSS themes", "Ctrl+Shift+R / Ctrl+Shift+F", "—"),
             ("Line numbers / syntax", "—", "F6 / F7"),
         ],
@@ -508,10 +536,20 @@ _SHORTCUTS: List[Tuple[str, List[Tuple[str, str, str]]]] = [
         "File & Export",
         [
             ("Open file / URL", "Ctrl+O / Ctrl+Shift+O", "Ctrl+O / M-x open-url"),
+            ("Open Archive…", "File ▸ Open Archive…", "M-x open-archive"),
             ("Export Markdown / PDF", "Ctrl+Alt+M / Ctrl+Alt+P", "M-x export-markdown"),
             ("Export Braille / Audio", "Ctrl+Alt+B / Ctrl+Alt+A", "M-x export-*"),
             ("Export Subtitles", "Ctrl+Alt+U", "M-x export-subtitles"),
+            ("Export Video (MP4)", "File ▸ Export ▸ Video…", "M-x export-video"),
             ("Quit", "Ctrl+Q", "Ctrl+Q / q"),
+        ],
+    ),
+    (
+        "Library & Metadata",
+        [
+            ("Library / Bookshelf", "Ctrl+Shift+B", "M-x library"),
+            ("Library search", "—", "M-x library-search"),
+            ("Edit document metadata", "—", "M-x metadata-edit"),
         ],
     ),
     (
@@ -649,6 +687,16 @@ class StarApp:
         # where reading was paused rather than restarting from the scroll top.
         self._tts_paused_at_word: int = -1
 
+        # RSVP (Rapid Serial Visual Presentation) state — updated from
+        # _on_highlight (background thread) and consumed by the draw loop
+        # (main thread).  Only plain attribute writes happen here, which is
+        # safe without a lock in CPython.
+        self._rsvp_mode: bool = bool(settings.get("tui_rsvp_mode", False))
+        self._rsvp_position: str = str(settings.get("tui_rsvp_position", "top-center"))
+        self._rsvp_prev_word: str = ""
+        self._rsvp_curr_word: str = ""
+        self._rsvp_next_word: str = ""
+
         # Sentence map: list of word-map indices where each sentence begins.
         # Built asynchronously (same thread as the word map) after each load.
         self._sentence_starts: List[int] = [0]
@@ -713,6 +761,14 @@ class StarApp:
             self._highlight_col_start = -1
             self._highlight_col_end = -1
             self._highlight_sent = None
+
+        # Update RSVP words (safe — plain attribute writes only).
+        if self._rsvp_mode and self.doc:
+            wm = self.doc.word_map
+            n = len(wm)
+            self._rsvp_curr_word = wm[word_idx].word if 0 <= word_idx < n else ""
+            self._rsvp_prev_word = wm[word_idx - 1].word if word_idx > 0 else ""
+            self._rsvp_next_word = wm[word_idx + 1].word if word_idx + 1 < n else ""
 
     # ── Async document loading ─────────────────────────────────────────────
 
@@ -3289,6 +3345,16 @@ class StarApp:
             "annotations-export": self._annotations_export,
             # Keyboard cheat sheet
             "shortcuts": self._show_shortcuts,
+            # Epic I — Archive ingestion
+            "open-archive": lambda: self._open_archive_prompt(arg or ""),
+            # Epic II — Metadata & discovery
+            "metadata-edit": self._metadata_edit_cmd,
+            "library-search": lambda: self._library_search_cmd(arg or ""),
+            # Epic III — Video export
+            "export-video": lambda: self._export_video_cmd(arg or ""),
+            # RSVP reading mode
+            "rsvp-mode": self._rsvp_mode_cmd,
+            "rsvp-position": lambda: self._rsvp_position_cmd(arg or ""),
         }
 
         fn = cmd_map.get(cmd)
@@ -3393,6 +3459,235 @@ class StarApp:
     def _show_shortcuts(self) -> None:
         """Show the canonical keyboard cheat sheet."""
         self._show_text_pager("Keyboard Shortcuts", _shortcuts_text(plain=False))
+
+    # ── Archive ingestion (TUI) ────────────────────────────────────────────
+
+    def _open_archive_prompt(self, path: str = "") -> None:
+        """Open an archive and list its members; prompt to open one (M-x open-archive)."""
+        from .archive import is_archive, list_members, make_ref
+        if path and is_archive(path):
+            self._open_archive_pick(path)
+            return
+        self._enter_minibuffer(
+            "Archive path: ",
+            on_commit=self._open_archive_pick,
+        )
+
+    def _open_archive_pick(self, archive_path: str) -> None:
+        """List members of *archive_path* and prompt the user to pick one."""
+        from .archive import is_archive, list_members, make_ref
+        archive_path = archive_path.strip()
+        if not archive_path:
+            return
+        try:
+            members = list_members(archive_path)
+        except Exception as e:
+            self.notify(f"Cannot read archive: {e}", error=True)
+            return
+        if not members:
+            self.notify("No readable documents found in archive", error=True)
+            return
+        # Show members in a pager; user types the number to open
+        text = f"Archive: {archive_path}\n\nMembers:\n"
+        for i, m in enumerate(members, 1):
+            text += f"  {i:3d}.  {m}\n"
+        text += "\nType M-x open-archive <archive>!<member> to open a specific member."
+        self._show_text_pager("Archive Contents", text)
+        # Also load the archive index document
+        self._open_async(archive_path)
+
+    # ── Metadata editing (TUI) ─────────────────────────────────────────────
+
+    def _metadata_edit_cmd(self) -> None:
+        """Edit metadata (title/author/year/DOI/ISBN) for the current document."""
+        if not self.doc:
+            self.notify("No document open", error=True)
+            return
+        key = self.doc.path or self.doc.title or ""
+        if not key:
+            return
+        library: Dict[str, Any] = dict(self.settings.get("library") or {})
+        entry = dict(library.get(key) or {})
+        meta: Dict[str, Any] = dict(entry.get("meta") or {})
+
+        def _prompt_field(field: str, current: str) -> None:
+            self._enter_minibuffer(
+                f"Metadata — {field} [{current}]: ",
+                on_commit=lambda v: _set_field(field, v.strip() or current),
+            )
+
+        def _set_field(field: str, value: str) -> None:
+            meta[field] = value
+            entry["meta"] = meta
+            library[key] = entry
+            self.settings.set("library", library)
+            self.notify(f"Metadata updated: {field} = {value!r}")
+
+        def _lookup_doi() -> None:
+            doi = meta.get("doi", "")
+            if not doi:
+                self.notify("No DOI in metadata — set 'doi' first", error=True)
+                return
+            self.notify(f"Looking up DOI {doi!r}…")
+            from .citations import _fetch_citation_by_doi
+            def _do():
+                try:
+                    c = _fetch_citation_by_doi(doi)
+                    for f in ("title", "author", "year", "publisher"):
+                        if c.get(f):
+                            meta[f] = c[f]
+                    entry["meta"] = meta
+                    library[key] = entry
+                    self.settings.set("library", library)
+                    self.notify("DOI metadata filled")
+                except Exception as e:
+                    self.notify(f"DOI lookup failed: {e}", error=True)
+            threading.Thread(target=_do, daemon=True).start()
+
+        def _lookup_isbn() -> None:
+            isbn = meta.get("isbn", "")
+            if not isbn:
+                self.notify("No ISBN in metadata — set 'isbn' first", error=True)
+                return
+            from .citations import _valid_isbn, _fetch_metadata_by_isbn
+            if not _valid_isbn(isbn):
+                self.notify(f"ISBN {isbn!r} failed checksum validation", error=True)
+                return
+            self.notify(f"Looking up ISBN {isbn!r}…")
+            def _do():
+                m, msg = _fetch_metadata_by_isbn(isbn)
+                if m:
+                    for f in ("title", "author", "year", "publisher", "isbn"):
+                        if m.get(f):
+                            meta[f] = m[f]
+                    entry["meta"] = meta
+                    library[key] = entry
+                    self.settings.set("library", library)
+                    self.notify("ISBN metadata filled")
+                else:
+                    self.notify(f"ISBN lookup: {msg}", error=True)
+            threading.Thread(target=_do, daemon=True).start()
+
+        # Show current metadata and prompt for field
+        lines = ["Current metadata:", ""]
+        for f in ("title", "author", "year", "doi", "isbn", "publisher"):
+            lines.append(f"  {f:<12} {meta.get(f, '')}")
+        lines += ["", "Commands: title / author / year / doi / isbn / publisher / lookup-doi / lookup-isbn"]
+        self._show_text_pager("Metadata Editor", "\n".join(lines))
+
+        self._enter_minibuffer(
+            "Edit field (title/author/year/doi/isbn/publisher/lookup-doi/lookup-isbn): ",
+            on_commit=lambda v: (
+                _lookup_doi() if v.strip() == "lookup-doi" else
+                _lookup_isbn() if v.strip() == "lookup-isbn" else
+                _prompt_field(v.strip(), meta.get(v.strip(), "")) if v.strip() else None
+            ),
+        )
+
+    # ── Library search (TUI) ──────────────────────────────────────────────
+
+    def _library_search_cmd(self, query: str = "") -> None:
+        """Search the document library (M-x library-search)."""
+        from .discovery import search_library
+        if not query:
+            self._enter_minibuffer(
+                "Library search: ",
+                on_commit=self._library_search_cmd,
+            )
+            return
+        results = search_library(self.settings, query=query)
+        if not results:
+            self.notify(f"No library entries match {query!r}")
+            return
+        lines = [f"Library search: {query!r}  ({len(results)} result(s))", ""]
+        for key, entry in results[:50]:
+            title = entry.get("title") or key
+            meta = entry.get("meta") or {}
+            author = meta.get("author") or entry.get("author") or ""
+            year = meta.get("year") or ""
+            tag = f" — {author}" if author else ""
+            tag += f" ({year})" if year else ""
+            lines.append(f"  {title}{tag}")
+            lines.append(f"    {key}")
+            lines.append("")
+        self._show_text_pager("Library Search Results", "\n".join(lines))
+
+    # ── Video export (TUI) ────────────────────────────────────────────────
+
+    def _export_video_cmd(self, fmt: str = "") -> None:
+        """Export current document as a karaoke MP4 video (M-x export-video)."""
+        if not self.doc:
+            self.notify("No document open", error=True)
+            return
+        if not self.doc.plain_text.strip():
+            self.notify("Document has no readable text", error=True)
+            return
+        vid = self.settings.get("video") or {}
+        last_dir = vid.get("last_export_dir") or str(Path.home())
+        default = str(Path(last_dir) / (Path(self.doc.title or "export").stem + ".mp4"))
+        self._enter_minibuffer(
+            f"Export video to [{default}]: ",
+            on_commit=lambda p: self._export_video_cb(p.strip() or default),
+        )
+
+    def _export_video_cb(self, dest: str) -> None:
+        from .video import export_video
+        self.notify("Rendering karaoke video… (this may take a minute)")
+        doc = self.doc
+
+        def _run() -> None:
+            try:
+                result = export_video(doc, self.settings, dest)
+                if result.get("error"):
+                    self.notify(f"Video export error: {result['error']}", error=True)
+                else:
+                    cues = result.get("cues", 0)
+                    self.notify(f"Video exported → {dest}  ({cues} sentences)")
+                    vid = dict(self.settings.get("video") or {})
+                    vid["last_export_dir"] = str(Path(dest).parent)
+                    self.settings.set("video", vid)
+            except Exception as e:
+                self.notify(f"Video export failed: {e}", error=True)
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    # ── RSVP reading mode (TUI) ───────────────────────────────────────────
+
+    _RSVP_POSITIONS: List[str] = [
+        "top-left", "top-center", "top-right",
+        "center-left", "center", "center-right",
+        "bottom-left", "bottom-center", "bottom-right",
+    ]
+
+    def _rsvp_mode_cmd(self) -> None:
+        """Toggle RSVP mode on/off (M-x rsvp-mode)."""
+        self._rsvp_mode = not self._rsvp_mode
+        self.settings["tui_rsvp_mode"] = self._rsvp_mode
+        if not self._rsvp_mode:
+            self._rsvp_curr_word = ""
+            self._rsvp_prev_word = ""
+            self._rsvp_next_word = ""
+        state = "ON" if self._rsvp_mode else "OFF"
+        self.notify(f"RSVP mode: {state}")
+
+    def _rsvp_position_cmd(self, pos: str = "") -> None:
+        """Set the RSVP overlay position (M-x rsvp-position [key]).
+
+        With no argument, cycles through the nine positions in order.
+        With a key (e.g. ``bottom-right``), jumps directly to that position.
+        """
+        positions = self._RSVP_POSITIONS
+        if pos and pos in positions:
+            self._rsvp_position = pos
+        else:
+            # Cycle to next
+            try:
+                idx = positions.index(self._rsvp_position)
+            except ValueError:
+                idx = -1
+            self._rsvp_position = positions[(idx + 1) % len(positions)]
+        self.settings["tui_rsvp_position"] = self._rsvp_position
+        self.notify(f"RSVP position: {self._rsvp_position}")
 
     # ── Annotations / notes (TUI) ──────────────────────────────────────────
 
@@ -4058,6 +4353,7 @@ class StarApp:
         self.scr.erase()
         self._draw_title(h, w)
         self._draw_document(h, w)
+        self._draw_rsvp(h, w)
         self._draw_status(h, w)
         self._draw_minibuffer(h, w)
         # ── Cursor positioning for screen-reader accessibility ─────────────
@@ -4089,6 +4385,65 @@ class StarApp:
         except curses.error:
             pass
         self.scr.refresh()
+
+    # RSVP position → (row_fraction, col_fraction) within the content area.
+    # Fractions are applied to (view_h, w) with the overlay anchored from the
+    # same relative corner so the box stays fully inside the viewport.
+    _RSVP_FRAC: Dict[str, Tuple[float, float]] = {
+        "top-left":      (0.02, 0.02),
+        "top-center":    (0.02, 0.50),
+        "top-right":     (0.02, 0.98),
+        "center-left":   (0.50, 0.02),
+        "center":        (0.50, 0.50),
+        "center-right":  (0.50, 0.98),
+        "bottom-left":   (0.98, 0.02),
+        "bottom-center": (0.98, 0.50),
+        "bottom-right":  (0.98, 0.98),
+    }
+
+    def _draw_rsvp(self, h: int, w: int) -> None:
+        """Draw the RSVP word overlay on top of the document content."""
+        if not self._rsvp_mode or not self._rsvp_curr_word:
+            return
+
+        ctx = self._rsvp_curr_word and bool(self._rsvp_prev_word or self._rsvp_next_word)
+        rows_needed = 3 if ctx else 1
+        words_display = [
+            (self._rsvp_prev_word, False),
+            (self._rsvp_curr_word, True),
+            (self._rsvp_next_word, False),
+        ] if ctx else [(self._rsvp_curr_word, True)]
+
+        # Box width: longest word + 2-char side padding each side.
+        box_w = max((len(wd) for wd, _ in words_display if wd), default=4) + 4
+        box_w = max(box_w, 8)
+
+        # Content-area row bounds (title bar row 0; status = h-3..h-1).
+        view_top = 1
+        view_bottom = h - 3
+
+        fy, fx = self._RSVP_FRAC.get(self._rsvp_position, (0.02, 0.50))
+        view_h = max(1, view_bottom - view_top)
+        # Compute top-left of box, anchoring from the matching quadrant.
+        raw_row = int(view_top + view_h * fy - rows_needed * fy)
+        raw_col = int(w * fx - box_w * fx)
+        row = max(view_top, min(raw_row, view_bottom - rows_needed - 1))
+        col = max(0, min(raw_col, w - box_w - 1))
+
+        # Draw background strip.
+        bg_attr = self._a("status")
+        for r in range(rows_needed):
+            _fillrow_range(self.scr, row + r, col, box_w, bg_attr)
+
+        # Draw words.
+        for i, (word, is_current) in enumerate(words_display):
+            if not word:
+                continue
+            attr = self._a("current_word") if is_current else self._a("dim")
+            # Center the word within the box.
+            inner_w = box_w - 2
+            text = word[:inner_w].center(inner_w)
+            _addstr(self.scr, row + i, col + 1, text, attr)
 
     def _draw_title(self, h: int, w: int) -> None:
         """Top title bar: app name | document title | TTS status | rate."""

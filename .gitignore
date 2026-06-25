@@ -22,7 +22,15 @@ __pycache__/
 # Local planning / roadmap docs — working notes, not for the public repo.
 Suggestions.md
 Prompts.md
+PLAN-0.1.11.md
 
 # The docs/ tree is the public documentation set and is tracked in git
 # (installation, usage_guide, features, configuration, architecture, and the
 # RELEASING runbook).  Do NOT ignore it.
+
+# Local wiki vault — Obsidian vault used for internal notes, not for the repo.
+wiki/
+
+# uv lock file — star ships via pip/setuptools; uv.lock is only a local
+# by-product of running tooling under `uv` and is not part of the build.
+uv.lock

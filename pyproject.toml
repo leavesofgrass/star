@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "star-reader"
-version = "0.1.10"
+version = "0.1.11"
 description = "star — Speaking Terminal Access Reader: an accessible document reader with built-in text-to-speech"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -85,6 +85,21 @@ vocab = ["wordfreq"]
 # It lives in its own lightweight group because it is only needed for that one
 # headless feature; star falls back to directory polling when it is absent.
 watch = ["watchdog"]
+# Knowledge graph & Obsidian: nicer graph layout/SVG (graphviz needs its system
+# binary too), PlantUML rendering, and richer YAML front matter for vault import.
+# All optional — the graph works with a pure-Python layout and a built-in front-
+# matter parser when these are absent.
+graph = ["graphviz", "plantuml", "pyyaml"]
+# Named-entity concept extraction for the knowledge graph.  Heavier and spaCy
+# also needs a language model (python -m spacy download en_core_web_sm), so it is
+# its own group and is not pulled in by `all`; the regex fallback covers the rest.
+ner = ["spacy", "nltk"]
+# Archive ingestion: .7z and .rar support (ZIP and TAR are stdlib and always work).
+archive = ["py7zr", "rarfile"]
+# Video export: Pillow fallback renderer for karaoke MP4 export when Qt is absent.
+# Qt (PyQt6, already in the base dependencies) is the preferred renderer; Pillow
+# is only needed as a fallback.  ffmpeg must also be on PATH.
+video = ["Pillow"]
 # Test tooling (no test dependencies existed before the batch/watch features).
 test = ["pytest"]
 all = [
@@ -103,6 +118,11 @@ all = [
     "deep-translator",
     "feedparser",
     "wordfreq",
+    "graphviz",
+    "plantuml",
+    "pyyaml",
+    "py7zr",
+    "rarfile",
 ]
 
 [project.scripts]
@@ -112,11 +132,12 @@ star = "star.app:main"
 include = ["star*"]
 
 [tool.setuptools.package-data]
-star = ["README.md", "LICENSE", "CHANGELOG.md"]
+star = ["README.md", "LICENSE", "CHANGELOG.md", "locale/*.json", "locale/README.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+pythonpath = ["."]
 
 [tool.ruff]
 line-length = 100

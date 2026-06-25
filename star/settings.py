@@ -7,6 +7,9 @@ from ._runtime import *  # noqa: F401,F403
 
 DEFAULTS: Dict[str, Any] = {
     "theme": "dark",
+    # UI chrome language (menus, toolbar, docks).  ISO-639-1 code of a catalog
+    # in star/locale/ ("en" = English source, no catalog needed).  See star/i18n.py.
+    "ui_language": "en",
     "tts_backend": "auto",  # "auto"|"pyttsx3"|"espeak"|"festival"|"coqui"|"dectalk"|"none"
     "tts_rate": 265,  # words per minute — intentionally brisk
     "tts_volume": 1.0,  # 0.0 – 1.0
@@ -64,6 +67,14 @@ DEFAULTS: Dict[str, Any] = {
         "last_vault_dir": "",
         "default_link_relation": "SEE_ALSO",  # type for untyped [[wikilinks]] on import
     },
+    # ── Video export ─────────────────────────────────────────────────────────
+    "video": {
+        "resolution": "1280x720",  # WxH for rendered frames
+        "theme": "",               # "" = inherit global theme
+        "font_scale": 1.0,         # scale factor applied to the render font size
+        "subtitles": "soft",       # "soft" | "burn" | "none"
+        "last_export_dir": "",
+    },
     "citations": [],  # citation library: list of CSL-ish dicts (see _citation_label)
     "whisper_model": "base",  # Whisper model size for dictation/transcription
     "transcribe_timestamps": False,  # prefix [hh:mm:ss] segment times in transcripts
@@ -95,6 +106,16 @@ DEFAULTS: Dict[str, Any] = {
     "qt_dyslexia_font": False,  # prefer a bundled/installed dyslexia-friendly font
     "qt_current_line_highlight": False,  # band-highlight the line being read
     "qt_bionic_reading": False,  # embolden the leading part of each word
+    # ── RSVP (Rapid Serial Visual Presentation) ───────────────────
+    # One word at a time displayed at a fixed point — an aid for some dyslexic
+    # readers and users with restricted visual fields.
+    "qt_rsvp_mode": False,          # whether the floating overlay is shown
+    "qt_rsvp_position": "top-center",  # top-left/center/right, center-left/right,
+                                     # center, bottom-left/center/right
+    "qt_rsvp_font_size": 48,        # point size of the focused word
+    "qt_rsvp_context": True,        # show the prev/next word above/below
+    "tui_rsvp_mode": False,         # TUI mirror of the toggle
+    "tui_rsvp_position": "top-center",  # same 9-key set, TUI placement
     # ── Karaoke word-highlight tuning — Qt GUI (highlight_speed is shared) ─
     "highlight_style": "background",  # background|underline|box|bold|color
     "highlight_lead_words": 0,  # advance the visual highlight N words (lead/lag)

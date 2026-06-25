@@ -229,6 +229,70 @@ def _format_citations(items: List[Dict[str, Any]], ext: str) -> str:
     return "\n".join(out)
 
 
+def _valid_isbn(s: str) -> bool:
+    """Return True when *s* is a checksum-valid ISBN-10 or ISBN-13.
+
+    Hyphens and whitespace are stripped before validation.
+    """
+    isbn = re.sub(r"[\s\-]", "", s.upper())
+    if len(isbn) == 10:
+        if not re.match(r"^\d{9}[\dX]$", isbn):
+            return False
+        total = sum((10 - i) * (10 if c == "X" else int(c)) for i, c in enumerate(isbn))
+        return total % 11 == 0
+    if len(isbn) == 13:
+        if not re.match(r"^\d{13}$", isbn):
+            return False
+        total = sum(int(c) * (1 if i % 2 == 0 else 3) for i, c in enumerate(isbn))
+        return total % 10 == 0
+    return False
+
+
+def _fetch_metadata_by_isbn(isbn: str) -> Tuple[Dict[str, Any], str]:
+    """Look up a book by ISBN via the OpenLibrary Books API.
+
+    Returns ``(metadata_dict, message)``.  On success the message is ``""``;
+    on failure the dict is ``{}`` and the message explains why.  No API key
+    is required.  Network call — invoke from a background thread in the GUI.
+    """
+    isbn_clean = re.sub(r"[\s\-]", "", isbn)
+    url = (
+        "https://openlibrary.org/api/books"
+        f"?bibkeys=ISBN:{isbn_clean}&format=json&jscmd=data"
+    )
+    req = urllib.request.Request(
+        url, headers={"User-Agent": f"star/{APP_VERSION} (metadata lookup)"}
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read().decode("utf-8", errors="replace"))
+        key = f"ISBN:{isbn_clean}"
+        book = data.get(key) or {}
+        if not book:
+            return {}, f"ISBN {isbn_clean!r} not found on OpenLibrary"
+        title = str(book.get("title", "")).strip()
+        authors = [str(a.get("name", "")).strip() for a in (book.get("authors") or [])]
+        year = ""
+        pub_date = str(book.get("publish_date") or "")
+        m = re.search(r"\d{4}", pub_date)
+        if m:
+            year = m.group()
+        publishers = [str(p.get("name", "")).strip() for p in (book.get("publishers") or [])]
+        publisher = ", ".join(p for p in publishers if p)
+        meta: Dict[str, Any] = {
+            "title": title,
+            "author": " and ".join(a for a in authors if a),
+            "year": year,
+            "publisher": publisher,
+            "isbn": isbn_clean,
+        }
+        return meta, ""
+    except urllib.error.URLError as e:
+        return {}, f"OpenLibrary lookup unavailable: {e}"
+    except Exception as e:
+        return {}, f"OpenLibrary lookup failed: {e}"
+
+
 def _fetch_citation_by_doi(doi: str) -> Dict[str, Any]:
     """Look up a DOI via the Crossref REST API and return a citation dict.
 

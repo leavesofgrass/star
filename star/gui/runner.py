@@ -24,6 +24,7 @@ from ..convert import resolve_format, run_batch, supported_formats
 from ..documents import Document, _build_word_map, load_document
 from ..feeds import _FEEDPARSER, fetch_feed
 from ..flashcards import _GENANKI, export_anki_deck
+from ..i18n import available_languages, get_language, set_language, tr
 from ..settings import Settings
 from ..spellcheck import _SPELL, SpellHighlighter, misspelled_words
 from ..stats import (
@@ -165,6 +166,183 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
 
     sys.excepthook = _excepthook
 
+    # ── Qt enum compat: WA_StyledBackground ──────────────────────────────
+    try:
+        _WA_STYLED_BG = Qt.WidgetAttribute.WA_StyledBackground  # PyQt6
+    except AttributeError:
+        _WA_STYLED_BG = Qt.WA_StyledBackground  # type: ignore[attr-defined]  # PyQt5
+
+    # =========================================================================
+    # RSVP overlay widget
+    # =========================================================================
+
+    class _RSVPOverlay(QWidget):
+        """Floating word-at-a-time panel for RSVP reading mode.
+
+        Rendered as a child of the document editor widget so it stays within
+        the document view and repositions automatically on resize.  Placement
+        is one of nine named positions (3-column × 3-row grid) chosen by the
+        user via the position dialog — important for readers with a restricted
+        visual field who need the word in a specific screen quadrant.
+        """
+
+        # (fractional x, fractional y) within the parent, used as the
+        # *corresponding* anchor of the overlay box itself.
+        _POSITIONS: Dict[str, Tuple[float, float]] = {
+            "top-left":      (0.02, 0.02),
+            "top-center":    (0.50, 0.02),
+            "top-right":     (0.98, 0.02),
+            "center-left":   (0.02, 0.50),
+            "center":        (0.50, 0.50),
+            "center-right":  (0.98, 0.50),
+            "bottom-left":   (0.02, 0.98),
+            "bottom-center": (0.50, 0.98),
+            "bottom-right":  (0.98, 0.98),
+        }
+
+        # Human-readable labels for the position picker dialog (row, col) in a
+        # 3×3 grid, ordered top→bottom, left→right.
+        _GRID: List[Tuple[int, int, str, str]] = [
+            (0, 0, "top-left",      "Top\nLeft"),
+            (0, 1, "top-center",    "Top\nCenter"),
+            (0, 2, "top-right",     "Top\nRight"),
+            (1, 0, "center-left",   "Mid\nLeft"),
+            (1, 1, "center",        "Center"),
+            (1, 2, "center-right",  "Mid\nRight"),
+            (2, 0, "bottom-left",   "Bottom\nLeft"),
+            (2, 1, "bottom-center", "Bottom\nCenter"),
+            (2, 2, "bottom-right",  "Bottom\nRight"),
+        ]
+
+        def __init__(self, parent: QWidget, settings: "Settings") -> None:
+            super().__init__(parent)
+            self._pos_key: str = str(settings.get("qt_rsvp_position", "top-center"))
+            self._font_size: int = int(settings.get("qt_rsvp_font_size", 48))
+            self._show_context: bool = bool(settings.get("qt_rsvp_context", True))
+            # Make child labels paint over our custom paintEvent background.
+            self.setAttribute(_WA_STYLED_BG, True)
+            self._setup_ui()
+            self.setVisible(False)
+            # Reposition whenever the parent (editor) is resized.
+            parent.installEventFilter(self)
+
+        def _setup_ui(self) -> None:
+            layout = QVBoxLayout(self)
+            layout.setContentsMargins(18, 10, 18, 10)
+            layout.setSpacing(2)
+
+            self._prev_lbl = QLabel("")
+            self._prev_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter
+                                        if hasattr(Qt, "AlignmentFlag")
+                                        else Qt.AlignCenter)  # type: ignore[attr-defined]
+
+            self._word_lbl = QLabel("")
+            _align = (Qt.AlignmentFlag.AlignCenter
+                      if hasattr(Qt, "AlignmentFlag")
+                      else Qt.AlignCenter)  # type: ignore[attr-defined]
+            self._word_lbl.setAlignment(_align)
+            self._prev_lbl.setAlignment(_align)
+            self._next_lbl = QLabel("")
+            self._next_lbl.setAlignment(_align)
+
+            layout.addWidget(self._prev_lbl)
+            layout.addWidget(self._word_lbl)
+            layout.addWidget(self._next_lbl)
+            self._apply_label_styles()
+
+        def _apply_label_styles(self) -> None:
+            fs = self._font_size
+            self._word_lbl.setStyleSheet(
+                f"color: #e8e8e8; font-size: {fs}px; font-weight: bold;"
+                " background: transparent; border: none;"
+            )
+            ctx = (
+                "color: rgba(200,200,200,120); font-size: 16px;"
+                " background: transparent; border: none;"
+            )
+            self._prev_lbl.setStyleSheet(ctx)
+            self._next_lbl.setStyleSheet(ctx)
+
+        def paintEvent(self, event: Any) -> None:
+            try:
+                from PyQt6.QtGui import QPainter, QPainterPath
+                from PyQt6.QtCore import QRectF
+                _AA = QPainter.RenderHint.Antialiasing
+            except ImportError:
+                from PyQt5.QtGui import QPainter, QPainterPath  # type: ignore[no-redef]
+                from PyQt5.QtCore import QRectF  # type: ignore[no-redef]
+                _AA = QPainter.Antialiasing  # type: ignore[attr-defined]
+            painter = QPainter(self)
+            painter.setRenderHint(_AA)
+            path = QPainterPath()
+            path.addRoundedRect(QRectF(self.rect()), 10.0, 10.0)
+            painter.fillPath(path, QColor(24, 27, 34, 230))
+            painter.end()
+
+        def eventFilter(self, obj: Any, event: Any) -> bool:
+            try:
+                _resize_type = (
+                    event.Type.Resize
+                    if hasattr(event, "Type")
+                    else None
+                )
+                if obj is self.parent() and event.type() == (
+                    event.Type.Resize
+                    if hasattr(event.Type, "Resize")
+                    else 14  # QEvent::Resize = 14
+                ):
+                    self._reposition()
+            except Exception:
+                pass
+            return False  # do not consume the event
+
+        def update_word(self, prev_word: str, curr_word: str, next_word: str) -> None:
+            """Update the displayed words and reposition within the parent."""
+            self._word_lbl.setText(curr_word)
+            if self._show_context:
+                self._prev_lbl.setText(prev_word)
+                self._next_lbl.setText(next_word)
+            else:
+                self._prev_lbl.setText("")
+                self._next_lbl.setText("")
+            self.adjustSize()
+            self._reposition()
+
+        def set_position(self, key: str) -> None:
+            if key in self._POSITIONS:
+                self._pos_key = key
+                self._reposition()
+
+        def set_font_size(self, size: int) -> None:
+            self._font_size = size
+            self._apply_label_styles()
+            self.adjustSize()
+            self._reposition()
+
+        def set_show_context(self, show: bool) -> None:
+            self._show_context = show
+
+        def _reposition(self) -> None:
+            parent = self.parent()
+            if parent is None:
+                return
+            pw, ph = parent.width(), parent.height()
+            w, h = max(self.width(), 1), max(self.height(), 1)
+            fx, fy = self._POSITIONS.get(self._pos_key, (0.50, 0.02))
+            # Compute top-left corner so the box's own anchor matches (fx, fy).
+            # e.g. top-left (0.02, 0.02): overlay's top-left corner at 2% of parent.
+            #      center   (0.50, 0.50): overlay's center at 50% of parent.
+            #      bottom-right (0.98, 0.98): overlay's bottom-right at 98%.
+            x = int(pw * fx - w * fx)
+            y = int(ph * fy - h * fy)
+            margin = 8
+            x = max(margin, min(x, pw - w - margin))
+            y = max(margin, min(y, ph - h - margin))
+            self.move(x, y)
+            self.raise_()
+
+    # =========================================================================
+
     class StarWindow(QMainWindow):
         """Qt GUI window for star.
 
@@ -271,6 +449,9 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
         def __init__(self) -> None:
             super().__init__()
             self.settings = settings
+            # Activate the saved UI-chrome language before any widgets (and their
+            # tr()-wrapped labels) are built.  Unknown codes fall back to English.
+            set_language(str(settings.get("ui_language", "en")))
             self.doc: Optional[Document] = None
             self.tts_manager = TTSManager(settings)
             # Active hot-folder watcher (File ▸ Watch Folder), or None.
@@ -298,6 +479,10 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             # document when the overlay is on, then merged into the selection
             # list alongside user highlights so a TTS repaint never wipes them.
             self._vocab_selections: List[Any] = []
+
+            # RSVP (Rapid Serial Visual Presentation) floating overlay.
+            # Created lazily on first toggle; None until then.
+            self._rsvp_overlay: Optional[Any] = None
 
             # Session counter — incremented by every new speak() invocation.
             # The timer thread closes over the session value at speak() time;
@@ -440,7 +625,105 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             self._shortcut_actions = []
 
             # Toolbar
+            self._build_toolbar()
+
+            # ── Menu bar ─────────────────────────────────────────────────────
+            self._build_menu_bar()
+
+            # ── Table of Contents dock ─────────────────
+            self._toc_dock = QDockWidget(tr("Contents"), self)
+            self._toc_dock.setObjectName("toc_dock")
+            self._toc_dock.setAllowedAreas(
+                _LEFT_DOCK | _RIGHT_DOCK  # type: ignore[operator]
+            )
+            self._toc_list = QListWidget()
+            self._toc_list.setMinimumWidth(180)
+            # Single-click / Enter: scroll to heading and stop speech so the
+            # viewport and audio stay synchronized.
+            self._toc_list.itemActivated.connect(self._qt_toc_navigate)
+            # Double-click: stop current speech and start reading from the
+            # activated heading.
+            self._toc_list.itemDoubleClicked.connect(self._qt_toc_play)
+            self._toc_dock.setWidget(self._toc_list)
+            self.addDockWidget(_LEFT_DOCK, self._toc_dock)
+            show_toc = bool(self.settings.get("qt_show_toc", True))
+            self._toc_dock.setVisible(show_toc)
+
+            # ── Annotations / Notes dock ─────────────────────────────────────
+            # Mirrors the Contents dock: a list of notes anchored at character
+            # positions in the document.  Single-click scrolls to the note;
+            # double-click reads from there.  Notes persist per-document in
+            # settings and can be exported (Markdown / JSON / BibTeX / RIS).
+            self._annot_dock = QDockWidget(tr("Notes"), self)
+            self._annot_dock.setObjectName("annotations_dock")
+            self._annot_dock.setAllowedAreas(
+                _LEFT_DOCK | _RIGHT_DOCK  # type: ignore[operator]
+            )
+            _annot_panel = QWidget()
+            _annot_layout = QVBoxLayout(_annot_panel)
+            _annot_layout.setContentsMargins(4, 4, 4, 4)
+            _annot_layout.setSpacing(4)
+            # Full-text search / tag filter box (type `#tag` to filter by tag).
+            self._annot_filter = QLineEdit()
+            self._annot_filter.setPlaceholderText(tr("Filter notes — text or #tag…"))
+            self._annot_filter.setClearButtonEnabled(True)
+            self._annot_filter.textChanged.connect(
+                lambda _t: self._qt_build_annotations()
+            )
+            _annot_layout.addWidget(self._annot_filter)
+            self._annot_list = QListWidget()
+            self._annot_list.setMinimumWidth(200)
+            self._annot_list.setWordWrap(True)
+            self._annot_list.itemActivated.connect(self._qt_annotation_navigate)
+            self._annot_list.itemDoubleClicked.connect(self._qt_annotation_play)
+            _annot_layout.addWidget(self._annot_list)
+            _btn_row = QHBoxLayout()
+            for _lbl, _fn in (
+                ("Add", self._qt_add_annotation),
+                ("Edit", self._qt_edit_annotation),
+                ("Delete", self._qt_delete_annotation),
+                ("Export…", self._qt_export_annotations),
+            ):
+                _b = QPushButton(tr(_lbl))
+                _b.clicked.connect(lambda _chk=False, fn=_fn: fn())
+                _btn_row.addWidget(_b)
+            _annot_layout.addLayout(_btn_row)
+            self._annot_dock.setWidget(_annot_panel)
+            self.addDockWidget(_RIGHT_DOCK, self._annot_dock)
+            self._annot_dock.setVisible(bool(self.settings.get("qt_show_notes", False)))
+
+            # All keyboard shortcuts are owned by their menu QActions above
+            # (see _mi / _menu).  Menu actions added to the menu bar use
+            # Qt's WindowShortcut context, so they fire regardless of which
+            # widget has focus — exactly like the old window-level bindings,
+            # but without the duplicate QActions that caused Qt to treat a
+            # shortcut as "ambiguous" and fire neither.  The screen-reader
+            # scheme (Ctrl+letter forward, Ctrl+Shift+letter backward,
+            # Alt+punctuation for sentences) is unchanged.
+
+            # Show the welcome screen immediately so the window is never
+            # blank at launch.  _on_doc_loaded replaces it when a file loads.
+            self.editor.setHtml(self._welcome_html())
+            self._apply_block_spacing()
+            self.statusBar().showMessage(APP_TITLE)
+
+
+        def _build_toolbar(self) -> None:
+            """Build (or rebuild) the controls toolbar.
+
+            Safe to call again after a UI-language change: the previous toolbar
+            is removed first so labels are recreated through tr() in the active
+            language without stacking a second toolbar."""
+            existing = getattr(self, "_toolbar", None)
+            if existing is not None:
+                # removeToolBar only detaches it from the toolbar area; the widget
+                # stays a child of the window.  Delete it too so repeated language
+                # switches don't accumulate hidden toolbars.
+                self.removeToolBar(existing)
+                existing.setParent(None)
+                existing.deleteLater()
             tb = self.addToolBar("Controls")
+            self._toolbar = tb
             tb.setMovable(False)
 
             def _act(label: str, shortcut: str, fn: Callable, tip: str = "") -> None:
@@ -452,8 +735,8 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
                 action when two share a shortcut).  The *shortcut* argument is
                 kept only so the tooltips can advertise the menu's binding.
                 """
-                a = QAction(label, self)
-                a.setToolTip(tip or label)
+                a = QAction(tr(label), self)
+                a.setToolTip(tr(tip) if tip else tr(label))
                 a.triggered.connect(fn)
                 tb.addAction(a)
 
@@ -566,8 +849,16 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             _act("Help", "F1", self._show_about, "Open README.md (F1)")
             _act("Quit", "Ctrl+Q", self.close, "Quit star (Ctrl+Q)")
 
-            # ── Menu bar ─────────────────────────────────────────────────────
+        def _build_menu_bar(self) -> None:
+            """Build (or rebuild) the menu bar.
+
+            Called once at startup and again whenever the UI language changes.
+            It clears the existing menus and the shortcut registry first, so a
+            rebuild neither duplicates menus nor double-registers shortcuts;
+            every label flows through tr() in the active language."""
             mb = self.menuBar()
+            mb.clear()
+            self._shortcut_actions = []
 
             # Every menu item gets a keyboard shortcut.  _mi() creates a menu
             # QAction, assigns its (remappable) shortcut, registers it for the
@@ -582,12 +873,15 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
                 checkable: bool = False,
                 checked: bool = False,
             ) -> "QAction":
-                a = QAction(label, self)
+                # Display the translated label, but key the shortcut registry on
+                # the English *label* so keybinding overrides stay stable across
+                # languages (the Customize Shortcuts dialog matches on it).
+                a = QAction(tr(label), self)
                 if checkable:
                     a.setCheckable(True)
                     a.setChecked(checked)
                 if tip:
-                    a.setToolTip(tip)
+                    a.setToolTip(tr(tip))
                 a.triggered.connect(lambda _checked=False, f=fn: f())
                 if shortcut:
                     a.setShortcut(self._resolve_shortcut(shortcut))
@@ -595,7 +889,7 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
                 return a
 
             # File menu
-            file_menu: QMenu = mb.addMenu("File")
+            file_menu: QMenu = mb.addMenu(tr("File"))
             file_menu.addAction(_mi("Open…", "Ctrl+O", self._open_dialog))
             file_menu.addAction(
                 _mi(
@@ -616,15 +910,31 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             )
             file_menu.addAction(
                 _mi(
+                    "Edit Document Metadata…",
+                    "",
+                    self._qt_metadata_editor,
+                    tip="View and edit title, author, DOI, ISBN for the current document",
+                )
+            )
+            file_menu.addAction(
+                _mi(
                     "Import Obsidian Vault…",
                     "",
                     self._obsidian_import,
                     tip="Import a folder of Markdown notes and their links",
                 )
             )
+            file_menu.addAction(
+                _mi(
+                    "Open Archive…",
+                    "",
+                    self._qt_open_archive,
+                    tip="Open a ZIP / TAR / 7z / RAR archive and browse its documents",
+                )
+            )
             file_menu.addSeparator()
 
-            export_menu: QMenu = file_menu.addMenu("Export")
+            export_menu: QMenu = file_menu.addMenu(tr("Export"))
             export_menu.addAction(
                 _mi("Export as Markdown…", "Ctrl+Alt+M", self._qt_export_markdown)
             )
@@ -665,6 +975,15 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
                     tip="Export the knowledge graph as a folder of linked Markdown notes",
                 )
             )
+            export_menu.addSeparator()
+            export_menu.addAction(
+                _mi(
+                    "Video (MP4)…",
+                    "Ctrl+Alt+V",
+                    self._qt_export_video,
+                    tip="Export as a karaoke MP4 — themed document with highlighted sentence and spoken audio",
+                )
+            )
 
             file_menu.addSeparator()
             file_menu.addAction(
@@ -688,7 +1007,7 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             file_menu.addAction(_mi("Quit", "Ctrl+Q", self.close))
 
             # Highlight menu (Ctrl+Shift+digit picks a color)
-            hl_menu: QMenu = mb.addMenu("Highlight")
+            hl_menu: QMenu = mb.addMenu(tr("Highlight"))
             _HL_COLORS = [
                 ("Yellow", "#ffff00", "Ctrl+Shift+1"),
                 ("Green", "#90ee90", "Ctrl+Shift+2"),
@@ -714,7 +1033,7 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             )
 
             # Notes / annotations menu
-            notes_menu: QMenu = mb.addMenu("Notes")
+            notes_menu: QMenu = mb.addMenu(tr("Notes"))
             notes_menu.addAction(
                 _mi("Add Note at Cursor…", "Ctrl+Shift+A", self._qt_add_annotation)
             )
@@ -741,7 +1060,7 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             # Helper: build a menu from (label, callable, shortcut) rows
             # (None = separator).  Every command row carries a shortcut.
             def _menu(title: str, rows: List[Any]) -> "QMenu":
-                menu = mb.addMenu(title)
+                menu = mb.addMenu(tr(title))
                 for row in rows:
                     if row is None:
                         menu.addSeparator()
@@ -853,7 +1172,7 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             # Ctrl+Shift+G/R from the spec are already taken (Choose TTS Engine /
             # Reload CSS Themes), so Show Graph View uses the one free Ctrl+Shift
             # letter; the rest are reachable via the menu and command palette.
-            graph_menu: QMenu = mb.addMenu("&Graph")
+            graph_menu: QMenu = mb.addMenu(tr("&Graph"))
             graph_menu.addAction(
                 _mi(
                     "Show Graph View",
@@ -881,7 +1200,7 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
                 _mi("Auto-Suggest Relations…", "", self._graph_auto_suggest)
             )
             graph_menu.addSeparator()
-            graph_export_menu: QMenu = graph_menu.addMenu("Export Graph")
+            graph_export_menu: QMenu = graph_menu.addMenu(tr("Export Graph"))
             graph_export_menu.addAction(
                 _mi("Export as SVG…", "", self._graph_export_svg)
             )
@@ -895,7 +1214,7 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
                 _mi("Export as JSON…", "", self._graph_export_json)
             )
             graph_menu.addSeparator()
-            graph_formats_menu: QMenu = graph_menu.addMenu("View Formats")
+            graph_formats_menu: QMenu = graph_menu.addMenu(tr("View Formats"))
             graph_formats_menu.addAction(
                 _mi("Open SVG File…", "", self._graph_open_svg)
             )
@@ -907,7 +1226,7 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             )
 
             # View menu
-            view_menu: QMenu = mb.addMenu("View")
+            view_menu: QMenu = mb.addMenu(tr("View"))
             view_menu.addAction(
                 _mi("Toggle Contents Panel", "Ctrl+\\", self._qt_toggle_toc)
             )
@@ -946,7 +1265,7 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             view_menu.addAction(self._preview_act)
 
             # ── Reading Aids submenu (accessibility) ───────────────────
-            aids_menu: QMenu = view_menu.addMenu("Reading Aids")
+            aids_menu: QMenu = view_menu.addMenu(tr("Reading Aids"))
             aids_menu.addAction(
                 _mi(
                     "Text Spacing…",
@@ -1000,9 +1319,42 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
                 checked=bool(self.settings.get("qt_vocab_highlight", False)),
             )
             aids_menu.addAction(self._vocab_act)
+            aids_menu.addSeparator()
+            self._rsvp_act = _mi(
+                "RSVP Mode",
+                "Ctrl+Alt+E",
+                self._qt_toggle_rsvp,
+                tip="Rapid Serial Visual Presentation: one word at a time at a fixed point",
+                checkable=True,
+                checked=bool(self.settings.get("qt_rsvp_mode", False)),
+            )
+            aids_menu.addAction(self._rsvp_act)
+            aids_menu.addAction(
+                _mi(
+                    "RSVP Position…",
+                    "",
+                    self._qt_rsvp_position_dialog,
+                    tip="Choose which screen quadrant the RSVP word appears in",
+                )
+            )
+
+            # ── Interface language (UI i18n) ───────────────────────────────
+            # Localizes the chrome (menus, toolbar, docks).  Native language
+            # names are shown untranslated so a user can always find their own.
+            view_menu.addSeparator()
+            lang_menu: QMenu = view_menu.addMenu(tr("Interface Language"))
+            _current_lang = get_language()
+            for _disp, _code in available_languages():
+                _lang_act = QAction(_disp, self)
+                _lang_act.setCheckable(True)
+                _lang_act.setChecked(_code == _current_lang)
+                _lang_act.triggered.connect(
+                    lambda _checked=False, c=_code: self._set_ui_language(c)
+                )
+                lang_menu.addAction(_lang_act)
 
             # Tools menu — transcription, dictation, and maintenance.
-            tools_menu: QMenu = mb.addMenu("Tools")
+            tools_menu: QMenu = mb.addMenu(tr("Tools"))
             tools_menu.addAction(
                 _mi(
                     "Transcribe Audio File…",
@@ -1122,82 +1474,28 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             mb.insertMenu(hl_menu.menuAction(), edit_menu)
             mb.insertMenu(hl_menu.menuAction(), view_menu)
 
-            # ── Table of Contents dock ─────────────────
-            self._toc_dock = QDockWidget("Contents", self)
-            self._toc_dock.setObjectName("toc_dock")
-            self._toc_dock.setAllowedAreas(
-                _LEFT_DOCK | _RIGHT_DOCK  # type: ignore[operator]
-            )
-            self._toc_list = QListWidget()
-            self._toc_list.setMinimumWidth(180)
-            # Single-click / Enter: scroll to heading and stop speech so the
-            # viewport and audio stay synchronized.
-            self._toc_list.itemActivated.connect(self._qt_toc_navigate)
-            # Double-click: stop current speech and start reading from the
-            # activated heading.
-            self._toc_list.itemDoubleClicked.connect(self._qt_toc_play)
-            self._toc_dock.setWidget(self._toc_list)
-            self.addDockWidget(_LEFT_DOCK, self._toc_dock)
-            show_toc = bool(self.settings.get("qt_show_toc", True))
-            self._toc_dock.setVisible(show_toc)
+        def _set_ui_language(self, code: str) -> None:
+            """Switch the UI-chrome language and rebuild the menus/toolbar live.
 
-            # ── Annotations / Notes dock ─────────────────────────────────────
-            # Mirrors the Contents dock: a list of notes anchored at character
-            # positions in the document.  Single-click scrolls to the note;
-            # double-click reads from there.  Notes persist per-document in
-            # settings and can be exported (Markdown / JSON / BibTeX / RIS).
-            self._annot_dock = QDockWidget("Notes", self)
-            self._annot_dock.setObjectName("annotations_dock")
-            self._annot_dock.setAllowedAreas(
-                _LEFT_DOCK | _RIGHT_DOCK  # type: ignore[operator]
-            )
-            _annot_panel = QWidget()
-            _annot_layout = QVBoxLayout(_annot_panel)
-            _annot_layout.setContentsMargins(4, 4, 4, 4)
-            _annot_layout.setSpacing(4)
-            # Full-text search / tag filter box (type `#tag` to filter by tag).
-            self._annot_filter = QLineEdit()
-            self._annot_filter.setPlaceholderText("Filter notes — text or #tag…")
-            self._annot_filter.setClearButtonEnabled(True)
-            self._annot_filter.textChanged.connect(
-                lambda _t: self._qt_build_annotations()
-            )
-            _annot_layout.addWidget(self._annot_filter)
-            self._annot_list = QListWidget()
-            self._annot_list.setMinimumWidth(200)
-            self._annot_list.setWordWrap(True)
-            self._annot_list.itemActivated.connect(self._qt_annotation_navigate)
-            self._annot_list.itemDoubleClicked.connect(self._qt_annotation_play)
-            _annot_layout.addWidget(self._annot_list)
-            _btn_row = QHBoxLayout()
-            for _lbl, _fn in (
-                ("Add", self._qt_add_annotation),
-                ("Edit", self._qt_edit_annotation),
-                ("Delete", self._qt_delete_annotation),
-                ("Export…", self._qt_export_annotations),
-            ):
-                _b = QPushButton(_lbl)
-                _b.clicked.connect(lambda _chk=False, fn=_fn: fn())
-                _btn_row.addWidget(_b)
-            _annot_layout.addLayout(_btn_row)
-            self._annot_dock.setWidget(_annot_panel)
-            self.addDockWidget(_RIGHT_DOCK, self._annot_dock)
-            self._annot_dock.setVisible(bool(self.settings.get("qt_show_notes", False)))
-
-            # All keyboard shortcuts are owned by their menu QActions above
-            # (see _mi / _menu).  Menu actions added to the menu bar use
-            # Qt's WindowShortcut context, so they fire regardless of which
-            # widget has focus — exactly like the old window-level bindings,
-            # but without the duplicate QActions that caused Qt to treat a
-            # shortcut as "ambiguous" and fire neither.  The screen-reader
-            # scheme (Ctrl+letter forward, Ctrl+Shift+letter backward,
-            # Alt+punctuation for sentences) is unchanged.
-
-            # Show the welcome screen immediately so the window is never
-            # blank at launch.  _on_doc_loaded replaces it when a file loads.
-            self.editor.setHtml(self._welcome_html())
-            self._apply_block_spacing()
-            self.statusBar().showMessage(APP_TITLE)
+            Persists the choice, reactivates the catalog, and rebuilds every
+            surface that routes its labels through tr(): the toolbar and the menu
+            bar are recreated in place, and the dock titles/placeholder we keep
+            references to are retranslated.  (The annotation panel's buttons are
+            built locally in _setup_ui and refresh on the next launch.)
+            """
+            applied = set_language(code)
+            self.settings.set("ui_language", applied)
+            self._build_toolbar()
+            self._build_menu_bar()
+            if getattr(self, "_toc_dock", None) is not None:
+                self._toc_dock.setWindowTitle(tr("Contents"))
+            if getattr(self, "_annot_dock", None) is not None:
+                self._annot_dock.setWindowTitle(tr("Notes"))
+            if getattr(self, "_annot_filter", None) is not None:
+                self._annot_filter.setPlaceholderText(
+                    tr("Filter notes — text or #tag…")
+                )
+            self.statusBar().showMessage(tr("Interface language updated"))
 
         def _welcome_html(self) -> str:
             """Return the splash-screen HTML, styled with the current theme."""
@@ -1935,8 +2233,25 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
                 word_text = self.doc.word_map[word_idx].word
                 pct = int(100 * word_idx / max(1, len(self.doc.word_map)))
                 self.statusBar().showMessage(
-                    f"▶  “{word_text}”  —  {pct}%  —  {self.settings['tts_rate']} wpm"
+                    f'▶  “{word_text}”  —  {pct}%  —  {self.settings["tts_rate"]} wpm'  # noqa: RUF001
                 )
+
+            # ── RSVP overlay update ─────────────────────────────────────
+            if (
+                self._rsvp_overlay is not None
+                and self._rsvp_overlay.isVisible()
+                and self.doc
+                and word_idx < len(self.doc.word_map)
+            ):
+                wm = self.doc.word_map
+                vis_idx = min(
+                    max(0, word_idx + int(self.settings.get('highlight_lead_words', 0))),
+                    len(wm) - 1,
+                )
+                prev_word = wm[vis_idx - 1].word if vis_idx > 0 else ''
+                curr_word = wm[vis_idx].word
+                next_word = wm[vis_idx + 1].word if vis_idx + 1 < len(wm) else ''
+                self._rsvp_overlay.update_word(prev_word, curr_word, next_word)
 
         # ── Speech Cursor mode (Qt) ─────────────────────────────────────
 
@@ -3830,6 +4145,187 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
 
             threading.Thread(target=_do_export, daemon=True).start()
 
+        # ── Archive ingestion (Qt GUI) ─────────────────────────────────────────
+
+        def _qt_open_archive(self) -> None:
+            """Open a ZIP / TAR / 7z / RAR archive (File ▸ Open Archive…)."""
+            from ..archive import is_archive, list_members
+            dest, _ = QFileDialog.getOpenFileName(
+                self,
+                "Open Archive",
+                str(Path.home()),
+                "Archives (*.zip *.tar *.tar.gz *.tgz *.tar.xz *.tar.bz2 *.7z *.rar);;All Files (*)",
+            )
+            if not dest:
+                return
+            try:
+                members = list_members(dest)
+            except Exception as e:
+                self.statusBar().showMessage(f"Cannot read archive: {e}")
+                return
+            if not members:
+                self.statusBar().showMessage("No readable documents in archive")
+                return
+            if len(members) == 1:
+                from ..archive import make_ref
+                ref = make_ref(dest, members[0])
+                self._load_document(ref)
+                return
+            # Multiple members: let user pick one (or load the index)
+            labels = members
+            chosen, ok = QInputDialog.getItem(
+                self, "Archive Members", f"Open member from {Path(dest).name}:", labels, 0, False
+            )
+            if ok and chosen:
+                from ..archive import make_ref
+                ref = make_ref(dest, chosen)
+                self._load_document(ref)
+            else:
+                # Load the index document
+                self._load_document(dest)
+
+        # ── Metadata editor (Qt GUI) ───────────────────────────────────────────
+
+        def _qt_metadata_editor(self) -> None:
+            """Open the Metadata Editor for the current document."""
+            if not self.doc:
+                self.statusBar().showMessage("No document loaded")
+                return
+            key = self.doc.path or self.doc.title or ""
+            if not key:
+                return
+            library: Dict[str, Any] = dict(self.settings.get("library") or {})
+            entry: Dict[str, Any] = dict(library.get(key) or {})
+            meta: Dict[str, Any] = dict(entry.get("meta") or {})
+
+            dlg = QDialog(self)
+            dlg.setWindowTitle("Document Metadata")
+            dlg.resize(550, 380)
+            layout = QVBoxLayout(dlg)
+
+            fields = [("title", "Title"), ("author", "Author"), ("year", "Year"),
+                      ("doi", "DOI"), ("isbn", "ISBN"), ("publisher", "Publisher")]
+            edits: Dict[str, Any] = {}
+            form = QFormLayout()
+            for fname, flabel in fields:
+                edit = QLineEdit(str(meta.get(fname) or ""))
+                edits[fname] = edit
+                form.addRow(flabel + ":", edit)
+            layout.addLayout(form)
+
+            btn_row = QHBoxLayout()
+            lookup_doi_btn = QPushButton("Look up DOI")
+            lookup_isbn_btn = QPushButton("Look up ISBN")
+            save_btn = QPushButton("Save")
+            cancel_btn = QPushButton("Cancel")
+            for b in (lookup_doi_btn, lookup_isbn_btn, save_btn, cancel_btn):
+                btn_row.addWidget(b)
+            layout.addLayout(btn_row)
+
+            status_lbl = QLabel("")
+            layout.addWidget(status_lbl)
+
+            def _fill(data: Dict[str, Any]) -> None:
+                for fname, _ in fields:
+                    if data.get(fname):
+                        edits[fname].setText(str(data[fname]))
+
+            def _lookup_doi() -> None:
+                doi = edits["doi"].text().strip()
+                if not doi:
+                    status_lbl.setText("Enter a DOI first")
+                    return
+                status_lbl.setText(f"Looking up {doi!r}…")
+                from ..citations import _fetch_citation_by_doi
+                def _do():
+                    try:
+                        c = _fetch_citation_by_doi(doi)
+                        _fill(c)
+                        status_lbl.setText("DOI metadata filled")
+                    except Exception as e:
+                        status_lbl.setText(f"DOI lookup failed: {e}")
+                threading.Thread(target=_do, daemon=True).start()
+
+            def _lookup_isbn() -> None:
+                isbn = edits["isbn"].text().strip()
+                if not isbn:
+                    status_lbl.setText("Enter an ISBN first")
+                    return
+                from ..citations import _valid_isbn, _fetch_metadata_by_isbn
+                if not _valid_isbn(isbn):
+                    status_lbl.setText(f"ISBN {isbn!r} failed checksum validation")
+                    return
+                status_lbl.setText(f"Looking up ISBN {isbn!r}…")
+                def _do():
+                    m, msg = _fetch_metadata_by_isbn(isbn)
+                    if m:
+                        _fill(m)
+                        status_lbl.setText("ISBN metadata filled")
+                    else:
+                        status_lbl.setText(f"Lookup: {msg}")
+                threading.Thread(target=_do, daemon=True).start()
+
+            def _save() -> None:
+                for fname, _ in fields:
+                    val = edits[fname].text().strip()
+                    if val:
+                        meta[fname] = val
+                    elif fname in meta:
+                        del meta[fname]
+                entry["meta"] = meta
+                library[key] = entry
+                self.settings.set("library", library)
+                self.statusBar().showMessage("Metadata saved")
+                dlg.accept()
+
+            lookup_doi_btn.clicked.connect(_lookup_doi)
+            lookup_isbn_btn.clicked.connect(_lookup_isbn)
+            save_btn.clicked.connect(_save)
+            cancel_btn.clicked.connect(dlg.reject)
+            dlg.exec()
+
+        # ── Video export (Qt GUI) ──────────────────────────────────────────────
+
+        def _qt_export_video(self) -> None:
+            """Export current document as a karaoke MP4 video (File ▸ Export ▸ Video…)."""
+            if not self.doc:
+                self.statusBar().showMessage("No document loaded")
+                return
+            if not self.doc.plain_text.strip():
+                self.statusBar().showMessage("Document has no readable text")
+                return
+            vid = self.settings.get("video") or {}
+            last_dir = vid.get("last_export_dir") or str(
+                Path(self.doc.path).parent if self.doc.path else Path.home()
+            )
+            p = Path(self.doc.path) if self.doc.path else Path("export")
+            default = str(Path(last_dir) / (p.stem + ".mp4"))
+            dest, _ = QFileDialog.getSaveFileName(
+                self, "Export as Video", default, "Video (*.mp4);;All Files (*)"
+            )
+            if not dest:
+                return
+            self.statusBar().showMessage("Rendering karaoke video… this may take a minute")
+            doc = self.doc
+            backend = self.tts_manager._backend
+
+            def _do_export() -> None:
+                from ..video import export_video
+                try:
+                    result = export_video(doc, self.settings, dest, tts_backend=backend)
+                    if result.get("error"):
+                        self._export_audio_signal.emit(f"Video export error: {result['error']}")
+                    else:
+                        cues = result.get("cues", 0)
+                        self._export_audio_signal.emit(f"Video exported → {dest}  ({cues} sentences)")
+                        vid2 = dict(self.settings.get("video") or {})
+                        vid2["last_export_dir"] = str(Path(dest).parent)
+                        self.settings.set("video", vid2)
+                except Exception as exc:
+                    self._export_audio_signal.emit(f"Video export error: {exc}")
+
+            threading.Thread(target=_do_export, daemon=True).start()
+
         def _qt_pick_backend(self) -> None:
             """Choose the active TTS engine (pyttsx3 / espeak / piper / …).
 
@@ -5649,6 +6145,80 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
             self.statusBar().showMessage(
                 "Current-line highlight: " + ("ON" if new else "OFF")
             )
+
+        # ── RSVP ─────────────────────────────────────────────────────────
+
+        def _qt_ensure_rsvp_overlay(self) -> "_RSVPOverlay":
+            """Create the RSVP overlay lazily (on first use)."""
+            if self._rsvp_overlay is None:
+                self._rsvp_overlay = _RSVPOverlay(self.editor, self.settings)
+            return self._rsvp_overlay
+
+        def _qt_toggle_rsvp(self) -> None:
+            """Toggle the RSVP (Rapid Serial Visual Presentation) overlay."""
+            new = not bool(self.settings.get("qt_rsvp_mode", False))
+            self.settings["qt_rsvp_mode"] = new
+            if hasattr(self, "_rsvp_act"):
+                self._rsvp_act.setChecked(new)
+            if new:
+                overlay = self._qt_ensure_rsvp_overlay()
+                overlay.show()
+                overlay.raise_()
+            else:
+                if self._rsvp_overlay is not None:
+                    self._rsvp_overlay.hide()
+            self.statusBar().showMessage("RSVP mode: " + ("ON" if new else "OFF"))
+
+        def _qt_rsvp_position_dialog(self) -> None:
+            """Show a 3×3 grid dialog to pick the RSVP overlay position.
+
+            The nine buttons correspond to screen quadrants — vital for readers
+            with a restricted visual field who can only comfortably focus on a
+            particular area of the screen.
+            """
+            dlg = QDialog(self)
+            dlg.setWindowTitle("RSVP Position")
+            outer = QVBoxLayout(dlg)
+
+            info = QLabel(
+                "Choose where the RSVP word appears.\n"
+                "Pick the quadrant that suits your visual field."
+            )
+            info.setWordWrap(True)
+            outer.addWidget(info)
+
+            try:
+                from PyQt6.QtWidgets import QGridLayout
+            except ImportError:
+                from PyQt5.QtWidgets import QGridLayout  # type: ignore[no-redef]
+
+            grid = QGridLayout()
+            outer.addLayout(grid)
+
+            current_pos = str(self.settings.get("qt_rsvp_position", "top-center"))
+
+            def _pick(key: str) -> None:
+                self.settings["qt_rsvp_position"] = key
+                overlay = self._qt_ensure_rsvp_overlay()
+                overlay.set_position(key)
+                dlg.accept()
+                self.statusBar().showMessage(f"RSVP position: {key}")
+
+            for row, col, key, label in _RSVPOverlay._GRID:
+                btn = QPushButton(label)
+                btn.setMinimumSize(80, 60)
+                if key == current_pos:
+                    btn.setStyleSheet("font-weight: bold; border: 2px solid #82aaff;")
+                _k = key  # capture loop variable
+                btn.clicked.connect(lambda _checked=False, k=_k: _pick(k))
+                grid.addWidget(btn, row, col)
+
+            bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel
+                                  if hasattr(QDialogButtonBox, "StandardButton")
+                                  else QDialogButtonBox.Cancel)  # type: ignore[attr-defined]
+            bb.rejected.connect(dlg.reject)
+            outer.addWidget(bb)
+            dlg.exec() if hasattr(dlg, "exec") and not hasattr(dlg, "exec_") else dlg.exec_()  # type: ignore[attr-defined]
 
         def _qt_text_spacing_dialog(self) -> None:
             """Adjust line height, letter spacing, and word spacing.
