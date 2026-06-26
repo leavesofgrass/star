@@ -102,3 +102,53 @@ def test_epub_exporter_produces_zip_container(tmp_path):
 def test_mp4_exporter_requires_settings(tmp_path):
     with pytest.raises(ValueError, match="settings"):
         MP4Exporter().export(Document(plain_text="hi"), tmp_path / "out.mp4")
+
+
+# ── GUI export-menu wiring (registry-driven section) ────────────────────────────
+
+import importlib.util  # noqa: E402
+
+from star.plugins import override_plugins  # noqa: E402
+
+_HAS_QT = bool(importlib.util.find_spec("PyQt6") or importlib.util.find_spec("PyQt5"))
+
+
+class _FancyExporter(Exporter):
+    name = "fancy"
+    @classmethod
+    def extensions(cls): return frozenset({".fancy"})
+    @classmethod
+    def available(cls): return True
+    def export(self, document, path, **kwargs): ...
+
+
+class _UnavailableExporter(Exporter):
+    name = "nope"
+    @classmethod
+    def extensions(cls): return frozenset({".nope"})
+    @classmethod
+    def available(cls): return False
+    def export(self, document, path, **kwargs): ...
+
+
+class _CoveredExporter(Exporter):
+    name = "markdown"  # has a dedicated bespoke menu item → must be filtered out
+    @classmethod
+    def extensions(cls): return frozenset({".md"})
+    @classmethod
+    def available(cls): return True
+    def export(self, document, path, **kwargs): ...
+
+
+@pytest.mark.skipif(not _HAS_QT, reason="PyQt not installed")
+def test_plugin_exporters_filters_covered_and_unavailable():
+    """The dynamic File ▸ Export section excludes exporters that already have a
+    bespoke menu item, and excludes unavailable ones."""
+    from star.gui.mixin_export import ExportMixin
+
+    stub = ExportMixin.__new__(ExportMixin)
+    with override_plugins(
+        exporters=[_FancyExporter, _UnavailableExporter, _CoveredExporter]
+    ):
+        got = [c.name for c in ExportMixin._plugin_exporters(stub)]
+    assert got == ["fancy"]

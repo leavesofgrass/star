@@ -340,3 +340,65 @@ class ExportMixin:
 
         threading.Thread(target=_do_export, daemon=True).start()
 
+    # ── Plugin-registry exporters ────────────────────────────────────────────
+    # File ▸ Export lists the built-in exporters that have dedicated, specialised
+    # handlers above (Markdown, Anki, Audio→wav, Video→mp4).  The names below are
+    # therefore already on the menu and are skipped when generating items from the
+    # registry, so the dynamic section surfaces the remaining built-ins (HTML,
+    # EPUB) plus any installed third-party ``star.exporters`` plugin — with no
+    # change to star itself.
+    _MENU_COVERED_EXPORTERS = frozenset({"markdown", "anki", "wav", "mp4"})
+
+    def _plugin_exporters(self) -> "List[type]":
+        """Return the installed Exporter classes that should appear in the
+        dynamic File ▸ Export section: available, not already covered by a
+        bespoke menu item, sorted by name."""
+        from ..plugins import PluginRegistry
+
+        out = [
+            cls
+            for cls in PluginRegistry.get().exporters
+            if cls.name not in self._MENU_COVERED_EXPORTERS and cls.available()
+        ]
+        return sorted(out, key=lambda c: c.name)
+
+    def _qt_export_via_plugin(self, exporter_cls: type) -> None:
+        """Generic File ▸ Export handler driving a registered Exporter plugin.
+
+        Opens a save dialog filtered to the exporter's extensions and runs the
+        export on a background thread (some exporters shell out to Pandoc or
+        synthesise speech), reporting the outcome on the status bar.
+        """
+        if not self.doc:
+            self.statusBar().showMessage("No document loaded")
+            return
+        exts = sorted(exporter_cls.extensions())
+        primary = exts[0] if exts else ""
+        p = Path(self.doc.path) if self.doc.path else Path("export")
+        default = str(p.parent / (p.stem + primary))
+        label = exporter_cls.name.upper()
+        pattern = " ".join(f"*{e}" for e in exts) or "*"
+        dest, _ = QFileDialog.getSaveFileName(
+            self, f"Export as {label}", default, f"{label} ({pattern});;All Files (*)"
+        )
+        if not dest:
+            return
+        self.statusBar().showMessage(f"Exporting {label} … this may take a while")
+        doc = self.doc
+        backend = getattr(self.tts_manager, "_backend", None)
+
+        def _work() -> None:
+            try:
+                exporter_cls().export(
+                    doc,
+                    dest,
+                    settings=self.settings,
+                    backend=backend,
+                    title=getattr(doc, "title", ""),
+                )
+                self._export_audio_signal.emit(f"Exported {label} → {dest}")
+            except Exception as exc:
+                self._export_audio_signal.emit(f"{label} export error: {exc}")
+
+        threading.Thread(target=_work, daemon=True).start()
+

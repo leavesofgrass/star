@@ -857,6 +857,21 @@ class StarWindow(AidDialogsMixin, CommandsMixin, TocMixin, HighlightsMixin, Pres
                 tip="Export as a karaoke MP4 — themed document with highlighted sentence and spoken audio",
             )
         )
+        # Registry-driven exporters: the remaining built-ins (HTML, EPUB) and any
+        # installed third-party ``star.exporters`` plugin appear here automatically.
+        _plugin_exps = self._plugin_exporters()
+        if _plugin_exps:
+            export_menu.addSeparator()
+            for _exp_cls in _plugin_exps:
+                _exts = " ".join(sorted(_exp_cls.extensions()))
+                export_menu.addAction(
+                    _mi(
+                        f"Export as {_exp_cls.name.upper()} ({_exts})…",
+                        "",
+                        (lambda c=_exp_cls: self._qt_export_via_plugin(c)),
+                        tip=f"Export via the '{_exp_cls.name}' exporter plugin",
+                    )
+                )
 
         file_menu.addSeparator()
         file_menu.addAction(
