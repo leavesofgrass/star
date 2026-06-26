@@ -13,6 +13,7 @@ All rendering runs on the caller's thread; wire to a background thread in the
 GUI/TUI to keep the UI responsive.
 """
 from ._runtime import *  # noqa: F401,F403
+from .formats import Exporter
 
 # Lazy availability — not literal True/False assignments, so not caught by the
 # guard scanner; registered in diagnostics.py as probe-kind entries.
@@ -130,6 +131,31 @@ def export_video(document: Any, settings: Any, out_path: str, tts_backend: Any =
             return {"error": f"ffmpeg failed:\n{stderr[:2000]}"}
 
         return {"path": out_path, "cues": len(cues), "duration": duration}
+
+
+class MP4Exporter(Exporter):
+    """Export the document as a sentence-level karaoke MP4 (wraps export_video)."""
+
+    name = "mp4"
+
+    @classmethod
+    def extensions(cls) -> frozenset[str]:
+        return frozenset({".mp4"})
+
+    @classmethod
+    def available(cls) -> bool:
+        # Needs ffmpeg; a frame renderer (Qt or Pillow) is checked at render time.
+        return bool(_find_ffmpeg())
+
+    def export(self, document, path, **kwargs) -> None:
+        settings = kwargs.get("settings")
+        if settings is None:
+            raise ValueError("MP4 export requires a `settings` keyword argument")
+        result = export_video(
+            document, settings, str(path), tts_backend=kwargs.get("backend")
+        )
+        if result.get("error"):
+            raise RuntimeError(result["error"])
 
 
 # =============================================================================

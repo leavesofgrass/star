@@ -140,10 +140,6 @@ star = "star.app:main"
 # Built-in implementations register here so that PluginRegistry can discover
 # them via importlib.metadata.entry_points().  Third-party packages add their
 # own entry-points in the same groups.
-#
-# The ``star.exporters`` group is deferred to Phase 3 (see
-# wiki/plugin-architecture.md §3); its classes do not exist yet, so registering
-# them now would make every install fail at plugin-load time.
 
 [project.entry-points."star.backends"]
 silent     = "star.tts:SilentBackend"
@@ -170,6 +166,14 @@ txt      = "star.documents:PlainTextHandler"
 rst      = "star.documents:RSTHandler"
 org      = "star.documents:OrgHandler"
 pandoc   = "star.documents:PandocHandler"
+
+[project.entry-points."star.exporters"]
+anki     = "star.flashcards:AnkiExporter"
+markdown = "star.export:MarkdownExporter"
+html     = "star.export:HTMLExporter"
+epub     = "star.export:EPUBExporter"
+wav      = "star.tts:WAVExporter"
+mp4      = "star.video:MP4Exporter"
 
 [tool.setuptools.packages.find]
 include = ["star*"]

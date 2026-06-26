@@ -9,6 +9,7 @@ front and the user's note (``note``) is the back.  The result is a standard
 """
 
 from ._runtime import *  # noqa: F401,F403
+from .formats import Exporter
 
 # Detected cheaply; genanki is imported lazily by the functions below the first
 # time an Anki deck is exported.
@@ -77,3 +78,28 @@ def export_anki_deck(annotations: List[Dict[str, Any]], title: str, path: str) -
     if count == 0:
         raise ValueError("No annotations with content to export.")
     genanki.Package(deck).write_to_file(path)
+
+
+class AnkiExporter(Exporter):
+    """Export a document's annotations as an Anki deck (``.apkg``).
+
+    The cards come from the document's *annotations* (passed via ``kwargs`` —
+    each a dict with ``anchor``/``note``), not the document body, since an Anki
+    deck is built from the reader's highlights and notes.  The deck title
+    defaults to the document title.
+    """
+
+    name = "anki"
+
+    @classmethod
+    def extensions(cls) -> frozenset[str]:
+        return frozenset({".apkg"})
+
+    @classmethod
+    def available(cls) -> bool:
+        return bool(_GENANKI)
+
+    def export(self, document, path, **kwargs) -> None:
+        annotations = kwargs.get("annotations") or []
+        title = kwargs.get("title") or getattr(document, "title", "") or "star Deck"
+        export_anki_deck(annotations, title, str(path))

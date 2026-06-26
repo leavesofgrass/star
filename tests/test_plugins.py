@@ -17,12 +17,6 @@ test_reset_creates_new_instance
 
 test_override_plugins_context_manager
     override_plugins() replaces and restores the singleton correctly.
-
-Note
-----
-The ``star.exporters`` group is deferred to Phase 3 (see
-wiki/plugin-architecture.md §3); its built-in classes do not exist yet, so it is
-intentionally absent from PLUGIN_ENTRY_POINTS and from GROUP_BASE below.
 """
 from __future__ import annotations
 
@@ -31,7 +25,7 @@ from importlib.metadata import entry_points
 from pathlib import Path
 
 from star.diagnostics import PLUGIN_ENTRY_POINTS
-from star.formats import FormatHandler
+from star.formats import Exporter, FormatHandler
 from star.plugins import PluginRegistry, override_plugins
 from star.tts import TTSBackend, SilentBackend
 
@@ -64,6 +58,7 @@ def test_all_builtin_entry_points_registered(group):
 GROUP_BASE = {
     "star.backends": TTSBackend,
     "star.formats": FormatHandler,
+    "star.exporters": Exporter,
 }
 
 @pytest.mark.parametrize("group,base", GROUP_BASE.items())
