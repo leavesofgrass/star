@@ -34,7 +34,7 @@ that ships in every distribution form.
 | `star/cache.py` · `star/stats.py` · `star/themes.py` | Document cache, reading statistics, color/CSS themes. |
 | `star/convert.py` · `star/watch.py` · `star/feeds.py` · `star/translate.py` · `star/vocab.py` · `star/summarize.py` · `star/flashcards.py` · `star/spellcheck.py` | Batch convert, hot-folder watch, feeds, translation, difficult-word overlay, summarization, Anki export, spell check. |
 | `star/tts.py` | TTS backends (pyttsx3, eSpeak-NG, DECtalk, Piper, Coqui, Apple `say`, …) and the manager. |
-| `star/tui.py` | The curses terminal UI. |
+| `star/tui/` | The curses terminal UI **package** (see below). |
 | `star/gui/` | The Qt GUI **package** (see below). |
 | `star/app.py` | Command-line entry point (`star.app:main`). |
 | `star/diagnostics.py` | `OPTIONAL_DEPENDENCIES` registry powering `star --deps`. |
@@ -64,6 +64,26 @@ star.gui` safe when PyQt is absent (the graceful-degradation invariant). The
 PyQt5/PyQt6 enum-compat constants (e.g. `QTextCursor.MoveMode`, `Qt.ConnectionType`)
 were captured closure values in the monolith; they now live in `_qtcompat.py` and
 are imported by the modules that need them.
+
+### The `star/tui/` package
+
+The curses TUI began as a single ~5,000-line `star/tui.py` with a 177-method
+`StarApp` class. As of 0.1.14 it became a **package**, with `StarApp` split into
+focused responsibility **mixins** — the same pattern as `star/gui/`, so TUI work
+no longer lands in one giant class:
+
+| Module | Responsibility |
+|---|---|
+| `star/tui/__init__.py` | Re-export shim: exposes `StarApp`, `THEMES`, `THEME_NAMES` so `from star.tui import StarApp` (used by `star/app.py` and the tests) keeps working unchanged. |
+| `star/tui/app.py` | `StarApp` — the core: `__init__`, the main `run()` loop, color setup, and `notify`. It inherits the mixins below as base classes. |
+| `star/tui/mixin_*.py` | `StarApp`'s methods grouped by responsibility — `document`, `playback`, `navigation`, `speechcursor`, `bookmarks`, `search`, `voice`, `export`, `display`, `commands`, `graph`, `help`, `docops`, `rsvp`, `annotations`, `keys`, `draw` — each a mixin that `StarApp` inherits. |
+| `star/tui/theming.py` | Color-pair roles, the `THEMES` table, and `_setup_colors()`. |
+| `star/tui/_screen.py` | Low-level curses draw primitives (`_addstr`, `_fillrow`, `_fillrow_range`). |
+| `star/tui/text.py` | Static text/data: the M-x command table, the keyboard-shortcut data + renderer, and the embedded help-pager text. |
+
+Every method resolves from exactly one mixin via the MRO; `StarApp` keeps the
+same public surface (176 callable members) it had as a monolith. The `_RSVP_*`
+position tables live on `RsvpMixin` and remain reachable as `StarApp._RSVP_*`.
 
 ---
 

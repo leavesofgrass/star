@@ -8,6 +8,55 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.14] 2026-06-26
+
+Fixes a Windows crash in headless / TUI video export, and modularizes the
+curses TUI into a package (the same treatment the Qt GUI received in 0.1.12).
+No user-facing behavior change beyond the bug fix.
+
+### 🐛 Fixed
+
+- **Karaoke video export no longer crashes on Windows when run without the GUI.**
+  `export_video` rendered frames with Qt (`QTextDocument`/`QPainter`) but never
+  ensured a `QGuiApplication` existed first; with no GUI running — the TUI's
+  `export-video` command (which renders on a worker thread) or any headless
+  export — Qt's font subsystem was uninitialised and the process hard-crashed
+  on Windows. The Qt renderer now reuses a running `QApplication` when present
+  and otherwise creates a minimal `QGuiApplication` on the main thread; off the
+  main thread with no app it cleanly falls back to the Pillow renderer. (This
+  was also the root cause of the long-standing full-test-suite crash at
+  interpreter shutdown on Windows.)
+
+### ♻️ Refactor
+
+- **`star/tui.py` is now the `star/tui/` package.** The ~5,000-line curses TUI
+  module — a single 177-method `StarApp` class — was split into a package
+  mirroring `star/gui/`: `app.py` holds the core (`__init__`, the `run()` loop,
+  color setup, `notify`), and the rest of `StarApp`'s methods move into 17
+  responsibility **mixins** (`mixin_document`, `mixin_playback`,
+  `mixin_navigation`, `mixin_speechcursor`, `mixin_bookmarks`, `mixin_search`,
+  `mixin_voice`, `mixin_export`, `mixin_display`, `mixin_commands`, `mixin_graph`,
+  `mixin_help`, `mixin_docops`, `mixin_rsvp`, `mixin_annotations`, `mixin_keys`,
+  `mixin_draw`). Module-level helpers split into `theming.py` (color roles +
+  `THEMES` + `_setup_colors`), `_screen.py` (curses draw primitives), and
+  `text.py` (the M-x command table, shortcut data, and help text). Behavior is
+  identical — every method moved verbatim, `StarApp` keeps the same public
+  surface (`from star.tui import StarApp` and 176 callable members, each
+  resolving from exactly one mixin via the MRO).
+
+### 🧪 Tests / CI
+
+- **CI now installs `ffmpeg`** (plus `espeak-ng` on Linux for a TTS engine) on
+  the Linux and Windows test legs, so `test_export_video_smoke` actually runs
+  instead of being skipped — turning it into a real regression guard for the
+  video-export fix above.
+
+### 📚 Documentation
+
+- **`docs/architecture.md`** documents the new `star/tui/` package layout
+  (core + mixins + `theming`/`_screen`/`text`), alongside the existing
+  `star/gui/` section.
+
 ## [0.1.13] 2026-06-26
 
 Makes **Pandoc a first-class importer** so `star` can open many more document
