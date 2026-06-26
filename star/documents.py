@@ -43,6 +43,39 @@ class Document:
 # =============================================================================
 
 
+# Formats star routes through Pandoc (when it is available and prefer_pandoc is
+# on) instead of its native loader, because Pandoc reads them at least as well.
+# EPUB is deliberately kept native for its NCX/NAV chapter navigation;
+# markdown/text need no conversion; PDF, images/OCR, code, DAISY, archives and
+# URLs are not Pandoc-readable and always stay native.
+_PANDOC_FIRST_FORMATS = frozenset({
+    "docx", "odt", "pptx", "html", "csv", "tsv", "xlsx",
+    "rst", "latex", "mediawiki", "textile", "creole", "orgmode", "notebook",
+})
+
+# Extensions only Pandoc can open (no native loader) → the "pandoc" format.
+# Value is the explicit Pandoc input format, for robust conversion of the
+# less-common types Pandoc may not infer from the extension alone.
+_PANDOC_INPUT_EXTS = {
+    ".rtf": "rtf", ".fb2": "fb2", ".docbook": "docbook", ".dbk": "docbook",
+    ".jats": "jats", ".ris": "ris", ".bib": "biblatex", ".bibtex": "biblatex",
+    ".opml": "opml", ".t2t": "t2t", ".muse": "muse", ".typ": "typst",
+    ".typst": "typst", ".dokuwiki": "dokuwiki", ".tikiwiki": "tikiwiki",
+    ".twiki": "twiki", ".vimwiki": "vimwiki", ".jira": "jira",
+    ".man": "man", ".mdoc": "mdoc", ".pod": "pod", ".roff": "man",
+}
+
+
+def _pandoc_available() -> bool:
+    """True if Pandoc can be invoked (pypandoc module or a pandoc binary)."""
+    return bool(_PYPANDOC or _PANDOC_BIN)
+
+
+def _pandoc_handles(fmt: str) -> bool:
+    """Formats routed through Pandoc when it is enabled and available."""
+    return fmt == "pandoc" or fmt in _PANDOC_FIRST_FORMATS
+
+
 def _detect_format(path: str) -> str:
     """Detect document format from extension or magic bytes."""
     p = path.lower()
@@ -105,7 +138,11 @@ def _detect_format(path: str) -> str:
         ".org": "orgmode",
     }
     ext = Path(path).suffix.lower()
-    return ext_map.get(ext, "text")
+    if ext in ext_map:
+        return ext_map[ext]
+    if ext in _PANDOC_INPUT_EXTS:
+        return "pandoc"
+    return "text"
 
 
 def _build_word_map(plain_text: str, rendered_lines: List[str]) -> List[WordPos]:
@@ -1391,6 +1428,14 @@ def _load_url(url: str) -> str:
         return f"# Fetch Error\n\n```\n{e}\n```\n"
 
 
+def _load_pandoc_first(path: str) -> Optional[str]:
+    """Convert via Pandoc for a Pandoc-handled format: an explicit input format
+    for the uncommon Pandoc-only extensions, auto-detection for the rest.
+    Returns None if Pandoc fails or is unavailable."""
+    pf = _PANDOC_INPUT_EXTS.get(Path(path).suffix.lower())
+    return _pandoc_convert(path, pf) if pf else _load_via_pandoc(path)
+
+
 def _load_via_pandoc(path: str) -> Optional[str]:
     """Use Pandoc binary or pypandoc to convert a file to Markdown.
     Returns None if Pandoc is not available."""
@@ -1473,11 +1518,33 @@ def load_document(path: str, settings: Settings) -> Document:
     # is a last-resort Pandoc attempt for any extension we don't recognize.
 
     md: str = ""
-    if fmt == "url":
+    # Pandoc-first: when Pandoc is present and enabled, it imports the formats it
+    # handles well (offices, markup, and the Pandoc-only types) in preference to
+    # the native loader; star falls back to the native loader if Pandoc fails.
+    if (
+        settings.get("prefer_pandoc", True)
+        and _pandoc_available()
+        and _pandoc_handles(fmt)
+    ):
+        _pm = _load_pandoc_first(path)
+        if _pm and _pm.strip():
+            md = _pm
+
+    if md:
+        pass  # Pandoc produced the document; skip the native loaders
+    elif fmt == "url":
         doc.title = path
         md = _load_url(path)
     elif fmt in ("text",):
         md = _load_plain_text(path)
+    elif fmt == "pandoc":
+        md = (
+            f"# {Path(path).name}\n\n"
+            "This format requires **Pandoc**, which isn't available "
+            "(or `prefer_pandoc` is disabled).\n\n"
+            "Install it from https://pandoc.org/ (or `pip install pypandoc`) "
+            "and reopen the file.\n"
+        )
     elif fmt in ("markdown", "rmarkdown"):
         md = _load_rmarkdown(path) if fmt == "rmarkdown" else _load_markdown(path)
     elif fmt == "html":

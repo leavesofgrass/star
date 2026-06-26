@@ -79,6 +79,7 @@ Open it from the TUI with `M-x settings`.
 | `cache_max_size_mb` | `100` | Maximum cache directory size in MB |
 | `footnote_mode` | `"inline"` | Footnote handling: `inline`, `deferred`, `skip` |
 | `pdf_reading_order` | `"reconstruct"` | PDF layout handling: `reconstruct` rebuilds multi-column reading order and suppresses running headers/footers/page numbers; `raw` keeps pdfminer's native box order |
+| `prefer_pandoc` | `true` | When Pandoc is installed, prefer it as a first-class importer for the office/markup formats it handles (and Pandoc-only types like `.rtf`, `.fb2`, `.typst`); falls back to native loaders if Pandoc fails. EPUB always stays native (chapter navigation). Set `false` to always use native loaders |
 | `epub_show_chapters` | `true` | Include chapter headings in EPUB rendering |
 | `normalize_math` | `true` | Convert math expressions to spoken English |
 | `normalize_numbers` | `true` | Convert numbers/dates/times/currency to spoken form |

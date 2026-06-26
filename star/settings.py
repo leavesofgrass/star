@@ -147,6 +147,11 @@ DEFAULTS: Dict[str, Any] = {
     # PDF reading order: "reconstruct" rebuilds multi-column reading order and
     # suppresses running headers/footers; "raw" keeps pdfminer's native order.
     "pdf_reading_order": "reconstruct",  # "reconstruct" | "raw"
+    # Prefer Pandoc as a first-class importer when it is installed: it handles
+    # the office/markup formats it supports (and Pandoc-only types like .rtf,
+    # .fb2, .typst, …) in preference to the native loaders. EPUB always stays
+    # native (for chapter navigation). Set false to always use native loaders.
+    "prefer_pandoc": True,
     # User text highlights (persistent per-document colored annotations)
     "user_highlights": {},  # {path: [{"start": int, "end": int, "color": str}]}
     # Reading position memory

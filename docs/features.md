@@ -127,7 +127,23 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 | Images (OCR) | `.png`, `.jpg`, `.jpeg`, `.gif`, `.bmp`, `.tiff`, `.webp` | `pytesseract` |
 | Python source | `.py` | built-in |
 | URL (HTTP / HTTPS) | `http://…`, `https://…` | built-in |
-| Pandoc fallback | any Pandoc-supported format | `pandoc` binary or `pypandoc` |
+| Pandoc import | any of Pandoc's **50+** input formats (RTF, FB2, Typst, …) | `pandoc` binary or `pypandoc` |
+
+**Pandoc as a first-class importer.** When Pandoc is installed, star prefers it
+for the formats it handles well — the office and markup formats above (DOCX,
+ODT, PPTX, HTML, RST, LaTeX, MediaWiki, Textile, Creole, Org, Jupyter,
+CSV/TSV/XLSX) **plus Pandoc-only types** with no native loader: `.rtf`, `.fb2`,
+`.docbook`, `.jats`, `.ris`, `.bib`/`.bibtex` (BibTeX/BibLaTeX), `.opml`,
+`.t2t`, `.muse`, `.typst`, `.dokuwiki`, `.twiki`, `.tikiwiki`, `.vimwiki`,
+`.jira`, `.man`/`.mdoc`, `.pod`, and more. Pandoc reads **50+ input formats**
+(51 as of Pandoc 3.9; the exact set is `pandoc --list-input-formats`). star
+falls back to its native loader if a Pandoc conversion fails.
+
+Three things are **always read natively**: **EPUB** (so its NCX/NAV chapter
+navigation is preserved), the formats Pandoc can't open (PDF, images/OCR, plain
+code, DAISY/DTBook, archives, URLs), and Markdown/plain text (no conversion
+needed). Controlled by the **`prefer_pandoc`** setting (default `true`); set it
+`false` to always use the native loaders.
 
 **PowerPoint:** Slide titles render as headings, body text as paragraphs, and
 speaker notes are appended after each slide. **Spreadsheets:** CSV, TSV, and XLSX

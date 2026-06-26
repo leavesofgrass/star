@@ -13,6 +13,8 @@ def _settings_fingerprint(settings: "Settings") -> str:
         f"{settings['tts_skip_code']}"
         f"|{settings.get('table_reading_mode', 'structured')}"
         f"|{settings.get('footnote_mode', 'inline')}"
+        f"|{settings.get('pdf_reading_order', 'reconstruct')}"
+        f"|{settings.get('prefer_pandoc', True)}"
     )
     import hashlib
 
