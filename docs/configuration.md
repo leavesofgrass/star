@@ -62,6 +62,7 @@ Open it from the TUI with `M-x settings`.
 | `profiles` | `{}` | Named setting bundles (voice, rate, theme, font, spacing, highlight) saved via the Profiles menu |
 | `pronunciations` | `{}` | Pronunciation lexicon: `{term: spoken form}` applied before other TTS normalization |
 | `use_pronunciations` | `true` | Apply the pronunciation lexicon while reading |
+| `dictionary_file` | `""` | Path to a custom JSON dictionary for Define Word (`{term: definition}` or `{term: {pos, definition, pronunciation, examples}}`); checked before WordNet |
 | `qt_show_toc` | `true` | Show the Contents panel at startup |
 | `qt_show_notes` | `false` | Show the Notes/annotations panel at startup (hidden by default; toggle with `Ctrl+Shift+N`) |
 | `qt_line_height` | `1.5` | Qt line-height multiplier (WCAG 1.4.12). Adjust via **View → Reading Aids → Text Spacing…** |

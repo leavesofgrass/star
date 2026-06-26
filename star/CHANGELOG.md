@@ -8,6 +8,33 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.15] 2026-06-26
+
+Adds offline word definitions, and fixes a regression that broke the Qt GUI on
+launch in 0.1.14.
+
+### ✨ Added
+
+- **Offline dictionary / Define Word.** Select a word (or place the cursor on
+  it) and look up an offline definition — part of speech, senses, synonyms, and
+  an ARPAbet pronunciation — which closes the loop the difficult-word overlay
+  opens. **Qt:** View ▸ Reading Aids ▸ *Define Word* (**Ctrl+D**, also in the
+  command palette). **TUI:** the **`d`** key or `M-x define`, shown in the text
+  pager. Backends, in order: a user-supplied custom JSON dictionary (the new
+  `dictionary_file` setting, checked first), then **WordNet** via nltk, with
+  **CMUdict** pronunciation when present. Optional and guarded as usual:
+  `pip install "star-reader[dictionary]"` then a one-time
+  `python -m nltk.downloader wordnet omw-1.4 cmudict`; without it the UI shows an
+  install hint. Listed in `star --deps`.
+
+### 🐛 Fixed
+
+- **Qt GUI no longer crashes on launch.** The 0.1.14 `tui.py` → `star/tui/`
+  package refactor moved `_shortcuts_text` into `star/tui/text.py`, but
+  `star/gui/mixin_commands.py` still imported it from `star.tui`, raising
+  `ImportError` when the (lazily-imported) GUI started. The import now points at
+  `star.tui.text`. (TUI and CLI were unaffected.)
+
 ## [0.1.14] 2026-06-26
 
 Fixes a Windows crash in headless / TUI video export, and modularizes the

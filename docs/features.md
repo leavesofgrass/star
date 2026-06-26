@@ -83,6 +83,7 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 | Document translation | Translate into 15 common languages (Google backend, no API key); optional via `deep-translator` |
 | RSS / journal feeds | Browse a feed and open any article in the reader; optional via `feedparser` |
 | Difficult-word overlay | Tints uncommon / academic vocabulary by word frequency; optional via `wordfreq` |
+| Define word (offline) | Selected word → definition, senses, synonyms, pronunciation; WordNet via `nltk`, or a custom JSON glossary |
 | Dependency status report | `star --deps` lists every optional dependency and how to add the rest |
 | Four built-in themes | dark (default), light, contrast, phosphor — all colorblind-friendly |
 | CSS theme customization | Drop any `.css` file into the themes folder; star picks it up instantly |
@@ -827,6 +828,13 @@ missing.
 - **Highlight difficult words** — **View ▸ Reading Aids ▸ Highlight Difficult
   Words** (`Ctrl+Alt+O`) tints uncommon/academic vocabulary by frequency
   (non-destructive; persists via `qt_vocab_highlight`). `pip install wordfreq`.
+- **Define word (offline)** — **View ▸ Reading Aids ▸ Define Word** (`Ctrl+D`,
+  also `M-x define` / the `d` key in the TUI) looks up the selected word (or the
+  word under the cursor) and shows its part of speech, senses, synonyms, and
+  pronunciation — entirely offline. Backed by WordNet
+  (`pip install "star-reader[dictionary]"`, then `python -m nltk.downloader
+  wordnet omw-1.4 cmudict`); point `dictionary_file` at a custom JSON glossary to
+  layer your own domain terms on top (checked first).
 - **Read RSS / Atom feeds** — **File ▸ Open Feed…** (`Ctrl+Shift+M`) fetches a
   feed URL, lists its articles, and opens any one in the reader. `pip install
   feedparser`.
