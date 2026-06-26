@@ -79,7 +79,9 @@ def _parse_ris(text: str) -> List[Dict[str, Any]]:
         "ID": "id",
     }
     for line in text.splitlines():
-        mm = re.match(r"^([A-Z][A-Z0-9])  - (.*)$", line.rstrip())
+        # The value after "  - " may be empty (notably the "ER  - " end-of-record
+        # tag, whose trailing space rstrip() removes), so the space is optional.
+        mm = re.match(r"^([A-Z][A-Z0-9])  - ?(.*)$", line.rstrip())
         if not mm:
             continue
         tag, val = mm.group(1), mm.group(2).strip()
