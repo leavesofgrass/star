@@ -18,6 +18,13 @@ from ._runtime import *  # noqa: F401,F403
 # guard scanner; registered in diagnostics.py as probe-kind entries.
 _PILLOW_AVAILABLE = _module_available("PIL")
 
+# Holds the QGuiApplication used for offscreen frame rendering.  A QGuiApplication
+# (or the GUI's QApplication) must exist before any QTextDocument/QPainter text
+# rendering, otherwise the font subsystem is uninitialised and Qt hard-crashes
+# the process on Windows.  Kept at module scope so the Python wrapper outlives a
+# single render call and is reused across frames (instance() finds it again).
+_QT_APP = None
+
 
 # =============================================================================
 # Public API
@@ -221,18 +228,36 @@ def _try_render_qt(
     try:
         from PyQt6.QtGui import (  # type: ignore[import]
             QTextDocument, QImage, QPainter, QTextCursor,
-            QTextCharFormat, QColor, QFont,
+            QTextCharFormat, QColor, QFont, QGuiApplication,
         )
         from PyQt6.QtCore import Qt, QSizeF, QRectF  # type: ignore[import]
     except ImportError:
         try:
             from PyQt5.QtGui import (  # type: ignore[import]
                 QTextDocument, QImage, QPainter, QTextCursor,
-                QTextCharFormat, QColor, QFont,
+                QTextCharFormat, QColor, QFont, QGuiApplication,
             )
             from PyQt5.QtCore import Qt, QSizeF, QRectF  # type: ignore[import]
         except ImportError:
             return False
+
+    # A QGuiApplication must exist before any text rendering: QTextDocument/
+    # QPainter need the GUI font subsystem.  When star exports video headlessly
+    # (no GUI running) none exists, and rendering hard-crashes the process on
+    # Windows (a Qt fast-fail, 0xC0000409).  Reuse the GUI's running app (its
+    # QApplication is a QGuiApplication subclass) when there is one — rendering
+    # off the main thread against an existing app is fine.  Otherwise create a
+    # minimal app, but ONLY on the main thread: a QGuiApplication constructed on
+    # a worker thread (e.g. the TUI's export thread) segfaults at teardown, so
+    # there we return False and let the caller fall back to the Pillow renderer.
+    global _QT_APP
+    try:
+        if QGuiApplication.instance() is None:
+            if threading.current_thread() is not threading.main_thread():
+                return False
+            _QT_APP = QGuiApplication([sys.argv[0] if sys.argv else "star"])
+    except Exception:
+        return False
 
     dark = theme not in ("light", "sepia")
     bg = QColor(30, 30, 30) if dark else QColor(245, 245, 245)
