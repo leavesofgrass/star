@@ -65,8 +65,13 @@ are in the **[Installation guide](docs/installation.md)**.
 - **Knowledge graph:** link annotations across documents with typed relations
   (`CONFLICTS_WITH`, `SUPPORTS`, `CITES`, …), extract concepts, view the graph
   interactively, and export to SVG/PlantUML/DOT/JSON.
-- **Export:** Markdown, PDF (with highlights), BRF braille, TTS audio
-  (WAV/MP3/OGG/MP4), and synchronized SRT/VTT subtitles.
+- **Export:** Markdown, HTML, EPUB, PDF (with highlights), BRF braille, TTS
+  audio (WAV/MP3/OGG/MP4), karaoke video (MP4), Anki decks, and synchronized
+  SRT/VTT subtitles.
+- **Extensible:** TTS engines, document formats, and export targets are
+  discovered through `importlib.metadata` entry-points — installing a
+  third-party plugin package adds backends, loaders, or exporters with no
+  changes to star itself.
 - **Accessibility-first:** NVDA/JAWS/Orca/VoiceOver compatible, four
   colorblind-friendly themes + custom CSS themes, dyslexia-friendly font, bionic
   reading, adjustable spacing (WCAG 1.4.12), and high-DPI support.

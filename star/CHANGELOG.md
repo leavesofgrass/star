@@ -8,6 +8,35 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.16] 2026-06-26
+
+Adds HTML and EPUB export, and opens star up to third-party plugins: TTS
+engines, document formats, and export targets are now discovered through
+standard entry-points.
+
+### ✨ Added
+
+- **HTML and EPUB export.** File ▸ Export can now write the current document to
+  a standalone HTML page or an EPUB book (rendered through Pandoc, so it
+  requires Pandoc or `pip install "star-reader[markup]"`). They appear in the
+  Export menu automatically when Pandoc is available.
+- **Plugin system (entry-points).** TTS backends, document-format handlers, and
+  exporters are now discovered via `importlib.metadata` entry-points
+  (`star.backends`, `star.formats`, `star.exporters`). A third-party package can
+  contribute a new speech engine, file loader, or export target — for example
+  `pip install star-tts-azure` — and it is picked up with **no changes to star
+  itself**: new engines become selectable in the engine picker, new loaders open
+  their file types, and new exporters appear in File ▸ Export. The built-in
+  implementations are registered the same way.
+
+### 🔧 Changed
+
+- The document loader and TTS engine selection now route through the plugin
+  registry instead of hard-coded dispatch tables. Behavior is **identical** for
+  every existing configuration — the change is what makes the system extensible.
+  `TTSBackend` is now a formal abstract base class, so a misbehaving custom
+  backend fails fast at construction rather than silently doing nothing.
+
 ## [0.1.15] 2026-06-26
 
 Adds offline word definitions, and fixes a regression that broke the Qt GUI on
