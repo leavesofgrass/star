@@ -46,12 +46,23 @@ jobs:
           python-version: ${{ matrix.python }}
           cache: pip
 
-      - name: Install Qt runtime libraries (Linux)
+      - name: Install Qt + media runtime libraries (Linux)
         if: runner.os == 'Linux'
+        # ffmpeg + espeak-ng let the karaoke-video smoke test actually run (it
+        # needs ffmpeg to mux and a TTS engine to synthesize) instead of being
+        # skipped, so it guards the headless-render crash fixed in video.py.
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            libegl1 libgl1 libxkbcommon0 libdbus-1-3 libxcb-cursor0
+            libegl1 libgl1 libxkbcommon0 libdbus-1-3 libxcb-cursor0 \
+            ffmpeg espeak-ng
+
+      - name: Install ffmpeg (Windows)
+        if: runner.os == 'Windows'
+        # Windows is the platform where headless Qt video export crashed; SAPI5
+        # already provides TTS, so ffmpeg is all the smoke test needs to run here
+        # and catch any regression of the QGuiApplication fix.
+        run: choco install ffmpeg -y --no-progress
 
       - name: Install star (with test extra)
         run: python -m pip install -e ".[test]"
