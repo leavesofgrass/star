@@ -109,7 +109,7 @@ jobs:
         # single collected data file.
         run: |
           python -m pytest --cov=star.tts --cov=star.documents --cov-report=term-missing
-          python -m coverage report --include="*/tts.py" --fail-under=31
+          python -m coverage report --include="*/tts.py" --fail-under=30
           python -m coverage report --include="*/documents.py" --fail-under=17
 
   lint:

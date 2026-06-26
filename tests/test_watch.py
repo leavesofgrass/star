@@ -125,8 +125,17 @@ def test_hotfolder_debounce_partial_write(tmp_path, settings):
                         "a partially-written file was processed before it stabilised"
                     )
         # After the writer closes and the size stabilises, it converts — with
-        # the full content, not a truncated prefix.
-        assert _wait_for(lambda: out_file.exists(), timeout=10.0)
+        # the full content, not a truncated prefix.  Wait for the converted
+        # *content* (not just the file's existence): the output file can briefly
+        # exist before the converter has flushed its text, so polling on
+        # existence alone races and reads "" (flaky on CI).
+        def _converted() -> bool:
+            try:
+                return out_file.exists() and "chunk 4" in out_file.read_text(encoding="utf-8")
+            except OSError:
+                return False
+
+        assert _wait_for(_converted, timeout=10.0)
         assert "chunk 4" in out_file.read_text(encoding="utf-8")
     finally:
         watcher.stop()
