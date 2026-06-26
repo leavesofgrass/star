@@ -703,7 +703,7 @@ def _latex_to_md(text: str) -> str:  # noqa: C901
         (r"\\}", "}"),
         (r"\\textasciitilde", "~"),
         (r"\\textasciicircum", "^"),
-        (r"\\textbackslash", "\\"),
+        (r"\\textbackslash", r"\\"),  # re.sub replacement: r"\\" → one literal backslash
         (r"\\slash", "/"),
         (r"\\,", " "),
         (r"\\;", " "),
