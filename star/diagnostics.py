@@ -308,6 +308,22 @@ OPTIONAL_DEPENDENCIES: List[Dict[str, Any]] = [
 ]
 
 
+# Enforced by tests/test_plugins.py — every key must have all listed entry-points
+# resolvable after `pip install -e .`.  The ``star.exporters`` group is deferred
+# to Phase 3 (see wiki/plugin-architecture.md §3) and is intentionally absent
+# until its built-in classes exist.
+PLUGIN_ENTRY_POINTS: dict[str, list[str]] = {
+    "star.backends": [
+        "silent", "pyttsx3", "applesay", "espeak", "espeaklib",
+        "festival", "piper", "coqui", "dectalk", "dectalkdll",
+    ],
+    "star.formats": [
+        "pdf", "epub", "docx", "odt", "pptx", "xlsx",
+        "html", "markdown", "txt", "rst", "org", "pandoc",
+    ],
+}
+
+
 def _module_present(name: str) -> bool:
     """True when import name *name* can be imported (without importing it)."""
     try:

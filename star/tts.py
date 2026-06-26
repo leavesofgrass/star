@@ -1,4 +1,6 @@
 """Text-to-speech backends and the TTS manager."""
+import abc
+
 from ._runtime import *  # noqa: F401,F403
 from .settings import Settings
 
@@ -8,14 +10,28 @@ from .settings import Settings
 # =============================================================================
 
 
-class TTSBackend:
-    """Abstract base class for text-to-speech engines."""
+class TTSBackend(abc.ABC):
+    """Abstract base for all TTS engines.
 
-    name: str = "silent"
+    Subclasses **must** implement :meth:`available`, :meth:`speak`, and
+    :meth:`stop`.  All other methods have safe no-op defaults; backends only
+    override what they support.
+    """
 
+    #: Short identifier used in config and entry-points (e.g. ``"piper"``).
+    #: Must match the key used in ``[project.entry-points."star.backends"]``.
+    name: str = "base"
+
+    #: Auto-selection order; lower = tried first.
+    #: Built-ins use multiples of 10 (10, 20, …, 90).
+    #: Third-party plugins should use values ≥ 100.
+    priority: int = 50
+
+    @abc.abstractmethod
     def available(self) -> bool:
         return False
 
+    @abc.abstractmethod
     def speak(
         self,
         text: str,
@@ -25,6 +41,7 @@ class TTSBackend:
         if on_done:
             on_done()
 
+    @abc.abstractmethod
     def stop(self) -> None:
         pass
 
@@ -67,6 +84,7 @@ class FestivalBackend(TTSBackend):
     """
 
     name = "festival"
+    priority = 60
 
     def __init__(self, rate: int = 265, volume: float = 1.0, voice: str = "") -> None:
         self._rate = rate
@@ -255,6 +273,7 @@ class CoquiBackend(TTSBackend):
     """
 
     name = "coqui"
+    priority = 110  # opt-in only (slow model download); never auto-selected
     _DEFAULT_MODEL = "tts_models/en/ljspeech/tacotron2-DDC"
 
     def __init__(self, rate: int = 265, volume: float = 1.0, voice: str = "") -> None:
@@ -493,6 +512,7 @@ class PiperBackend(TTSBackend):
     """
 
     name = "piper"
+    priority = 100  # opt-in only (needs a downloaded voice model); never auto-selected
 
     def __init__(self, rate: int = 265, volume: float = 1.0, voice: str = "") -> None:
         self._rate = rate
@@ -895,9 +915,22 @@ class SilentBackend(TTSBackend):
     """No-op backend when no TTS engine is available."""
 
     name = "silent"
+    priority = 90  # last resort; only auto-selected when nothing else is available
 
     def available(self) -> bool:
         return True
+
+    def speak(
+        self,
+        text: str,
+        on_word: Optional[Callable[[int, int], None]] = None,
+        on_done: Optional[Callable[[], None]] = None,
+    ) -> None:
+        if on_done:
+            on_done()
+
+    def stop(self) -> None:
+        pass
 
 
 class Pyttsx3Backend(TTSBackend):
@@ -912,6 +945,7 @@ class Pyttsx3Backend(TTSBackend):
     """
 
     name = "pyttsx3"
+    priority = 20
 
     def __init__(self, rate: int = 265, volume: float = 1.0, voice: str = ""):
         self._rate = rate
@@ -1117,6 +1151,7 @@ class ESpeakBackend(TTSBackend):
     speech without the pyttsx3 dependency chain."""
 
     name = "espeak"
+    priority = 50  # CLI fallback — tried after the in-process libespeak-ng backend
 
     def __init__(self, rate: int = 265, volume: int = 100, voice: str = "en-us"):
         self._rate = int(rate * 0.8)  # eSpeak rate scale ≈ 80% of wpm
@@ -1315,6 +1350,7 @@ class ESpeakLibBackend(TTSBackend):
     """
 
     name = "espeak"
+    priority = 40  # in-process libespeak-ng — preferred over the CLI (real word events)
 
     # speak_lib.h constants.
     _AUDIO_OUTPUT_PLAYBACK = 0
@@ -1740,6 +1776,7 @@ class DECtalkDLLBackend(TTSBackend):
     """
 
     name = "dectalk"
+    priority = 10  # in-process DECtalk.dll ("Perfect Paul") — first in auto when present
 
     # DECtalk C API constants (ttsapi.h).
     _TTS_FORCE = 1
@@ -2034,6 +2071,7 @@ class DECtalkBackend(TTSBackend):
     The DECtalk source code is available at github.com/dectalk/dectalk."""
 
     name = "dectalk"
+    priority = 70  # say/dtalk CLI fallback — tried after the in-process DECtalk.dll
 
     def __init__(self, rate: int = 265, voice: str = "Paul"):
         self._rate = rate
@@ -2149,6 +2187,7 @@ class AppleSayBackend(TTSBackend):
     """
 
     name = "applesay"
+    priority = 30
 
     def __init__(self, rate: int = 265, volume: float = 1.0, voice: str = ""):
         self._rate = int(rate)
@@ -2410,16 +2449,9 @@ class _SCReader:
 class TTSManager:
     """Manages the active TTS backend and word-position tracking."""
 
-    BACKENDS = [
-        "pyttsx3",
-        "applesay",
-        "espeak",
-        "festival",
-        "piper",
-        "coqui",
-        "dectalk",
-        "silent",
-    ]
+    #: Engine names never chosen in ``auto`` mode: piper/coqui need an explicit
+    #: opt-in (downloaded model), and ``silent`` is the last-resort fallback.
+    _AUTO_SKIP = frozenset({"silent", "piper", "coqui"})
 
     def __init__(self, settings: Settings):
         self._settings = settings
@@ -2464,63 +2496,81 @@ class TTSManager:
         self._select_backend(settings["tts_backend"])
 
     def _select_backend(self, preference: str) -> None:
-        candidates: List[TTSBackend] = []
+        """Pick the active backend from the plugin registry.
+
+        Backend classes are discovered via the ``star.backends`` entry-points
+        (built-ins and any installed third-party plugins) and walked in
+        ``priority`` order.  An explicit *preference* tries only the engines
+        registered under that name — ``"espeak"`` and ``"dectalk"`` each map to
+        two implementations (in-process then CLI), tried in priority order.
+        ``"auto"`` walks every auto-eligible engine and takes the first that
+        reports itself available; everything falls back to :class:`SilentBackend`.
+        """
+        from .plugins import PluginRegistry
+
+        rate = int(self._settings["tts_rate"])
+        vol = float(self._settings["tts_volume"])
+
+        classes = sorted(PluginRegistry.get().backends, key=lambda c: c.priority)
+
+        chosen: Optional[TTSBackend] = None
+        if preference and preference != "auto":
+            # Explicit engine: try only the implementations registered under
+            # this name, lowest priority first (e.g. libespeak-ng before the
+            # eSpeak CLI; DECtalk.dll before the say/dtalk CLI).
+            for cls in classes:
+                if cls.name != preference:
+                    continue
+                cand = self._construct_backend(cls)
+                if cand.available():
+                    chosen = cand
+                    break
+        else:
+            # Auto: walk every auto-eligible engine in priority order.  The
+            # bundled DECtalk.dll ("Perfect Paul") sorts first, then pyttsx3,
+            # the macOS `say` voice (ranked above eSpeak so a Mac never falls to
+            # the robotic eSpeak voice), eSpeak, Festival, and the DECtalk CLI.
+            for cls in classes:
+                if cls.name in self._AUTO_SKIP:
+                    continue
+                cand = self._construct_backend(cls)
+                if cand.available():
+                    chosen = cand
+                    break
+
+        self._backend = chosen or SilentBackend()
+        self._backend.set_rate(rate)
+        self._backend.set_volume(vol)
+        self._resolve_default_voice()
+
+    def _construct_backend(self, cls: "type[TTSBackend]") -> TTSBackend:
+        """Instantiate *cls* with the per-engine constructor arguments derived
+        from settings.  Engines that share a ``name`` (eSpeak's and DECtalk's two
+        implementations each) take identical arguments, so keying on ``name`` is
+        safe.  Unknown / third-party backends are tried with the common
+        ``(rate, volume, voice)`` signature, then with no arguments.
+        """
         rate = int(self._settings["tts_rate"])
         vol = float(self._settings["tts_volume"])
         voice = str(self._settings["tts_voice"])
-
-        if preference in ("auto", "pyttsx3") and _PYTTSX3:
-            candidates.append(Pyttsx3Backend(rate=rate, volume=vol, voice=voice))
-        # macOS native `say` is ranked above eSpeak in auto mode so a Mac
-        # always speaks with an Apple system voice (no pyobjc required) rather
-        # than silently falling back to the robotic eSpeak voice.
-        if preference in ("auto", "applesay"):
-            candidates.append(AppleSayBackend(rate=rate, volume=vol, voice=voice))
-        if preference in ("auto", "espeak"):
-            # Prefer the in-process libespeak-ng backend (real audio-position
-            # word events keep the highlight synced to playback); fall back to
-            # the subprocess CLI backend when the shared library is absent.
-            candidates.append(ESpeakLibBackend(rate=rate, voice=voice or "en-us"))
-            candidates.append(ESpeakBackend(rate=rate, voice=voice or "en-us"))
-        if preference in ("auto", "festival"):
-            candidates.append(FestivalBackend(rate=rate, volume=vol, voice=voice))
-        if preference in ("piper",) and _PIPER_BIN:
-            # Piper is never selected in auto mode: it needs an installed voice
-            # model, so the user opts in explicitly with `M-x tts-backend piper`
-            # (or the GUI engine picker).  A `tts_voice` ending in .onnx wins;
-            # otherwise the dedicated `piper_model` setting supplies the path.
+        name = cls.name
+        if name == "espeak":
+            return cls(rate=rate, voice=voice or "en-us")
+        if name == "dectalk":
+            return cls(rate=rate, voice=voice)
+        if name == "piper":
+            # A `tts_voice` ending in .onnx wins; otherwise the dedicated
+            # `piper_model` setting supplies the model path.
             piper_voice = (
                 voice
                 if voice.lower().endswith(".onnx")
                 else str(self._settings.get("piper_model", ""))
             )
-            candidates.append(PiperBackend(rate=rate, volume=vol, voice=piper_voice))
-        if preference in ("coqui",) and _COQUI:
-            # Coqui is never selected in auto mode because model download is slow
-            # and requires explicit opt-in by the user.
-            candidates.append(CoquiBackend(rate=rate, volume=vol, voice=voice))
-        if preference in ("auto", "dectalk"):
-            dectalk_dll = DECtalkDLLBackend(rate=rate, voice=voice)
-            if preference == "auto":
-                # On the self-contained Windows build the bundled DECtalk
-                # engine is present, so make the classic "Perfect Paul" voice
-                # the default by ranking it first.  available() probes a real
-                # engine startup, so on machines without a working DECtalk this
-                # candidate is skipped and selection falls through to pyttsx3.
-                candidates.insert(0, dectalk_dll)
-            else:
-                candidates.append(dectalk_dll)
-            # Fall back to a say/dtalk CLI if one is on PATH / DECTALK_BIN.
-            candidates.append(DECtalkBackend(rate=rate, voice=voice))
-        candidates.append(SilentBackend())
-
-        for b in candidates:
-            if b.available():
-                self._backend = b
-                self._backend.set_rate(rate)
-                self._backend.set_volume(vol)
-                self._resolve_default_voice()
-                return
+            return cls(rate=rate, volume=vol, voice=piper_voice)
+        try:
+            return cls(rate=rate, volume=vol, voice=voice)
+        except TypeError:
+            return cls()
 
     def _resolve_default_voice(self) -> None:
         """Pick a sensible default voice when the user hasn't chosen one.

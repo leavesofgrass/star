@@ -136,6 +136,41 @@ all = [
 [project.scripts]
 star = "star.app:main"
 
+# ── Plugin entry-points ────────────────────────────────────────────────────────
+# Built-in implementations register here so that PluginRegistry can discover
+# them via importlib.metadata.entry_points().  Third-party packages add their
+# own entry-points in the same groups.
+#
+# The ``star.exporters`` group is deferred to Phase 3 (see
+# wiki/plugin-architecture.md §3); its classes do not exist yet, so registering
+# them now would make every install fail at plugin-load time.
+
+[project.entry-points."star.backends"]
+silent     = "star.tts:SilentBackend"
+pyttsx3    = "star.tts:Pyttsx3Backend"
+applesay   = "star.tts:AppleSayBackend"
+espeak     = "star.tts:ESpeakBackend"
+espeaklib  = "star.tts:ESpeakLibBackend"
+festival   = "star.tts:FestivalBackend"
+piper      = "star.tts:PiperBackend"
+coqui      = "star.tts:CoquiBackend"
+dectalk    = "star.tts:DECtalkBackend"
+dectalkdll = "star.tts:DECtalkDLLBackend"
+
+[project.entry-points."star.formats"]
+pdf      = "star.documents:PDFHandler"
+epub     = "star.documents:EPUBHandler"
+docx     = "star.documents:DocxHandler"
+odt      = "star.documents:ODTHandler"
+pptx     = "star.documents:PPTXHandler"
+xlsx     = "star.documents:XLSXHandler"
+html     = "star.documents:HTMLHandler"
+markdown = "star.documents:MarkdownHandler"
+txt      = "star.documents:PlainTextHandler"
+rst      = "star.documents:RSTHandler"
+org      = "star.documents:OrgHandler"
+pandoc   = "star.documents:PandocHandler"
+
 [tool.setuptools.packages.find]
 include = ["star*"]
 

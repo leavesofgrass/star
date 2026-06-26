@@ -2,6 +2,7 @@
 ODT, HTML, images/OCR, notebooks, code, URLs, ...)."""
 from ._runtime import *  # noqa: F401,F403
 from .cache import _cache_load, _cache_save
+from .formats import FormatHandler, UnsupportedFormatError
 from .markup import _asciidoc_to_md, _creole_to_md, _latex_to_md, _mediawiki_to_md, _orgmode_to_md, _pandoc_convert, _rst_to_md, _textile_to_md
 from .settings import Settings
 from .stats import _settings_fingerprint
@@ -1459,6 +1460,292 @@ def _load_via_pandoc(path: str) -> Optional[str]:
     return None
 
 
+# =============================================================================
+# Plugin format handlers  (star.formats entry-point group)
+# =============================================================================
+#
+# Each handler wraps the existing ``_load_*`` loader function and builds a
+# Document from the markdown it returns.  They are discovered through the
+# ``star.formats`` entry-points and exposed via PluginRegistry; the legacy
+# ``load_document`` if/elif dispatch below is left untouched (Phase 1 is purely
+# additive — see wiki/plugin-architecture.md §2.3 / Phase 2).
+
+
+def _document_from_markdown(
+    path: "str | Path", fmt: str, md: str, settings: "Settings | None" = None
+) -> Document:
+    """Build a :class:`Document` from already-loaded *md*, mirroring the tail of
+    :func:`load_document` (title extraction, optional footnote processing, and the
+    markdown→plain-text strip).  Used by the plugin :class:`FormatHandler` classes
+    so the per-format ``load`` methods do not duplicate that boilerplate.
+    """
+    doc = Document(path=str(path), format=fmt)
+    m = re.search(r"^#\s+(.+)$", md, re.MULTILINE)
+    doc.title = m.group(1).strip() if m else (Path(path).name if path else APP_TITLE)
+    if settings is not None:
+        footnote_mode = str(settings.get("footnote_mode", "inline"))
+        if footnote_mode != "inline":
+            md = _process_footnotes(md, mode=footnote_mode)
+    doc.markdown = md
+    skip_code = bool(settings["tts_skip_code"]) if settings is not None else False
+    table_mode = (
+        str(settings.get("table_reading_mode", "structured"))
+        if settings is not None
+        else "structured"
+    )
+    doc.plain_text = _strip_markdown_for_tts(md, skip_code=skip_code, table_mode=table_mode)
+    return doc
+
+
+class PDFHandler(FormatHandler):
+    """PDF loader (pdfminer.six)."""
+
+    name = "pdf"
+    priority = 10
+
+    @classmethod
+    def extensions(cls) -> frozenset[str]:
+        return frozenset({".pdf"})
+
+    @classmethod
+    def available(cls) -> bool:
+        from ._runtime import _PDF
+        return bool(_PDF)
+
+    def load(self, path, **kwargs) -> Document:
+        settings = kwargs.get("settings")
+        reconstruct = True
+        if settings is not None:
+            reconstruct = str(settings.get("pdf_reading_order", "reconstruct")) != "raw"
+        md = _load_pdf(str(path), reconstruct=reconstruct)
+        return _document_from_markdown(path, "pdf", md, settings)
+
+
+class EPUBHandler(FormatHandler):
+    """EPUB loader (native — stdlib zipfile + NCX/NAV chapter navigation)."""
+
+    name = "epub"
+
+    @classmethod
+    def extensions(cls) -> frozenset[str]:
+        return frozenset({".epub"})
+
+    @classmethod
+    def available(cls) -> bool:
+        return True
+
+    def load(self, path, **kwargs) -> Document:
+        settings = kwargs.get("settings")
+        md = _load_epub(str(path))
+        doc = _document_from_markdown(path, "epub", md, settings)
+        if settings is None or settings.get("epub_show_chapters", True):
+            try:
+                doc.chapters = [(t, h, 0) for t, h in _epub_extract_chapters(str(path))]
+            except Exception:
+                doc.chapters = []
+        return doc
+
+
+class DocxHandler(FormatHandler):
+    """Word (.docx) loader (python-docx)."""
+
+    name = "docx"
+
+    @classmethod
+    def extensions(cls) -> frozenset[str]:
+        return frozenset({".docx"})
+
+    @classmethod
+    def available(cls) -> bool:
+        from ._runtime import _DOCX
+        return bool(_DOCX)
+
+    def load(self, path, **kwargs) -> Document:
+        return _document_from_markdown(path, "docx", _load_docx(str(path)), kwargs.get("settings"))
+
+
+class ODTHandler(FormatHandler):
+    """OpenDocument Text (.odt) loader (odfpy)."""
+
+    name = "odt"
+
+    @classmethod
+    def extensions(cls) -> frozenset[str]:
+        return frozenset({".odt"})
+
+    @classmethod
+    def available(cls) -> bool:
+        from ._runtime import _ODT
+        return bool(_ODT)
+
+    def load(self, path, **kwargs) -> Document:
+        return _document_from_markdown(path, "odt", _load_odt_v2(str(path)), kwargs.get("settings"))
+
+
+class PPTXHandler(FormatHandler):
+    """PowerPoint (.pptx) loader (python-pptx)."""
+
+    name = "pptx"
+
+    @classmethod
+    def extensions(cls) -> frozenset[str]:
+        return frozenset({".pptx"})
+
+    @classmethod
+    def available(cls) -> bool:
+        from ._runtime import _PPTX
+        return bool(_PPTX)
+
+    def load(self, path, **kwargs) -> Document:
+        return _document_from_markdown(path, "pptx", _load_pptx(str(path)), kwargs.get("settings"))
+
+
+class XLSXHandler(FormatHandler):
+    """Excel (.xlsx) loader (openpyxl)."""
+
+    name = "xlsx"
+
+    @classmethod
+    def extensions(cls) -> frozenset[str]:
+        return frozenset({".xlsx"})
+
+    @classmethod
+    def available(cls) -> bool:
+        from ._runtime import _XLSX
+        return bool(_XLSX)
+
+    def load(self, path, **kwargs) -> Document:
+        return _document_from_markdown(path, "xlsx", _load_xlsx(str(path)), kwargs.get("settings"))
+
+
+class HTMLHandler(FormatHandler):
+    """HTML loader (built-in HTMLParser → markdown)."""
+
+    name = "html"
+
+    @classmethod
+    def extensions(cls) -> frozenset[str]:
+        return frozenset({".html", ".htm"})
+
+    @classmethod
+    def available(cls) -> bool:
+        return True
+
+    def load(self, path, **kwargs) -> Document:
+        return _document_from_markdown(path, "html", _load_html(str(path)), kwargs.get("settings"))
+
+
+class MarkdownHandler(FormatHandler):
+    """Markdown loader (read as-is)."""
+
+    name = "markdown"
+
+    @classmethod
+    def extensions(cls) -> frozenset[str]:
+        return frozenset({".md", ".markdown"})
+
+    @classmethod
+    def available(cls) -> bool:
+        return True
+
+    def load(self, path, **kwargs) -> Document:
+        return _document_from_markdown(
+            path, "markdown", _load_markdown(str(path)), kwargs.get("settings")
+        )
+
+
+class PlainTextHandler(FormatHandler):
+    """Plain-text loader."""
+
+    name = "txt"
+
+    @classmethod
+    def extensions(cls) -> frozenset[str]:
+        return frozenset({".txt"})
+
+    @classmethod
+    def available(cls) -> bool:
+        return True
+
+    def load(self, path, **kwargs) -> Document:
+        return _document_from_markdown(
+            path, "text", _load_plain_text(str(path)), kwargs.get("settings")
+        )
+
+
+class RSTHandler(FormatHandler):
+    """reStructuredText (.rst) loader."""
+
+    name = "rst"
+
+    @classmethod
+    def extensions(cls) -> frozenset[str]:
+        return frozenset({".rst"})
+
+    @classmethod
+    def available(cls) -> bool:
+        return True
+
+    def load(self, path, **kwargs) -> Document:
+        return _document_from_markdown(path, "rst", _load_rst(str(path)), kwargs.get("settings"))
+
+
+class OrgHandler(FormatHandler):
+    """Org-mode (.org) loader."""
+
+    name = "org"
+
+    @classmethod
+    def extensions(cls) -> frozenset[str]:
+        return frozenset({".org"})
+
+    @classmethod
+    def available(cls) -> bool:
+        return True
+
+    def load(self, path, **kwargs) -> Document:
+        return _document_from_markdown(
+            path, "orgmode", _load_orgmode(str(path)), kwargs.get("settings")
+        )
+
+
+class PandocHandler(FormatHandler):
+    """Catch-all loader for the Pandoc-only input formats (RTF, FB2, RIS, …)."""
+
+    name = "pandoc"
+
+    @classmethod
+    def extensions(cls) -> frozenset[str]:
+        return frozenset(_PANDOC_INPUT_EXTS)
+
+    @classmethod
+    def available(cls) -> bool:
+        from ._runtime import _PYPANDOC
+        return bool(_PYPANDOC)
+
+    def load(self, path, **kwargs) -> Document:
+        md = _load_via_pandoc(str(path)) or ""
+        return _document_from_markdown(path, "pandoc", md, kwargs.get("settings"))
+
+
+def load_document_via_plugins(path: "str | Path", **kwargs) -> Document:
+    """Load *path* using the plugin registry.  Raises UnsupportedFormatError if
+    no handler is registered and available for the file extension.
+
+    Phase 2 scaffolding: this delegates format dispatch to
+    :class:`star.plugins.PluginRegistry`.  It is **not** yet wired into the
+    application's call sites — the legacy :func:`load_document` remains the
+    production path until the Phase 2 switch.
+    """
+    from .plugins import PluginRegistry
+
+    p = Path(path)
+    handler = PluginRegistry.get().handler_for(p)
+    if handler is None:
+        raise UnsupportedFormatError(p.suffix)
+    return handler.load(p, **kwargs)
+
+
 def load_document(path: str, settings: Settings) -> Document:
     """Load any supported document format and return a Document object."""
     # ── Archive member ref: /abs/book.zip!inner/paper.pdf ─────────────────
@@ -1518,6 +1805,7 @@ def load_document(path: str, settings: Settings) -> Document:
     # is a last-resort Pandoc attempt for any extension we don't recognize.
 
     md: str = ""
+    doc_from_handler: "Document | None" = None
     # Pandoc-first: when Pandoc is present and enabled, it imports the formats it
     # handles well (offices, markup, and the Pandoc-only types) in preference to
     # the native loader; star falls back to the native loader if Pandoc fails.
@@ -1530,8 +1818,21 @@ def load_document(path: str, settings: Settings) -> Document:
         if _pm and _pm.strip():
             md = _pm
 
+    # Plugin dispatch: when Pandoc-first did not produce the document, prefer a
+    # registered FormatHandler for this extension — this is what lets third-party
+    # plugins add or override formats.  The legacy native branches below stay as
+    # the fallback for every extension without a handler, and as a safety net if
+    # entry-point discovery yields nothing (e.g. a frozen build), so behaviour is
+    # unchanged when no extra plugins are installed.
+    _handler = None
+    if not md:
+        from .plugins import PluginRegistry
+        _handler = PluginRegistry.get().handler_for(Path(path))
+
     if md:
         pass  # Pandoc produced the document; skip the native loaders
+    elif _handler is not None:
+        doc_from_handler = _handler.load(path, settings=settings)
     elif fmt == "url":
         doc.title = path
         md = _load_url(path)
@@ -1613,31 +1914,44 @@ def load_document(path: str, settings: Settings) -> Document:
         else:
             md = _load_plain_text(path)
 
-    # Extract title from first heading if not set
-    if not doc.title:
-        m = re.search(r"^#\s+(.+)$", md, re.MULTILINE)
-        doc.title = m.group(1).strip() if m else Path(path).name if path else APP_TITLE
+    if doc_from_handler is not None:
+        # A plugin FormatHandler returned a complete Document — title, footnote
+        # processing, plain-text, and any chapter list are already applied (see
+        # _document_from_markdown and the handler classes).  Adopt its fields,
+        # keeping the detected `fmt` and original `path` already set on `doc`.
+        doc.markdown = doc_from_handler.markdown
+        doc.plain_text = doc_from_handler.plain_text
+        doc.title = doc.title or doc_from_handler.title
+        if doc_from_handler.chapters:
+            doc.chapters = doc_from_handler.chapters
+        if doc_from_handler.metadata:
+            doc.metadata = doc_from_handler.metadata
+    else:
+        # Extract title from first heading if not set
+        if not doc.title:
+            m = re.search(r"^#\s+(.+)$", md, re.MULTILINE)
+            doc.title = m.group(1).strip() if m else Path(path).name if path else APP_TITLE
 
-    # Apply footnote processing to markdown before stripping
-    footnote_mode = str(settings.get("footnote_mode", "inline"))
-    if footnote_mode != "inline":  # "inline" is already the default behavior
-        md = _process_footnotes(md, mode=footnote_mode)
+        # Apply footnote processing to markdown before stripping
+        footnote_mode = str(settings.get("footnote_mode", "inline"))
+        if footnote_mode != "inline":  # "inline" is already the default behavior
+            md = _process_footnotes(md, mode=footnote_mode)
 
-    doc.markdown = md
-    doc.plain_text = _strip_markdown_for_tts(
-        md,
-        skip_code=settings["tts_skip_code"],
-        table_mode=str(settings.get("table_reading_mode", "structured")),
-    )
+        doc.markdown = md
+        doc.plain_text = _strip_markdown_for_tts(
+            md,
+            skip_code=settings["tts_skip_code"],
+            table_mode=str(settings.get("table_reading_mode", "structured")),
+        )
 
-    # Extract EPUB chapter list (only for epub format)
-    if fmt == "epub" and settings.get("epub_show_chapters", True):
-        try:
-            raw_chapters = _epub_extract_chapters(path)
-            # Map hrefs to word indices via word map (built later); store titles+hrefs for now
-            doc.chapters = [(t, h, 0) for t, h in raw_chapters]
-        except Exception:
-            doc.chapters = []
+        # Extract EPUB chapter list (only for epub format)
+        if fmt == "epub" and settings.get("epub_show_chapters", True):
+            try:
+                raw_chapters = _epub_extract_chapters(path)
+                # Map hrefs to word indices via word map (built later); store titles+hrefs for now
+                doc.chapters = [(t, h, 0) for t, h in raw_chapters]
+            except Exception:
+                doc.chapters = []
 
     # Cache the result
     if (

@@ -27,6 +27,7 @@ import wave
 import pytest
 
 from star import tts
+from star.plugins import override_plugins
 from star.settings import Settings
 
 
@@ -467,8 +468,32 @@ def test_convert_audio_format_ffmpeg_failure_raises(tmp_path, monkeypatch):
 # ============================================================================
 
 
-def test_base_backend_is_inert():
-    b = tts.TTSBackend()
+class _MinimalBackend(tts.TTSBackend):
+    """Concrete backend implementing only the three required abstract methods,
+    so the base class's optional no-op defaults can be exercised now that
+    TTSBackend itself is an ABC and can no longer be instantiated."""
+
+    name = "minimal"
+
+    def available(self):
+        return False
+
+    def speak(self, text, on_word=None, on_done=None):
+        if on_done:
+            on_done()
+
+    def stop(self):
+        pass
+
+
+def test_base_backend_is_abstract():
+    # available/speak/stop are abstract — the bare base cannot be instantiated.
+    with pytest.raises(TypeError):
+        tts.TTSBackend()
+
+
+def test_base_backend_optional_defaults_are_inert():
+    b = _MinimalBackend()
     assert b.available() is False
     assert b.speaking is False
     assert b.list_voices() == []
@@ -479,15 +504,15 @@ def test_base_backend_is_inert():
     b.stop()
 
 
-def test_base_backend_speak_calls_on_done():
+def test_silent_backend_speak_calls_on_done():
     done = []
-    tts.TTSBackend().speak("hi", on_done=lambda: done.append(True))
+    tts.SilentBackend().speak("hi", on_done=lambda: done.append(True))
     assert done == [True]
 
 
 def test_base_backend_export_raises():
     with pytest.raises(RuntimeError, match="does not support audio file export"):
-        tts.TTSBackend().export_to_wav("hi", "out.wav")
+        _MinimalBackend().export_to_wav("hi", "out.wav")
 
 
 def test_silent_backend_is_available():
@@ -501,11 +526,13 @@ def test_silent_backend_is_available():
 # ============================================================================
 
 
-def _fake_backend_cls(real_name, public_name):
+def _fake_backend_cls(real_name, public_name, priority):
     """Build a lightweight stand-in for a real backend class.
 
     Availability is read from the class attribute ``_avail`` so a test can flip
-    a single backend on/off without constructing any real engine.
+    a single backend on/off without constructing any real engine.  ``priority``
+    mirrors the real built-in so registry ordering — and thus auto-selection —
+    matches production.
     """
 
     class _Fake(tts.TTSBackend):
@@ -520,6 +547,13 @@ def _fake_backend_cls(real_name, public_name):
         def available(self):
             return type(self)._avail
 
+        def speak(self, text, on_word=None, on_done=None):
+            if on_done:
+                on_done()
+
+        def stop(self):
+            pass
+
         def set_rate(self, wpm):
             self.rate = wpm
 
@@ -533,42 +567,42 @@ def _fake_backend_cls(real_name, public_name):
             return []
 
     _Fake.__name__ = real_name
+    _Fake.priority = priority
     return _Fake
 
 
-# (real class attribute on tts, public .name) for every backend selection may
-# construct.  ESpeakLib/ESpeak share name "espeak"; the two DECtalk share
-# "dectalk" — that mirrors the real module.
+# (real class attribute on tts → (public .name, priority)) for every backend
+# selection may construct.  ESpeakLib/ESpeak share name "espeak"; the two DECtalk
+# share "dectalk" — that mirrors the real module, where priority decides which
+# implementation of a shared-name engine is tried first.
 _BACKENDS = {
-    "Pyttsx3Backend": "pyttsx3",
-    "AppleSayBackend": "applesay",
-    "ESpeakLibBackend": "espeak",
-    "ESpeakBackend": "espeak",
-    "FestivalBackend": "festival",
-    "PiperBackend": "piper",
-    "CoquiBackend": "coqui",
-    "DECtalkDLLBackend": "dectalk",
-    "DECtalkBackend": "dectalk",
+    "DECtalkDLLBackend": ("dectalk", 10),
+    "Pyttsx3Backend": ("pyttsx3", 20),
+    "AppleSayBackend": ("applesay", 30),
+    "ESpeakLibBackend": ("espeak", 40),
+    "ESpeakBackend": ("espeak", 50),
+    "FestivalBackend": ("festival", 60),
+    "DECtalkBackend": ("dectalk", 70),
+    "PiperBackend": ("piper", 100),
+    "CoquiBackend": ("coqui", 110),
 }
 
 
 @pytest.fixture
-def fake_backends(monkeypatch):
+def fake_backends():
     """Replace every selectable backend with a controllable fake.
 
-    Returns the mapping ``{class_name: fake_class}`` so a test can mark one
-    available via ``fakes["FestivalBackend"]._avail = True``.  The optional
-    capability flags are enabled so selection is gated only by ``available()``.
+    Injects the fakes through the plugin registry (``override_plugins``) — the
+    same path TTSManager now uses for discovery — so no real engine is ever
+    constructed.  Returns the mapping ``{class_name: fake_class}`` so a test can
+    mark one available via ``fakes["FestivalBackend"]._avail = True``.
     """
-    fakes = {}
-    for real_name, public in _BACKENDS.items():
-        cls = _fake_backend_cls(real_name, public)
-        monkeypatch.setattr(tts, real_name, cls)
-        fakes[real_name] = cls
-    monkeypatch.setattr(tts, "_PYTTSX3", True)
-    monkeypatch.setattr(tts, "_COQUI", True)
-    monkeypatch.setattr(tts, "_PIPER_BIN", "piper")
-    return fakes
+    fakes = {
+        real_name: _fake_backend_cls(real_name, public, prio)
+        for real_name, (public, prio) in _BACKENDS.items()
+    }
+    with override_plugins(backends=list(fakes.values())):
+        yield fakes
 
 
 def _manager(preference):
@@ -651,6 +685,13 @@ class _VoiceBackend(tts.TTSBackend):
 
     def available(self):
         return True
+
+    def speak(self, text, on_word=None, on_done=None):
+        if on_done:
+            on_done()
+
+    def stop(self):
+        pass
 
     def list_voices(self):
         return self._voices
