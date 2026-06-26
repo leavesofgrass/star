@@ -38,3 +38,4 @@ pyspellchecker     # Spell checking in edit mode (Edit ▸ Check Spelling)
 deep-translator    # Translate the document into another language (Tools ▸ Translate Document)
 feedparser         # Read RSS / Atom feeds and open an article (File ▸ Open Feed)
 wordfreq           # Highlight uncommon / academic vocabulary (View ▸ Reading Aids ▸ Highlight Difficult Words)
+nltk               # Offline word definitions (View ▸ Reading Aids ▸ Define Word); then: python -m nltk.downloader wordnet omw-1.4 cmudict

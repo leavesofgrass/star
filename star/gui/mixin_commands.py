@@ -147,6 +147,7 @@ class CommandsMixin:
             ("Export as Anki Flashcards…", self._qt_export_anki),
             ("Tune Karaoke Highlight…", self._qt_karaoke_dialog),
             ("Highlight Difficult Words", self._qt_toggle_vocab_highlight),
+            ("Define Word", self._qt_define_word),
             ("Reading Level", self._qt_reading_level),
             ("Change Font…", self._qt_change_font_dialog),
             ("Next Theme", self._next_theme),

@@ -41,6 +41,10 @@ DEFAULTS: Dict[str, Any] = {
     # names, anatomy, acronyms) so TTS says them correctly and consistently.
     "pronunciations": {},  # {term: spoken_form}
     "use_pronunciations": True,
+    # Optional custom dictionary for Define Word: a JSON file mapping term ->
+    # definition (string) or {pos, definition, pronunciation, examples}.  Checked
+    # before WordNet, so a reader can layer their own domain glossary on top.
+    "dictionary_file": "",
     "highlight_current_word": True,
     "highlight_color": "cyan",  # color of the TTS word highlight
     "gui_width": 1000,

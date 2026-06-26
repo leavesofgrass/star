@@ -109,7 +109,7 @@ jobs:
         # separate `coverage report --include=... --fail-under` checks against the
         # single collected data file.
         run: |
-          python -m pytest --cov=star.tts --cov=star.documents --cov=star.render --cov=star.citations --cov=star.obsidian --cov=star.graph --cov=star.markup --cov=star.ttstext --cov-report=term-missing
+          python -m pytest --cov=star.tts --cov=star.documents --cov=star.render --cov=star.citations --cov=star.obsidian --cov=star.graph --cov=star.markup --cov=star.ttstext --cov=star.dictionary --cov-report=term-missing
           python -m coverage report --include="*/tts.py" --fail-under=30
           python -m coverage report --include="*/documents.py" --fail-under=32
           python -m coverage report --include="*/render.py" --fail-under=70
@@ -118,6 +118,7 @@ jobs:
           python -m coverage report --include="*/graph.py" --fail-under=88
           python -m coverage report --include="*/markup.py" --fail-under=66
           python -m coverage report --include="*/ttstext.py" --fail-under=92
+          python -m coverage report --include="*/dictionary.py" --fail-under=70
 
   lint:
     name: lint (ruff)

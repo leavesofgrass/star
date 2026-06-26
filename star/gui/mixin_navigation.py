@@ -10,6 +10,11 @@ from ..documents import _build_word_map
 from ..feeds import _FEEDPARSER, fetch_feed
 from ..spellcheck import _SPELL, SpellHighlighter, misspelled_words
 from ..stats import _fmt_duration, _format_reading_stats, _library_entries
+from ..dictionary import (
+    availability as _dict_availability,
+    define as _dict_define,
+    format_definition_markdown as _dict_markdown,
+)
 from ..summarize import _SUMY, summarize_document
 from ..translate import _DEEP_TRANSLATOR, COMMON_LANGUAGES, translate_text
 from ..tts import Pyttsx3Backend, _SCReader
@@ -898,6 +903,71 @@ class NavigationMixin:
         buttons.accepted.connect(dlg.accept)
         lay.addWidget(buttons)
         self.statusBar().showMessage("Summary ready")
+        dlg.exec() if _QT == "PyQt6" else dlg.exec_()
+
+    def _qt_define_word(self) -> None:
+        """Define the selected word (or the word under the cursor) offline.
+
+        WordNet's first access loads its corpus, so the lookup runs on a
+        background thread; the result is delivered to the GUI thread via
+        _define_signal.
+        """
+        cursor = self.editor.textCursor()
+        word = cursor.selectedText().strip()
+        if not word:
+            sel = (
+                QTextCursor.SelectionType.WordUnderCursor
+                if hasattr(QTextCursor, "SelectionType")
+                else QTextCursor.WordUnderCursor  # type: ignore[attr-defined]
+            )
+            cursor.select(sel)
+            word = cursor.selectedText().strip()
+        if not word:
+            self.statusBar().showMessage("Select a word to define")
+            return
+        ok, hint = _dict_availability(self.settings)
+        if not ok:
+            QMessageBox.information(self, "Dictionary unavailable", hint)
+            return
+        self.statusBar().showMessage(f"Defining “{word}”…")
+
+        def _work() -> None:
+            try:
+                result = _dict_define(word, self.settings)
+                self._define_signal.emit(result, word, "")
+            except Exception as exc:  # noqa: BLE001
+                self._define_signal.emit(None, word, str(exc))
+
+        threading.Thread(target=_work, daemon=True).start()
+
+    def _qt_on_definition(self, result: object, word: str, error: str) -> None:
+        """Main-thread handler: show the definition (or a not-found note)."""
+        if error:
+            QMessageBox.warning(self, "Lookup failed", error)
+            self.statusBar().showMessage("Lookup failed")
+            return
+        if result is None:
+            QMessageBox.information(
+                self, "No definition", f"No definition found for “{word}”."
+            )
+            self.statusBar().showMessage("No definition found")
+            return
+        dlg = QDialog(self)
+        dlg.setWindowTitle(f"Definition — {word}")
+        dlg.resize(520, 420)
+        lay = QVBoxLayout(dlg)
+        view = QTextBrowser()
+        view.setHtml(self._md_to_html(_dict_markdown(result)))
+        view.setAccessibleName(f"Definition of {word}")
+        lay.addWidget(view)
+        try:
+            _ok_btn = QDialogButtonBox.StandardButton.Ok
+        except AttributeError:
+            _ok_btn = QDialogButtonBox.Ok  # type: ignore[attr-defined]
+        buttons = QDialogButtonBox(_ok_btn)
+        buttons.accepted.connect(dlg.accept)
+        lay.addWidget(buttons)
+        self.statusBar().showMessage("Definition ready")
         dlg.exec() if _QT == "PyQt6" else dlg.exec_()
 
     def _qt_translate(self) -> None:

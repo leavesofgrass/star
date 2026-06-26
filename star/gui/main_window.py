@@ -270,6 +270,9 @@ class StarWindow(AidDialogsMixin, CommandsMixin, TocMixin, HighlightsMixin, Pres
     # Feed fetching runs on a background thread (network call); carries
     # (entries_list, error_message) — the list is passed as a Python object.
     _feed_signal = pyqtSignal(object, str)
+    # Definition lookup runs on a background thread (the first WordNet access
+    # loads the corpus); carries (DefinitionResult-or-None, word, error_message).
+    _define_signal = pyqtSignal(object, str, str)
 
     # Per-theme CSS colors used by _md_to_html and _apply_qt_theme.
     _PALETTES: Dict[str, Dict[str, str]] = {
@@ -399,6 +402,7 @@ class StarWindow(AidDialogsMixin, CommandsMixin, TocMixin, HighlightsMixin, Pres
         # Wire the translation / feed-fetch result signals → GUI thread.
         self._translate_signal.connect(self._qt_on_translation, _QUEUED)
         self._feed_signal.connect(self._qt_on_feed, _QUEUED)
+        self._define_signal.connect(self._qt_on_definition, _QUEUED)
 
         # Reading-statistics poll: a 1-second timer feeds self.stats while
         # speech is playing.
@@ -1188,6 +1192,14 @@ class StarWindow(AidDialogsMixin, CommandsMixin, TocMixin, HighlightsMixin, Pres
             checked=bool(self.settings.get("qt_vocab_highlight", False)),
         )
         aids_menu.addAction(self._vocab_act)
+        aids_menu.addAction(
+            _mi(
+                "Define Word…",
+                "Ctrl+D",
+                self._qt_define_word,
+                tip="Look up the selected word (or the word under the cursor) offline",
+            )
+        )
         aids_menu.addSeparator()
         self._rsvp_act = _mi(
             "RSVP Mode",

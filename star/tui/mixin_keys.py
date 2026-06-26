@@ -202,6 +202,10 @@ class KeysMixin:
         elif ch == ord("A"):  # interactive notes browser
             self._notes_browser()
 
+        # ── Define the word at the reading cursor ───────────────────────────
+        elif ch == ord("d"):
+            self._define_cmd()
+
         # ── Keyboard cheat sheet ────────────────────────────────────────────
         elif ch == ord("?"):
             self._show_shortcuts()

@@ -218,6 +218,14 @@ OPTIONAL_DEPENDENCIES: List[Dict[str, Any]] = [
         "enables": "View > Reading Aids > Highlight Difficult Words",
         "install": _extra("vocab"),
     },
+    {
+        "key": "dictionary", "label": "Offline definitions (WordNet)",
+        "group": "Export & study",
+        "module": "star.dictionary", "attr": "_NLTK", "kind": "bool",
+        "probe": ["nltk"],
+        "enables": "View > Reading Aids > Define Word (needs: nltk.downloader wordnet omw-1.4 cmudict)",
+        "install": _extra("dictionary"),
+    },
     # ── Hot-folder watching ────────────────────────────────────────────────
     {
         "key": "watchdog", "label": "Filesystem events (watchdog)",

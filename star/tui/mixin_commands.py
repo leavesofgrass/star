@@ -273,6 +273,7 @@ class CommandsMixin:
             "bookshelf": lambda: self._library_browser(),
             "wiki": lambda: self._open_wikipedia(arg),
             "pubmed": lambda: self._open_pubmed(arg),
+            "define": lambda: self._define_cmd(arg),
             # Cache
             "cache-clear": lambda: self._cache_clear(),
             # Footnotes

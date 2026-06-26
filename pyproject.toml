@@ -81,6 +81,10 @@ feeds = ["feedparser"]
 # Highlight uncommon / academic vocabulary (View ▸ Reading Aids ▸ Highlight
 # Difficult Words) via wordfreq.
 vocab = ["wordfreq"]
+# Offline word definitions (View ▸ Reading Aids ▸ Define Word) via WordNet.  Needs
+# nltk plus a one-time corpus download:
+#   python -m nltk.downloader wordnet omw-1.4 cmudict
+dictionary = ["nltk"]
 # Hot-folder watching (star --watch) uses watchdog for real filesystem events.
 # It lives in its own lightweight group because it is only needed for that one
 # headless feature; star falls back to directory polling when it is absent.
@@ -121,6 +125,7 @@ all = [
     "deep-translator",
     "feedparser",
     "wordfreq",
+    "nltk",
     "graphviz",
     "plantuml",
     "pyyaml",

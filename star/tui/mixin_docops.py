@@ -4,6 +4,11 @@ Methods of StarApp, split out of the former monolithic star/tui.py.
 Mixed into StarApp in app.py; calls other groups via ``self``.
 """
 from .._runtime import *  # noqa: F401,F403
+from ..dictionary import (
+    availability as _dict_availability,
+    define as _dict_define,
+    format_definition_markdown as _dict_markdown,
+)
 from ..stats import _format_reading_stats, _library_entries
 
 
@@ -104,6 +109,27 @@ class DocOpsMixin:
         )
         self.notify(f"Opening PubMed abstract: PMID {pmid}")
         self._open_async(url)
+
+    def _define_cmd(self, arg: str = "") -> None:
+        """Offline definition lookup (M-x define [word], or the 'd' key on the
+        word at the reading cursor).  Shows the result in the text pager."""
+        word = (arg or "").strip()
+        if not word and self.doc and self.doc.word_map:
+            idx = self._current_word_for_nav()
+            if 0 <= idx < len(self.doc.word_map):
+                word = self.doc.word_map[idx].word
+        if not word:
+            self.notify("Usage: define <word> (or place the cursor on a word)", error=True)
+            return
+        ok, hint = _dict_availability(self.settings)
+        if not ok:
+            self.notify(hint.splitlines()[0], error=True)
+            return
+        result = _dict_define(word, self.settings)
+        if result is None:
+            self.notify(f"No definition found for '{word}'", error=True)
+            return
+        self._show_text_pager(f"Definition: {result.word}", _dict_markdown(result))
 
     def _cache_clear(self) -> None:
         "Delete all cached document files to free disk space."
