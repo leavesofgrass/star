@@ -7,7 +7,6 @@ renderer works with no external packages (a built-in Fruchterman-Reingold spring
 layout); graphviz, when installed, is used for nicer layouts.
 """
 import html
-import json
 import math
 
 from .annotations import RELATION_TYPES, _ensure_id

@@ -100,22 +100,23 @@ jobs:
       - name: Install star (with test extra)
         run: python -m pip install -e ".[test]"
 
-      - name: Enforce the tts.py coverage floor
-        # The whole suite runs so coverage from direct (test_tts.py) and
-        # incidental tests both count toward the module's line rate.  The floor
-        # is a ratchet: raise --cov-fail-under as tts.py gains more direct tests.
-        run: >
-          python -m pytest
-          --cov=star.tts
-          --cov-report=term-missing
-          --cov-fail-under=30
+      - name: Enforce per-module coverage floors
+        # One suite run collects coverage for the gated modules; each floor below
+        # is a ratchet — raise it as the module gains tests.  tts.py has direct
+        # tests (tests/test_tts.py, ~32%); documents.py (~18%) is the next target.
+        # coverage's --fail-under is global, so per-module floors are enforced by
+        # separate `coverage report --include=... --fail-under` checks against the
+        # single collected data file.
+        run: |
+          python -m pytest --cov=star.tts --cov=star.documents --cov-report=term-missing
+          python -m coverage report --include="*/tts.py" --fail-under=31
+          python -m coverage report --include="*/documents.py" --fail-under=17
 
   lint:
     name: lint (ruff)
     runs-on: ubuntu-latest
-    # Non-blocking for now: the gate is established here and tightened later
-    # (roadmap), so a style nit never walls a correctness-green PR.
-    continue-on-error: true
+    # Blocking as of 0.1.14: the codebase is ruff-clean (F4/F8/E7 etc.), so this
+    # gate now keeps it that way — a new unused import or ambiguous name fails CI.
     steps:
       - uses: actions/checkout@v4
 

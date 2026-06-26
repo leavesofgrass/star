@@ -19,7 +19,6 @@ VALID_POSITIONS = [
 
 def test_all_positions_defined():
     """Every position key maps to a (float, float) pair in [0, 1]."""
-    from star.gui.runner import _run_qt_gui  # import to force parse; skip if Qt absent
     pytest.skip("Qt not available in headless test environment")
 
 

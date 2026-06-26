@@ -124,7 +124,6 @@ def render_markdown(
             lbl = f" {lang} " if lang else " "
             top = "┌" + lbl + "─" * max(0, width - 2 - len(lbl)) + "┐"
             lines.append([(top, "codeblock")])
-            full_code = "\n".join(code_lines)
             for cl in code_lines:
                 cl_exp = cl.replace("\t", " " * tab_width)
                 if syntax and lang in ("python", "py"):
@@ -181,7 +180,7 @@ def render_markdown(
             while i < n and (src[i].startswith(">") or (qls and not src[i].strip())):
                 qls.append(src[i][1:].lstrip() if src[i].startswith(">") else "")
                 i += 1
-            text = " ".join(l for l in qls if l)
+            text = " ".join(ln for ln in qls if ln)
             pfx: Line = [("▌ ", "quote")]
             for wl in _wrap_segs(_parse_inline(text), width - 2):
                 lines.append(pfx + wl)
@@ -262,7 +261,7 @@ def render_markdown(
         ):
             pls.append(src[i])
             i += 1
-        text = " ".join(l.rstrip() for l in pls)
+        text = " ".join(ln.rstrip() for ln in pls)
         for wl in _wrap_segs(_parse_inline(text), width):
             lines.append(wl)
         lines.append([])

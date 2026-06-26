@@ -1,12 +1,10 @@
 """Tests for Epic II — metadata & discovery (star.citations + star.discovery)."""
 import json
-from unittest.mock import patch
 
 import pytest
 
 from star.citations import _fetch_metadata_by_isbn, _valid_isbn
 from star.discovery import _norm_doi, _norm_isbn, search_library
-from star.settings import Settings
 
 
 # =============================================================================

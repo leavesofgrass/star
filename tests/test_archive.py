@@ -1,15 +1,12 @@
 """Tests for Epic I — archive ingestion (star.archive)."""
 import io
-import os
 import tarfile
-import tempfile
 import zipfile
 from pathlib import Path
 
 import pytest
 
 from star.archive import (
-    ARCHIVE_SEP,
     _readable,
     build_index_markdown,
     is_archive,

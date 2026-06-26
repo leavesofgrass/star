@@ -315,7 +315,6 @@ class DrawMixin:
                 if comps
                 else ""
             )
-            full = prompt + val + comp_str
             _fillrow(self.scr, mb_row, self._a("minibuf"))
             _addstr(self.scr, mb_row, 0, (prompt + val)[: w - 1], self._a("minibuf"))
             if comp_str and len(prompt + val) < w - 2:

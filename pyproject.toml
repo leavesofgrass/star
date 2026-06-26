@@ -143,11 +143,11 @@ addopts = "-q"
 pythonpath = ["."]
 
 # Coverage is opt-in (the `coverage` CI job passes --cov), so the default test
-# run stays fast and dependency-light.  The gate is intentionally scoped to a
-# single module: tts.py is the speech engine and was previously untested.  Its
-# floor is set just below the achievable line rate — the engine `speak()`/native
-# bodies need a real sound card and stay uncovered — and is meant to be
-# ratcheted up as more of the pure logic gains direct tests (test_tts.py).
+# run stays fast and dependency-light.  The gate enforces a per-module floor on
+# the largest modules (tts.py, documents.py) via `coverage report --include=…
+# --fail-under` — set just below each achievable line rate (much of the engine /
+# loader bodies need a real device or files and stay uncovered) and ratcheted up
+# as the pure logic gains direct tests.
 [tool.coverage.run]
 branch = false
 

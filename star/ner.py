@@ -73,7 +73,6 @@ def _spacy_concepts(plain_text: str):
 
 
 def _nltk_concepts(plain_text: str):
-    import nltk
     from nltk import ne_chunk, pos_tag, word_tokenize
 
     out = []

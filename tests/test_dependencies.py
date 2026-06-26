@@ -23,7 +23,6 @@ from pathlib import Path
 import pytest
 
 import star
-from star import diagnostics
 from star.diagnostics import (
     OPTIONAL_DEPENDENCIES,
     dependency_status,
@@ -129,7 +128,9 @@ def test_report_mentions_every_dependency():
 def test_core_modules_self_consistent():
     """The harness reads the live guard flags, so this also asserts the new
     feature modules expose the flags the harness expects."""
-    import star.feeds, star.translate, star.vocab  # noqa: F401
+    import star.feeds
+    import star.translate
+    import star.vocab  # noqa: F401
 
     by_key = {s["key"]: s for s in dependency_status()}
     for key in ("translate", "feeds", "vocab", "summarize", "flashcards"):

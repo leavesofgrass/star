@@ -1484,7 +1484,7 @@ def load_document(path: str, settings: Settings) -> Document:
     if is_archive(path) and not path.lower().endswith((".epub", ".daisy")):
         try:
             members = list_members(path)
-        except Exception as e:
+        except Exception:
             members = []
         md = build_index_markdown(path, members)
         doc = Document(path=path, format="archive")

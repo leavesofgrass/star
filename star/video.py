@@ -230,14 +230,14 @@ def _try_render_qt(
             QTextDocument, QImage, QPainter, QTextCursor,
             QTextCharFormat, QColor, QFont, QGuiApplication,
         )
-        from PyQt6.QtCore import Qt, QSizeF, QRectF  # type: ignore[import]
+        from PyQt6.QtCore import QSizeF  # type: ignore[import]
     except ImportError:
         try:
             from PyQt5.QtGui import (  # type: ignore[import]
                 QTextDocument, QImage, QPainter, QTextCursor,
                 QTextCharFormat, QColor, QFont, QGuiApplication,
             )
-            from PyQt5.QtCore import Qt, QSizeF, QRectF  # type: ignore[import]
+            from PyQt5.QtCore import QSizeF  # type: ignore[import]
         except ImportError:
             return False
 
@@ -314,7 +314,6 @@ def _try_render_pillow(
     if not _PILLOW_AVAILABLE:
         return False
     try:
-        import io
         from PIL import Image, ImageDraw, ImageFont  # type: ignore[import]
 
         dark = theme not in ("light", "sepia")

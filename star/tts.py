@@ -324,7 +324,6 @@ class CoquiBackend(TTSBackend):
         self._stop_flag.clear()
         rate = self._rate
         volume = self._volume
-        model = self._model_name
 
         def _run() -> None:
             import tempfile
@@ -693,7 +692,6 @@ def _apply_wav_adjustments(path: str, volume: float) -> None:
         frames = wf.readframes(params.nframes)
 
     sampwidth = params.sampwidth
-    nchannels = params.nchannels
     if sampwidth == 2:  # 16-bit PCM (most common)
         fmt = f"<{len(frames) // 2}h"
         samples = list(struct.unpack(fmt, frames))
@@ -994,10 +992,6 @@ class Pyttsx3Backend(TTSBackend):
         self._gen += 1
         my_gen = self._gen
         self._speaking = True
-
-        rate = self._rate
-        volume = self._volume
-        voice = self._voice
 
         def _run() -> None:
             eng = None

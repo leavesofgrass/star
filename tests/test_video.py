@@ -11,7 +11,6 @@ import pytest
 
 from star.video import (
     _build_ffmpeg,
-    _find_ffmpeg,
     _parse_resolution,
     _sentence_spans,
     _spans_to_cues,

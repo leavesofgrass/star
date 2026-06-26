@@ -399,7 +399,6 @@ class NavigationMixin:
     def _scroll_by(self, delta: int) -> None:
         total = len(self.rendered)
         h, _ = self.scr.getmaxyx()
-        view_h = max(1, h - 4)
         self.scroll = max(0, min(total - 1, self.scroll + delta))
 
     def _page_down(self) -> None:
@@ -419,7 +418,6 @@ class NavigationMixin:
     def _scroll_to_line(self, display_line: int) -> None:
         h, _ = self.scr.getmaxyx()
         view_h = max(1, h - 4)
-        margin = int(self.settings["scroll_margin"])
         self.scroll = max(0, min(len(self.rendered) - 1, display_line - view_h // 3))
 
     def _goto_line_prompt(self) -> None:
