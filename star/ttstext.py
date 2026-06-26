@@ -110,10 +110,17 @@ def _text_to_ssml(
         lambda m: f'{m.group(1)}<break time="{sentence_ms}ms"/>{m.group(2)}',
         s,
     )
-    # Clause punctuation (comma, semicolon, colon) → short pause
+    # Clause punctuation (comma, colon) → short pause.
     s = re.sub(
-        r"([,;:])(\s+)",
+        r"([,:])(\s+)",
         lambda m: f'{m.group(1)}<break time="{clause_ms}ms"/>{m.group(2)}',
+        s,
+    )
+    # Semicolons too — but NOT the ";" that terminates an XML entity we escaped
+    # above (&amp; &lt; &gt; &quot;); a break there would split the entity.
+    s = re.sub(
+        r"(?<!&amp)(?<!&lt)(?<!&gt)(?<!&quot);(\s+)",
+        lambda m: f';<break time="{clause_ms}ms"/>{m.group(1)}',
         s,
     )
     # Em-dash / en-dash → brief pause
@@ -373,6 +380,11 @@ def _year_to_words(year: int) -> str:
         return _int_to_words(year)
     century, decade = divmod(year, 100)
     if decade == 0:
+        # Round millennia read as "<n> thousand" (2000 → two thousand, 1000 →
+        # one thousand); other round centuries stay "<century> hundred"
+        # (1900 → nineteen hundred).
+        if year % 1000 == 0:
+            return _int_to_words(year)
         return _int_to_words(century) + " hundred"
     if decade < 10:
         return _int_to_words(century) + " oh " + _int_to_words(decade)

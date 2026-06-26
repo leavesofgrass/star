@@ -74,10 +74,12 @@ def test_year_to_words(year, expected):
     assert _year_to_words(year) == expected
 
 
-def test_year_to_words_2000_is_twenty_hundred():
-    # NOTE: bug — docstring claims 2000 -> "two thousand", but the divmod logic
-    # produces century=20, decade=0, yielding "twenty hundred".
-    assert _year_to_words(2000) == "twenty hundred"
+def test_year_to_words_round_millennium():
+    # Round millennia read as "<n> thousand"; other round centuries keep the
+    # "<century> hundred" reading.
+    assert _year_to_words(2000) == "two thousand"
+    assert _year_to_words(1000) == "one thousand"
+    assert _year_to_words(1900) == "nineteen hundred"
 
 
 # ── _ordinal_to_words ─────────────────────────────────────────────────────────
@@ -260,11 +262,14 @@ def test_text_to_ssml_escapes_xml():
     assert "<speak>" in out and "</speak>" in out
 
 
-def test_text_to_ssml_ampersand_entity_gets_spurious_break():
-    # NOTE: bug — escaping "&" to "&amp;" introduces a ";" which then matches the
-    # clause-pause regex [,;:], so an unwanted break is injected mid-entity.
+def test_text_to_ssml_ampersand_entity_not_split():
+    # The ";" that terminates an escaped XML entity (&amp;) must NOT get a clause
+    # break inserted mid-entity, but a real semicolon still pauses.
     out = _text_to_ssml("Tom & Jerry run")
-    assert '&amp;<break time="150ms"/>' in out
+    assert "&amp;" in out
+    assert '&amp;<break' not in out
+    real = _text_to_ssml("First clause; second clause")
+    assert ';<break time="150ms"/>' in real
 
 
 def test_text_to_ssml_dectalk_backend_delegates():
