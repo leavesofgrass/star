@@ -8,6 +8,49 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.13] 2026-06-26
+
+Makes **Pandoc a first-class importer** so `star` can open many more document
+formats when Pandoc is installed, and adds the first **direct test suite and
+coverage gate** for the speech engine.
+
+### ✨ Added
+
+- **Pandoc-first importing.** When Pandoc is installed and the new
+  `prefer_pandoc` setting is on (default), `star` routes the office/markup
+  formats Pandoc handles well — DOCX, ODT, PPTX, HTML, reStructuredText, LaTeX,
+  MediaWiki, Textile, Org, Jupyter, CSV/TSV/XLSX — through Pandoc instead of the
+  native loader, and **opens ~22 formats that were previously unsupported**
+  (`.rtf`, `.fb2`, `.docbook`, `.jats`, `.ris`, `.bib`, `.opml`, `.t2t`,
+  `.muse`, `.typst`, `.dokuwiki`, `.twiki`, `.vimwiki`, `.jira`, `.man`, `.pod`,
+  …). If a Pandoc conversion fails, `star` falls back to the native loader.
+  - **EPUB stays native** so chapter (NCX/NAV) navigation is preserved, as do
+    Markdown/plain text and the formats Pandoc cannot read (PDF, images/OCR,
+    code, DAISY, archives, URLs).
+  - **Toggle:** the new `prefer_pandoc` setting — `true` (default) or `false` to
+    always use the native loaders. See [Configuration](../docs/configuration.md).
+  - Requires the optional `markup` extra (`pip install "star-reader[markup]"`)
+    plus the Pandoc binary; without Pandoc, behavior is unchanged.
+
+### 🧪 Tests
+
+- **Direct tests for the TTS engine.** `star/tts.py` (the ~2,900-line
+  multi-backend speech engine) gains its first dedicated test module
+  (`tests/test_tts.py`, 66 tests) covering the pure, deterministic surface: the
+  timestamped-subtitle pipeline, the WAV helpers, Piper model resolution, eSpeak
+  chunking, the Coqui player command, DECtalk voice/markup mapping, and
+  `TTSManager` backend selection + default-voice resolution.
+- **Per-module coverage gate.** A new CI job enforces a coverage floor on
+  `star/tts.py` (`pytest --cov=star.tts --cov-fail-under=30`); the floor is a
+  ratchet to be raised as more of the engine's pure logic gains tests.
+
+### 🐛 Fixed
+
+- **Document cache now reacts to the reading-order and importer settings.** The
+  document-cache fingerprint now includes `pdf_reading_order` (a latent miss
+  since 0.1.12) and `prefer_pandoc`, so toggling either re-parses the document
+  instead of serving a stale cached parse.
+
 ## [0.1.12] 2026-06-25
 
 Adds **PDF reading-order intelligence** — multi-column academic PDFs now read
