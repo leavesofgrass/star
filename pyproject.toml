@@ -101,7 +101,10 @@ archive = ["py7zr", "rarfile"]
 # is only needed as a fallback.  ffmpeg must also be on PATH.
 video = ["Pillow"]
 # Test tooling (no test dependencies existed before the batch/watch features).
-test = ["pytest"]
+# pytest-cov powers the per-module coverage gate on tts.py (see the `coverage`
+# CI job and [tool.coverage] below); plain `pytest` ignores it when --cov is
+# not passed, so the matrix legs are unaffected.
+test = ["pytest", "pytest-cov"]
 all = [
     "pytesseract",
     "pymupdf",
@@ -138,6 +141,24 @@ star = ["README.md", "LICENSE", "CHANGELOG.md", "locale/*.json", "locale/README.
 testpaths = ["tests"]
 addopts = "-q"
 pythonpath = ["."]
+
+# Coverage is opt-in (the `coverage` CI job passes --cov), so the default test
+# run stays fast and dependency-light.  The gate is intentionally scoped to a
+# single module: tts.py is the speech engine and was previously untested.  Its
+# floor is set just below the achievable line rate — the engine `speak()`/native
+# bodies need a real sound card and stay uncovered — and is meant to be
+# ratcheted up as more of the pure logic gains direct tests (test_tts.py).
+[tool.coverage.run]
+branch = false
+
+[tool.coverage.report]
+# The unreachable/guard lines that should never count against the gate.
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
 
 [tool.ruff]
 line-length = 100
