@@ -11,6 +11,7 @@ this re-export shim.  Submodules:
   * text.py      - static command/help text (M-x table, shortcuts, help pager).
   * mixin_*.py   - StarApp's methods, grouped by responsibility.
 """
-from .app import StarApp, THEMES, THEME_NAMES
+from .app import StarApp
+from .theming import THEMES, THEME_NAMES
 
 __all__ = ["StarApp", "THEMES", "THEME_NAMES"]
