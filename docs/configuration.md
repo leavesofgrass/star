@@ -78,6 +78,7 @@ Open it from the TUI with `M-x settings`.
 | `document_cache` | `true` | Cache parsed documents for instant reopening |
 | `cache_max_size_mb` | `100` | Maximum cache directory size in MB |
 | `footnote_mode` | `"inline"` | Footnote handling: `inline`, `deferred`, `skip` |
+| `pdf_reading_order` | `"reconstruct"` | PDF layout handling: `reconstruct` rebuilds multi-column reading order and suppresses running headers/footers/page numbers; `raw` keeps pdfminer's native box order |
 | `epub_show_chapters` | `true` | Include chapter headings in EPUB rendering |
 | `normalize_math` | `true` | Convert math expressions to spoken English |
 | `normalize_numbers` | `true` | Convert numbers/dates/times/currency to spoken form |

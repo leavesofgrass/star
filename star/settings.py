@@ -144,6 +144,9 @@ DEFAULTS: Dict[str, Any] = {
     "normalize_numbers": True,
     # Table reading mode
     "table_reading_mode": "structured",  # "structured" | "flat" | "skip"
+    # PDF reading order: "reconstruct" rebuilds multi-column reading order and
+    # suppresses running headers/footers; "raw" keeps pdfminer's native order.
+    "pdf_reading_order": "reconstruct",  # "reconstruct" | "raw"
     # User text highlights (persistent per-document colored annotations)
     "user_highlights": {},  # {path: [{"start": int, "end": int, "color": str}]}
     # Reading position memory

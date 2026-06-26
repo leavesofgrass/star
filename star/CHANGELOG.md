@@ -8,6 +8,55 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.12] 2026-06-25
+
+Adds **PDF reading-order intelligence** — multi-column academic PDFs now read
+top-to-bottom, column by column, instead of interleaving columns into gibberish.
+Also an internal modularization of the Qt GUI (no user-facing behavior change)
+plus dead-code and import cleanup.
+
+### ✨ Added
+
+- **PDF reading-order reconstruction.** In layout mode, `star` now rebuilds the
+  reading order of a PDF page from box geometry: it detects columns (via a
+  vertical projection of text-box extents), reads **column by column,
+  top-to-bottom**, and treats full-width boxes (titles, spanning figures) as
+  dividers that interrupt the column flow at their position. **Running headers,
+  footers, and page numbers** in the page margins are suppressed from the spoken
+  stream. This fixes the dominant failure mode for two-column journal articles,
+  where the previous order read across columns and produced gibberish for TTS.
+  - **Toggle:** the new `pdf_reading_order` setting — `"reconstruct"` (default)
+    or `"raw"` to fall back to the previous (pdfminer-native) order when the
+    heuristics misfire. See [Configuration](../docs/configuration.md).
+  - Single-column PDFs are unaffected by the column logic (the page is detected
+    as one column); they still gain header/footer/page-number suppression.
+
+### ♻️ Refactor
+
+- **`star/gui/` modularized.** `StarWindow(QMainWindow)` — ~6,100 lines / 194
+  methods, previously nested inside the `_run_qt_gui()` closure — is lifted to
+  module scope in **`star/gui/main_window.py`** and split into 16 focused
+  responsibility mixins, **`star/gui/mixin_*.py`** (playback, navigation, export,
+  annotations, citations, graph, document, display, presets, highlights, ToC,
+  commands, transcription, docops, fontspacing, aiddialogs). The shared PyQt5/6
+  enum-compat constants moved to **`star/gui/_qtcompat.py`**. `star/gui/runner.py`
+  is now ~90 lines (Qt setup + launch only). Behavior is identical — every method
+  was moved verbatim and all 184 `StarWindow` methods resolve exactly once via the
+  mixin MRO. The Qt-heavy modules stay lazily imported, so `import star.gui`
+  remains safe when PyQt is absent.
+
+### 🧩 Internal
+
+- Removed the dead `_HelpWindow` dialog (`star/gui/help_window.py`): it was built
+  but never shown. **Help (F1)** opens `README.md` as a readable document, exactly
+  as before.
+- Dropped over-inclusive / unused imports across the new GUI modules (`ruff`-clean).
+
+### 📚 Documentation
+
+- **`docs/architecture.md`** — the `star/gui/` package section now describes the
+  `main_window.py` + `mixin_*.py` + `_qtcompat.py` layout.
+
 ## [0.1.11] 2026-06-25
 
 ### ✨ Added

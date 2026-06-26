@@ -64,6 +64,7 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 | Markdown rendering | All documents are converted to clean Markdown for display |
 | Math normalization | LaTeX and inline math expressions converted to natural spoken English |
 | Footnote handling | Markdown / Pandoc footnotes can be read inline, deferred, or skipped |
+| PDF reading order | Multi-column PDFs read column-by-column, top-to-bottom; running headers/footers and page numbers suppressed (toggle: `pdf_reading_order`) |
 | Speed presets | Named presets (skim/normal/study/slow) switchable at runtime |
 | Bookmarks / history | Named bookmarks and within-session position history |
 | Document editing | `Ctrl+E` toggles raw-Markdown edit mode; `Ctrl+S` saves back to the original file |
@@ -484,6 +485,32 @@ Markdown/Pandoc footnotes (`[^1]`, `[^label]`) are handled per `footnote_mode`:
 | `skip` | All footnote markers and definitions silently removed |
 
 Change at runtime with `M-x footnote-mode inline|deferred|skip`.
+
+---
+
+## PDF reading order
+
+Academic PDFs are the worst case for a screen reader: two-column layouts,
+running headers/footers, and page numbers. In pdfminer's native order a
+two-column page reads *across* the columns — "line 1 of column A, line 1 of
+column B, …" — which is gibberish aloud. `star` reconstructs the reading order
+from the page geometry:
+
+- **Column detection** — a vertical projection of text-box extents finds the
+  column gutters; the page is read **column by column, top-to-bottom**. Pages
+  with no gutter are treated as a single column.
+- **Full-width elements** — titles, author blocks, and figures that span the
+  columns act as dividers: the flow reads the columns *above* them, then the
+  spanning element, then the columns below it.
+- **Running heads/feet** — text that recurs in the top/bottom margin across
+  pages, and bare page numbers (`12`, `Page 12`, `12 of 340`, `iv`), are
+  dropped from the spoken stream.
+
+Controlled by the **`pdf_reading_order`** setting: `"reconstruct"` (default) or
+`"raw"` to fall back to pdfminer's native box order when the heuristics misfire
+on an unusual layout. Single-column PDFs are unaffected by the column logic and
+still gain header/footer suppression. The feature uses the existing
+`pdfminer.six` text layer — no extra dependency.
 
 ---
 

@@ -348,8 +348,8 @@ python -m build --wheel                    # writes dist/star_reader-<version>-p
 Install the resulting single file anywhere:
 
 ```bash
-pip install dist/star_reader-0.1.11-py3-none-any.whl          # recommended deps
-pip install "dist/star_reader-0.1.11-py3-none-any.whl[all]"    # every optional feature
+pip install dist/star_reader-0.1.12-py3-none-any.whl          # recommended deps
+pip install "dist/star_reader-0.1.12-py3-none-any.whl[all]"    # every optional feature
 ```
 
 The wheel provides a `star` console command and `python -m star`. Packaging is

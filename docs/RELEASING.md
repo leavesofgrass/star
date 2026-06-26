@@ -41,8 +41,8 @@ is added without registering it in `star.diagnostics`.
 4. **Commit** the version bump on `main` (or via PR).
 5. **Tag and push**:
    ```bash
-   git tag v0.1.11
-   git push origin v0.1.11
+   git tag v0.1.12
+   git push origin v0.1.12
    ```
 
 Pushing a `v*` tag triggers
@@ -69,8 +69,8 @@ The release workflow publishes the wheel and sdist to PyPI using
 [**trusted publishing**](https://docs.pypi.org/trusted-publishers/) (OIDC) — no
 API token is ever stored in the repo. The routing is by tag:
 
-- **Pre-release tag** (contains a hyphen, e.g. `v0.1.11-rc1`) → **TestPyPI**.
-- **Final tag** (e.g. `v0.1.11`) → **PyPI**.
+- **Pre-release tag** (contains a hyphen, e.g. `v0.1.12-rc1`) → **TestPyPI**.
+- **Final tag** (e.g. `v0.1.12`) → **PyPI**.
 
 Manual `workflow_dispatch` runs do not publish (no tag ref).
 
@@ -82,44 +82,22 @@ still run, so you can exercise the whole pipeline before the trusted publisher i
 active).
 
 `ENABLE_PYPI` is currently **`true`**, so every final `v*` tag runs the publish
-job — which then **waits for manual approval** before uploading to PyPI (the
-`pypi` environment has a required reviewer; see *Trusted-publisher hardening*
-below). To pause publishing entirely, set *Settings → Secrets and variables →
-Actions → Variables → `ENABLE_PYPI`* to anything other than `true` (or remove it).
+job. The deployment requires a maintainer to approve it before the upload
+proceeds — GitHub shows a *Review deployments* button on the run. To pause
+publishing entirely, set *Settings → Secrets and variables → Actions →
+Variables → `ENABLE_PYPI`* to anything other than `true` (or remove it).
 
 ### One-time setup (already done for this repo)
 
 1. **Register the trusted publisher on PyPI / TestPyPI.** Project → *Publishing* →
    add a GitHub Actions trusted publisher: Owner `leavesofgrass`, Repository
-   `star`, Workflow `release.yml`, **Environment `pypi`** (and **`testpypi`** on
-   TestPyPI). The Environment field is **required** for the hardening below to
-   mean anything — without it, PyPI accepts an OIDC token minted by *any* job in
-   the repo.
-2. **GitHub environments** `pypi` and `testpypi` exist (Repo *Settings →
-   Environments*) and are hardened — see below.
-3. **Rehearse on TestPyPI first.** Push a pre-release tag (`v0.1.11-rc1`), confirm
+   `star`, Workflow `release.yml`, Environment `pypi` (and `testpypi` on
+   TestPyPI).
+2. **Create the GitHub environments** `pypi` and `testpypi` (Repo *Settings →
+   Environments*).
+3. **Rehearse on TestPyPI first.** Push a pre-release tag (`v0.1.12-rc1`), confirm
    `pip install -i https://test.pypi.org/simple/ star-reader` works, then push the
-   final `v0.1.11` tag.
-
-### Trusted-publisher hardening
-
-Applied per [PyPI's security model](https://docs.pypi.org/trusted-publishers/security-model/):
-
-- **Per-job `id-token: write`** (not workflow-level) — only the publish jobs can
-  mint an OIDC token.
-- **`pypi` environment requires a reviewer** — a final `v*` tag pauses the
-  `publish-pypi` job until a maintainer approves the deployment (the run shows a
-  *Review deployments* button). TestPyPI stays automatic for rehearsals.
-- **Deployment policy: `v*` tags only** on both environments — the environment
-  refuses to deploy from any other ref, even if the workflow is modified to
-  trigger on something else.
-- **Ruleset "Protect release tags (v\*)"** — blocks deletion / force-moving of
-  `v*` tags (admin bypass).
-- **`pypa/gh-action-pypi-publish` is SHA-pinned** to a commit (not `@release/v1`).
-
-> **Verify on PyPI:** the trusted publisher's **Environment name** must be set to
-> `pypi` (and `testpypi` on TestPyPI). That is the half GitHub cannot enforce — if
-> it is blank, the environment gate above can be bypassed.
+   final `v0.1.12` tag.
 
 ## Build-it-yourself artifacts
 
@@ -145,6 +123,6 @@ pwsh tools/build-windows.ps1 -AllowDeprecatedExe # DEPRECATED exe       -> dist/
 
 ## Pre-release tags
 
-Use a suffix (e.g. `v0.1.11-rc1`) for a dry run: the workflow still builds the
+Use a suffix (e.g. `v0.1.12-rc1`) for a dry run: the workflow still builds the
 wheel, routes the publish to TestPyPI, and creates a (pre-)release you can inspect
 before cutting the final tag.
