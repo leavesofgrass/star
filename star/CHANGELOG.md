@@ -8,9 +8,11 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.1.17] — Unreleased
+## [0.1.17] 2026-06-27
 
-In progress. More is being batched into this release before it ships.
+Obsidian & Zed themes (Obsidian is the new default), caret browsing for free
+keyboard navigation of documents, richer Markdown rendering, and folder-as-
+library with synced reading progress.
 
 ### ✨ Added
 
