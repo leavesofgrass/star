@@ -80,7 +80,7 @@ jobs:
         run: python -m pytest
 
   coverage:
-    name: coverage gate (star/tts.py)
+    name: coverage gate (per-module floors)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
