@@ -272,7 +272,7 @@ def test_resolve_model_accepts_existing_onnx(tmp_path, monkeypatch):
 
 def test_resolve_model_ignores_non_onnx_voice(tmp_path, monkeypatch):
     monkeypatch.delenv("PIPER_MODEL", raising=False)
-    monkeypatch.setattr(tts, "_piper_voice_dirs", lambda: [])
+    monkeypatch.setattr(tts.piper, "_piper_voice_dirs", lambda: [])
     assert tts.PiperBackend._resolve_model("not-a-model.txt") == ""
 
 
@@ -286,13 +286,13 @@ def test_resolve_model_uses_piper_model_env(tmp_path, monkeypatch):
 def test_resolve_model_scans_voice_dirs(tmp_path, monkeypatch):
     monkeypatch.delenv("PIPER_MODEL", raising=False)
     (tmp_path / "found.onnx").write_bytes(b"x")
-    monkeypatch.setattr(tts, "_piper_voice_dirs", lambda: [tmp_path])
+    monkeypatch.setattr(tts.piper, "_piper_voice_dirs", lambda: [tmp_path])
     assert tts.PiperBackend._resolve_model("") == str(tmp_path / "found.onnx")
 
 
 def test_resolve_model_returns_empty_when_nothing_found(tmp_path, monkeypatch):
     monkeypatch.delenv("PIPER_MODEL", raising=False)
-    monkeypatch.setattr(tts, "_piper_voice_dirs", lambda: [tmp_path])
+    monkeypatch.setattr(tts.piper, "_piper_voice_dirs", lambda: [tmp_path])
     assert tts.PiperBackend._resolve_model("") == ""
 
 
@@ -306,7 +306,7 @@ def test_piper_voice_dirs_includes_env_override(tmp_path, monkeypatch):
 
 def test_piper_length_scale_clamped(tmp_path, monkeypatch):
     monkeypatch.delenv("PIPER_MODEL", raising=False)
-    monkeypatch.setattr(tts, "_piper_voice_dirs", lambda: [])
+    monkeypatch.setattr(tts.piper, "_piper_voice_dirs", lambda: [])
     assert tts.PiperBackend(rate=265)._length_scale() == pytest.approx(1.0)
     assert tts.PiperBackend(rate=10_000)._length_scale() == pytest.approx(0.4)
     assert tts.PiperBackend(rate=1)._length_scale() == pytest.approx(2.5)
@@ -314,7 +314,7 @@ def test_piper_length_scale_clamped(tmp_path, monkeypatch):
 
 def test_piper_config_for_finds_sidecar(tmp_path, monkeypatch):
     monkeypatch.delenv("PIPER_MODEL", raising=False)
-    monkeypatch.setattr(tts, "_piper_voice_dirs", lambda: [])
+    monkeypatch.setattr(tts.piper, "_piper_voice_dirs", lambda: [])
     model = tmp_path / "v.onnx"
     model.write_bytes(b"x")
     backend = tts.PiperBackend()
@@ -421,7 +421,7 @@ def test_convert_audio_format_no_tool_raises(tmp_path, monkeypatch):
     src = _write_wav(tmp_path / "in.wav")
     # No ffmpeg (bundled or on PATH) and no importable pydub.
     monkeypatch.setattr(tts.shutil, "which", lambda _name: None)
-    monkeypatch.setattr(tts, "_FFMPEG_BUNDLED", tmp_path / "nonexistent-ffmpeg")
+    monkeypatch.setattr(tts.audio, "_FFMPEG_BUNDLED", tmp_path / "nonexistent-ffmpeg")
     monkeypatch.setitem(sys.modules, "pydub", None)
     with pytest.raises(RuntimeError, match="ffmpeg"):
         tts._convert_audio_format(src, str(tmp_path / "out.mp3"))
@@ -431,7 +431,7 @@ def test_convert_audio_format_uses_ffmpeg(tmp_path, monkeypatch):
     src = _write_wav(tmp_path / "in.wav")
     dest = tmp_path / "out.mp3"
     monkeypatch.setattr(tts.shutil, "which", lambda _name: "/usr/bin/ffmpeg")
-    monkeypatch.setattr(tts, "_FFMPEG_BUNDLED", tmp_path / "nonexistent")
+    monkeypatch.setattr(tts.audio, "_FFMPEG_BUNDLED", tmp_path / "nonexistent")
     calls = {}
 
     class _Result:
@@ -452,7 +452,7 @@ def test_convert_audio_format_uses_ffmpeg(tmp_path, monkeypatch):
 def test_convert_audio_format_ffmpeg_failure_raises(tmp_path, monkeypatch):
     src = _write_wav(tmp_path / "in.wav")
     monkeypatch.setattr(tts.shutil, "which", lambda _name: "/usr/bin/ffmpeg")
-    monkeypatch.setattr(tts, "_FFMPEG_BUNDLED", tmp_path / "nonexistent")
+    monkeypatch.setattr(tts.audio, "_FFMPEG_BUNDLED", tmp_path / "nonexistent")
 
     class _Result:
         returncode = 1

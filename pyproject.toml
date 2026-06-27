@@ -142,16 +142,16 @@ star = "star.app:main"
 # own entry-points in the same groups.
 
 [project.entry-points."star.backends"]
-silent     = "star.tts:SilentBackend"
-pyttsx3    = "star.tts:Pyttsx3Backend"
-applesay   = "star.tts:AppleSayBackend"
-espeak     = "star.tts:ESpeakBackend"
-espeaklib  = "star.tts:ESpeakLibBackend"
-festival   = "star.tts:FestivalBackend"
-piper      = "star.tts:PiperBackend"
-coqui      = "star.tts:CoquiBackend"
-dectalk    = "star.tts:DECtalkBackend"
-dectalkdll = "star.tts:DECtalkDLLBackend"
+silent     = "star.tts.silent:SilentBackend"
+pyttsx3    = "star.tts.pyttsx3:Pyttsx3Backend"
+applesay   = "star.tts.applesay:AppleSayBackend"
+espeak     = "star.tts.espeak:ESpeakBackend"
+espeaklib  = "star.tts.espeak:ESpeakLibBackend"
+festival   = "star.tts.festival:FestivalBackend"
+piper      = "star.tts.piper:PiperBackend"
+coqui      = "star.tts.coqui:CoquiBackend"
+dectalk    = "star.tts.dectalk:DECtalkBackend"
+dectalkdll = "star.tts.dectalk:DECtalkDLLBackend"
 
 [project.entry-points."star.formats"]
 pdf      = "star.documents:PDFHandler"
@@ -172,7 +172,7 @@ anki     = "star.flashcards:AnkiExporter"
 markdown = "star.export:MarkdownExporter"
 html     = "star.export:HTMLExporter"
 epub     = "star.export:EPUBExporter"
-wav      = "star.tts:WAVExporter"
+wav      = "star.tts.exporters:WAVExporter"
 mp4      = "star.video:MP4Exporter"
 
 [tool.setuptools.packages.find]
