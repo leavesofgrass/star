@@ -15,7 +15,7 @@ from .text_loaders import (_load_asciidoc, _load_creole, _load_latex, _load_mark
 from .pandoc import (_PANDOC_FIRST_FORMATS, _PANDOC_INPUT_EXTS, _load_pandoc_first, _load_via_pandoc, _pandoc_available, _pandoc_handles)
 from .misc import (_load_image_ocr, _load_url, _process_footnotes, _record_archive_members)
 from .handlers import (DocxHandler, EPUBHandler, HTMLHandler, MarkdownHandler, ODTHandler, OrgHandler, PDFHandler, PPTXHandler, PandocHandler, PlainTextHandler, RSTHandler, XLSXHandler, _document_from_markdown)
-from .dispatch import (_detect_format, load_document, load_document_via_plugins)
+from .dispatch import (_detect_format, load_document, load_document_via_plugins, supported_extensions)
 
 __all__ = [
     "Document",
@@ -82,5 +82,6 @@ __all__ = [
     "_process_footnotes",
     "_record_archive_members",
     "load_document",
+    "supported_extensions",
     "load_document_via_plugins",
 ]

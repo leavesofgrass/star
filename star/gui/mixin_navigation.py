@@ -9,6 +9,7 @@ from .._runtime import *  # noqa: F401,F403
 from ..documents import _build_word_map
 from ..feeds import _FEEDPARSER, fetch_feed
 from ..spellcheck import _SPELL, SpellHighlighter, misspelled_words
+from ..library import add_library_folder, library_folders, scan_library
 from ..stats import _fmt_duration, _format_reading_stats, _library_entries
 from ..dictionary import (
     availability as _dict_availability,
@@ -1162,44 +1163,103 @@ class NavigationMixin:
         if chosen["url"]:
             self._open_path(chosen["url"])
 
-    def _qt_library(self) -> None:
-        """Browse the library/bookshelf; open the chosen document.
+    def _library_combined_entries(self) -> List[Dict[str, Any]]:
+        """All library documents: configured library-folder files first (so a
+        synced folder is the library), then recently-opened documents that live
+        outside any library folder.  Each entry carries reading progress and a
+        ``source`` label (folder name or ``recent``)."""
+        positions = self.settings.get("reading_positions", {}) or {}
+        stats = self.settings.get("reading_stats", {}) or {}
 
-        A searchable list of every document opened in star, showing
-        progress and time read, newest first.  Enter / double-click opens
-        the selected document.
-        """
-        entries = _library_entries(self.settings)
-        if not entries:
-            self.statusBar().showMessage(
-                "Library is empty — open a document to add it"
+        def _progress(path: str) -> Tuple[int, float]:
+            pct = positions.get(path, {}).get("pct")
+            if pct is None:
+                pct = stats.get(path, {}).get("pct", 0)
+            return int(pct or 0), float(stats.get(path, {}).get("seconds", 0.0))
+
+        combined: List[Dict[str, Any]] = []
+        folder_paths: set = set()
+        for e in scan_library(self.settings):
+            pct, secs = _progress(e["path"])
+            folder_paths.add(e["path"])
+            combined.append(
+                {
+                    "path": e["path"],
+                    "title": e["title"],
+                    "format": e["format"],
+                    "pct": pct,
+                    "seconds": secs,
+                    "last_opened": "",
+                    "source": Path(e["folder"]).name or e["folder"],
+                }
             )
+        for r in _library_entries(self.settings):
+            if r["path"] in folder_paths:
+                continue
+            combined.append({**r, "source": "recent"})
+        return combined
+
+    def _qt_pick_library_folder(self) -> None:
+        """Choose a folder to use as a library (File ▸ Open Folder as Library…)."""
+        folder = QFileDialog.getExistingDirectory(
+            self, "Choose a folder to use as a library"
+        )
+        if folder:
+            self._qt_open_folder_as_library(folder)
+
+    def _qt_open_folder_as_library(self, folder: str) -> None:
+        """Register *folder* as a library and open the Library browser."""
+        resolved = add_library_folder(self.settings, folder)
+        self.statusBar().showMessage(f"Library folder: {resolved}")
+        self._qt_library()
+
+    def _qt_library(self) -> None:
+        """Browse the library; open the chosen document.
+
+        Shows documents from every configured library folder (any folder, e.g. a
+        synced Dropbox / OneDrive folder) plus recently-opened files, with
+        progress and time read.  Enter / double-click opens the selection; the
+        Add Folder… button registers another folder as a library source.
+        """
+        entries = self._library_combined_entries()
+        folders = library_folders(self.settings)
+        if not entries and not folders:
+            self._qt_pick_library_folder()
             return
+
         dlg = QDialog(self)
-        dlg.setWindowTitle("Library / Bookshelf")
-        dlg.resize(620, 460)
+        dlg.setWindowTitle("Library")
+        dlg.resize(640, 480)
         lay = QVBoxLayout(dlg)
         box = QLineEdit()
-        box.setPlaceholderText(
-            "Filter by title or path…  (Enter opens, Esc closes)"
-        )
+        box.setPlaceholderText("Filter by title, path, or folder…  (Enter opens, Esc closes)")
         lst = QListWidget()
         lay.addWidget(box)
         lay.addWidget(lst)
+        btn_row = QHBoxLayout()
+        add_btn = QPushButton("Add Folder…")
+        info = QLabel(
+            f"{len(entries)} document(s) · "
+            f"{len(folders)} library folder(s)" if folders else f"{len(entries)} document(s)"
+        )
+        btn_row.addWidget(info)
+        btn_row.addStretch(1)
+        btn_row.addWidget(add_btn)
+        lay.addLayout(btn_row)
 
         def _populate(query: str = "") -> None:
             lst.clear()
             terms = query.lower().split()
             for e in entries:
-                hay = (e["title"] + " " + e["path"]).lower()
+                hay = (e["title"] + " " + e["path"] + " " + e.get("source", "")).lower()
                 if not all(t in hay for t in terms):
                     continue
                 fmt = e["format"] or "?"
                 tm = _fmt_duration(e["seconds"]) if e["seconds"] else "—"
-                last = str(e.get("last_opened", ""))[:10]
+                src = e.get("source", "")
                 label = (
                     f"{e['pct']:>3}%  {e['title']}\n"
-                    f"        {fmt}  ·  {tm} read  ·  {last}"
+                    f"        {fmt}  ·  {tm} read  ·  {src}"
                 )
                 it = QListWidgetItem(label)
                 it.setData(_USER_ROLE, e["path"])
@@ -1217,10 +1277,21 @@ class NavigationMixin:
             if path:
                 self._open_path(str(path))
 
+        def _add_folder() -> None:
+            folder = QFileDialog.getExistingDirectory(dlg, "Add a library folder")
+            if not folder:
+                return
+            add_library_folder(self.settings, folder)
+            nonlocal entries
+            entries = self._library_combined_entries()
+            _populate(box.text())
+            self.statusBar().showMessage(f"Library folder added: {folder}")
+
         _populate()
         box.textChanged.connect(_populate)
         box.returnPressed.connect(_open)
         lst.itemActivated.connect(lambda _it: _open())
+        add_btn.clicked.connect(_add_folder)
         box.setFocus()
         dlg.exec() if _QT == "PyQt6" else dlg.exec_()
 

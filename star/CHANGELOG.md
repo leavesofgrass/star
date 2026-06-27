@@ -27,6 +27,14 @@ In progress. More is being batched into this release before it ships.
   under the caret with **Define Word (Ctrl+D)**. On by default; toggle with **F7**
   or **View ▸ Caret Browsing**. Turning it off restores the clean, caret-free
   reader view (mouse selection still works).
+- **Folder as library.** Point star at *any* folder — including one synced by
+  Dropbox, OneDrive, Syncthing, or iCloud — and every document inside it
+  (recursively) becomes your library. Because the library is the filesystem
+  itself, it syncs across machines and services for free. Add one via **File ▸
+  Open Folder as Library…** (or run `star <folder>` / open a folder from the
+  file dialog), then browse everything in **File ▸ Library** alongside your
+  recently-opened files, with reading progress. Multiple library folders are
+  supported.
 
 ### 🔧 Changed
 

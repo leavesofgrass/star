@@ -44,6 +44,11 @@ class DocumentMixin:
             self._open_path(path)
 
     def _open_path(self, path: str) -> None:
+        # A directory is a library source, not a document — register it and open
+        # the Library browser (any folder, e.g. a synced Dropbox/OneDrive folder).
+        if path and not path.startswith(("http://", "https://")) and Path(path).is_dir():
+            self._qt_open_folder_as_library(path)
+            return
         # Save where we were in the *current* document before replacing it.
         self._qt_save_reading_position()
         self.statusBar().showMessage(f"Loading {Path(path).name} …")

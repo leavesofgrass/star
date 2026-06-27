@@ -34,6 +34,10 @@ DEFAULTS: Dict[str, Any] = {
     "reading_stats": {},  # {path: {seconds, words_read, words_total, pct, sessions, last_ts}}
     # Library / bookshelf: metadata for every opened document.
     "library": {},  # {path: {title, format, added, last_opened}}
+    # Folder-as-library: directories scanned for documents (e.g. a Dropbox /
+    # OneDrive / Syncthing folder).  The library is the filesystem itself, so it
+    # syncs across machines for free.  See star/library.py.
+    "library_folders": [],  # [absolute folder paths]
     # Voice & profile presets: named bundles of voice, rate, theme, font,
     # spacing, and highlight settings that can be applied in one step.
     "profiles": {},  # {name: {setting_key: value}}

@@ -740,10 +740,18 @@ class StarWindow(AidDialogsMixin, CommandsMixin, TocMixin, HighlightsMixin, Pres
         file_menu.addAction(_mi("Open URL…", "Ctrl+Shift+O", self._qt_open_url))
         file_menu.addAction(
             _mi(
+                "Open Folder as Library…",
+                "Ctrl+Shift+L",
+                self._qt_pick_library_folder,
+                tip="Scan any folder (e.g. a synced Dropbox/OneDrive folder) as a document library",
+            )
+        )
+        file_menu.addAction(
+            _mi(
                 "Library / Bookshelf…",
                 "Ctrl+Shift+B",
                 self._qt_library,
-                tip="Browse opened documents with progress",
+                tip="Browse library-folder documents and recently-opened files, with progress",
             )
         )
         file_menu.addAction(

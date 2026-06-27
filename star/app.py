@@ -26,7 +26,10 @@ def main() -> None:
         ),
     )
     ap.add_argument(
-        "file", nargs="?", default="", help="Document to open (file path or URL)"
+        "file",
+        nargs="?",
+        default="",
+        help="Document to open (file path or URL), or a folder to open as a library",
     )
     ap.add_argument("--version", action="version", version=f"%(prog)s {APP_VERSION}")
     ap.add_argument(

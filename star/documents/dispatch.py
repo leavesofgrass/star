@@ -15,12 +15,9 @@ from .pdf import _load_pdf
 from .text_loaders import _load_asciidoc, _load_creole, _load_latex, _load_markdown, _load_mediawiki, _load_notebook, _load_orgmode, _load_plain_text, _load_r_code, _load_rmarkdown, _load_rst, _load_textile
 
 
-def _detect_format(path: str) -> str:
-    """Detect document format from extension or magic bytes."""
-    p = path.lower()
-    if p.startswith(("http://", "https://", "ftp://")):
-        return "url"
-    ext_map = {
+#: Extension → internal format name.  The single source for both format
+#: detection and :func:`supported_extensions` (the library scanner's filter).
+_EXT_FORMAT_MAP: Dict[str, str] = {
         ".md": "markdown",
         ".markdown": "markdown",
         ".mdown": "markdown",
@@ -75,13 +72,37 @@ def _detect_format(path: str) -> str:
         ".hpp": "c",
         ".brf": "braille",
         ".org": "orgmode",
-    }
+}
+
+
+def _detect_format(path: str) -> str:
+    """Detect document format from extension or magic bytes."""
+    p = path.lower()
+    if p.startswith(("http://", "https://", "ftp://")):
+        return "url"
     ext = Path(path).suffix.lower()
-    if ext in ext_map:
-        return ext_map[ext]
+    if ext in _EXT_FORMAT_MAP:
+        return _EXT_FORMAT_MAP[ext]
     if ext in _PANDOC_INPUT_EXTS:
         return "pandoc"
     return "text"
+
+
+def supported_extensions() -> "frozenset[str]":
+    """Lowercase file extensions (with dot) star can open as documents.
+
+    The union of the native format map, the Pandoc-only input formats, and any
+    extensions contributed by installed ``star.formats`` plugins.  Used by the
+    library scanner to decide which files in a folder are documents.
+    """
+    exts = set(_EXT_FORMAT_MAP) | set(_PANDOC_INPUT_EXTS)
+    try:
+        from ..plugins import PluginRegistry
+
+        exts |= set(getattr(PluginRegistry.get(), "_ext_map", {}))
+    except Exception:  # noqa: BLE001 — plugin discovery must never break scanning
+        pass
+    return frozenset(exts)
 
 
 def load_document_via_plugins(path: "str | Path", **kwargs) -> Document:
