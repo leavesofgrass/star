@@ -57,8 +57,11 @@ import zipfile
 from pathlib import Path
 
 # This script lives in tools/, but vendor/ belongs at the project root (one
-# level up) so star.spec and star's _vendor_dir() find it.
-VENDOR = Path(__file__).resolve().parent.parent / "vendor"
+# level up) so star.spec and star's _vendor_dir() find it.  The destination is
+# overridable so the same fetch logic can populate a user's vendor dir on first
+# run of the private .pyz (``STAR_VENDOR_BUILD_DIR`` or ``--dest PATH``).
+VENDOR = Path(os.environ.get("STAR_VENDOR_BUILD_DIR", "") or
+              (Path(__file__).resolve().parent.parent / "vendor"))
 _UA = {"User-Agent": "Mozilla/5.0"}
 
 # ffmpeg: gyan.dev "essentials" build (static, includes libmp3lame/libvorbis/AAC).
@@ -340,7 +343,30 @@ def fetch_espeak(force: bool) -> None:
 
 
 def main() -> None:
-    force = "--force" in sys.argv[1:]
+    global VENDOR
+    args = sys.argv[1:]
+    force = "--force" in args
+    # ``--dest PATH`` overrides the vendor destination (first-run fetch into a
+    # user's vendor dir).  ``--best-effort`` keeps going if one engine fails
+    # (e.g. no 7-Zip for Tesseract on a clean machine) instead of exiting.
+    best_effort = "--best-effort" in args
+    if "--dest" in args:
+        VENDOR = Path(args[args.index("--dest") + 1]).expanduser()
+    fetchers = (
+        fetch_ffmpeg, fetch_pandoc, fetch_dectalk, fetch_espeak,
+        fetch_tesseract, fetch_liblouis,
+    )
+    if best_effort:
+        for fn in fetchers:
+            try:
+                fn(force)
+            except SystemExit as exc:  # build-vendor uses sys.exit on hard errors
+                print(f"  skipped {fn.__name__}: {exc}")
+            except Exception as exc:  # noqa: BLE001
+                print(f"  skipped {fn.__name__}: {exc}")
+        total = sum(f.stat().st_size for f in VENDOR.rglob("*") if f.is_file()) if VENDOR.exists() else 0
+        print(f"\nvendor/ at {VENDOR}  ({total // (1024 * 1024)} MB)")
+        return
     fetch_ffmpeg(force)
     fetch_tesseract(force)
     fetch_liblouis(force)

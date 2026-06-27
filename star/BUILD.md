@@ -374,6 +374,47 @@ It detects Homebrew / apt / dnf / pacman / zypper and installs the same engines
 
 ---
 
+## Private all-in-one zipapp (`star-private.pyz`)
+
+> **Private artifact — not for public distribution.** A single self-extracting
+> `.pyz` that bundles star, **all** its Python dependencies, **the
+> documentation**, and (optionally) the **Windows native engines** — or fetches
+> those engines on first run. Same model as the qrpn-voyager bundle. Run it with
+> any Python 3.11+: `python star-private.pyz`.
+
+Built by [`build_zipapp.py`](../build_zipapp.py). It extends the plain fat zipapp
+(deps only) with a manifest-driven first-run setup in
+[`tools/zipapp_bootstrap.py`](zipapp_bootstrap.py): on first launch the bundle is
+extracted to the per-user config dir, the native engines are made available via
+`STAR_VENDOR_DIR` (so star's `_vendor_dir()` finds them), and the docs are
+unpacked to `<config>/docs`.
+
+```powershell
+# Fetch mode (smaller file): engines download on first launch.
+python build_zipapp.py --fetch-on-first-run        # -> dist\star-private.pyz
+
+# Bundle mode (fully offline, large): vendor the engines into the file.
+python tools\build-vendor.py                        # build vendor/ first (needs 7-Zip)
+python build_zipapp.py --with-vendor                # -> dist\star-private.pyz
+```
+
+| Mode | Flag | First run | Size | Needs network at run |
+|---|---|---|---|---|
+| Fetch | `--fetch-on-first-run` | downloads engines (best-effort) into `<config>/vendor` | ~225 MB | yes (once) |
+| Bundle | `--with-vendor` | extracts bundled engines into `<config>/vendor` | ~225 MB + vendor (~450 MB) | no |
+
+Notes:
+- **Platform-specific.** Because it bundles compiled wheels (PyQt6, PyMuPDF),
+  build it on the platform you will run it on; bundle mode additionally carries
+  Windows engine binaries.
+- **Fetch mode is best-effort.** ffmpeg / Pandoc / eSpeak-NG / DECtalk download
+  cleanly; Tesseract needs 7-Zip on the target and is skipped if absent. Engines
+  that don't install just leave their features to degrade gracefully — star still
+  runs. Quick commands (`--version`, `--list-themes`, …) never trigger a download.
+- The bundled [`tools/build-vendor.py`](build-vendor.py) is what performs the
+  first-run fetch (into `STAR_VENDOR_DIR`); set `STAR_SKIP_VENDOR_FETCH=1` to
+  suppress it.
+
 ## Notes for other platforms
 
 `star.py` itself is cross-platform, and `star.spec` is largely portable, but
