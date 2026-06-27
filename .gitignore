@@ -7,6 +7,12 @@ dist/
 # (ffmpeg, Tesseract, liblouis, Pandoc, DECtalk) — large, re-downloadable.
 vendor/
 
+# Private zipapp build — the local-only star-private.pyz machinery (build
+# orchestrator, private bootstrap, native-engine fetcher) and its test. Kept
+# out of the public repo; the built artifact itself lands in dist/ (above).
+tools/_private/
+tests/test_zipapp_private.py
+
 # PyInstaller work dir, staged Whisper model, zipapp staging, pip temp, etc.
 build/
 
