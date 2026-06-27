@@ -110,6 +110,48 @@ class DisplayMixin:
         # Line height is a per-document block format reset by setHtml.
         self._apply_block_spacing()
 
+    # ── Caret browsing ───────────────────────────────────────────────
+    def _caret_width(self) -> int:
+        """Editor caret width honoring the caret-browsing setting (0 = hidden)."""
+        return 2 if self.settings.get("qt_caret_browsing", True) else 0
+
+    def _apply_caret_mode(self) -> None:
+        """Set the read-only document view's interaction flags + caret width from
+        the caret-browsing setting.
+
+        A read-only QTextEdit is mouse-selectable but **not** keyboard-navigable
+        by default, so showing the caret is not enough — caret browsing also needs
+        the ``TextSelectableByKeyboard`` flag for arrow keys to move the caret and
+        Shift+arrows to select.  Call only in read mode (edit mode owns the flags).
+        """
+        on = bool(self.settings.get("qt_caret_browsing", True))
+        try:  # PyQt6
+            F = Qt.TextInteractionFlag
+            base = F.TextSelectableByMouse | F.LinksAccessibleByMouse
+            kbd = F.TextSelectableByKeyboard
+        except AttributeError:  # PyQt5
+            base = Qt.TextSelectableByMouse | Qt.LinksAccessibleByMouse  # type: ignore[attr-defined]
+            kbd = Qt.TextSelectableByKeyboard  # type: ignore[attr-defined]
+        self.editor.setTextInteractionFlags(base | kbd if on else base)
+        self.editor.setCursorWidth(2 if on else 0)
+
+    def _qt_toggle_caret_browsing(self) -> None:
+        """Toggle the visible, freely-movable document caret (View ▸ Caret
+        Browsing / F7).  When on, the read-only view supports keyboard caret
+        navigation, selection for highlighting, and define-word at the caret."""
+        on = not bool(self.settings.get("qt_caret_browsing", True))
+        self.settings["qt_caret_browsing"] = on
+        if not getattr(self, "_qt_edit_mode", False):
+            self._apply_caret_mode()
+            if on:
+                self.editor.setFocus()
+        self.statusBar().showMessage(
+            "Caret browsing ON — arrows move the caret; select to highlight, "
+            "Ctrl+D defines the word at the caret."
+            if on
+            else "Caret browsing OFF — clean reader view."
+        )
+
     def _next_theme(self) -> None:
         """Cycle to the next theme (built-in + custom CSS)."""
         all_themes = self._all_theme_names

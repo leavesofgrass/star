@@ -19,7 +19,7 @@ from ..settings import Settings
 from ..stats import (
     ReadingStats,
 )
-from ..themes import _load_css_themes, _seed_default_css_themes
+from ..themes import BUILT_IN_PALETTES, _load_css_themes, _seed_default_css_themes
 from ..tts import TTSManager, _SCReader
 from ._qtcompat import (
     _LEFT_DOCK,
@@ -275,48 +275,9 @@ class StarWindow(AidDialogsMixin, CommandsMixin, TocMixin, HighlightsMixin, Pres
     _define_signal = pyqtSignal(object, str, str)
 
     # Per-theme CSS colors used by _md_to_html and _apply_qt_theme.
-    _PALETTES: Dict[str, Dict[str, str]] = {
-        "dark": {
-            "bg": "#16181d",
-            "fg": "#c6ccd4",
-            "sel": "#2c313a",
-            "h1": "#82aaff",
-            "h2": "#89ddff",
-            "h3": "#c792ea",
-            "h4": "#f78c6c",
-            "code": "#7fdbab",
-        },
-        "light": {
-            "bg": "#fafafa",
-            "fg": "#24273a",
-            "sel": "#bcd0f0",
-            "h1": "#1e66f5",
-            "h2": "#209fb5",
-            "h3": "#8839ef",
-            "h4": "#e64553",
-            "code": "#40a02b",
-        },
-        "contrast": {
-            "bg": "#000000",
-            "fg": "#ffffff",
-            "sel": "#404040",
-            "h1": "#ffff00",
-            "h2": "#00ffff",
-            "h3": "#ff80ff",
-            "h4": "#80ff80",
-            "code": "#00ff80",
-        },
-        "phosphor": {
-            "bg": "#001200",
-            "fg": "#00cc00",
-            "sel": "#004400",
-            "h1": "#00ff00",
-            "h2": "#00ee00",
-            "h3": "#00cc00",
-            "h4": "#00aa00",
-            "code": "#009900",
-        },
-    }
+    #: GUI colour palettes — the single source lives in star/themes.py
+    #: (:data:`BUILT_IN_PALETTES`), shared with the CSS-theme seeder.
+    _PALETTES: Dict[str, Dict[str, str]] = BUILT_IN_PALETTES
 
     def __init__(self, settings: "Settings", initial_path: str = "") -> None:
         super().__init__()
@@ -465,8 +426,12 @@ class StarWindow(AidDialogsMixin, CommandsMixin, TocMixin, HighlightsMixin, Pres
         # Build the base font from family/size + letter/word spacing and
         # the optional dyslexia-friendly family override.
         self.editor.setFont(self._make_editor_font())
-        # Hide the blinking text cursor — this is a reader, not an editor.
-        self.editor.setCursorWidth(0)
+        # Caret browsing: a visible, keyboard-navigable text caret in the
+        # read-only view when enabled (accessibility — keyboard navigation,
+        # selection for highlights, define-word at caret).  Sets both the caret
+        # width and the TextSelectableByKeyboard interaction flag.
+        self.editor.setReadOnly(True)
+        self._apply_caret_mode()
         # Live HTML preview pane shown beside the editor in edit mode
         # (hidden until toggled).  Wrapped with the editor in a splitter so
         # the user can drag the divider.
@@ -1135,6 +1100,17 @@ class StarWindow(AidDialogsMixin, CommandsMixin, TocMixin, HighlightsMixin, Pres
             _mi("Open Themes Folder", "Ctrl+Shift+F", self._qt_open_themes_folder)
         )
         view_menu.addSeparator()
+        view_menu.addAction(
+            _mi(
+                "Caret Browsing",
+                "F7",
+                self._qt_toggle_caret_browsing,
+                tip="Show a movable text caret — keyboard navigation, selection for "
+                "highlights, and define-word at the caret",
+                checkable=True,
+                checked=bool(self.settings.get("qt_caret_browsing", True)),
+            )
+        )
         view_menu.addAction(
             _mi("Change Font…", "Ctrl+Alt+F", self._qt_change_font_dialog)
         )

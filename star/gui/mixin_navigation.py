@@ -719,7 +719,7 @@ class NavigationMixin:
         # Re-render the (possibly updated) Markdown.
         md = self.doc.markdown if self.doc else ""
         self.editor.setReadOnly(True)
-        self.editor.setCursorWidth(0)
+        self._apply_caret_mode()
         self.editor.setHtml(self._md_to_html(md))
         self._apply_block_spacing()
         self._qt_apply_user_highlights()
@@ -1302,7 +1302,7 @@ class NavigationMixin:
             pass
         self._qt_edit_mode = False
         self.editor.setReadOnly(True)
-        self.editor.setCursorWidth(0)
+        self._apply_caret_mode()
         self.editor.setHtml(self._md_to_html(new_md))
         self._apply_block_spacing()
         self._qt_apply_user_highlights()

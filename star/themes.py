@@ -93,17 +93,92 @@ h1 {{ color: {h1}; margin: 8px 0 4px; }}
 h2 {{ color: {h2}; margin: 6px 0 3px; }}
 h3 {{ color: {h3}; margin: 4px 0 2px; }}
 h4 {{ color: {h4}; margin: 4px 0 2px; }}
-code {{ color: {code}; font-family: monospace; }}
-pre  {{ color: {code}; font-family: monospace; white-space: pre-wrap; }}
+h5 {{ color: {h4}; margin: 4px 0 2px; }}
+h6 {{ color: {h4}; margin: 4px 0 2px; }}
+a    {{ color: {link}; }}
+code {{ color: {code}; background: {code_bg}; font-family: monospace; }}
+pre  {{ color: {fg}; background: {code_bg}; font-family: monospace; white-space: pre-wrap; padding: 8px; }}
+blockquote {{ color: {muted}; border-left: 3px solid {muted}; padding-left: 10px; }}
+hr   {{ border: 0; border-top: 1px solid {muted}; }}
+table {{ border-collapse: collapse; }}
+th, td {{ border: 1px solid {muted}; padding: 3px 8px; }}
 b    {{ font-weight: bold; }}
 i    {{ font-style: italic; }}
 p    {{ margin: 4px 0; }}
 """
 
+# The full palette schema.  ``bg/fg/sel/h1–h4/code`` are the original eight keys;
+# ``code_bg`` (code/pre block background), ``link`` (anchor colour), and ``muted``
+# (blockquote / rule / table borders) were added for the Obsidian and Zed themes.
+# Every palette below carries all eleven keys; missing keys fall back to the
+# ``dark`` defaults in :func:`_parse_css_palette`.
+BUILT_IN_PALETTES: Dict[str, Dict[str, str]] = {
+    # ── Obsidian (default) ────────────────────────────────────────────────
+    "obsidian": {
+        "bg": "#1e1e1e", "fg": "#dadada", "sel": "#483d6b",
+        "h1": "#c9b6ff", "h2": "#a98eff", "h3": "#8aa2ff", "h4": "#7bd0c1",
+        "code": "#e0a87a", "code_bg": "#2a2a2a", "link": "#a882ff",
+        "muted": "#7d7d7d",
+    },
+    "obsidian-light": {
+        "bg": "#ffffff", "fg": "#2e3338", "sel": "#d8caff",
+        "h1": "#6c3fd6", "h2": "#8257e5", "h3": "#3a6df0", "h4": "#1a9e8f",
+        "code": "#b5673a", "code_bg": "#f2f0f9", "link": "#7c3aed",
+        "muted": "#8a8f98",
+    },
+    # ── Zed (One Dark / One Light) ────────────────────────────────────────
+    "zed-one-dark": {
+        "bg": "#282c34", "fg": "#abb2bf", "sel": "#3e4451",
+        "h1": "#61afef", "h2": "#c678dd", "h3": "#56b6c2", "h4": "#98c379",
+        "code": "#e5c07b", "code_bg": "#21252b", "link": "#61afef",
+        "muted": "#5c6370",
+    },
+    "zed-one-light": {
+        "bg": "#fafafa", "fg": "#383a42", "sel": "#dbdbdc",
+        "h1": "#4078f2", "h2": "#a626a4", "h3": "#0184bc", "h4": "#50a14f",
+        "code": "#c18401", "code_bg": "#eaeaeb", "link": "#4078f2",
+        "muted": "#a0a1a7",
+    },
+    # ── Original built-ins ────────────────────────────────────────────────
+    "dark": {
+        "bg": "#16181d", "fg": "#c6ccd4", "sel": "#2c313a",
+        "h1": "#82aaff", "h2": "#89ddff", "h3": "#c792ea", "h4": "#f78c6c",
+        "code": "#7fdbab", "code_bg": "#1e2128", "link": "#82aaff",
+        "muted": "#5c6370",
+    },
+    "light": {
+        "bg": "#fafafa", "fg": "#24273a", "sel": "#bcd0f0",
+        "h1": "#1e66f5", "h2": "#209fb5", "h3": "#8839ef", "h4": "#e64553",
+        "code": "#40a02b", "code_bg": "#eceff4", "link": "#1e66f5",
+        "muted": "#8c8fa1",
+    },
+    "contrast": {
+        "bg": "#000000", "fg": "#ffffff", "sel": "#404040",
+        "h1": "#ffff00", "h2": "#00ffff", "h3": "#ff80ff", "h4": "#80ff80",
+        "code": "#00ff80", "code_bg": "#1a1a1a", "link": "#00ffff",
+        "muted": "#c0c0c0",
+    },
+    "phosphor": {
+        "bg": "#001200", "fg": "#00cc00", "sel": "#004400",
+        "h1": "#00ff00", "h2": "#00ee00", "h3": "#00cc00", "h4": "#00aa00",
+        "code": "#009900", "code_bg": "#002600", "link": "#00ff00",
+        "muted": "#008800",
+    },
+}
+
+#: Built-in theme names in cycle order (Obsidian first; it is the default).
+BUILT_IN_THEME_NAMES: List[str] = list(BUILT_IN_PALETTES.keys())
+
 
 def _palette_to_css(pal: Dict[str, str]) -> str:
-    """Format *_CSS_TEMPLATE* with the values from a palette dict."""
-    return _CSS_TEMPLATE.format(**pal)
+    """Format *_CSS_TEMPLATE* with the values from a palette dict.
+
+    Missing keys (e.g. a user palette predating ``code_bg``/``link``/``muted``)
+    fall back to the ``dark`` palette so formatting never raises.
+    """
+    full = dict(BUILT_IN_PALETTES["dark"])
+    full.update(pal)
+    return _CSS_TEMPLATE.format(**full)
 
 
 def _parse_css_palette(css: str) -> Dict[str, str]:
@@ -116,17 +191,7 @@ def _parse_css_palette(css: str) -> Dict[str, str]:
     # Start with dark-theme defaults so every key is always present.
     from copy import deepcopy as _dc
 
-    _DARK = {
-        "bg": "#16181d",
-        "fg": "#c6ccd4",
-        "sel": "#2c313a",
-        "h1": "#82aaff",
-        "h2": "#89ddff",
-        "h3": "#c792ea",
-        "h4": "#f78c6c",
-        "code": "#7fdbab",
-    }
-    pal = _dc(_DARK)
+    pal = _dc(BUILT_IN_PALETTES["dark"])
 
     _val = r"([#\w][\w(),. %]*)"  # loose color value pattern
 
@@ -156,12 +221,29 @@ def _parse_css_palette(css: str) -> Dict[str, str]:
             if c:
                 pal[f"h{lvl}"] = c.group(1).strip().rstrip(";")
 
-    # code { color: X; }
+    # code { color: X; background: Y; }
     m = re.search(r"\bcode\b\s*\{([^}]*)\}", css, re.DOTALL | re.IGNORECASE)
     if m:
         c = re.search(r"(?<!background-)color\s*:\s*" + _val, m.group(1), re.I)
         if c:
             pal["code"] = c.group(1).strip().rstrip(";")
+        cb = re.search(r"background(?:-color)?\s*:\s*" + _val, m.group(1), re.I)
+        if cb:
+            pal["code_bg"] = cb.group(1).strip().rstrip(";")
+
+    # a { color: X; }  →  link
+    m = re.search(r"(?<![\w-])a\s*\{([^}]*)\}", css, re.DOTALL | re.IGNORECASE)
+    if m:
+        c = re.search(r"(?<!background-)color\s*:\s*" + _val, m.group(1), re.I)
+        if c:
+            pal["link"] = c.group(1).strip().rstrip(";")
+
+    # blockquote { color: X; }  →  muted
+    m = re.search(r"\bblockquote\b\s*\{([^}]*)\}", css, re.DOTALL | re.IGNORECASE)
+    if m:
+        c = re.search(r"(?<!background-)color\s*:\s*" + _val, m.group(1), re.I)
+        if c:
+            pal["muted"] = c.group(1).strip().rstrip(";")
 
     return pal
 
@@ -185,57 +267,15 @@ def _load_css_themes() -> Dict[str, Dict[str, Any]]:
 
 
 def _seed_default_css_themes() -> None:
-    """Write the four built-in palettes as CSS files in *THEMES_DIR*.
+    """Write the built-in palettes (:data:`BUILT_IN_PALETTES`) as CSS files in
+    *THEMES_DIR*.
 
     Files are only written if they do not already exist, so hand-edited
     customizations are never overwritten.  Each generated file serves as a
     ready-made starting point for user customization — copy, rename, and
     edit to create a new theme.
     """
-    # Import the built-in palettes lazily to avoid a forward-reference at
-    # module level (StarWindow._PALETTES is defined inside _run_qt_gui).
-    _BUILT_IN: Dict[str, Dict[str, str]] = {
-        "dark": {
-            "bg": "#16181d",
-            "fg": "#c6ccd4",
-            "sel": "#2c313a",
-            "h1": "#82aaff",
-            "h2": "#89ddff",
-            "h3": "#c792ea",
-            "h4": "#f78c6c",
-            "code": "#7fdbab",
-        },
-        "light": {
-            "bg": "#fafafa",
-            "fg": "#24273a",
-            "sel": "#bcd0f0",
-            "h1": "#1e66f5",
-            "h2": "#209fb5",
-            "h3": "#8839ef",
-            "h4": "#e64553",
-            "code": "#40a02b",
-        },
-        "contrast": {
-            "bg": "#000000",
-            "fg": "#ffffff",
-            "sel": "#404040",
-            "h1": "#ffff00",
-            "h2": "#00ffff",
-            "h3": "#ff80ff",
-            "h4": "#80ff80",
-            "code": "#00ff80",
-        },
-        "phosphor": {
-            "bg": "#001200",
-            "fg": "#00cc00",
-            "sel": "#004400",
-            "h1": "#00ff00",
-            "h2": "#00ee00",
-            "h3": "#00cc00",
-            "h4": "#00aa00",
-            "code": "#009900",
-        },
-    }
+    _BUILT_IN = BUILT_IN_PALETTES
     try:
         THEMES_DIR.mkdir(parents=True, exist_ok=True)
     except OSError:

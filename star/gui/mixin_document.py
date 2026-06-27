@@ -8,7 +8,6 @@ lazily by main_window.py (itself imported by runner.py after the _QT guard).
 from .._runtime import *  # noqa: F401,F403
 from ..documents import Document, _build_word_map, load_document
 from ..stats import _record_library
-from ..tui import THEME_NAMES
 
 
 class DocumentMixin:
@@ -225,39 +224,140 @@ class DocumentMixin:
 
     @property
     def _all_theme_names(self) -> List[str]:
-        """Built-in theme names followed by any custom CSS theme names."""
-        extra = [n for n in sorted(self._css_themes) if n not in THEME_NAMES]
-        return THEME_NAMES + extra
+        """Built-in palette names (cycle order) then any custom CSS theme names."""
+        builtin = list(self._PALETTES)
+        extra = [n for n in sorted(self._css_themes) if n not in builtin]
+        return builtin + extra
+
+    def _md_inline(self, text: str) -> str:
+        """Apply inline Markdown (images→alt, links, code, bold, italic)."""
+        import html as _h
+
+        # images → alt text (Qt can't fetch remote images; badges become labels)
+        text = re.sub(r"!\[([^\]]*)\]\([^)]*\)", r"\1", text)
+        # links → anchors
+        text = re.sub(r"\[([^\]]+)\]\(([^)\s]+)[^)]*\)", r'<a href="\2">\1</a>', text)
+        # inline code (content escaped so e.g. <html> shows literally)
+        text = re.sub(r"`([^`]+)`", lambda m: "<code>" + _h.escape(m.group(1)) + "</code>", text)
+        text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
+        text = re.sub(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)", r"<i>\1</i>", text)
+        return text
+
+    def _md_body_to_html(self, md: str) -> str:
+        """Render Markdown block structure to QTextEdit-friendly HTML.
+
+        Handles fenced code blocks, ATX headings (h1–h6), pipe tables, ordered /
+        unordered lists, blockquotes, horizontal rules, and paragraphs — enough
+        for star's documents (and its own README) to render with real structure.
+        """
+        import html as _h
+
+        lines = (md or "").split("\n")
+        out: List[str] = []
+        list_open: Optional[str] = None
+        i, n = 0, len(lines)
+
+        def close_list() -> None:
+            nonlocal list_open
+            if list_open:
+                out.append(f"</{list_open}>")
+                list_open = None
+
+        while i < n:
+            line = lines[i]
+            stripped = line.strip()
+
+            if stripped.startswith("```"):  # fenced code block
+                close_list()
+                i += 1
+                code: List[str] = []
+                while i < n and not lines[i].strip().startswith("```"):
+                    code.append(_h.escape(lines[i]))
+                    i += 1
+                i += 1  # consume closing fence
+                out.append("<pre>" + "\n".join(code) + "</pre>")
+                continue
+
+            # pipe table: a row followed by a |---|---| separator line
+            if (
+                "|" in line
+                and i + 1 < n
+                and "-" in lines[i + 1]
+                and re.match(r"^\s*\|?[\s:|-]+\|?\s*$", lines[i + 1])
+            ):
+                close_list()
+                cells = [c.strip() for c in stripped.strip("|").split("|")]
+                rows = ["<tr>" + "".join(f"<th>{self._md_inline(c)}</th>" for c in cells) + "</tr>"]
+                i += 2
+                while i < n and "|" in lines[i] and lines[i].strip():
+                    body_cells = [c.strip() for c in lines[i].strip().strip("|").split("|")]
+                    rows.append(
+                        "<tr>" + "".join(f"<td>{self._md_inline(c)}</td>" for c in body_cells) + "</tr>"
+                    )
+                    i += 1
+                out.append("<table>" + "".join(rows) + "</table>")
+                continue
+
+            m = re.match(r"^(#{1,6})\s+(.*)$", line)  # ATX heading
+            if m:
+                close_list()
+                lvl = len(m.group(1))
+                out.append(f"<h{lvl}>{self._md_inline(m.group(2))}</h{lvl}>")
+                i += 1
+                continue
+
+            if re.match(r"^\s*([-*_])\1\1+\s*$", line):  # horizontal rule
+                close_list()
+                out.append("<hr>")
+                i += 1
+                continue
+
+            if stripped.startswith(">"):  # blockquote
+                close_list()
+                quote: List[str] = []
+                while i < n and lines[i].strip().startswith(">"):
+                    quote.append(self._md_inline(lines[i].strip().lstrip(">").strip()))
+                    i += 1
+                out.append("<blockquote>" + "<br>".join(quote) + "</blockquote>")
+                continue
+
+            ulm = re.match(r"^\s*[-*+]\s+(.*)$", line)
+            olm = re.match(r"^\s*\d+\.\s+(.*)$", line)
+            if ulm or olm:
+                want = "ul" if ulm else "ol"
+                if list_open != want:
+                    close_list()
+                    out.append(f"<{want}>")
+                    list_open = want
+                out.append(f"<li>{self._md_inline((ulm or olm).group(1))}</li>")
+                i += 1
+                continue
+
+            if not stripped:  # blank line
+                close_list()
+                i += 1
+                continue
+
+            close_list()
+            out.append(f"<p>{self._md_inline(line)}</p>")
+            i += 1
+
+        close_list()
+        return "\n".join(out)
 
     def _md_to_html(self, md: str) -> str:
         """Convert internal Markdown to styled HTML for QTextEdit.
 
-        When the active theme came from a CSS file the raw CSS is
-        injected verbatim so every selector the user wrote is honored.
-        For built-in palettes the CSS is generated from the palette dict.
+        When the active theme came from a CSS file the raw CSS is injected
+        verbatim so every selector the user wrote is honored.  For built-in
+        palettes the CSS is generated from the palette dict (all 11 keys —
+        ``code_bg`` / ``link`` / ``muted`` fall back gracefully).
         """
-        theme_name = self.settings.get("theme", "dark")
+        theme_name = self.settings.get("theme", "obsidian")
         pal = self._effective_palette(theme_name)
         custom_css: str = str(pal.get("_css", ""))
 
-        out: List[str] = []
-        for line in (md or "").splitlines():
-            if line.startswith("# "):
-                out.append(f"<h1>{line[2:]}</h1>")
-            elif line.startswith("## "):
-                out.append(f"<h2>{line[3:]}</h2>")
-            elif line.startswith("### "):
-                out.append(f"<h3>{line[4:]}</h3>")
-            elif line.startswith("#### "):
-                out.append(f"<h4>{line[5:]}</h4>")
-            elif not line.strip():
-                out.append("<br>")
-            else:
-                line = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", line)
-                line = re.sub(r"\*(.+?)\*", r"<i>\1</i>", line)
-                line = re.sub(r"`(.+?)`", r"<code>\1</code>", line)
-                out.append(f"<p>{line}</p>")
-        body = "\n".join(out)
+        body = self._md_body_to_html(md)
         # Bionic-reading: embolden the leading part of each word so the
         # eye is pulled forward through the text (a dyslexia reading aid).
         if self.settings.get("qt_bionic_reading", False):
@@ -266,14 +366,24 @@ class DocumentMixin:
         if custom_css:
             style = custom_css
         else:
+            muted = pal.get("muted", "#7d7d7d")
+            code_bg = pal.get("code_bg", "#2a2a2a")
+            link = pal.get("link", pal["h1"])
             style = (
                 f"body{{background:{pal['bg']};color:{pal['fg']};"
                 f"      font-family:{fam},sans-serif;margin:14px;}}"
                 f"h1{{color:{pal['h1']}}}"
                 f"h2{{color:{pal['h2']}}}"
                 f"h3{{color:{pal['h3']}}}"
-                f"h4{{color:{pal['h4']}}}"
-                f"code{{color:{pal['code']};font-family:monospace;}}"
+                f"h4,h5,h6{{color:{pal['h4']}}}"
+                f"a{{color:{link};}}"
+                f"code{{color:{pal['code']};background:{code_bg};font-family:monospace;}}"
+                f"pre{{color:{pal['fg']};background:{code_bg};"
+                f"     font-family:monospace;white-space:pre-wrap;padding:8px;}}"
+                f"blockquote{{color:{muted};border-left:3px solid {muted};padding-left:10px;}}"
+                f"hr{{border:0;border-top:1px solid {muted};}}"
+                f"th,td{{border:1px solid {muted};padding:3px 8px;}}"
+                f"th{{color:{pal['h2']};}}"
             )
         return (
             "<html><head><style>" + style + "</style></head>"

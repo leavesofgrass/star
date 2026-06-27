@@ -285,7 +285,7 @@ def _try_render_qt(
     except Exception:
         return False
 
-    dark = theme not in ("light", "sepia")
+    dark = "light" not in theme and theme != "sepia"
     bg = QColor(30, 30, 30) if dark else QColor(245, 245, 245)
     fg_dim = QColor(90, 90, 90) if dark else QColor(180, 180, 180)
     fg_hi = QColor(240, 240, 240) if dark else QColor(20, 20, 20)
@@ -342,7 +342,7 @@ def _try_render_pillow(
     try:
         from PIL import Image, ImageDraw, ImageFont  # type: ignore[import]
 
-        dark = theme not in ("light", "sepia")
+        dark = "light" not in theme and theme != "sepia"
         bg_col = (30, 30, 30) if dark else (245, 245, 245)
         dim_col = (90, 90, 90) if dark else (180, 180, 180)
         hi_col = (240, 240, 240) if dark else (20, 20, 20)

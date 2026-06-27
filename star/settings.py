@@ -6,7 +6,7 @@ from ._runtime import *  # noqa: F401,F403
 # =============================================================================
 
 DEFAULTS: Dict[str, Any] = {
-    "theme": "dark",
+    "theme": "obsidian",
     # UI chrome language (menus, toolbar, docks).  ISO-639-1 code of a catalog
     # in star/locale/ ("en" = English source, no catalog needed).  See star/i18n.py.
     "ui_language": "en",
@@ -96,6 +96,13 @@ DEFAULTS: Dict[str, Any] = {
     "qt_line_height": 1.5,  # line-height multiplier (1.0 = single)
     "qt_letter_spacing": 0.0,  # extra letter spacing, % of font size (0 = normal)
     "qt_word_spacing": 0.0,  # extra word spacing in px (0 = normal)
+    # ── Caret browsing (Qt GUI) ──────────────────────────────────────
+    # Show a visible, freely-movable text caret in the read-only document view
+    # so the user can navigate by keyboard (arrows / Ctrl+arrows / Home-End),
+    # select passages for highlighting, and look up the word under the caret
+    # (Define Word). On by default for accessibility; toggle with F7 or
+    # View ▸ Caret Browsing. False restores the clean caret-free reader view.
+    "qt_caret_browsing": True,
     # ── JAWS-style bare-Ctrl tap to play/pause (Qt GUI) ──────────────
     # Tapping (pressing and releasing) the Ctrl key on its own toggles speech,
     # mirroring the JAWS "Ctrl silences speech" habit.  Using Ctrl as a
