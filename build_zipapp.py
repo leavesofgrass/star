@@ -52,9 +52,7 @@ carry PyQt6/pymupdf.)
 
 import argparse
 import hashlib
-import json
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -64,21 +62,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 BOOTSTRAP = ROOT / "tools" / "zipapp_bootstrap.py"
-BUILD_VENDOR = ROOT / "tools" / "build-vendor.py"
 DIST_DIR = ROOT / "dist"
 BUILD_DIR = ROOT / "build"
 STAGING_DIR = BUILD_DIR / "zipapp-staging"
 OUTPUT = DIST_DIR / "star.pyz"
-OUTPUT_PRIVATE = DIST_DIR / "star-private.pyz"
 
 # Where the bundled tree is stored inside the zip (as data, never imported
 # from there).  Must stay in sync with tools/zipapp_bootstrap.py.
 PAYLOAD_PREFIX = "_payload/"
-# Private-artifact payload prefixes (also mirrored in tools/zipapp_bootstrap.py).
-VENDOR_PREFIX = "_vendor/"
-DOCS_PREFIX = "_docs/"
-MANIFEST_MEMBER = "_private/manifest.json"
-BUILDVENDOR_MEMBER = "_private/build-vendor.py"
 
 
 def info(msg: str) -> None:
@@ -139,70 +130,22 @@ def iter_payload_files():
             yield path, path.relative_to(STAGING_DIR).as_posix()
 
 
-def compute_build_id(extras: "list" = ()) -> str:
+def compute_build_id() -> str:
     """A stable id for this build: platform + Python + a content hash.
 
     Naming the extraction cache after this id means a freshly built .pyz
-    re-extracts instead of silently reusing an older bundle.  *extras* (docs /
-    vendor / private members) are folded in so a private rebuild also re-extracts.
+    re-extracts instead of silently reusing an older bundle.
     """
     digest = hashlib.sha256()
     for abs_path, rel in iter_payload_files():
         digest.update(rel.encode("utf-8"))
-        digest.update(str(abs_path.stat().st_size).encode("utf-8"))
-    for abs_path, arc in extras:
-        digest.update(arc.encode("utf-8"))
         digest.update(str(abs_path.stat().st_size).encode("utf-8"))
     short = digest.hexdigest()[:12]
     pyver = f"py{sys.version_info.major}{sys.version_info.minor}"
     return f"{sys.platform}-{pyver}-{short}"
 
 
-def _read_version() -> str:
-    try:
-        m = re.search(
-            r'^version\s*=\s*"([^"]+)"',
-            (ROOT / "pyproject.toml").read_text(encoding="utf-8"),
-            re.M,
-        )
-        return m.group(1) if m else ""
-    except OSError:
-        return ""
-
-
-def gather_extras(with_vendor: bool, vendor_dir: Path) -> "list":
-    """Return ``[(abs_path, archive_arcname)]`` for the private artifact's extra
-    members: documentation, the bundled build-vendor.py fetcher, and (in bundle
-    mode) the whole vendor/ native-engine tree."""
-    extras: list = []
-    for rel, src in (
-        ("README.md", ROOT / "README.md"),
-        ("CHANGELOG.md", ROOT / "star" / "CHANGELOG.md"),
-        ("LICENSE", ROOT / "LICENSE"),
-    ):
-        if src.is_file():
-            extras.append((src, DOCS_PREFIX + rel))
-    docs_dir = ROOT / "docs"
-    if docs_dir.is_dir():
-        for f in sorted(docs_dir.rglob("*")):
-            if f.is_file():
-                extras.append((f, DOCS_PREFIX + "docs/" + f.relative_to(docs_dir).as_posix()))
-    if BUILD_VENDOR.is_file():
-        extras.append((BUILD_VENDOR, BUILDVENDOR_MEMBER))
-    if with_vendor:
-        if not vendor_dir.is_dir():
-            raise FileNotFoundError(
-                f"--with-vendor: vendor dir not found: {vendor_dir}\n"
-                "Build it first:  python tools/build-vendor.py  (needs 7-Zip), "
-                "or pass --fetch-on-first-run to download engines at first launch."
-            )
-        for f in sorted(vendor_dir.rglob("*")):
-            if f.is_file():
-                extras.append((f, VENDOR_PREFIX + f.relative_to(vendor_dir).as_posix()))
-    return extras
-
-
-def build_pyz(build_id: str, extras: "list" = (), manifest: "dict | None" = None) -> None:
+def build_pyz(build_id: str) -> None:
     """Assemble the .pyz atomically: write to a temp file, then publish."""
     DIST_DIR.mkdir(parents=True, exist_ok=True)
     bootstrap_src = BOOTSTRAP.read_text(encoding="utf-8")
@@ -225,11 +168,6 @@ def build_pyz(build_id: str, extras: "list" = (), manifest: "dict | None" = None
                 for abs_path, rel in iter_payload_files():
                     zf.write(abs_path, PAYLOAD_PREFIX + rel)
                     count += 1
-                for abs_path, arc in extras:
-                    zf.write(abs_path, arc)
-                    count += 1
-                if manifest is not None:
-                    zf.writestr(MANIFEST_MEMBER, json.dumps(manifest, indent=2))
         info(f"Bundled {count} payload files (build id: {build_id})")
         try:
             os.chmod(tmp_path, 0o755)
@@ -299,15 +237,11 @@ def smoke_test(build_id: str) -> None:
     cleanly), then we directly confirm the compiled extensions load.
     """
     info(f"Smoke test: {OUTPUT.name} --list-themes")
-    # Never let the smoke test trigger a first-run engine download (fetch-mode
-    # private artifact); we are only verifying the payload extracts and imports.
-    smoke_env = dict(os.environ, STAR_SKIP_VENDOR_FETCH="1")
     proc = subprocess.run(
         [sys.executable, str(OUTPUT), "--list-themes"],
         capture_output=True,
         text=True,
         timeout=300,
-        env=smoke_env,
     )
     out = (proc.stdout or "").strip()
     if proc.returncode != 0 or not out:
@@ -355,58 +289,19 @@ def main() -> int:
         action="store_true",
         help="Skip the post-build smoke test (not recommended).",
     )
-    parser.add_argument(
-        "--private",
-        action="store_true",
-        help="Build the PRIVATE artifact (dist/star-private.pyz): bundles docs + "
-        "first-run native-engine setup. Fetch mode unless --with-vendor.",
-    )
-    parser.add_argument(
-        "--with-vendor",
-        action="store_true",
-        help="Bundle the Windows native engines from vendor/ for a fully offline "
-        "private artifact (implies --private; large). Run tools/build-vendor.py first.",
-    )
-    parser.add_argument(
-        "--fetch-on-first-run",
-        action="store_true",
-        help="Private artifact that downloads native engines on first launch "
-        "instead of bundling them (implies --private; smaller file).",
-    )
-    parser.add_argument(
-        "--vendor-dir",
-        default=str(ROOT / "vendor"),
-        help="vendor/ tree to bundle with --with-vendor (default: ./vendor).",
-    )
     args = parser.parse_args()
 
     if not BOOTSTRAP.is_file():
         raise FileNotFoundError(f"bootstrap not found: {BOOTSTRAP}")
-
-    private = args.private or args.with_vendor or args.fetch_on_first_run
-    extras: list = []
-    manifest = None
-    global OUTPUT
-    if private:
-        OUTPUT = OUTPUT_PRIVATE
-        mode = "bundle" if args.with_vendor else "fetch"
-        info(f"PRIVATE artifact, mode={mode} -> {OUTPUT.name}")
-        extras = gather_extras(args.with_vendor, Path(args.vendor_dir))
-        manifest = {
-            "app": "star",
-            "version": _read_version(),
-            "mode": mode,
-            "has_vendor": bool(args.with_vendor),
-        }
 
     try:
         info("Creating clean staging directory")
         clean_staging()
         info("Installing star and the [all] extras into staging")
         pip_install_all()
-        build_id = compute_build_id(extras)
-        info(f"Assembling {OUTPUT.name}")
-        build_pyz(build_id, extras, manifest)
+        build_id = compute_build_id()
+        info("Assembling star.pyz")
+        build_pyz(build_id)
         if not args.no_smoke_test:
             smoke_test(build_id)
     finally:
