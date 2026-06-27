@@ -8,6 +8,33 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.17] — Unreleased
+
+In progress. More is being batched into this release before it ships.
+
+### ✨ Added
+
+- **Obsidian & Zed themes.** Four new GUI color themes — **`obsidian`** (now the
+  default), `obsidian-light`, `zed-one-dark`, and `zed-one-light` — with
+  authentic palettes. The theme schema gained code-block background, link, and
+  blockquote/table-border colors; existing themes and user CSS files are
+  unaffected and fall back gracefully. Cycle with **F5** or pick via **View ▸
+  Choose Theme**. (Existing users keep their saved theme; only fresh installs
+  default to Obsidian.)
+- **Caret browsing (accessibility).** A visible, keyboard-navigable text caret in
+  the document view: move freely with the arrow keys (character / word / line /
+  Home-End), select passages for highlighting with Shift, and look up the word
+  under the caret with **Define Word (Ctrl+D)**. On by default; toggle with **F7**
+  or **View ▸ Caret Browsing**. Turning it off restores the clean, caret-free
+  reader view (mouse selection still works).
+
+### 🔧 Changed
+
+- **Richer document rendering.** The Qt Markdown renderer now lays out fenced
+  code blocks, tables, ordered/unordered lists, blockquotes, horizontal rules,
+  headings up to level 6, and links — so documents (and the themes applied to
+  them) render with real structure instead of plain paragraphs.
+
 ## [0.1.16] 2026-06-26
 
 Adds HTML and EPUB export, and opens star up to third-party plugins: TTS
