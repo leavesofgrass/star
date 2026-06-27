@@ -8,10 +8,17 @@ dist/
 vendor/
 
 # Private zipapp build — the local-only star-private.pyz machinery (build
-# orchestrator, private bootstrap, native-engine fetcher) and its test. Kept
+# orchestrator, private bootstrap, native-engine fetcher) and its tests. Kept
 # out of the public repo; the built artifact itself lands in dist/ (above).
+# The canonical home is tools/_private/; the loose filenames are also ignored so
+# the build can never be re-tracked regardless of where it lives in the tree.
 tools/_private/
+build_private_pyz.py
+tools/private_bootstrap.py
+tools/verify_private_pyz.py
+tests/test_private_pyz.py
 tests/test_zipapp_private.py
+*-private.pyz
 
 # PyInstaller work dir, staged Whisper model, zipapp staging, pip temp, etc.
 build/
