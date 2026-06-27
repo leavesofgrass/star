@@ -9,7 +9,14 @@ from .._runtime import *  # noqa: F401,F403
 from ..documents import _build_word_map
 from ..feeds import _FEEDPARSER, fetch_feed
 from ..spellcheck import _SPELL, SpellHighlighter, misspelled_words
-from ..library import add_library_folder, library_folders, scan_library
+from ..library import (
+    add_library_folder,
+    library_folders,
+    progress_for,
+    record_progress,
+    scan_library,
+    sidecars_by_folder,
+)
 from ..stats import _fmt_duration, _format_reading_stats, _library_entries
 from ..dictionary import (
     availability as _dict_availability,
@@ -1177,10 +1184,15 @@ class NavigationMixin:
                 pct = stats.get(path, {}).get("pct", 0)
             return int(pct or 0), float(stats.get(path, {}).get("seconds", 0.0))
 
+        sidecars = sidecars_by_folder(self.settings)
         combined: List[Dict[str, Any]] = []
         folder_paths: set = set()
         for e in scan_library(self.settings):
             pct, secs = _progress(e["path"])
+            # Prefer synced sidecar progress (it reflects reading on any machine).
+            side = sidecars.get(e["folder"], {}).get(e["rel"].replace("\\", "/"))
+            if side and "pct" in side:
+                pct = int(side.get("pct", pct) or 0)
             folder_paths.add(e["path"])
             combined.append(
                 {
@@ -1424,6 +1436,13 @@ class NavigationMixin:
             for k in evict:
                 del positions[k]
         self.settings.set("reading_positions", positions)
+        # Mirror progress into the library-folder sidecar so it syncs across
+        # machines (no-op when the document is not in a library folder).
+        record_progress(
+            self.settings,
+            self.doc.path,
+            {"offset": offset, "pct": pct, "ts": positions[self.doc.path]["ts"]},
+        )
 
     def _qt_restore_reading_position(self) -> None:
         """Scroll to the saved position for the current document and
@@ -1434,6 +1453,12 @@ class NavigationMixin:
         if not self.settings.get("tts_auto_resume", True):
             return
         saved = self.settings.get("reading_positions", {}).get(self.doc.path)
+        # A library-folder document may carry newer progress in its synced
+        # sidecar (e.g. read further on another machine) — prefer whichever is
+        # most recent by timestamp.
+        side = progress_for(self.settings, self.doc.path)
+        if side and (not saved or str(side.get("ts", "")) > str(saved.get("ts", ""))):
+            saved = side
         if not saved:
             return
         target_offset = int(saved.get("offset", 0))

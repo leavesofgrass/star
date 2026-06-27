@@ -34,7 +34,10 @@ In progress. More is being batched into this release before it ships.
   Open Folder as Library…** (or run `star <folder>` / open a folder from the
   file dialog), then browse everything in **File ▸ Library** alongside your
   recently-opened files, with reading progress. Multiple library folders are
-  supported.
+  supported. **Reading progress syncs too:** each library folder keeps a
+  `.star/progress.json` sidecar keyed by relative path, so where you left off in
+  a document follows it across machines — read on your laptop, pick up on your
+  desktop.
 
 ### 🔧 Changed
 

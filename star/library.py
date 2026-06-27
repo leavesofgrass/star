@@ -117,3 +117,87 @@ def scan_library(settings: Settings, *, recursive: bool = True) -> List[Dict[str
             entries.append(e)
     entries.sort(key=lambda e: (e["folder"].lower(), e["rel"].lower()))
     return entries
+
+
+# =============================================================================
+# Synced reading progress — a .star/progress.json sidecar per library folder
+# =============================================================================
+#
+# Reading progress is keyed by absolute path in settings.json, which is
+# machine-specific (a synced folder mounts at different paths on each machine).
+# To make progress follow a document across machines, each library folder also
+# carries a ``.star/progress.json`` sidecar keyed by the document's path
+# *relative* to the folder — so the sidecar syncs with the folder and progress
+# travels with the file.  (The ``.star`` dir is in _SKIP_DIRS, so it is never
+# itself scanned for documents.)
+
+def _sidecar_file(folder: "str | Path") -> Path:
+    return Path(folder) / ".star" / "progress.json"
+
+
+def load_sidecar(folder: "str | Path") -> Dict[str, Any]:
+    """Return ``{rel_posix: {offset, pct, ts}}`` from *folder*'s sidecar ({} if none)."""
+    try:
+        raw = json.loads(_sidecar_file(folder).read_text(encoding="utf-8"))
+        return raw if isinstance(raw, dict) else {}
+    except (OSError, json.JSONDecodeError, ValueError):
+        return {}
+
+
+def _write_sidecar(folder: "str | Path", data: Dict[str, Any]) -> bool:
+    try:
+        f = _sidecar_file(folder)
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+        return True
+    except OSError:
+        return False
+
+
+def folder_for(settings: Settings, path: "str | Path") -> Optional[Tuple[str, str]]:
+    """Return ``(folder, rel_posix)`` for the most specific (deepest) library
+    folder that contains *path*, or ``None`` if it is not in any library folder."""
+    try:
+        p = Path(path).expanduser().resolve()
+    except OSError:
+        return None
+    best: Optional[Tuple[Path, Path]] = None
+    for folder in library_folders(settings):
+        try:
+            root = Path(folder).expanduser().resolve()
+            rel = p.relative_to(root)
+        except (ValueError, OSError):
+            continue
+        if best is None or len(str(root)) > len(str(best[0])):
+            best = (root, rel)
+    if best is None:
+        return None
+    return str(best[0]), best[1].as_posix()
+
+
+def record_progress(settings: Settings, path: "str | Path", entry: Dict[str, Any]) -> bool:
+    """Write *entry* (e.g. ``{offset, pct, ts}``) for *path* into its library
+    folder's sidecar, keyed by relative path.  No-op (returns False) when *path*
+    is not inside any library folder."""
+    fr = folder_for(settings, path)
+    if not fr:
+        return False
+    folder, rel = fr
+    data = load_sidecar(folder)
+    data[rel] = entry
+    return _write_sidecar(folder, data)
+
+
+def progress_for(settings: Settings, path: "str | Path") -> Optional[Dict[str, Any]]:
+    """Return the synced sidecar progress entry for *path*, or ``None``."""
+    fr = folder_for(settings, path)
+    if not fr:
+        return None
+    folder, rel = fr
+    return load_sidecar(folder).get(rel)
+
+
+def sidecars_by_folder(settings: Settings) -> Dict[str, Dict[str, Any]]:
+    """Pre-load every library folder's sidecar once: ``{folder: {rel: entry}}``.
+    Lets a bulk library listing look up progress without re-reading files."""
+    return {folder: load_sidecar(folder) for folder in library_folders(settings)}
