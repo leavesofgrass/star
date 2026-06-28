@@ -8,6 +8,32 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.18] 2026-06-28
+
+A clearer toolbar and a working out-of-the-box first screen.
+
+### ✨ Added
+
+- **Icon toolbar.** Every toolbar button is now a hand-drawn vector icon with a
+  descriptive tooltip (including its keyboard shortcut), replacing the old mix of
+  text labels and stray Unicode glyphs. The icons are drawn programmatically and
+  tinted to the system theme — no image files — so the toolbar looks consistent
+  on every platform. Each button keeps its text as the accessible name, so screen
+  readers still announce it.
+- **Readable welcome page.** The startup welcome screen is now a real document:
+  press **Space** to hear it read aloud, move the caret with the arrow keys,
+  select to highlight, and look words up with **Ctrl+D** — every control works on
+  the very first screen instead of a static splash.
+
+### 🐛 Fixed
+
+- **F1 (Help) now opens the README on every install.** It previously looked for
+  the README next to the GUI modules and failed for `pip`/wheel/zipapp installs
+  (it only worked from a source checkout). The README and welcome page now ship
+  inside the package and are resolved reliably wherever star is installed.
+
+---
+
 ## [0.1.17] 2026-06-27
 
 Obsidian & Zed themes (Obsidian is the new default), caret browsing for free

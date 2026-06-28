@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "star-reader"
-version = "0.1.17"
+version = "0.1.18"
 description = "star — Speaking Terminal Access Reader: an accessible document reader with built-in text-to-speech"
 readme = "README.md"
 requires-python = ">=3.11"
