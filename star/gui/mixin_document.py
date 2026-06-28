@@ -163,8 +163,11 @@ class DocumentMixin:
                 pass  # word map is best-effort; TTS works without it
 
         threading.Thread(target=_build, daemon=True).start()
-        # Record this document in the library / bookshelf.
-        _record_library(self.settings, doc)
+        # Record this document in the library / bookshelf — but not the bundled
+        # welcome page, which auto-loads at startup and would otherwise clutter
+        # the library and recents on every launch.
+        if not self._is_welcome(doc):
+            _record_library(self.settings, doc)
         self.statusBar().showMessage(f"Opened: {doc.title}")
 
     # ── Word-position mapping ─────────────────────────────────────────

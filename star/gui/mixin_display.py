@@ -224,13 +224,19 @@ class DisplayMixin:
         navigation, highlighting, and search — far more useful than a
         limited modal dialog.
         """
-        readme = Path(__file__).parent / "README.md"
-        if readme.exists():
+        readme = self._bundled_path("README.md")
+        if readme is not None:
             self._open_path(str(readme))
         else:
-            self.statusBar().showMessage(
-                f"{APP_TITLE} v{APP_VERSION} — README.md not found", 6000
-            )
+            # Should not happen (README ships in package-data), but fall back to
+            # the welcome page rather than leaving the user with no help.
+            welcome = self._welcome_path
+            if welcome is not None:
+                self._open_path(str(welcome))
+            else:
+                self.statusBar().showMessage(
+                    f"{APP_TITLE} v{APP_VERSION} — README.md not found", 6000
+                )
 
     def _set_font(self, family: str = "", size: int = 0) -> None:
         """Change the display font family and/or size.

@@ -21,6 +21,7 @@ from ..stats import (
 )
 from ..themes import BUILT_IN_PALETTES, _load_css_themes, _seed_default_css_themes
 from ..tts import TTSManager, _SCReader
+from .icons import make_icon
 from ._qtcompat import (
     _LEFT_DOCK,
     _QUEUED,
@@ -411,6 +412,40 @@ class StarWindow(AidDialogsMixin, CommandsMixin, TocMixin, HighlightsMixin, Pres
 
         if initial_path:
             self._open_path(initial_path)
+        else:
+            # Load the bundled welcome page as a *real document* so speech,
+            # navigation, highlighting, and define-word all work on the very
+            # first screen.  Falls back to the static splash if it is missing.
+            welcome = self._welcome_path
+            if welcome is not None:
+                self._open_path(str(welcome))
+
+    # ── Bundled documentation (README, welcome) ───────────────────────
+    def _bundled_path(self, name: str) -> "Optional[Path]":
+        """Resolve a bundled doc by filename, wherever star is installed.
+
+        Searches the package root (wheel / pyz install), then the repo root
+        (running from source), then this gui/ dir (legacy)."""
+        here = Path(__file__).resolve().parent           # star/gui/
+        for cand in (here.parent / name, here.parent.parent / name, here / name):
+            if cand.is_file():
+                return cand
+        return None
+
+    @property
+    def _welcome_path(self) -> "Optional[Path]":
+        return self._bundled_path("welcome.md")
+
+    def _is_welcome(self, doc: Any) -> bool:
+        """True if *doc* is the bundled welcome page (kept out of the library)."""
+        wp = self._welcome_path
+        path = getattr(doc, "path", "") or ""
+        if not wp or not path:
+            return False
+        try:
+            return Path(path).resolve() == wp.resolve()
+        except OSError:
+            return False
 
     # ── UI construction ───────────────────────────────────────────────
 
@@ -563,129 +598,93 @@ class StarWindow(AidDialogsMixin, CommandsMixin, TocMixin, HighlightsMixin, Pres
         tb = self.addToolBar("Controls")
         self._toolbar = tb
         tb.setMovable(False)
+        # Icon-only toolbar: every button is a hand-drawn vector glyph (star/gui/
+        # icons.py) with a descriptive tooltip — visually uniform, no text/glyph
+        # mix.  The QAction *label* is kept as the accessible name so screen
+        # readers still announce each control.
+        try:
+            tb.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+        except AttributeError:  # PyQt5
+            tb.setToolButtonStyle(Qt.ToolButtonIconOnly)  # type: ignore[attr-defined]
 
-        def _act(label: str, shortcut: str, fn: Callable, tip: str = "") -> None:
-            """Add one clickable button to the toolbar.
+        def _act(label: str, icon: str, fn: Callable, tip: str = "") -> None:
+            """Add one icon button to the toolbar.
 
             Toolbar buttons intentionally carry **no** keyboard shortcut:
-            every command's shortcut lives on its menu action instead, so
-            each shortcut is owned by exactly one QAction (Qt fires neither
-            action when two share a shortcut).  The *shortcut* argument is
-            kept only so the tooltips can advertise the menu's binding.
+            every command's shortcut lives on its menu action instead, so each
+            shortcut is owned by exactly one QAction.  *icon* names a glyph in
+            icons.make_icon; *label* is the accessible name; *tip* (with the
+            menu's binding) is the hover tooltip.
             """
-            a = QAction(tr(label), self)
+            a = QAction(make_icon(icon), tr(label), self)
             a.setToolTip(tr(tip) if tip else tr(label))
             a.triggered.connect(fn)
             tb.addAction(a)
 
         # ── File ─────────────────────────────────────────────
-        _act("Open", "Ctrl+O", self._open_dialog, "Open a file (Ctrl+O)")
-        _act("URL", "", self._qt_open_url, "Open a URL")
+        _act("Open", "open", self._open_dialog, "Open a file (Ctrl+O)")
+        _act("Open URL", "url", self._qt_open_url, "Open a URL")
         tb.addSeparator()
         # ── Playback ──────────────────────────────────────
-        _act(
-            "Play/Pause ▶⏸",
-            "Space",
-            self._tts_toggle,
-            "Play / pause speech (Space)",
-        )
-        _act("Stop ■", "Escape", self._tts_stop, "Stop speech (Escape)")
-        _act(
-            "− Speed",
-            "Ctrl+-",
-            lambda: self._rate_change(-20),
-            "Slow down −20 wpm (Ctrl+−)",
-        )
-        _act(
-            "+ Speed",
-            "Ctrl+=",
-            lambda: self._rate_change(+20),
-            "Speed up +20 wpm (Ctrl+=)",
-        )
+        _act("Play / Pause", "play_pause", self._tts_toggle, "Play / pause speech (Space)")
+        _act("Stop", "stop", self._tts_stop, "Stop speech (Escape)")
+        _act("Slower", "slower", lambda: self._rate_change(-20), "Slow down −20 wpm (Ctrl+−)")
+        _act("Faster", "faster", lambda: self._rate_change(+20), "Speed up +20 wpm (Ctrl+=)")
         tb.addSeparator()
         # ── Navigate ──────────────────────────────────────
-        # Sentence: previous  replay  next
-        _act("◀ S", "", self._qt_skip_prev_sentence, "Previous sentence (,)")
-        _act("↺ S", "", self._qt_replay_sentence, "Replay sentence (;)")
-        _act("S ▶", "", self._qt_skip_next_sentence, "Next sentence (.)")
-        # Paragraph: previous  replay  next
-        _act("◀ ¶", "", self._qt_skip_prev_paragraph, "Previous paragraph ([)")
-        _act("↺ ¶", "", self._qt_replay_paragraph, "Replay paragraph (r)")
-        _act("¶ ▶", "", self._qt_skip_next_paragraph, "Next paragraph (])")
-        # Heading: previous  next  (always starts reading)
-        _act(
-            "◀ H",
-            "",
-            self._qt_read_prev_heading,
-            "Previous heading — read aloud (<)",
-        )
-        _act("H ▶", "", self._qt_read_next_heading, "Next heading — read aloud (>)")
+        _act("Previous Sentence", "prev_sentence", self._qt_skip_prev_sentence, "Previous sentence (,)")
+        _act("Replay Sentence", "replay_sentence", self._qt_replay_sentence, "Replay sentence (;)")
+        _act("Next Sentence", "next_sentence", self._qt_skip_next_sentence, "Next sentence (.)")
+        _act("Previous Paragraph", "prev_paragraph", self._qt_skip_prev_paragraph, "Previous paragraph ([)")
+        _act("Replay Paragraph", "replay_paragraph", self._qt_replay_paragraph, "Replay paragraph (r)")
+        _act("Next Paragraph", "next_paragraph", self._qt_skip_next_paragraph, "Next paragraph (])")
+        _act("Previous Heading", "prev_heading", self._qt_read_prev_heading, "Previous heading — read aloud (<)")
+        _act("Next Heading", "next_heading", self._qt_read_next_heading, "Next heading — read aloud (>)")
         tb.addSeparator()
         # ── Voice / cursor mode ───────────────────────────
+        _act("Voice", "voice", self._voice_picker_qt, "Select TTS voice (Ctrl+Shift+V)")
         _act(
-            "Voice…",
-            "Ctrl+Shift+V",
-            self._voice_picker_qt,
-            "Select TTS voice (Ctrl+Shift+V)",
-        )
-        _act(
-            "SC ○",
-            "Tab",
+            "Speech Cursor",
+            "speech_cursor",
             lambda: self._qt_sc_exit() if self._qt_sc_mode else self._qt_sc_enter(),
             "Speech cursor mode — line-by-line reading (Tab)",
         )
         tb.addSeparator()
         # ── Text ───────────────────────────────────────────
-        _act(
-            "Copy", "Ctrl+C", self._qt_copy, "Copy selection or paragraph (Ctrl+C)"
-        )
-        _act(
-            "Highlight",
-            "",  # Ctrl+H is now heading navigation
-            self._qt_highlight,
-            "Highlight selection in yellow",
-        )
+        _act("Copy", "copy", self._qt_copy, "Copy selection or paragraph (Ctrl+C)")
+        _act("Highlight", "highlight", self._qt_highlight, "Highlight selection in yellow")
         _act(
             "Clear Highlights",
-            "",
+            "clear_highlight",
             self._qt_highlight_clear,
             "Remove all highlights from this document",
         )
         tb.addSeparator()
         # ── Edit ─────────────────────────────────────────
-        _act(
-            "Edit", "Ctrl+E", self._qt_edit_mode_toggle, "Toggle edit mode (Ctrl+E)"
-        )
-        _act("Save", "Ctrl+S", self._qt_save, "Save document (Ctrl+S)")
+        _act("Edit Mode", "edit", self._qt_edit_mode_toggle, "Toggle edit mode (Ctrl+E)")
+        _act("Save", "save", self._qt_save, "Save document (Ctrl+S)")
         tb.addSeparator()
         # ── View ─────────────────────────────────────────
-        _act("Theme", "F5", self._next_theme, "Cycle color theme (F5)")
-        _act(
-            "ToC",
-            "Ctrl+\\",
-            self._qt_toggle_toc,
-            "Toggle Contents panel (Ctrl+\\\\)",
-        )
+        _act("Theme", "theme", self._next_theme, "Cycle color theme (F5)")
+        _act("Contents", "contents", self._qt_toggle_toc, "Toggle Contents panel (Ctrl+\\\\)")
         _act(
             "Notes",
-            "",  # Ctrl+Shift+N is bound as a window-level shortcut
+            "notes",
             self._qt_toggle_annotations,
             "Toggle Notes panel (Ctrl+Shift+N)",
         )
         _act(
-            "+ Note",
-            "",  # Ctrl+Shift+A is bound as a window-level shortcut
+            "Add Note",
+            "add_note",
             self._qt_add_annotation,
             "Add a note at the cursor (Ctrl+Shift+A)",
         )
-        _act(
-            "Level", "Ctrl+L", self._qt_reading_level, "Show reading level (Ctrl+L)"
-        )
-        _act("Font", "", self._qt_change_font_dialog, "Change display font")
+        _act("Reading Level", "level", self._qt_reading_level, "Show reading level (Ctrl+L)")
+        _act("Font", "font", self._qt_change_font_dialog, "Change display font")
         tb.addSeparator()
         # ── App ──────────────────────────────────────────
-        _act("Help", "F1", self._show_about, "Open README.md (F1)")
-        _act("Quit", "Ctrl+Q", self.close, "Quit star (Ctrl+Q)")
+        _act("Help", "help", self._show_about, "Open README.md (F1)")
+        _act("Quit", "quit", self.close, "Quit star (Ctrl+Q)")
 
     def _build_menu_bar(self) -> None:
         """Build (or rebuild) the menu bar.

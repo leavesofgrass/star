@@ -179,7 +179,7 @@ mp4      = "star.video:MP4Exporter"
 include = ["star*"]
 
 [tool.setuptools.package-data]
-star = ["README.md", "LICENSE", "CHANGELOG.md", "locale/*.json", "locale/README.md"]
+star = ["README.md", "LICENSE", "CHANGELOG.md", "welcome.md", "locale/*.json", "locale/README.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
