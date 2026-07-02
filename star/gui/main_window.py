@@ -869,6 +869,16 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
                 pass
             self._watcher = None
         self.tts_manager.stop()
+        # Stop the periodic timers so a closed window can never fire _stats_poll /
+        # the preview refresh into a half-destroyed object during teardown (a
+        # source of Qt shutdown segfaults, e.g. the pytest-qt CI legs).
+        for _tname in ("_stats_timer", "_preview_timer"):
+            _t = getattr(self, _tname, None)
+            if _t is not None:
+                try:
+                    _t.stop()
+                except Exception:
+                    pass
         self.settings["gui_width"] = self.width()
         self.settings["gui_height"] = self.height()
         self.settings.save()
