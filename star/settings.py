@@ -275,12 +275,34 @@ class Settings:
             self._data["highlight_speed"] = 1.0
 
     def save(self) -> None:
+        # Write atomically: serialize to a temp file in the same directory,
+        # fsync it, then os.replace() it over settings.json.  A mid-write power
+        # loss or a cloud-sync client grabbing the file therefore never leaves a
+        # half-written / corrupt settings.json — the next launch reads either the
+        # complete old file or the complete new one, never a truncated middle.
         try:
             SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
-            SETTINGS_FILE.write_text(
-                json.dumps(self._data, indent=2, ensure_ascii=False),
-                encoding="utf-8",
+            text = json.dumps(self._data, indent=2, ensure_ascii=False)
+            fd, tmp = tempfile.mkstemp(
+                prefix=SETTINGS_FILE.name + ".", suffix=".tmp",
+                dir=str(SETTINGS_FILE.parent),
             )
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                    fh.write(text)
+                    fh.flush()
+                    try:
+                        os.fsync(fh.fileno())
+                    except OSError:
+                        pass  # fsync unsupported on some filesystems — write still lands
+                os.replace(tmp, SETTINGS_FILE)  # atomic rename over the destination
+            except OSError:
+                # Never leave the temp file behind on a failed write.
+                try:
+                    os.unlink(tmp)
+                except OSError:
+                    pass
+                raise
         except OSError as exc:
             # Persistence failure would otherwise be fully silent: the user's
             # preferences, presets, annotations, highlights, and reading
