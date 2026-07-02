@@ -77,7 +77,8 @@ jobs:
           deep-translator feedparser wordfreq sumy genanki pyspellchecker
 
       - name: Run the test suite
-        run: python -m pytest
+        shell: bash
+        run: bash tools/ci-pytest.sh python -m pytest
 
   full-fat:
     name: full-fat (all optional deps, py3.13)
@@ -125,7 +126,8 @@ jobs:
           python -m spacy download en_core_web_sm || true
 
       - name: Run the full suite (all deps present)
-        run: python -m pytest
+        shell: bash
+        run: bash tools/ci-pytest.sh python -m pytest
 
   coverage:
     name: coverage gate (per-module floors)
@@ -156,8 +158,9 @@ jobs:
         # coverage's --fail-under is global, so per-module floors are enforced by
         # separate `coverage report --include=... --fail-under` checks against the
         # single collected data file.
+        shell: bash
         run: |
-          python -m pytest --cov=star.tts --cov=star.documents --cov=star.render --cov=star.citations --cov=star.obsidian --cov=star.graph --cov=star.markup --cov=star.ttstext --cov=star.dictionary --cov=star.autodeps --cov=star.library --cov=star.export --cov-report=term-missing
+          bash tools/ci-pytest.sh python -m pytest --cov=star.tts --cov=star.documents --cov=star.render --cov=star.citations --cov=star.obsidian --cov=star.graph --cov=star.markup --cov=star.ttstext --cov=star.dictionary --cov=star.autodeps --cov=star.library --cov=star.export --cov-report=term-missing
           python -m coverage report --include="*/tts/*.py" --fail-under=30
           python -m coverage report --include="*/documents/*.py" --fail-under=32
           python -m coverage report --include="*/render.py" --fail-under=70
