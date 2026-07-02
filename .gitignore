@@ -43,6 +43,9 @@ coverage.xml
 # (installation, usage_guide, features, configuration, architecture, and the
 # RELEASING runbook).  Do NOT ignore it.
 
+# Internal planning roadmap — a private working document, not tracked.
+/ROADMAP.md
+
 # Local wiki vault — Obsidian vault used for internal notes, not for the repo.
 wiki/
 
