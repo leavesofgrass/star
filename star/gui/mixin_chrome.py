@@ -766,6 +766,29 @@ class ChromeMixin:
             )
         )
 
+        # Study menu — spaced-repetition review of notes/highlights.
+        # "Review Due Cards…" owns Ctrl+Shift+F5 (Ctrl+Shift+S/R are already
+        # taken by Reading Statistics / Reload CSS Themes); the Anki sync item
+        # is menu/palette-reachable with no shortcut of its own.
+        study_menu: QMenu = mb.addMenu(tr("&Study"))
+        study_menu.addAction(
+            _mi(
+                "Review Due Cards…",
+                "Ctrl+Shift+F5",
+                self._qt_review_due,
+                tip="Study notes and highlights that are due for spaced-repetition review",
+            )
+        )
+        study_menu.addAction(
+            _mi(
+                "Sync with Anki (AnkiConnect)…",
+                "",
+                self._qt_anki_sync,
+                tip="Push cards to a running Anki and pull back review progress "
+                    "(requires the AnkiConnect add-on)",
+            )
+        )
+
         # Profiles menu — named bundles of voice/theme/font/highlight.
         _menu(
             "Profiles",

@@ -8,6 +8,7 @@ lazily by main_window.py (itself imported by runner.py after the _QT guard).
 from .._runtime import *  # noqa: F401,F403
 from ..annotations import _annotation_matches, _format_annotations, _parse_tags
 from ..flashcards import _GENANKI, export_anki_deck
+from ..i18n import tr
 from ._qtcompat import _USER_ROLE
 
 
@@ -308,8 +309,24 @@ class AnnotationsMixin:
             return
         if not dest.lower().endswith(".apkg"):
             dest += ".apkg"
+        # Offer auto-generated cloze (fill-in-the-blank) cards alongside the
+        # basic Q/A cards.  Yes = add clozes; No = basic cards only.
         try:
-            export_anki_deck(items, title, dest)
+            _yes = QMessageBox.StandardButton.Yes
+            _no = QMessageBox.StandardButton.No
+        except AttributeError:  # PyQt5
+            _yes = QMessageBox.Yes  # type: ignore[attr-defined]
+            _no = QMessageBox.No  # type: ignore[attr-defined]
+        answer = QMessageBox.question(
+            self,
+            tr("Cloze cards?"),
+            tr("Also generate fill-in-the-blank (cloze) cards from your "
+               "highlighted passages?"),
+            _yes | _no,
+        )
+        want_cloze = answer == _yes
+        try:
+            export_anki_deck(items, title, dest, cloze=want_cloze)
             self.statusBar().showMessage(
                 f"Exported {len(items)} flashcard(s) → {dest}"
             )

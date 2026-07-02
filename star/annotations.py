@@ -250,3 +250,154 @@ def get_related(settings: Any, doc_path: str, ann_id: str):
         )
         out.append((rel, tgt))
     return out
+
+
+# =============================================================================
+# Spaced-repetition state on annotations (see star/sr.py)
+# =============================================================================
+#
+# Each reviewable annotation carries an ``sr_state`` sub-dict — the scheduler's
+# per-card memory (next_review / interval / stability / difficulty / reps /
+# lapses).  A note is *reviewable* when it has content to test: a highlighted
+# passage (``anchor``) and/or a note body.  These helpers keep the persistence
+# concerns (per-doc storage, save-on-write) out of the pure sr.py math.
+
+
+def is_reviewable(ann: Dict[str, Any]) -> bool:
+    """True when *ann* has enough content to become a review card.
+
+    A card needs a front and a back.  The front is the highlighted passage
+    (``anchor``); the back is the note.  Either alone is enough to review (a
+    bare highlight becomes a "recall the note" prompt once one exists, and a
+    bare note is a free-recall prompt), so the card is reviewable when *either*
+    is present.
+    """
+    return bool(str(ann.get("anchor", "") or "").strip()
+                or str(ann.get("note", "") or "").strip())
+
+
+def get_sr_state(ann: Dict[str, Any]) -> "Optional[Dict[str, Any]]":
+    """Return the annotation's ``sr_state`` sub-dict, or ``None`` if unscheduled."""
+    st = ann.get("sr_state")
+    return st if isinstance(st, dict) else None
+
+
+def set_sr_state(
+    settings: Any, doc_path: str, ann_id: str, state: Dict[str, Any]
+) -> bool:
+    """Write *state* as the annotation's ``sr_state`` and persist.
+
+    Returns True when the annotation was found and updated, False otherwise.
+    """
+    ann = get_annotation_by_id(settings, doc_path, ann_id)
+    if ann is None:
+        return False
+    ann["sr_state"] = dict(state)
+    _save_settings(settings)
+    return True
+
+
+def ensure_sr_state(
+    settings: Any, doc_path: str, ann_id: str, today: Any = None
+) -> "Optional[Dict[str, Any]]":
+    """Return the annotation's ``sr_state``, creating a fresh one if absent.
+
+    A newly-created state is due immediately (``today``).  ``today`` is injected
+    (a ``datetime.date``) so callers/tests stay deterministic.  Returns ``None``
+    only when the annotation id does not exist.
+    """
+    from . import sr
+
+    ann = get_annotation_by_id(settings, doc_path, ann_id)
+    if ann is None:
+        return None
+    st = get_sr_state(ann)
+    if st is None:
+        st = sr.new_state(today)
+        ann["sr_state"] = st
+        _save_settings(settings)
+    return st
+
+
+def review_annotation(
+    settings: Any, doc_path: str, ann_id: str, grade: Any, today: Any = None
+) -> "Optional[Dict[str, Any]]":
+    """Grade an annotation's review card and persist the new ``sr_state``.
+
+    Thin persistence wrapper around :func:`star.sr.review`.  Returns the new
+    state, or ``None`` when the annotation id does not exist.
+    """
+    from . import sr
+
+    ann = get_annotation_by_id(settings, doc_path, ann_id)
+    if ann is None:
+        return None
+    new = sr.review(get_sr_state(ann), grade, today)
+    ann["sr_state"] = new
+    _save_settings(settings)
+    return new
+
+
+def iter_review_cards(settings: Any):
+    """Yield ``(doc_path, annotation)`` for every reviewable annotation.
+
+    Assigns a stable id to any annotation that lacks one (so review state can be
+    written back), and skips notes with no content to test.
+    """
+    for doc, anns in (settings["annotations"] or {}).items():
+        for ann in anns or []:
+            if not is_reviewable(ann):
+                continue
+            _ensure_id(ann)
+            yield doc, ann
+
+
+def due_cards(settings: Any, today: Any = None):
+    """Return ``[(doc_path, annotation), ...]`` for all cards due on/before *today*.
+
+    A card with no ``sr_state`` is treated as due (it needs a first review).
+    Ordered most-overdue first, then by document, so the review session starts
+    with the cards that have waited longest.  ``today`` is injected for
+    determinism (a ``datetime.date``; defaults to the real today).
+    """
+    from . import sr
+
+    out = []
+    for doc, ann in iter_review_cards(settings):
+        st = get_sr_state(ann)
+        if sr.is_due(st, today):
+            out.append((doc, ann))
+    out.sort(key=lambda pair: (sr.days_until_due(get_sr_state(pair[1]), today), pair[0]))
+    return out
+
+
+def review_summary(settings: Any, today: Any = None) -> Dict[str, Any]:
+    """Return aggregate review stats: total/due/new counts and mean retention.
+
+    ``retention`` is the mean estimated recall probability across all *reviewed*
+    cards (0.0 when none have been reviewed yet) — the headline "% remembered"
+    figure shown on the dashboard.
+    """
+    from . import sr
+
+    total = due = new = 0
+    ret_sum = 0.0
+    ret_n = 0
+    for _doc, ann in iter_review_cards(settings):
+        total += 1
+        st = get_sr_state(ann)
+        if sr.is_due(st, today):
+            due += 1
+        if sr.is_new(st):
+            new += 1
+        else:
+            ret_sum += sr.retention_estimate(st, today)
+            ret_n += 1
+    retention = round(ret_sum / ret_n, 4) if ret_n else 0.0
+    return {
+        "total": total,
+        "due": due,
+        "new": new,
+        "reviewed": ret_n,
+        "retention": retention,
+    }

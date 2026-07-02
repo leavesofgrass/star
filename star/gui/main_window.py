@@ -48,6 +48,7 @@ from .mixin_graph import GraphMixin
 from .mixin_find import FindMixin
 from .mixin_bookmarks_qt import BookmarksQtMixin
 from .mixin_voices import VoicesMixin
+from .mixin_review import ReviewMixin
 
 
 class _RSVPOverlay(QWidget):
@@ -217,7 +218,7 @@ class _RSVPOverlay(QWidget):
 
 # =========================================================================
 
-class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, HighlightsMixin, PresetsMixin, DocOpsMixin, DisplayMixin, DocToolsMixin, NavigationMixin, PlaybackMixin, FontSpacingMixin, DocumentMixin, AnnotationsMixin, ExportMixin, TranscriptionMixin, CitationsMixin, GraphMixin, FindMixin, BookmarksQtMixin, VoicesMixin, QMainWindow):
+class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, HighlightsMixin, PresetsMixin, DocOpsMixin, DisplayMixin, DocToolsMixin, NavigationMixin, PlaybackMixin, FontSpacingMixin, DocumentMixin, AnnotationsMixin, ExportMixin, TranscriptionMixin, CitationsMixin, GraphMixin, FindMixin, BookmarksQtMixin, VoicesMixin, ReviewMixin, QMainWindow):
     """Qt GUI window for star.
 
     Word-level highlight pipeline
