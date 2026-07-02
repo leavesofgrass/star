@@ -1,0 +1,37 @@
+# Example third-party star plugin — a format handler for the toy `.demo` format.
+#
+# This is a complete, pip-installable package.  From this directory:
+#
+#     pip install .                 # or:  pip install -e .   (editable)
+#     star --plugins list           # DemoHandler now appears under star.formats
+#     echo -e "Hello\nWorld" > note.demo && star --plain note.demo
+#
+# Copy this file as the starting point for your own plugin: rename the project,
+# swap the entry-point group/key, and point it at your handler/backend/exporter.
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "star-demo-format"
+version = "0.1.0"
+description = "Example star plugin: a FormatHandler for the toy .demo format"
+requires-python = ">=3.9"
+# Depend on star itself so the FormatHandler ABC is importable.  Pin against the
+# plugin API (star.formats.__api_version__), not the star release number, which
+# changes far more often — a broad floor like this is usually right.
+dependencies = ["star-reader>=0.1.16"]
+
+# The heart of a plugin: register the class in one of star's three entry-point
+# groups so PluginRegistry discovers it at runtime.  The key ("demo") is the
+# plugin name shown by `star --plugins`; the value is "module:ClassName".
+#
+#   star.formats   -> subclasses of star.formats.FormatHandler   (document loaders)
+#   star.backends  -> subclasses of star.tts.base.TTSBackend     (TTS engines)
+#   star.exporters -> subclasses of star.formats.Exporter        (export targets)
+[project.entry-points."star.formats"]
+demo = "star_demo_format:DemoHandler"
+
+[tool.setuptools]
+packages = ["star_demo_format"]

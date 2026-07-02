@@ -58,6 +58,138 @@ def _install_optional(spec: str) -> None:
         print("Done — all selected optional features installed.")
 
 
+def _run_plugins(argv: "list[str]") -> int:
+    """Handle ``star --plugins [list|info <group> <name>|api]``.
+
+    Foreground, text-only, and lazy: it imports :mod:`star.plugins` (which walks
+    entry-points without pulling in the GUI/TUI/document stacks) and prints a
+    plain report.  Returns a process exit code.
+    """
+    from . import plugins as _plugins
+
+    sub = (argv[0] if argv else "list").lower()
+
+    if sub in ("list", "ls"):
+        _print_plugin_list(_plugins)
+        return 0
+
+    if sub == "api":
+        _print_plugin_api(_plugins)
+        return 0
+
+    if sub == "info":
+        if len(argv) < 3:
+            print("usage: star --plugins info <group> <name>", file=sys.stderr)
+            print(
+                "  group is one of: " + ", ".join(_plugin_group_aliases(_plugins)),
+                file=sys.stderr,
+            )
+            return 2
+        group = _resolve_plugin_group(_plugins, argv[1])
+        if group is None:
+            print(f"Unknown plugin group: {argv[1]!r}", file=sys.stderr)
+            print(
+                "  group is one of: " + ", ".join(_plugin_group_aliases(_plugins)),
+                file=sys.stderr,
+            )
+            return 2
+        info = _plugins.describe_plugin(group, argv[2])
+        if info is None:
+            print(
+                f"No plugin named {argv[2]!r} registered in group {group!r}.",
+                file=sys.stderr,
+            )
+            return 1
+        _print_plugin_info(info)
+        return 0
+
+    print(f"Unknown --plugins subcommand: {sub!r}", file=sys.stderr)
+    print("  expected one of: list, info, api", file=sys.stderr)
+    return 2
+
+
+def _plugin_group_aliases(_plugins) -> "list[str]":
+    """Short group aliases accepted by ``--plugins info`` (backends/formats/exporters)."""
+    return [g.split(".", 1)[-1] for g in _plugins.PLUGIN_GROUPS]
+
+
+def _resolve_plugin_group(_plugins, token: str) -> "str | None":
+    """Map a user token (full ``star.formats`` or short ``formats``) to a group id."""
+    token = token.lower()
+    for group in _plugins.PLUGIN_GROUPS:
+        if token in (group, group.split(".", 1)[-1]):
+            return group
+    return None
+
+
+def _print_plugin_list(_plugins) -> None:
+    grouped = _plugins.list_plugins()
+    total = sum(len(v) for v in grouped.values())
+    print(f"star {APP_VERSION} - registered plugins ({total} total)\n")
+    for group, meta in _plugins.PLUGIN_GROUPS.items():
+        entries = grouped.get(group, [])
+        alias = group.split(".", 1)[-1]
+        print(f"{meta['label']} [{group}] ({alias}) - {len(entries)}:")
+        if not entries:
+            print("  (none registered)")
+        for e in entries:
+            mark = {True: "+", False: "-"}.get(e.get("available"), "?")
+            prio = e.get("priority")
+            prio_s = f"  prio={prio}" if prio is not None else ""
+            exts = e.get("extensions") or []
+            ext_s = "  " + " ".join(exts) if exts else ""
+            line = f"  [{mark}] {e['name']:<14} -> {e.get('target', '?')}{prio_s}{ext_s}"
+            print(line)
+            if e.get("load_error"):
+                print(f"        load error: {e['load_error']}")
+        print()
+    print("Legend: [+] available  [-] unavailable  [?] unknown (checked when used)")
+    print("Details: star --plugins info <group> <name>   Contracts: star --plugins api")
+
+
+def _print_plugin_info(info: "dict") -> None:
+    print(f"{info['name']}  ({info['group']})")
+    print(f"  target:       {info.get('target', '?')}")
+    if info.get("distribution"):
+        print(f"  distribution: {info['distribution']}")
+    if info.get("load_error"):
+        print(f"  load error:   {info['load_error']}")
+        return
+    print(f"  class:        {info.get('class', '?')}")
+    if info.get("priority") is not None:
+        print(f"  priority:     {info['priority']}")
+    if info.get("extensions"):
+        print(f"  extensions:   {' '.join(info['extensions'])}")
+    avail = info.get("available")
+    avail_s = "yes" if avail is True else "no" if avail is False else "unknown (checked at use)"
+    print(f"  available:    {avail_s}")
+    if info.get("doc"):
+        print(f"  description:  {info['doc']}")
+
+
+def _print_plugin_api(_plugins) -> None:
+    api = _plugins.describe_api()
+    ver = api[0]["api_version"] if api else "?"
+    print(f"star plugin API contracts - api_version {ver}\n")
+    print("Third-party plugins subclass one of these ABCs and register the")
+    print("subclass in their package's [project.entry-points.<group>] table.\n")
+    for spec in api:
+        print(f"{spec['name']}  [entry-point group: {spec['group']}]")
+        if spec.get("doc"):
+            print(f"  {spec['doc']}")
+        for m in spec["methods"]:
+            tags = []
+            if m["abstract"]:
+                tags.append("abstract")
+            if m["classmethod"]:
+                tags.append("classmethod")
+            tag_s = f"  ({', '.join(tags)})" if tags else ""
+            print(f"    def {m['signature']}{tag_s}")
+            if m["doc"]:
+                print(f"        {m['doc']}")
+        print()
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(
         prog=APP_NAME,
@@ -130,6 +262,16 @@ def main() -> None:
         "comma-separated list of feature keys (e.g. ocr,dictionary); default 'all'. "
         "Run with no value or an unknown value to see the available features.",
     )
+    ap.add_argument(
+        "--plugins",
+        nargs="*",
+        metavar="ARG",
+        default=None,
+        help="Inspect the plugin system and exit. Subcommands: "
+        "'list' (all registered backends/format-handlers/exporters), "
+        "'info <group> <name>' (one plugin's details), "
+        "'api' (the plugin ABC contracts). Default: list.",
+    )
     # ── Hot-folder watching (headless batch conversion) ──────────────────
     ap.add_argument(
         "--watch",
@@ -162,6 +304,9 @@ def main() -> None:
     if args.install_optional is not None:
         _install_optional(args.install_optional)
         return
+
+    if args.plugins is not None:
+        sys.exit(_run_plugins(args.plugins))
 
     if args.list_themes:
         from .tui import THEME_NAMES

@@ -5,6 +5,26 @@ Concrete handlers are discovered at runtime through the ``star.formats`` and
 ``star.exporters`` entry-point groups and cached by
 :class:`star.plugins.PluginRegistry`.  This module holds only the interfaces —
 the registry itself lives in :mod:`star.plugins`.
+
+Plugin API contract
+--------------------
+:data:`__api_version__` is the version of the plugin ABC surface defined in this
+module — the :class:`FormatHandler`, :class:`Exporter`, and
+``star.tts.TTSBackend`` method signatures a third-party plugin implements against.
+It follows ``MAJOR.MINOR`` semantics:
+
+* **MAJOR** bumps on a breaking change to an ABC (a renamed/removed method, a
+  changed required signature).  A plugin built for a different major version may
+  fail to load.
+* **MINOR** bumps for backward-compatible additions (a new optional method with a
+  default, a new keyword argument).
+
+This is deliberately decoupled from the application version (``star.__version__``).
+Third-party plugins should pin against the API version — declare a supported
+range in your package metadata and check :data:`star.formats.__api_version__` at
+import time if you need to fail loudly on an incompatible host — rather than
+against the star release number, which changes far more often.  See
+``docs/plugins-developing.md`` for the full developer guide.
 """
 import abc
 from pathlib import Path
@@ -12,6 +32,11 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .documents import Document
+
+#: Version of the plugin ABC surface in this module (``MAJOR.MINOR``).
+#: See the module docstring for the compatibility contract.  Introspectable via
+#: ``star --plugins api``.
+__api_version__ = "1.0"
 
 
 class FormatHandler(abc.ABC):
