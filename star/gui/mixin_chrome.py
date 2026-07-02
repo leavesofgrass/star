@@ -428,6 +428,22 @@ class ChromeMixin:
                 None,
                 ("Next Table", self._qt_skip_next_table, "Ctrl+T"),
                 ("Previous Table", self._qt_skip_prev_table, "Ctrl+Shift+T"),
+                None,
+                ("Back", self._qt_history_back, "Alt+Left"),
+                ("Forward", self._qt_history_forward, "Alt+Right"),
+            ],
+        )
+
+        # Bookmarks menu — named positions per document + a jump list.
+        # Add Bookmark owns Ctrl+B; the named-add and the list dialog carry no
+        # shortcut of their own (they are reachable via the menu and the command
+        # palette) so every binding stays owned by exactly one QAction.
+        _menu(
+            "Bookmarks",
+            [
+                ("Add Bookmark", self._qt_bookmark_add, "Ctrl+B"),
+                ("Add Named Bookmark…", self._qt_bookmark_add_named, ""),
+                ("Bookmarks…", self._qt_bookmarks_dialog, ""),
             ],
         )
 
@@ -435,6 +451,7 @@ class ChromeMixin:
         edit_menu = _menu(
             "Edit",
             [
+                ("Find…", self._find_show, "Ctrl+F"),
                 ("Copy", self._qt_copy, "Ctrl+C"),
                 None,
                 ("Toggle Edit Mode", self._qt_edit_mode_toggle, "Ctrl+E"),

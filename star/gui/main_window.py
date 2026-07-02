@@ -45,6 +45,8 @@ from .mixin_export import ExportMixin
 from .mixin_transcription import TranscriptionMixin
 from .mixin_citations import CitationsMixin
 from .mixin_graph import GraphMixin
+from .mixin_find import FindMixin
+from .mixin_bookmarks_qt import BookmarksQtMixin
 
 
 class _RSVPOverlay(QWidget):
@@ -214,7 +216,7 @@ class _RSVPOverlay(QWidget):
 
 # =========================================================================
 
-class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, HighlightsMixin, PresetsMixin, DocOpsMixin, DisplayMixin, DocToolsMixin, NavigationMixin, PlaybackMixin, FontSpacingMixin, DocumentMixin, AnnotationsMixin, ExportMixin, TranscriptionMixin, CitationsMixin, GraphMixin, QMainWindow):
+class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, HighlightsMixin, PresetsMixin, DocOpsMixin, DisplayMixin, DocToolsMixin, NavigationMixin, PlaybackMixin, FontSpacingMixin, DocumentMixin, AnnotationsMixin, ExportMixin, TranscriptionMixin, CitationsMixin, GraphMixin, FindMixin, BookmarksQtMixin, QMainWindow):
     """Qt GUI window for star.
 
     Word-level highlight pipeline
@@ -396,6 +398,13 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         # Sentence map: list of word-map indices at which each sentence
         # begins.  Built asynchronously alongside the word map.
         self._qt_sentence_starts: List[int] = [0]
+
+        # Navigation-history stack (back/forward) — see BookmarksQtMixin.
+        self._init_nav_history()
+
+        # Find bar is created lazily on first Ctrl+F; declare the handle so
+        # code that checks ``getattr(self, "_find_bar", None)`` is safe pre-init.
+        self._find_bar = None
 
         # JAWS-style bare-Ctrl tap → play/pause detection state.
         # _ctrl_solo is True while a Ctrl press has not yet been "used" as

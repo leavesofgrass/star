@@ -105,6 +105,14 @@ class NavigationMixin:
           Enter  — exit SC mode and start continuous reading
           Esc    — exit SC mode, stop speech
         """
+        # Find bar input: Escape closes it; F3 / Shift+F3 and Shift+Enter walk
+        # matches even while the line edit holds focus.  Handled before the
+        # editor branch because the find input is a different widget.
+        if obj is getattr(self, "_find_input", None):
+            if self._find_input_key(event):
+                return True
+            return super().eventFilter(obj, event)
+
         if obj is not self.editor:
             return super().eventFilter(obj, event)
 
