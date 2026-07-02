@@ -42,12 +42,13 @@ it can also grow on demand, guided by a first-run chooser.
   Tesseract, Pandoc, ffmpeg, Graphviz, liblouis, piper, eSpeak NG, DECtalk —
   each with a ✓/✗ availability indicator and an install hint.
 - **OpenDyslexic font, everywhere.** *View ▸ Reading Aids ▸ Dyslexia-Friendly
-  Font* now applies a dyslexia-friendly typeface across the entire interface —
-  document, menus, toolbar, dialogs, and panels — not just the reading pane. If
-  no dyslexia-friendly family is installed, OpenDyslexic (SIL OFL) is fetched on
-  demand the first time you enable it; nothing is bundled, and it falls back
-  gracefully offline. It appears as an optional item in the chooser's System
-  tools list and in `star --deps`.
+  Font* applies a dyslexia-friendly typeface across the entire interface — the
+  document itself as well as menus, toolbar, dialogs, and panels — and toggles
+  cleanly back off. If no dyslexia-friendly family is installed, OpenDyslexic
+  (SIL OFL) is fetched automatically in the background (like the other optional
+  dependencies); nothing is bundled, and it falls back gracefully offline. It
+  appears as an optional item in the chooser's System tools list and in
+  `star --deps`.
 
 ### 🔧 Changed
 
@@ -66,7 +67,17 @@ it can also grow on demand, guided by a first-run chooser.
 - **More resilient settings.** A failed settings write is now logged instead of
   silently discarding your preferences, profiles, notes, and reading positions.
 - Internal: the two largest GUI modules were split into focused mixins, and the
-  offscreen GUI / chooser / clipboard paths gained test coverage.
+  offscreen GUI / chooser / clipboard / fonts / accessibility paths gained test
+  coverage.
+
+### 🐛 Fixed
+
+- **`.7z` archives open again** on current py7zr. py7zr 1.0 removed the in-memory
+  `read()` API star relied on, so opening a document inside a `.7z` raised an
+  error on any modern install; extraction now uses the stable `extract()` API.
+- **`prefer_pandoc = false` is honored** for Pandoc-only formats (e.g. `.rtf`).
+  Since the 0.1.16 plugin rewrite these were converted by Pandoc even when the
+  preference was off; they now fall back to the install-guidance note as intended.
 
 ---
 
