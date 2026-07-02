@@ -8,6 +8,86 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.20] 2026-07-02
+
+A large capability-and-polish release: ten roadmap areas delivered together, plus
+a batch of reading-experience fixes. The guiding principle — star's users are
+students, not programmers — so every optional capability now installs itself with
+one click instead of asking anyone to run `pip`.
+
+### ✨ Added
+
+- **Find in document (Ctrl+F).** An incremental find bar with match highlighting,
+  a live "N of M" count, case toggle, and wrap-around.
+- **Bookmarks & navigation history.** Named per-document bookmarks (**Ctrl+B**)
+  and back/forward navigation (**Alt+←/→**) in the GUI, mirroring the TUI.
+- **Full-text library search.** Search *inside* every document in your library,
+  not just titles and metadata.
+- **Voice Manager (F4).** Browse, filter, preview, and favorite voices across
+  every installed speech engine, and download offline **Piper** neural voices
+  (nine, covering all five interface languages) with one click.
+- **Study & spaced repetition.** Turn your highlights and notes into a review
+  deck (FSRS scheduler), review due cards in-app (**Study ▸ Review Due Cards…**,
+  Ctrl+Shift+F5), auto-generate cloze / fill-in-the-blank cards, and optionally
+  two-way sync with Anki (AnkiConnect).
+- **One-click optional features.** When a feature needs an add-on that isn't
+  installed, star offers to download it in the background — no `pip` instructions
+  anywhere — and the feature works right away. New CLIs: `star --install-optional`,
+  `star --plugins list|info|api`, and `star --check-update`.
+- **Richer documents.** Inline LaTeX math renders as readable Unicode; tables keep
+  their header structure; footnote markers are clickable and jump to the note (and
+  a ↩ backlink jumps back); images show captions / alt text.
+- **High-contrast (AAA) theme** plus automatic light / dark / high-contrast
+  theming that follows your operating system.
+- **Guided tour.** A skippable first-run walkthrough of the core features,
+  replayable any time from **Help ▸ Guided Tour** (Shift+F1). Plus **Help ▸ Check
+  for Updates** and **Open Documentation**.
+- **Plugin developer kit.** A developer guide, a real example plugin template, a
+  versioned plugin API, and the `star --plugins` introspection CLI.
+
+### ♿ Accessibility
+
+- **Screen-reader announcements** for playback, document load, theme changes, and
+  find results — state changes are spoken without moving focus.
+- Keyboard reachability audit (docs/KEYBOARD_AUDIT.md); list dialogs open on Enter.
+- The dyslexia-friendly font (OpenDyslexic, auto-fetched) applies across the whole
+  UI — document, menus, toolbar, and panels.
+
+### 🌍 Internationalization
+
+- The **terminal UI is now translatable**, with a **first-run language picker**;
+  the Spanish, French, German, and Portuguese catalogs are kept complete by a CI
+  gate; and TTS prefers a voice matching your interface language.
+
+### 🔧 Changed
+
+- **"All" optional features now means everything**, including the large
+  speech-to-text and named-entity packs (the download size is shown upfront).
+- **Faster large documents** — a linear-time word map (up to ~12× on big files).
+- A real **terminal-UI clipboard** (selection / paragraph aware).
+- **Safer cross-device sync** — atomic sidecar/settings writes and machine-agnostic
+  reading metadata that travels with a synced folder.
+
+### 🐛 Fixed
+
+- Optional features no longer **dead-end on a `pip install` message** — they
+  install and become usable in the same session (only the large speech-to-text
+  pack asks for a restart), and an explicit install never falsely reports a
+  network error.
+- **RSVP one-word reading mode** no longer crashes (and shows the word display as
+  intended).
+- **`.7z` archives** open on modern py7zr; **`prefer_pandoc = false`** is honored
+  for Pandoc-only formats.
+
+### 🧰 Internal
+
+- The ten-area roadmap was delivered through coordinated multi-agent waves. The
+  test suite grew from 654 to **937** (adding pytest-qt interactive, end-to-end,
+  TUI, and property-based tests) with a new "full-fat" CI leg, and the two largest
+  GUI modules were split into focused mixins.
+
+---
+
 ## [0.1.19] 2026-07-01
 
 star still runs out of the box on nothing but the Python standard library — now

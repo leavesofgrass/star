@@ -4,6 +4,8 @@ How to launch `star`, the quick command reference, the full keyboard map, the
 TUI `M-x` command set, the Qt screen layout, and the command-line options.
 
 - [Running star](#running-star)
+- [First run](#first-run)
+- [Common tasks (how-to)](#common-tasks-how-to)
 - [Quick command reference](#quick-command-reference) — **feature → GUI menu · shortcut · TUI command**
 - [Keyboard shortcuts](#keyboard-shortcuts)
 - [M-x commands (TUI)](#m-x-commands-tui)
@@ -37,6 +39,248 @@ from a source checkout instead? Use `python -m star …` (or `python run_star.py
 automatically when PyQt6/PyQt5 is installed. Without Qt, star falls back to the
 secondary terminal TUI; use `--tui` to force the terminal interface even when Qt
 is available.
+
+---
+
+## First run
+
+The first time you launch the Qt GUI, star helps you get set up. None of these
+steps is required — you can skip everything and start reading immediately.
+
+### The guided tour
+
+A short, skippable walkthrough of the controls that matter most — opening a
+file, play/pause, changing speed, highlights & notes, the Voice Manager, the
+library, and the reading aids — appears as a small floating card near each
+control.
+
+1. Read a step, then press **Right / Enter / N** for **Next** or **Left /
+   Backspace / B** for **Back**.
+2. Press **Esc** (or click **Skip tour**) to dismiss it. It will not pop up
+   again on its own.
+3. To take it again any time, choose **Help ▸ Guided Tour** (**Shift+F1**).
+
+The tour is non-blocking (the window stays live behind it) and each step is
+spoken to your screen reader as it appears.
+
+### Pick your language
+
+star's menus, toolbar, and messages are available in English, Spanish, French,
+German, and Portuguese (the terminal UI is translatable too).
+
+1. On first launch, the **Optional Features** window opens with an **Interface
+   language** dropdown at the top — choose your language there. The whole
+   interface switches immediately, with no restart.
+2. To change it later, use **View ▸ Interface Language** in the Qt GUI.
+
+### Add optional features (no `pip` needed)
+
+star runs fully on its own; extra capabilities (OCR, an offline dictionary,
+summarize, translate, and more) are optional downloads. On first launch a
+chooser lets you pick what to fetch:
+
+1. Pick a preset — **Thin** (lightweight everyday reading and study aids) or
+   **All** (everything star can use) — or tick individual features. Each entry
+   shows its purpose and approximate download size.
+2. Click **Install selected** (or **Not now** to skip). star downloads the
+   packages in the background while you keep reading.
+3. Reopen the chooser any time from **Tools ▸ Install Optional Features…**.
+
+You never have to run `pip` yourself. See
+[Getting an optional feature on demand](#getting-an-optional-feature-on-demand)
+below for what happens when you first use a feature you haven't installed yet.
+
+### Check for updates
+
+star does **not** phone home unless you ask it to. To see whether a newer
+release is on PyPI, choose **Help ▸ Check for Updates…**. It reports the result
+either way — a newer version (with a link), "up to date", or an offline
+notice. (Power users: `star --check-update` does the same from the command
+line.)
+
+---
+
+## Common tasks (how-to)
+
+Task-oriented steps for the everyday workflows. Shortcuts below are the Qt GUI
+defaults; every one is remappable from **Help ▸ Customize Shortcuts…**
+(`Ctrl+Alt+Q`).
+
+### Find text in the current document
+
+An incremental find bar searches the open document as you type.
+
+1. Press **Ctrl+F** (or **Edit ▸ Find…**). A search bar opens at the bottom of
+   the window with focus in the input box.
+2. Start typing. Matches highlight live; every match is tinted amber and the
+   active one bright orange, and a **"N of M"** counter shows your position.
+3. Press **Enter** (or **Next**) for the next match, **Shift+Enter** (or
+   **Previous**) for the previous one. **F3 / Shift+F3** work too. Search
+   **wraps around** the ends of the document.
+4. Tick **Match case** for case-sensitive searching.
+5. Press **Esc** (or the **×** button) to close the bar and clear the
+   highlights.
+
+The match count is also announced to screen readers, so you hear "3 of 12" or
+"No matches" without leaving the search box.
+
+### Set bookmarks and jump back and forth
+
+Bookmarks are named positions saved per document; navigation history remembers
+where you jumped from so you can retrace your steps. Both are shared with the
+terminal UI, so a bookmark set in one interface shows up in the other.
+
+**Add and use bookmarks**
+
+1. Move to the spot you want to remember, then press **Ctrl+B** (or
+   **Bookmarks ▸ Add Bookmark**). star saves it with an auto-name (`mark1`,
+   `mark2`, …) and shows the position percentage in the status bar.
+2. To name it yourself, use **Bookmarks ▸ Add Named Bookmark…** and type a name.
+3. To return to one, open **Bookmarks ▸ Bookmarks…**, pick an entry (they are
+   listed in document order), and press **Enter** or click **Go**. Use
+   **Delete** to remove one.
+
+**Back / forward history**
+
+Every jump — a bookmark, a heading move, a search result — records where you
+came from.
+
+1. Press **Alt+←** (or **Navigate ▸ Back**) to step back to your previous
+   reading position.
+2. Press **Alt+→** (or **Navigate ▸ Forward**) to move forward again.
+
+### Search your whole library by content
+
+star can search *inside* every document in your library, not just their titles
+and metadata.
+
+1. Point star at a folder of documents as a library first
+   (**File ▸ Open Folder as Library…**, or run `star <folder>`). See
+   [Build a library](#build-a-library) below if you haven't set one up.
+2. Open the library with **Ctrl+Shift+B** (**File ▸ Library / Bookshelf…**) and
+   type in the filter box to narrow by title, path, or folder. Press **Enter**
+   to open the highlighted document.
+3. For a content search — finding documents by words that appear *inside* them —
+   use **`M-x library-search`** in the terminal UI, which matches titles,
+   authors, DOI/ISBN, annotations, and full document text. The full-text index
+   is built on demand the first time you search and cached, so later searches
+   are fast.
+
+### Choose and download voices (Voice Manager)
+
+The Voice Manager gathers every installed voice — across all your speech
+engines — plus downloadable neural voices, in one searchable place.
+
+1. Press **F4** (or **Speech ▸ Voice Manager…**).
+2. Type in the **Filter** box to narrow the list by language or name, or tick
+   **Favorites only** to see just your pinned voices.
+3. Select a voice and click **Preview** to hear a short sample without
+   committing to it.
+4. Click **Set as Current** (or press **Enter** / double-click) to start using
+   it for speech.
+5. Click **Toggle Favorite** to pin a voice; favorites are marked with a ★ and
+   persist across sessions.
+
+**Download an offline Piper neural voice**
+
+High-quality **Piper** neural voices (nine, covering all five interface
+languages) appear in the list marked with a ⬇ download tag.
+
+1. Select a ⬇ voice and click **Download**. star fetches the model in the
+   background and reports progress.
+2. When it finishes, star switches to the Piper engine and selects the new
+   voice automatically — it works right away, fully offline from then on.
+
+### Study what you read (spaced repetition)
+
+Your highlights and notes can become a review deck that schedules each card for
+you (using the FSRS spaced-repetition algorithm).
+
+**Make cards**
+
+1. Select a passage and apply a **Highlight** (toolbar button or
+   **Ctrl+Shift+1…5**).
+2. Add a note with **Ctrl+Shift+A** (**Notes ▸ Add Note at Cursor…**). The
+   highlighted passage becomes the front of a card and your note the back.
+
+**Review due cards**
+
+1. Choose **Study ▸ Review Due Cards…** (**Ctrl+Shift+F5**).
+2. Read the prompt on the front, then press **Enter** (or **Show Answer**) to
+   reveal the note.
+3. Grade your recall with **1** = Again, **2** = Hard, **3** = Good, **4** =
+   Easy (or click the buttons). star reschedules the card immediately and moves
+   to the next one — closing mid-session loses nothing.
+
+The header shows how many cards are due and a running retention estimate.
+
+**Export cards / sync with Anki**
+
+- Export an Anki deck with **File ▸ Export ▸ Anki Flashcards…** (**Ctrl+Alt+H**).
+  When prompted, answer **Yes** to also generate **cloze** (fill-in-the-blank)
+  cards from your highlighted passages.
+- To sync two-way with a running Anki, choose **Study ▸ Sync with Anki
+  (AnkiConnect)…** (this needs the AnkiConnect add-on in Anki; if Anki isn't
+  running you get a friendly hint instead of an error).
+
+### Getting an optional feature on demand
+
+When you use a feature whose add-on isn't installed yet, star offers to fetch it
+for you — there is **never** a `pip install` instruction to copy.
+
+1. Trigger the feature (for example **Tools ▸ Transcribe Audio File…**). If its
+   add-on is missing, star asks *"Install `<feature>`?"* and shows the
+   approximate download size.
+2. Click **Install** (Yes). star downloads it in the background while you keep
+   reading.
+3. Most features become usable in the same session, and the status bar confirms
+   *"… installed — you can use it now."* Only the large **speech-to-text**
+   (dictation) pack asks you to **restart star** before using it.
+
+Power users can install features from the command line instead:
+`star --install-optional` (installs the `all` preset), `star --install-optional
+thin`, or a comma-separated list of feature keys such as
+`star --install-optional ocr,dictionary`. Run it with no value to list every
+feature with its size and install status.
+
+### Reading aids for comfortable reading
+
+star includes several aids for low-vision, dyslexic, and fatigued readers. All
+live under **View ▸ Reading Aids** unless noted.
+
+- **High-contrast (AAA) theme.** Press **F5** to cycle themes until you reach
+  **high-contrast**, or pick it directly with **View ▸ Choose Theme…**
+  (**Ctrl+Alt+T**). It clears the AAA 7:1 contrast ratio for low-vision
+  readers.
+- **Follow your operating system.** By default star adopts your desktop's
+  light / dark / high-contrast appearance on startup and keeps tracking it —
+  until you deliberately pick a theme yourself, after which your choice sticks.
+- **Dyslexia-friendly font.** Toggle **View ▸ Reading Aids ▸ Dyslexia-Friendly
+  Font** (**Ctrl+Alt+X**) to apply the **OpenDyslexic** typeface across the
+  whole interface — document, menus, toolbar, and panels. If no such font is
+  installed, star fetches OpenDyslexic automatically in the background (no `pip`,
+  nothing to install by hand) and falls back gracefully offline.
+- **RSVP one-word mode.** Turn on **View ▸ Reading Aids ▸ RSVP Mode**
+  (**Ctrl+Alt+E**) to show one word at a time in a large panel synced to
+  speech — an aid many dyslexic readers find easier to track. Choose where the
+  panel sits with **View ▸ Reading Aids ▸ RSVP Position…**.
+- **Clickable footnotes.** In documents with footnotes, click a footnote marker
+  to jump to the note; a ↩ backlink jumps you back to where you were reading.
+- **Math rendering.** Inline LaTeX math is rendered as readable Unicode, so
+  equations are spoken and shown as text rather than raw `\command` markup.
+
+<a id="build-a-library"></a>
+### Build a library
+
+Point star at *any* folder — including one synced by Dropbox, OneDrive,
+Syncthing, or iCloud — and every document inside it becomes your library.
+
+1. Use **File ▸ Open Folder as Library…**, or run `star <folder>`, and pick a
+   folder.
+2. Browse everything (alongside recently-opened files) via **File ▸ Library /
+   Bookshelf…** (**Ctrl+Shift+B**).
+3. Reading progress is saved per document and travels with the folder, so you
+   can read on one machine and pick up where you left off on another.
 
 ---
 
@@ -76,6 +320,7 @@ trigger it).
 | Toggle SSML prosody | — | `Ctrl+Alt+Y` | `M-x ssml` |
 | Choose TTS engine | Speech ▸ Choose TTS Engine… | `Ctrl+Shift+G` | `M-x tts-backend` |
 | Choose voice | Speech ▸ Choose Voice… | `Ctrl+Shift+V` | `M-x tts-voice` (`Ctrl+T`) |
+| Voice Manager (filter/preview/favorite/download) | Speech ▸ Voice Manager… | `F4` | — |
 | Pronunciation lexicon | Speech ▸ Pronunciation Lexicon… | `Ctrl+Shift+I` | `M-x pron-add` / `pron-list` |
 | Speech Cursor mode | (SC toolbar button) | `Tab` | `Tab` |
 | Next / previous heading | (Navigate toolbar) | `Ctrl+H` / `Ctrl+Shift+H` | `h` / `<` |
@@ -83,6 +328,10 @@ trigger it).
 | Replay paragraph | (Navigate toolbar) | `Ctrl+R` | `r` |
 | Next / previous table | — | `Ctrl+T` / `Ctrl+Shift+T` | `t` / `T` |
 | Next / previous sentence | (Navigate toolbar) | `Alt+.` / `Alt+,` | `.` / `,` |
+| History: back / forward | Navigate ▸ Back / Forward | `Alt+←` / `Alt+→` | `H` / `L` |
+| Add bookmark | Bookmarks ▸ Add Bookmark | `Ctrl+B` | `M-x bookmark-set` |
+| Add named bookmark | Bookmarks ▸ Add Named Bookmark… | — | `M-x bookmark-set <name>` |
+| List / jump to bookmarks | Bookmarks ▸ Bookmarks… | — | `M-x bookmark-list` / `bookmark-goto` |
 | Save settings as a profile | Profiles ▸ Save Current Settings… | `Ctrl+Shift+K` | `M-x profile-save <name>` |
 | Load a profile | Profiles ▸ Load Profile… | `Ctrl+Shift+J` | `M-x profile-load <name>` |
 | Delete a profile | Profiles ▸ Delete Profile… | `Ctrl+Shift+Y` | `M-x profile-delete <name>` |
@@ -90,9 +339,10 @@ trigger it).
 | Save document | (Save toolbar button) | `Ctrl+S` | — |
 | Live HTML preview | View ▸ Live HTML Preview | `Ctrl+Shift+L` | — |
 | Check spelling | Edit ▸ Check Spelling | `F7` | — |
-| Search forward | — | `Ctrl+F` | `M-x search` (`/`) |
-| Search backward | — | — | `M-x search-backward` (`?`) |
-| Cycle color theme | View ▸ Next Theme | `F5` | `F5` |
+| Find in document (find bar) | Edit ▸ Find… | `Ctrl+F` | `M-x search` (`/`) |
+| Find next / previous match | (find bar Next / Previous) | `Enter`/`F3` · `Shift+Enter`/`Shift+F3` | `n` / `N` |
+| Search backward (TUI) | — | — | `M-x search-backward` (`?`) |
+| Cycle color theme (incl. high-contrast) | View ▸ Next Theme | `F5` | `F5` |
 | Choose theme by name | View ▸ Choose Theme… | `Ctrl+Alt+T` | `M-x theme <name>` |
 | Reload CSS themes | View ▸ Reload CSS Themes | `Ctrl+Shift+R` | — |
 | Open themes folder | View ▸ Open Themes Folder | `Ctrl+Shift+F` | — |
@@ -127,10 +377,16 @@ trigger it).
 | Dictate note (record) | Tools ▸ Dictate Note (record)… | `Ctrl+Alt+V` | — |
 | Toggle transcript timestamps | Tools ▸ Toggle Transcript Timestamps | `Ctrl+Alt+Z` | — |
 | Reading statistics | Tools ▸ Reading Statistics… | `Ctrl+Shift+S` | `M-x reading-stats` |
+| Install optional features | Tools ▸ Install Optional Features… | — | (`star --install-optional` CLI) |
+| Review due cards (spaced repetition) | Study ▸ Review Due Cards… | `Ctrl+Shift+F5` | — |
+| Sync with Anki (AnkiConnect) | Study ▸ Sync with Anki… | — | — |
 | Clear document cache | Tools ▸ Clear Document Cache | `Ctrl+Shift+Delete` | `M-x cache-clear` |
 | Command palette | — | `F2` | `F2` · `M-x` · `:` |
 | Keyboard cheat sheet | Help ▸ Keyboard Shortcuts | `F3` | `M-x shortcuts` (`?`) |
 | Customize shortcuts | Help ▸ Customize Shortcuts… | `Ctrl+Alt+Q` | — |
+| Guided tour (replay) | Help ▸ Guided Tour | `Shift+F1` | — |
+| Check for updates | Help ▸ Check for Updates… | — | (`star --check-update` CLI) |
+| Open documentation | Help ▸ Open Documentation | — | — |
 | Open README (help) | Help ▸ Help | `F1` | `F1` (`M-x help`) |
 | About star | Help ▸ About star | `Ctrl+F1` | `M-x about` |
 
@@ -252,15 +508,35 @@ bracket keys as fallbacks.
 
 ### Search
 
+In the Qt GUI, `Ctrl+F` opens an incremental **find bar** at the bottom of the
+window with a live match counter, next/previous, a case toggle, and wrap-around
+(see [Find text in the current document](#find-text-in-the-current-document)).
+
 | Action | Qt GUI | TUI |
 |---|---|---|
-| Search forward | `Ctrl+F` | `Ctrl+F`   `/` |
+| Open find bar / search forward | `Ctrl+F` | `Ctrl+F`   `/` |
+| Next match | `Enter`   `F3` | `n` |
+| Previous match | `Shift+Enter`   `Shift+F3` | `N` |
+| Toggle case sensitivity | (Match case checkbox) | — |
 | Search backward | — | `Ctrl+R`   `?` |
-| Next match | — | `n` |
-| Previous match | — | `N` |
-| Clear search | `Esc` | `Esc`   `C-g` |
+| Close find / clear search | `Esc` | `Esc`   `C-g` |
 
-All matches are highlighted: current match in magenta, others in blue.
+In the Qt find bar, every match is tinted amber and the active match bright
+orange, with a "N of M" counter. In the TUI, the current match shows in magenta
+and the others in blue.
+
+### Bookmarks & navigation history
+
+| Action | Qt GUI | TUI |
+|---|---|---|
+| Add bookmark (auto-named) | `Ctrl+B` | `M-x bookmark-set` |
+| Add named bookmark | Bookmarks ▸ Add Named Bookmark… | `M-x bookmark-set <name>` |
+| List / jump to bookmarks | Bookmarks ▸ Bookmarks… | `M-x bookmark-list` / `bookmark-goto` |
+| History: back | `Alt+←` | `H` |
+| History: forward | `Alt+→` | `L` |
+
+Bookmarks are stored per document and shared between the Qt GUI and the TUI, so
+a bookmark set in one interface appears in the other.
 
 ### View & reading aids
 
@@ -314,6 +590,19 @@ All matches are highlighted: current match in magenta, others in blue.
 | Insert citation at cursor | `Ctrl+Alt+R` |
 | Manage / browse citations | `Ctrl+Alt+G` |
 
+### Study (Qt GUI)
+
+Notes and highlights become spaced-repetition cards. See
+[Study what you read](#study-what-you-read-spaced-repetition).
+
+| Action | Shortcut |
+|---|---|
+| Review due cards | `Ctrl+Shift+F5` |
+| Sync with Anki (AnkiConnect) | Study ▸ Sync with Anki… |
+| Export Anki flashcards (with optional cloze cards) | `Ctrl+Alt+H` |
+| Reveal card answer (in review) | `Enter` |
+| Grade recall: Again / Hard / Good / Easy | `1` / `2` / `3` / `4` |
+
 ### Tools & help
 
 | Action | Qt GUI | TUI |
@@ -322,10 +611,13 @@ All matches are highlighted: current match in magenta, others in blue.
 | Dictate note (record) | `Ctrl+Alt+V` | — |
 | Toggle transcript timestamps | `Ctrl+Alt+Z` | — |
 | Reading statistics | `Ctrl+Shift+S` | `M-x reading-stats` |
+| Install optional features | Tools ▸ Install Optional Features… | (`star --install-optional`) |
 | Clear document cache | `Ctrl+Shift+Delete` | `M-x cache-clear` |
 | Command palette | `F2` | `F2`   `M-x`   `:` |
 | Keyboard cheat sheet | `F3` | `M-x shortcuts`   `?` |
 | Customize shortcuts | `Ctrl+Alt+Q` | — |
+| Guided tour (replay) | `Shift+F1` | — |
+| Check for updates | Help ▸ Check for Updates… | (`star --check-update`) |
 | Open README.md (help) | `F1` | `F1` |
 | About star | `Ctrl+F1` | `M-x about` |
 
@@ -362,7 +654,7 @@ complete.
 | `subtitles-with-audio` | Toggle emitting captions automatically alongside audio export |
 | `recent` | Pick from recently opened files |
 | `library` (`bookshelf`) | Browse the document library and reopen a document |
-| `library-search` | Multi-criteria search over the library (title, DOI, ISBN, author, annotation text) |
+| `library-search` | Multi-criteria search over the library (title, DOI, ISBN, author, annotation text, and full document text) |
 | `reading-stats` (`stats`) | Show the reading-statistics dashboard |
 | `cache-clear` | Delete the cached version of the current document |
 
@@ -371,7 +663,7 @@ complete.
 | Command | Description |
 |---|---|
 | `metadata-edit` | Edit the current document's metadata (title, author, year, DOI, ISBN, publisher) with optional DOI/ISBN lookup |
-| `library-search` | Search the library by title/path/annotation (`query`), DOI, ISBN, and/or author |
+| `library-search` | Search the library by title/path/annotation and full document text (`query`), DOI, ISBN, and/or author |
 
 ### Speech
 
@@ -520,9 +812,21 @@ Metadata…, Library / Bookshelf…, Batch Convert, Watch Folder, Export ▸
 (Markdown / PDF / Braille (BRF) / Audio / Subtitles / Video (MP4) / Anki
 Flashcards), Quit.
 
+**Edit menu** — Find… (`Ctrl+F`, the incremental find bar), Copy, Toggle Edit
+Mode, Save, Check Spelling.
+
 **Highlight menu** — Highlight Yellow / Green / Cyan / Pink / Orange, Clear All
 Highlights. (`Ctrl+H` is the **Next Heading** shortcut, matching NVDA/JAWS
 convention; use the toolbar Highlight button or this menu to apply colors.)
+
+**Navigate menu** — sentence / paragraph / heading / table moves, plus **Back**
+(`Alt+←`) and **Forward** (`Alt+→`) through your navigation history.
+
+**Bookmarks menu** — Add Bookmark (`Ctrl+B`), Add Named Bookmark…, and
+Bookmarks… (the jump/delete list).
+
+**Study menu** — Review Due Cards… (`Ctrl+Shift+F5`, spaced-repetition review of
+your notes and highlights) and Sync with Anki (AnkiConnect)….
 
 **View menu** — Toggle Contents Panel (`Ctrl+\`), Toggle Notes Panel
 (`Ctrl+Shift+N`), Next Theme (`F5`), Choose Theme…, Reload CSS Themes, Open
@@ -530,7 +834,19 @@ Themes Folder, Change Font…, Reading Level (`Ctrl+L`), and **Reading Aids ▸*
 Text Spacing… / Karaoke Highlight… / Dyslexia-Friendly Font / Bionic Reading /
 Current-Line Highlight / Highlight Difficult Words / Live HTML Preview.
 
-**Speech, Profiles, Notes, Citations, Tools, Help menus** — see the
+**Speech menu** — Play/Pause, Stop, speed, Choose TTS Engine…, Choose Voice…,
+**Voice Manager…** (`F4`, filter / preview / favorite / download voices), Speech
+Cursor Mode, and the Pronunciation Lexicon.
+
+**Tools menu** — leads with **Install Optional Features…** (the download
+chooser), then Transcribe Audio File…, Dictate Note…, Summarize / Translate,
+Reading Statistics…, and Clear Document Cache.
+
+**Help menu** — Command Palette…, Keyboard Shortcuts…, Customize Shortcuts…,
+**Guided Tour** (`Shift+F1`), Help (`F1`), Open Documentation, **Check for
+Updates…**, and About star.
+
+**Profiles, Notes, Citations menus** — see the
 [Quick command reference](#quick-command-reference) for every item, its menu
 path, and its shortcut.
 
@@ -586,6 +902,9 @@ star [OPTIONS] [FILE_OR_URL]
 | `--list-themes` | Print available theme names and exit |
 | `--list-voices` | Print available TTS voice IDs and exit |
 | `--deps` | Print the status of every optional dependency (installed or not, with install hints) and exit |
+| `--install-optional [PRESET]` | Install optional features and exit — no `pip` needed. `PRESET` is `thin`, `all` (default), or a comma-separated list of feature keys (e.g. `ocr,dictionary`). Run with no value to list every feature with its size and status |
+| `--check-update` | Check PyPI for a newer release of star and exit (best-effort, offline-safe; prints the result as plain text) |
+| `--plugins [SUBCOMMAND]` | Inspect the plugin system and exit: `list` (registered backends / format handlers / exporters), `info <group> <name>`, or `api` (the plugin contracts) |
 | `--version` | Print version number and exit |
 | `--help` | Print help summary and exit |
 

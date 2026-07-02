@@ -12,13 +12,25 @@
 
 Open it from the TUI with `M-x settings`.
 
+> **Optional features install themselves.** Most optional capabilities (neural
+> voices, OCR, transcription, richer imports, extra fonts, etc.) fetch what they
+> need on demand the first time you use them — no manual `pip install`. This is
+> controlled by `auto_install` (see below) and can be turned off globally with
+> the `STAR_NO_AUTOINSTALL` environment variable.
+
 ---
 
 ## All settings keys
 
 | Key | Default | Description |
 |---|---|---|
-| `theme` | `"dark"` | Color theme: `dark`, `light`, `contrast`, `phosphor` |
+| `theme` | `"obsidian"` | Color theme: `obsidian`, `dark`, `light`, `contrast`, `high-contrast` (AAA low-vision), `phosphor`. See `qt_follow_os_theme` for automatic light/dark/high-contrast switching |
+| `qt_follow_os_theme` | `true` | Qt GUI: on startup, follow the OS light/dark/high-contrast appearance and pick a matching built-in theme — unless the user has explicitly chosen one (see `qt_theme_explicit`). Set `false` to always honor the saved `theme` |
+| `qt_theme_explicit` | `false` | Set automatically the first time the user deliberately picks a theme (Choose Theme, Next Theme, or a profile that carries a theme). Once set, OS auto-detection never overrides that choice |
+| `auto_install` | `true` | Auto-install optional dependencies on demand (neural voices, OCR, imports, fonts, …). Gates the first-run feature chooser and later on-demand fetches. Set `false` — or set the `STAR_NO_AUTOINSTALL` env var — to disable all automatic installs |
+| `deps_prompted` | `false` | Set automatically once the first-run optional-feature chooser has been shown, so it never prompts again (populated automatically) |
+| `tour_seen` | `false` | Set automatically once the first-run guided tour has been shown or skipped, so it never re-triggers on its own. The tour stays re-runnable from **Help ▸ Guided Tour** |
+| `auto_check_updates` | `false` | Opt in to a quiet, best-effort update check shortly after launch (one cached PyPI query; only speaks up if a newer release exists). Off by default for privacy/offline use — **Help ▸ Check for Updates…** always runs a manual check regardless |
 | `ui_language` | `"en"` | UI-chrome language (menus, toolbar, docks): `en`, `es`, `fr`, `de`, `pt`. See [Interface language](features.md#interface-language-i18n) |
 | `tts_backend` | `"auto"` | TTS engine: `auto`, `pyttsx3`, `espeak`, `festival`, `piper`, `coqui`, `dectalk`, `none` |
 | `piper_model` | `""` | Path to a Piper `.onnx` voice model for the `piper` backend (neural, offline). The matching `.onnx.json` must sit beside it. Also honored: `PIPER_MODEL` env var and Piper voice directories. |
@@ -26,6 +38,7 @@ Open it from the TUI with `M-x settings`.
 | `tts_volume` | `1.0` | Volume from `0.0` (silent) to `1.0` (full) |
 | `tts_voice` | `""` | Voice ID; empty = system default (auto-resolved via `tts_prefer_voice`) |
 | `tts_prefer_voice` | `"eloquence"` | Substring of the voice to auto-select when `tts_voice` is empty (favors US English) |
+| `tts_favorite_voices` | `[]` | Voice IDs starred in the Voice Manager; favorites sort to the top and are marked with ★ (populated automatically) |
 | `tts_auto_play` | `false` | Start TTS automatically on file open |
 | `tts_skip_code` | `true` | Skip fenced code blocks during TTS |
 | `tts_auto_resume` | `true` | Restore the reading position automatically on open |
@@ -57,6 +70,7 @@ Open it from the TUI with `M-x settings`.
 | `qt_hidpi` | `true` | Enable high-DPI scaling in the Qt GUI |
 | `qt_ctrl_pause` | `true` | Tap the `Ctrl` key alone to play/pause speech (JAWS habit); chords like `Ctrl+O` never trigger it |
 | `qt_edit_preview` | `false` | Show a live-rendered HTML preview beside the editor in edit mode (toggle with `Ctrl+Shift+L`) |
+| `qt_caret_browsing` | `true` | Show a movable text caret in the read-only document view for keyboard navigation, passage selection, and Define Word (toggle with `F7` or **View ▸ Caret Browsing**) |
 | `reading_stats` | `{}` | Per-document reading time, progress, and session counts (populated automatically) |
 | `library` | `{}` | Library/bookshelf metadata for every opened document (populated automatically) |
 | `profiles` | `{}` | Named setting bundles (voice, rate, theme, font, spacing, highlight) saved via the Profiles menu |
@@ -72,7 +86,13 @@ Open it from the TUI with `M-x settings`.
 | `qt_current_line_highlight` | `false` | Tint the line being read with a focus band |
 | `qt_bionic_reading` | `false` | Embolden the leading part of each word (bionic reading) |
 | `qt_vocab_highlight` | `false` | Highlight uncommon / academic vocabulary (difficult-word overlay; needs `wordfreq`) |
-| `annotations` | `{}` | Per-document notes: `{path: [{char_pos, word_idx, anchor, note, tags, cite, ts}]}` |
+| `qt_rsvp_mode` | `false` | Qt GUI: show the RSVP (Rapid Serial Visual Presentation) overlay — one word at a time at a fixed point |
+| `qt_rsvp_position` | `"top-center"` | Qt RSVP overlay placement: `top-left`/`center`/`right`, `center-left`/`right`, `center`, `bottom-left`/`center`/`right` |
+| `qt_rsvp_font_size` | `48` | Qt RSVP focused-word point size |
+| `qt_rsvp_context` | `true` | Qt RSVP: show the previous/next word above and below the focused word |
+| `tui_rsvp_mode` | `false` | TUI mirror of the RSVP toggle |
+| `tui_rsvp_position` | `"top-center"` | TUI RSVP placement (same nine-position set as `qt_rsvp_position`) |
+| `annotations` | `{}` | Per-document notes: `{path: [{char_pos, word_idx, anchor, note, tags, cite, ts, id, relations}]}`. Reviewable notes (a highlight and/or a note body) also carry an `sr_state` sub-dict — the spaced-repetition scheduler's per-card memory (next review date, interval, stability, difficulty, reps, lapses), so review scheduling persists across sessions. See [`star/sr.py`](../star/sr.py) (FSRS scheduler) and [`star/annotations.py`](../star/annotations.py) |
 | `citations` | `[]` | Shared citation library (BibTeX/RIS/CSL-JSON import/export) |
 | `whisper_model` | `"base"` | Whisper model size for transcription/dictation (`tiny`…`large`) |
 | `user_highlights` | `{}` | Persistent text highlights per document path |

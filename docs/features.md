@@ -7,7 +7,10 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 - [Feature overview](#feature-overview)
 - [Supported file formats](#supported-file-formats)
 - [TTS backends](#tts-backends)
+- [Voice Manager](#voice-manager)
 - [Word highlighting](#word-highlighting)
+- [Find in document](#find-in-document)
+- [Full-text library search](#full-text-library-search)
 - [Subtitle export (SRT / VTT)](#subtitle-export-srt--vtt)
 - [Reading statistics & progress](#reading-statistics--progress)
 - [Library / Bookshelf](#library--bookshelf)
@@ -16,11 +19,13 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 - [Pronunciation lexicon](#pronunciation-lexicon)
 - [User highlights](#user-highlights)
 - [Annotations / notes](#annotations--notes)
+- [Study & spaced repetition](#study--spaced-repetition)
 - [Citation manager](#citation-manager-qt-gui)
 - [Knowledge graph](#knowledge-graph)
 - [Voice dictation & transcription](#voice-dictation--transcription-optional)
 - [Table of contents & EPUB / DAISY navigation](#table-of-contents--epub--daisy-navigation)
 - [Document caching](#document-caching)
+- [Document fidelity](#document-fidelity)
 - [Footnote handling](#footnote-handling)
 - [OCR support](#ocr-support)
 - [Math normalization](#math-normalization)
@@ -33,9 +38,12 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 - [Speed presets, bookmarks & history](#speed-presets-bookmarks--history)
 - [Document editing](#document-editing-qt-gui)
 - [Study & writing aids](#study--writing-aids)
+- [Optional features & one-click install](#optional-features--one-click-install)
+- [Accessibility](#accessibility)
 - [Screen reader compatibility](#screen-reader-compatibility)
 - [Color themes & CSS customization](#color-themes--css-customization)
 - [Interface language (i18n)](#interface-language-i18n)
+- [Plugins](#plugins)
 - [Batch conversion & hot-folder watching](#batch-conversion--hot-folder-watching)
 
 ---
@@ -47,10 +55,14 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 | Qt GUI (primary) | Windowed application with menu bar, toolbar, dock panels, and a keyboard shortcut for every command; launches by default when PyQt6/PyQt5 is installed |
 | Terminal TUI (secondary) | Full-featured, fully keyboard-driven curses interface for headless / text-only use; force it with `--tui` |
 | Built-in TTS | pyttsx3 (SAPI5 / NSSpeechSynthesizer / eSpeak-NG), macOS `say` (native, default on Mac), eSpeak-NG (in-process libespeak-ng, or CLI), DECtalk, Festival, Piper (neural, offline, free), Coqui |
+| Voice Manager | Browse, filter, preview, and favorite voices across every engine (`F4`); one-click download of offline Piper neural voices |
 | eSpeak-NG playback sync | Driven in-process via libespeak-ng (ctypes); per-word events carry their audio position, so the highlight follows the actual audio, not a timer estimate |
 | Default reading rate | **265 wpm** — intentionally brisk; adjustable at runtime |
 | TTS word highlighting | Spoken word highlighted live; works in both Qt and terminal modes |
 | Highlight granularity | Highlight by **word** (default), whole **sentence** (less flicker), or **both** |
+| Find in document | Incremental `Ctrl+F` find bar: live match count, case toggle, wrap-around, and highlight-all |
+| Full-text library search | Search *inside* every document in the library, not just titles and metadata |
+| Study & spaced repetition | Turn notes/highlights into review cards with an FSRS scheduler; in-app review dashboard; auto-cloze cards; optional AnkiConnect two-way sync |
 | User text highlights | Highlight passages in yellow, green, cyan, pink, or orange; persists across sessions and exports to PDF |
 | Annotations / notes panel | Tagged notes anywhere in a document; full-text + `#tag` search; persists per-document; exports to Markdown, JSON, BibTeX, or RIS |
 | Citation manager | Import/export BibTeX, RIS, and CSL-JSON; link citations to notes |
@@ -63,17 +75,20 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 | Document caching | Parsed documents cached per platform; reopening a large file is instant |
 | Markdown rendering | All documents are converted to clean Markdown for display |
 | Math normalization | LaTeX and inline math expressions converted to natural spoken English |
+| Inline math display | Inline / display LaTeX rendered to Unicode (`x²`, `√2`, `½`, `α`) in the Qt document view |
+| Accessible tables | Rendered tables keep header structure (`scope="col"` / `scope="row"`) for screen readers |
+| Clickable footnotes | Footnote markers link to the note and a `↩` backlink jumps back |
 | Footnote handling | Markdown / Pandoc footnotes can be read inline, deferred, or skipped |
 | PDF reading order | Multi-column PDFs read column-by-column, top-to-bottom; running headers/footers and page numbers suppressed (toggle: `pdf_reading_order`) |
 | Speed presets | Named presets (skim/normal/study/slow) switchable at runtime |
-| Bookmarks / history | Named bookmarks and within-session position history |
+| Bookmarks / history | Named per-document bookmarks (`Ctrl+B`) and back/forward navigation history (`Alt+←/→`), in both the Qt GUI and the TUI |
 | Document editing | `Ctrl+E` toggles raw-Markdown edit mode; `Ctrl+S` saves back to the original file |
 | Archive ingestion | Open ZIP, TAR, .7z, and .rar archives; browse members; load any member by format; archive refs persisted in library and annotations |
 | Metadata editor | Edit title, author, year, DOI, ISBN, publisher per document; one-click DOI / ISBN lookup (CrossRef / OpenLibrary) |
 | Library search | AND-combined search over title, author, DOI, ISBN, and annotation full-text |
 | Karaoke video export | Sentence-synchronized MP4: TTS audio + rendered page frames with highlight advancing sentence by sentence; soft SRT subtitle track |
 | RSVP reading mode | One-word-at-a-time display at a fixed on-screen point; 9 placement positions for limited-visual-field accessibility; prev/next context words; syncs with TTS |
-| Interface language | Localize the menus, toolbar, and docks (English, Spanish, French, German, Portuguese); switch live from View ▸ Interface Language |
+| Interface language | Localize the menus, toolbar, and docks — **and now the terminal UI** — (English, Spanish, French, German, Portuguese); first-run language picker; switch live from View ▸ Interface Language; TTS prefers a voice matching the interface language |
 | Export | Markdown, PDF (with highlights), BRF braille, TTS audio, SRT/VTT subtitles, and karaoke MP4 video |
 | Reading statistics | Per-document time read, progress %, and session count, with totals and a most-read dashboard |
 | Library / bookshelf | Searchable list of every opened document with progress and last-opened time |
@@ -84,14 +99,19 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 | RSS / journal feeds | Browse a feed and open any article in the reader; optional via `feedparser` |
 | Difficult-word overlay | Tints uncommon / academic vocabulary by word frequency; optional via `wordfreq` |
 | Define word (offline) | Selected word → definition, senses, synonyms, pronunciation; WordNet via `nltk`, or a custom JSON glossary |
+| Screen-reader announcements | Playback, document load, theme change, and find results are spoken to NVDA / JAWS / Orca without moving focus |
+| High-contrast AAA theme | WCAG 2.1 AAA (§1.4.6) low-vision theme; theming can also follow the OS light / dark / high-contrast preference |
+| OpenDyslexic everywhere | The dyslexia-friendly font (auto-fetched) applies across the whole UI — document, menus, toolbar, and panels |
+| One-click optional features | Missing add-ons are offered for background download — no `pip` required; the feature works in the same session |
+| Plugin system | Third parties add TTS engines, document formats, or exporters via entry-point plugins; introspect with `star --plugins` |
 | Dependency status report | `star --deps` lists every optional dependency and how to add the rest |
-| Four built-in themes | dark (default), light, contrast, phosphor — all colorblind-friendly |
+| Built-in themes | dark (default), light, contrast, high-contrast (WCAG AAA), phosphor — all colorblind-friendly; can also follow the OS light / dark / high-contrast preference |
 | CSS theme customization | Drop any `.css` file into the themes folder; star picks it up instantly |
 | High-DPI display support | Qt GUI scales correctly on 4K and HiDPI screens |
 | Reading level | Flesch-Kincaid grade and ease score on demand |
 | `--plain` mode | Extracts clean text to stdout for piping to other tools |
 | Batch & hot-folder convert | Convert many files / a folder at once, or auto-convert a watched folder |
-| Installable package, graceful degradation | Every third-party dependency is optional and guarded, so the core runs on the standard library alone |
+| Installable package, graceful degradation | Every third-party dependency is optional and guarded, so the core runs on the standard library alone; when a feature needs an add-on, star offers to fetch it for you (no `pip` instructions) |
 
 ---
 
@@ -213,6 +233,53 @@ In the Qt GUI the same engines are reachable from **Speech → Choose TTS Engine
 
 ---
 
+## Voice Manager
+
+The classic voice picker lists only the *active* backend's voices. The **Voice
+Manager** (Qt GUI: **Speech ▸ Voice Manager…**, `F4`) is a fuller dialog that
+gathers **every** voice — from the active engine *and* the downloadable Piper
+neural-voice catalog — into one searchable list.
+
+- **Filter** the list live by language or name, or show **Favorites only**.
+- **Preview** a voice — it speaks a short sample without committing to it.
+- **Set as Current** applies the voice for speech (double-click or Enter also
+  sets it, for keyboard parity).
+- **Toggle Favorite** pins a voice with a ★; favorites persist in
+  `tts_favorite_voices` and survive across sessions.
+- **Download** a catalog Piper voice — see below.
+
+Every control carries an accessible name/description, and the list is fully
+keyboard-drivable.
+
+### One-click Piper neural voices
+
+Piper gives natural, offline neural speech, but its voice *models* (a `.onnx`
+weights file plus its `.onnx.json` config) are large and are **not** bundled.
+The Voice Manager ships a curated catalog of **nine** voices spanning star's five
+interface languages plus a couple of extra widely-used English voices:
+
+| Voice | Language | Quality |
+|---|---|---|
+| Lessac | English (US) | medium |
+| Amy | English (US) | medium |
+| Ryan | English (US) | high |
+| Alan | English (GB) | medium |
+| Davefx | Español (ES) | medium |
+| Claude | Español (MX) | high |
+| Siwis | Français (FR) | medium |
+| Thorsten | Deutsch (DE) | medium |
+| Faber | Português (BR) | medium |
+
+Selecting a not-yet-downloaded catalog voice (marked ⬇ with its size) and
+pressing **Download** fetches both files into `CACHE_DIR/piper` — the directory
+Piper already scans — and switches star to the Piper backend with the new model
+selected. The download is best-effort and **offline-safe**: any network error is
+reported ("Could not download … (offline?)") instead of raising. A half-download
+(one file present) is treated as *not installed* and removed so a retry starts
+clean.
+
+---
+
 ## Word highlighting
 
 While TTS is playing, `star` highlights the word currently being spoken and keeps
@@ -242,6 +309,56 @@ SAPI5 callbacks can arrive 1–3 words late or stop entirely, so the guard has a
 **Word-position map:** at load time star builds a map linking every TTS word to
 its display line and column, using a monotonically advancing, column-aware search
 so repeated words match in document order and the highlight never appears stuck.
+
+---
+
+## Find in document
+
+A slim **find bar** docks at the bottom of the Qt window, over the document. Open
+it with **`Ctrl+F`** (it seeds itself from the current single-word selection);
+close it with **Escape**.
+
+- **Incremental** — matches recompute as you type, and the first match at or
+  after the cursor is revealed, so the search feels anchored where you are
+  reading.
+- **Live count** — a "**N of M**" label shows your position among all matches.
+- **Next / Previous** — Enter or `F3` for next, Shift+Enter or Shift+`F3` for
+  previous; navigation **wraps around** the document.
+- **Case toggle** — a **Match case** checkbox switches between case-insensitive
+  (default) and exact matching.
+- **Highlight-all** — every match is banded in dim amber while the active match
+  is emphasised in bright orange. The find highlights are painted *on top* of any
+  user or difficult-word highlights, so neither wipes the other.
+- **Spoken results** — the match count is announced to screen readers ("3 of 12"
+  / "No matches") and mirrored to the status bar, so a blind user hears their
+  search progress without leaving the input.
+
+Matching reuses the plain-text substring scan of `star.search.SearchEngine`,
+run over the editor's text so offsets map straight onto the on-screen selection.
+
+---
+
+## Full-text library search
+
+The [metadata search](#metadata-editor--library-search) matches only titles,
+authors, paths, and annotations. **Full-text library search** goes further: it
+searches the actual **contents** of every document in your library.
+
+- **On-demand & lazy** — nothing is indexed at start-up or at document-open time;
+  the content index is built the first time a search runs, so the reading UI
+  never pays for indexing it does not use.
+- **Cached & incremental** — each document's extracted text is cached on disk
+  (`fulltext_index.json` in the cache dir) keyed by the file's `(size, mtime)`
+  fingerprint, so a later refresh only re-reads files that changed.
+- **Off the UI thread** — a large library is indexed on a background worker so the
+  event loop never blocks.
+- **Best-effort** — a file that fails to load is simply skipped; one bad document
+  never breaks the index.
+
+Each result carries the document's path, title, the number of matches, and a
+short snippet around the first hit; results are ranked by match count. Matching is
+a case-insensitive substring scan. Per document, up to ~2 MB of text is indexed,
+so a giant file can't bloat the cache or a query.
 
 ---
 
@@ -385,6 +502,61 @@ exported notes drop cleanly into Zotero, Mendeley, or a `.bib` bibliography.
 
 ---
 
+## Study & spaced repetition
+
+Your highlights and notes double as flashcards: the highlighted passage is the
+**front** (the prompt) and your note is the **back** (the answer). star schedules
+them for review with a modern spaced-repetition engine so you re-see material just
+before you would forget it.
+
+### The scheduler (FSRS)
+
+Scheduling uses **FSRS** (Free Spaced Repetition Scheduler) — the open memory
+model that replaced SM-2 in Anki 23.10. Each card carries a *stability* (days
+until recall probability falls to the target) and a *difficulty* (1–10); each
+review updates both and sets the next interval so retrievability decays back to a
+target retention (default 90%). The scheduler is pure, deterministic, and stored
+as plain JSON in settings, so a card's state round-trips through `settings.json`
+and the `.star/` sidecars. A documented SM-2 fallback is available for reference.
+
+### Reviewing in the app
+
+Open the review dashboard from **Study ▸ Review Due Cards…** (`Ctrl+Shift+F5`).
+It walks you through the cards due today, one at a time:
+
+- **Reveal** the answer with **Enter** (recall is tested before the answer shows).
+- **Grade** your recall with four buttons or the keys **1** (Again), **2** (Hard),
+  **3** (Good), **4** (Easy); focus lands on **Good**, the most common grade, for
+  one-key grading.
+- The header shows your position in the deck, the due count, and a running
+  **retention** estimate; each grade is written to the card's state immediately,
+  so closing mid-session loses nothing.
+
+Every control is keyboard-reachable and carries an accessible name/description,
+and the header announces progress and retention to screen readers.
+
+### Auto-generated cloze cards
+
+star can turn passages into **cloze** (fill-in-the-blank) cards automatically, so
+you get study material without hand-authoring every card.
+
+### Optional AnkiConnect sync
+
+If you also use Anki, star can two-way sync with a **locally running** Anki that
+has the community **AnkiConnect** add-on installed (it exposes a small JSON-RPC
+API on `localhost:8765`). The sync **pushes** star's reviewable notes into a
+`star` deck (front = highlight, back = note, tagged with a stable id so a re-push
+updates rather than duplicates) and **pulls** back each note's scheduling info
+(interval, due, reps, lapses, ease) so the in-app dashboard reflects reviews you
+did inside Anki.
+
+It uses only the standard library, so importing star never requires Anki. It is
+fully **offline-safe**: if Anki is closed, the add-on is absent, or the port is
+blocked, you get a friendly hint instead of an error, and star's own note store
+remains the source of truth.
+
+---
+
 ## Citation manager (Qt GUI)
 
 A lightweight citation library lives in the **Citations** menu, shared across all
@@ -491,6 +663,32 @@ Configure via `document_cache` and `cache_max_size_mb`.
 
 ---
 
+## Document fidelity
+
+Beyond plain reading order, the Qt document view preserves the structure that
+makes a document navigable and accessible.
+
+- **Inline LaTeX math → Unicode.** Inline and display math (`$…$`, `$$…$$`,
+  `\(…\)`, `\[…\]`) is rendered to real Unicode for the on-screen view — `x^2` →
+  `x²`, `\sqrt{2}` → `√2`, `\frac{1}{2}` → `½`, `\alpha` → `α`, Greek letters,
+  operators, roots, accents, and super/subscripts. This is purely a *display*
+  transform (best-effort, no external deps): the **speech** path still receives
+  the raw LaTeX and normalizes it to spoken English separately (see
+  [Math normalization](#math-normalization)), so the two never interfere.
+- **Accessible tables.** Markdown tables render with real header structure — a
+  `<thead>` header row marked `scope="col"`, and the first cell of each body row
+  marked `scope="row"` — so a screen reader can announce the row/column headers
+  for any cell instead of reading a flat grid. Column alignment is preserved.
+- **Clickable footnotes with backlinks.** Footnote *markers* become links that
+  jump to the note at the bottom of the document, and each note carries a `↩`
+  backlink that jumps back to where you were reading. (This is independent of the
+  spoken [footnote handling](#footnote-handling) modes below.)
+- **Image captions & alt text.** Image references render as a visible label from
+  their alt text (falling back to the file name when alt is missing), styled as an
+  italic caption so figures are distinguishable from body prose.
+
+---
+
 ## Footnote handling
 
 Markdown/Pandoc footnotes (`[^1]`, `[^label]`) are handled per `footnote_mode`:
@@ -502,6 +700,10 @@ Markdown/Pandoc footnotes (`[^1]`, `[^label]`) are handled per `footnote_mode`:
 | `skip` | All footnote markers and definitions silently removed |
 
 Change at runtime with `M-x footnote-mode inline|deferred|skip`.
+
+This controls how footnotes are *spoken*. For the on-screen document, footnote
+markers are also rendered as **clickable anchors** with a `↩` backlink — see
+[Document fidelity](#document-fidelity).
 
 ---
 
@@ -697,7 +899,8 @@ renderer.
 RSVP (Rapid Serial Visual Presentation) shows one word at a time at a fixed
 point on screen, synchronized with TTS playback.  This eliminates the need to
 track moving text across a line — a recognized aid for many dyslexic readers and
-readers with limited visual field.
+readers with limited visual field. The one-word display works as intended and no
+longer crashes on activation.
 
 **Activation**
 
@@ -779,11 +982,25 @@ M-x speed-add fast 400  # define a new preset
 M-x speed-list
 ```
 
-**Bookmarks** — `M-x bookmark-set <name>`, `bookmark-goto`, `bookmark-list`,
-`bookmark-delete`; stored per document under `bookmarks`.
+**Bookmarks** — named, one set per document, and now available in **both**
+interfaces from a shared store (`settings['bookmarks']`, keyed by document path,
+so a bookmark set in one UI shows up in the other).
 
-**History** — `Alt+Left` / `Alt+Right` (TUI) navigate within-session positions;
-depth is `nav_history_size` (default 50).
+- **Qt GUI:** **`Ctrl+B`** (**Bookmarks ▸ Add Bookmark**) sets a bookmark at the
+  current reading position (auto-named `mark1`, `mark2`, …); **Add Named
+  Bookmark…** prompts for a name; the **Bookmarks…** dialog lists them (ordered by
+  position) to jump to or delete.
+- **TUI:** `M-x bookmark-set <name>`, `bookmark-goto`, `bookmark-list`,
+  `bookmark-delete`.
+
+Each bookmark records the position's character offset, a percentage, and a
+timestamp.
+
+**Navigation history (back / forward)** — every jump (a bookmark, a list pick, a
+back/forward target) first records where you were, so you can walk your reading
+path with **`Alt+←`** (back) and **`Alt+→`** (forward) in **both** the Qt GUI and
+the TUI. Jumping mid-history branches (discarding the forward entries), and the
+stack depth is `nav_history_size` (default 50).
 
 ---
 
@@ -810,8 +1027,11 @@ formats this is a converted approximation, not a round-trip.
 ## Study & writing aids
 
 Each helper is gated behind an optional package and degrades gracefully — the
-menu item always appears and tells you what to `pip install` when its package is
-missing.
+menu item always appears, and when its package is missing star **offers to
+install it for you** in the background (no `pip` command to run — see
+[Optional features & one-click install](#optional-features--one-click-install)).
+The `pip install` lines below are shown for reference; you normally never need to
+type them.
 
 - **Summarize a document** — **Tools ▸ Summarize Document** (`Ctrl+Shift+U`)
   condenses the document to its most important sentences via the extractive
@@ -841,6 +1061,123 @@ missing.
 
 ---
 
+## Optional features & one-click install
+
+star runs fully out of the box on the Python standard library alone. Every
+heavier capability is an *optional* package with a graceful fallback — but you no
+longer have to run `pip` to get one. When a feature needs an add-on that isn't
+installed, star offers to **download it for you in the background**, and the
+feature becomes usable **in the same session** (only the very large speech-to-text
+pack asks for a restart).
+
+### First-run chooser
+
+On first launch star shows a short **Optional Features** menu instead of silently
+fetching everything. Pick a preset — **Thin** (the lightweight everyday reading
+and study aids, ~40 MB) or **All** (everything star can use) — or tick individual
+features. Each entry shows its purpose, approximate download size, and whether it
+is already installed. The very large packs (speech-to-text dictation ≈ 2 GB,
+named-entity extraction ≈ 500 MB) are opt-in and listed with their size upfront,
+so choosing **All** is an informed, deliberate choice. A read-only **System
+tools** list also reports native (non-pip) engines — Tesseract, Pandoc, ffmpeg,
+liblouis, Piper — that star can use but cannot install for you.
+
+The chooser also carries the **first-run interface-language picker** (see
+[Interface language](#interface-language-i18n)). Re-open it any time from
+**Tools → Install Optional Features…**.
+
+### The feature groups
+
+The chooser groups optional packages into features such as: office documents
+(ODT/XLSX), offline dictionary, spell check, summarize, Anki flashcard export,
+translate, RSS feeds, audio conversion, Grade 2 braille, hot-folder watching,
+system clipboard, extra markup formats, difficult-word highlighting, knowledge-
+graph extras, archive ingestion (`.7z`/`.rar`), OCR, speech-to-text dictation,
+and named-entity concept extraction.
+
+### Headless install (`star --install-optional`)
+
+The scriptable counterpart to the GUI chooser installs features from the command
+line:
+
+```bash
+star --install-optional                 # the "all" preset
+star --install-optional thin            # the lightweight everyday set
+star --install-optional ocr,dictionary  # a comma-separated feature list
+```
+
+Run it with no value (or an unknown one) to list every feature with its size and
+install status. The fetch runs in the foreground with plain progress output.
+
+### How it works
+
+- **Best-effort & non-blocking.** GUI installs run on a daemon thread; the UI
+  never waits on pip. If pip is missing, the machine is offline, or a build fails,
+  star silently keeps using its fallbacks.
+- **Attempted once per machine.** A marker file per package stops a slow or
+  failing install from retrying on every launch; an explicit "install now" ignores
+  the markers, so a prior failed attempt never makes the button silently no-op.
+- **Usable in-session.** After a runtime install star flips the stale
+  module-level "is it available?" flags for the affected feature, so it works
+  immediately without a restart.
+- **Opt-out.** `settings["auto_install"] = false` or the `STAR_NO_AUTOINSTALL`
+  environment variable disables the chooser and background fetching entirely; once
+  the chooser has been shown, `deps_prompted` keeps it from reappearing on its
+  own.
+
+The Qt binding itself is never installed here (you need it to launch the GUI in
+the first place), and native binaries (Tesseract, Pandoc, ffmpeg, liblouis, Piper)
+are out of scope — they are system tools, noted in each feature's description
+rather than pip-installed.
+
+---
+
+## Accessibility
+
+star is accessibility-first; several capabilities exist specifically for blind,
+low-vision, and dyslexic readers. (See also [Screen reader
+compatibility](#screen-reader-compatibility), [RSVP reading
+mode](#rsvp-reading-mode), and the reading aids under [Color themes & CSS
+customization](#color-themes--css-customization).)
+
+### Screen-reader announcements
+
+State changes are **spoken without moving focus**, using Qt's live-region
+mechanism (`QAccessible` `Announcement` events — the Qt equivalent of an ARIA
+live region). A blind user driving the app with NVDA / JAWS / Orca hears:
+
+- **playback** transitions — "Playing", "Paused", "Stopped";
+- **document load** — "Loaded ⟨title⟩";
+- **theme changes** — "Theme: ⟨name⟩";
+- **find results** — the live "N of M" / "No matches" count as you search;
+- guided-tour steps.
+
+Each announcement is paired with the matching status-bar message, so the same
+information is both seen and heard. The helper is defensive: it is a silent no-op
+when the accessibility bridge is unavailable (e.g. a headless test run) and never
+raises, so an announcement failing can't break playback or a load.
+
+### High-contrast AAA theme & OS theme follow
+
+A dedicated **high-contrast** theme is engineered for **WCAG 2.1 AAA** (§1.4.6):
+every text, heading, link, and code colour clears 7:1 contrast on pure black by a
+wide margin (lowest pair ≈ 11:1), with six distinct hues so information is never
+carried by colour alone — links are additionally underlined, headings by weight
+and size. star can also **follow the operating system** appearance, mapping the
+OS's light / dark / high-contrast preference to the matching built-in theme
+(via `QGuiApplication.styleHints().colorScheme()` on Qt 6.5+); detection is
+best-effort and falls back to your saved theme when the OS preference is unknown.
+
+### OpenDyslexic across the whole UI
+
+The dyslexia-friendly font (OpenDyslexic, fetched on demand the first time it is
+enabled) is applied to the **entire interface** — not just the document, but the
+menus, toolbar, dialogs, and dock panels — so nothing is left in the default face.
+star snapshots the real default application font before overriding, so turning the
+dyslexia font back off restores the original chrome cleanly.
+
+---
+
 ## Screen reader compatibility
 
 | Screen Reader | Platform | Notes |
@@ -867,11 +1204,22 @@ piping to other AT tools.
 | `dark` | Polished neutral-dark (Zed/Ghostty-inspired) with blue/cyan/purple/teal accents (default) |
 | `light` | Dark text on white with blue and magenta accents |
 | `contrast` | Bold white and cyan on pure black — maximum legibility |
+| `high-contrast` | **WCAG 2.1 AAA** (§1.4.6) low-vision theme — six distinct, slightly-desaturated hues on pure black, all clearing 7:1 contrast by a wide margin (lowest pair ≈ 11:1); links are also underlined and headings distinguished by weight/size, so meaning never rides on colour alone |
 | `phosphor` | Classic green phosphor monochrome |
 
 No built-in theme places red and green as adjacent accents (deuteranopia /
-protanopia safe); contrast ratios meet or exceed WCAG 2.1 AA. Switch with `F5`
-(cycle), **View → Choose Theme…**, `M-x theme <name>`, or `star --theme`.
+protanopia safe); contrast ratios meet or exceed WCAG 2.1 AA (and, for
+`high-contrast`, AAA). Switch with `F5` (cycle), **View → Choose Theme…**, `M-x
+theme <name>`, or `star --theme`.
+
+### Follow the OS appearance
+
+star can track the operating system's appearance and pick the matching built-in
+theme automatically: the OS **dark**, **light**, and **high-contrast** preferences
+map to the dark, light, and AAA themes respectively. Detection uses
+`QGuiApplication.styleHints().colorScheme()` (Qt 6.5+) and is best-effort — when
+the OS preference is unavailable or unknown, star leaves your saved theme
+untouched. See also [Accessibility](#accessibility).
 
 ### CSS theme customization (Qt GUI)
 
@@ -884,7 +1232,7 @@ The Qt GUI supports fully custom CSS themes — each is a plain `.css` file in t
 | macOS | `~/Library/Application Support/star/themes/` |
 | Windows | `%APPDATA%\star\themes\` |
 
-The folder is created on first launch with the four built-in themes as editable
+The folder is created on first launch with the built-in themes as editable
 starting points. To create one: **View → Open Themes Folder**, copy a `.css`
 file, edit it, then **View → Reload CSS Themes** (or `F5` to cycle to it).
 
@@ -911,16 +1259,30 @@ default (`qt_hidpi`), so the window renders crisp on 4K/HiDPI displays.
 ## Interface language (i18n)
 
 star can localize its own **chrome** — the menu bar, toolbar button labels, and
-dock titles — independently of the document being read. (Document *content* is
-handled separately by **Tools ▸ Translate Document…**.)
+dock titles in the Qt GUI, **and now the terminal UI as well** — independently of
+the document being read. (Document *content* is handled separately by **Tools ▸
+Translate Document…**.)
 
 **Shipped languages:** English (source), **Español**, **Français**, **Deutsch**,
-**Português**.
+**Português**. The non-English catalogs are kept complete by a CI gate, so no
+string is left untranslated.
+
+**First-run language picker** — the interface language is offered right at the
+top of the first-launch [Optional Features](#optional-features--one-click-install)
+chooser (first launch is the earliest natural point to pick a language). Choosing
+one applies it immediately and re-localizes the surrounding app without a restart.
+
+**Locale-aware TTS** — when speech is auto-selecting a voice, star **biases the
+default toward a voice that speaks your interface language**, so a Spanish UI
+tends to read aloud in a Spanish voice. If no installed voice matches, it keeps
+the English default. (The [Voice Manager](#voice-manager)'s Piper catalog covers
+all five interface languages so a matching neural voice is one click away.)
 
 **Switching** — Qt GUI: **View ▸ Interface Language**, then pick a language. The
 menu bar and toolbar are rebuilt immediately (no restart) and the choice is
 saved to `ui_language` in settings. Native language names are shown
-untranslated so you can always find your own.
+untranslated so you can always find your own. The TUI activates the persisted
+`ui_language` at start-up.
 
 **How it works** — each language is a flat JSON catalog of
 `{english_source: translation}` in `star/locale/<code>.json`, loaded at runtime
@@ -941,6 +1303,41 @@ contributor guide.
 | Setting | Default | Description |
 |---|---|---|
 | `ui_language` | `"en"` | ISO-639-1 code of the UI-chrome language |
+
+---
+
+## Plugins
+
+`star` is extensible through **entry-point plugins**: a separate pip package can
+add a new capability with no fork and no change to star itself. star discovers
+plugins at runtime via Python's standard `importlib.metadata` entry-points — the
+same mechanism its own built-ins use.
+
+There are **three plugin groups**:
+
+| Entry-point group | Base class (ABC) | What it adds |
+|---|---|---|
+| `star.formats` | `star.formats.FormatHandler` | A document loader for one or more file extensions |
+| `star.backends` | `star.tts.base.TTSBackend` | A text-to-speech engine |
+| `star.exporters` | `star.formats.Exporter` | A new export target |
+
+Each plugin is a class subclassing the matching ABC and registered in one table
+in your package's `pyproject.toml`.
+
+**Introspecting the plugin system** — the `star --plugins` CLI reports what is
+registered without launching the GUI or TUI:
+
+```bash
+star --plugins list                 # every registered plugin, by group
+star --plugins info <group> <name>  # details for one plugin
+star --plugins api                  # the ABC contracts a plugin must implement
+```
+
+There is a complete, working, copy-me example in
+[`examples/plugin-template/`](../examples/plugin-template/) — a ~40-line package
+that adds a toy `.demo` format. For the full walkthrough — the API contract, all
+three groups, packaging, and local testing — see the dedicated
+**[Developing star plugins](plugins-developing.md)** guide.
 
 ---
 
@@ -983,4 +1380,5 @@ installed (the `[watch]` extra); otherwise falls back to directory polling.
 
 See also: [Usage Guide](usage_guide.md) · [Installation](installation.md) ·
 [Configuration](configuration.md) · [Architecture](architecture.md) ·
-[Karaoke Video Export](video-export.md).
+[Karaoke Video Export](video-export.md) ·
+[Developing star plugins](plugins-developing.md).

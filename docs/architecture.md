@@ -33,7 +33,14 @@ that ships in every distribution form.
 | `star/braille.py` · `star/annotations.py` · `star/citations.py` · `star/transcribe.py` | Braille export, notes, citation management, Whisper transcription. |
 | `star/cache.py` · `star/stats.py` · `star/themes.py` | Document cache, reading statistics, color/CSS themes. |
 | `star/convert.py` · `star/watch.py` · `star/feeds.py` · `star/translate.py` · `star/vocab.py` · `star/summarize.py` · `star/flashcards.py` · `star/spellcheck.py` | Batch convert, hot-folder watch, feeds, translation, difficult-word overlay, summarization, Anki export, spell check. |
+| `star/fulltext.py` | On-demand full-text **content** search across the folder-library (complements the title/author/path metadata search). A lazy `FullTextIndex` extracts each library document's `plain_text` and caches it on disk keyed by `(size, mtime)`, so a refresh only re-reads changed files; `build_index_async` runs the extraction off the UI thread. Pure — no Qt, no hard optional deps. |
+| `star/sr.py` | Spaced-repetition scheduler — pure, deterministic, no I/O. The **FSRS** memory model (with an SM-2 fallback) that turns notes/highlights into review cards: `review()` maps a card's `sr_state` + a 1–4 grade to the next state (`is_due`, `days_until_due`, `retention_estimate`). "Today" is injected so tests are reproducible; state is JSON-friendly. |
+| `star/anki_sync.py` | AnkiConnect two-way sync — optional, best-effort, offline-safe (stdlib `urllib` only). `push_cards` mirrors star annotations into a local Anki deck; `pull_review_state` reads scheduling back; `sync_annotations` does both. Degrades quietly when Anki/the add-on is absent — star's own note store is the source of truth. |
+| `star/mathrender.py` | Visual LaTeX-math → readable **Unicode** for the Qt document view (`x²`, `√2`, `½`, `α`). Pure string→string, no deps; independent of the speech path (TTS still gets raw LaTeX, normalized by `ttstext`). |
+| `star/update.py` | Best-effort PyPI version check (stdlib `urllib` against the PyPI JSON API). `check_for_update()` compares the newest `star-reader` release to the running one, caches the reply under `CACHE_DIR`, and **never raises** (offline → "no update known"). Injectable `fetcher=` keeps tests off the network. |
+| `star/fonts.py` | On-demand fetch & cache of the **OpenDyslexic** typeface (SIL OFL 1.1) into `CACHE_DIR/fonts` the first time the reader enables the dyslexia-friendly font. Not bundled; offline-safe (a failed fetch falls back to a system family). |
 | `star/tts.py` | TTS backends (pyttsx3, eSpeak-NG, DECtalk, Piper, Coqui, Apple `say`, …) and the manager. |
+| `star/tts/piper_models.py` | Piper voice **catalog** (`CATALOG` — curated name/language/quality rows) + on-demand download/cache of each voice's `.onnx` weights + `.onnx.json` config into `CACHE_DIR/piper` — the same dir `PiperBackend` scans, so a fetched voice is discovered automatically. Same "fetch when wanted" ergonomics as `star/fonts.py`; offline-safe, injectable `fetcher=`. |
 | `star/tui/` | The curses terminal UI **package** (see below). |
 | `star/gui/` | The Qt GUI **package** (see below). |
 | `star/app.py` | Command-line entry point (`star.app:main`). |
@@ -53,8 +60,16 @@ subsequently lifted out of the closure and split into focused responsibility
 |---|---|
 | `star/gui/__init__.py` | Re-export shim: exposes `_run_qt_gui` so `from star.gui import _run_qt_gui` (used by `star/app.py`) keeps working unchanged. |
 | `star/gui/runner.py` | `_run_qt_gui()` — `QApplication` setup, the crash-log excepthook, and launch. Lazily imports and shows `StarWindow`. |
-| `star/gui/main_window.py` | `StarWindow(QMainWindow)` — window assembly (`__init__`, `_setup_ui`, the menu/toolbar builders) — plus the `_RSVPOverlay` widget. |
-| `star/gui/mixin_*.py` | `StarWindow`'s methods grouped by responsibility (playback, navigation, export, annotations, citations, graph, …); each is a mixin that `StarWindow` inherits. |
+| `star/gui/main_window.py` | `StarWindow(QMainWindow)` — window **lifecycle/state**: `__init__`, `_setup_ui`, window assembly — plus the `_RSVPOverlay` widget. The large toolbar/menu-bar builders were split out into `ChromeMixin`. |
+| `star/gui/mixin_chrome.py` | **`ChromeMixin`** — the toolbar and menu-bar construction (`_build_toolbar`, `_build_menu`), extracted verbatim from `main_window.py`. Stateless; rebuilt on UI-language change so labels re-run through `tr()`. |
+| `star/gui/mixin_doctools.py` | **`DocToolsMixin`** — document tools & sources (reading statistics, summarize, define word, translate, open feed, folder-as-library / bookshelf), split out of `mixin_navigation.py` so `NavigationMixin` keeps just core keyboard navigation. |
+| `star/gui/mixin_find.py` | **`FindMixin`** — the in-document Find bar (Ctrl+F): incremental substring matching, next/prev (F3), a live counter, case toggle, wrap-around, and highlight-all via `QTextEdit.ExtraSelection`. Reuses `star.search.SearchEngine`'s plain-text semantics. |
+| `star/gui/mixin_bookmarks_qt.py` | **`BookmarksQtMixin`** — named bookmarks (Ctrl+B) + back/forward navigation history (Alt+←/→), ported from the TUI `mixin_bookmarks.py` and sharing the same `settings['bookmarks']` schema so a mark set in one UI shows in the other. |
+| `star/gui/mixin_voices.py` | **`VoicesMixin`** — the rich **Voice Manager** dialog (Ctrl+Shift+F2): lists active-backend voices *and* the downloadable Piper catalog, filters live, previews, sets, keeps a favorites list, and offers one-click Piper download (via `star/tts/piper_models.py`). |
+| `star/gui/mixin_review.py` | **`ReviewMixin`** — the in-app spaced-repetition **review dashboard** (Study ▸ Review Due Cards…): a keyboard-first, accessible walk through cards due today, grading each 1–4 and updating its `sr_state` via the pure scheduler in `star/sr.py` (through `star/annotations.py`). |
+| `star/gui/mixin_tour.py` | **`TourMixin`** — an optional, skippable first-run **guided tour** (Shift+F1): a floating, non-modal, keyboard-navigable popover walking a new user through the key controls; shown once (gated by the `tour_seen` setting) and each step announced to screen readers via `a11y.announce`. |
+| `star/gui/mixin_*.py` | The other `StarWindow` mixins, grouped by responsibility (playback, navigation, export, annotations, citations, graph, display, …); each is a mixin that `StarWindow` inherits. |
+| `star/gui/a11y.py` | Screen-reader **live-region** announcements: a single defensive `announce()` wrapping `QAccessible.updateAccessibility` with an `Announcement` event (the Qt equivalent of an ARIA live region), so a blind user *hears* state changes. A no-op when the accessibility bridge is absent and it never raises; unlike the mixins it imports Qt lazily *inside* the helper, so `import star.gui.a11y` is safe with PyQt absent. |
 | `star/gui/_qtcompat.py` | Shared PyQt5/PyQt6 enum-compatibility constants. |
 | `star/gui/graph_view.py` | The knowledge-graph dock and relation dialogs. |
 
@@ -87,6 +102,21 @@ demand.
   machine**: a per-package marker file under the cache dir (`CACHE_DIR/autodeps`)
   stops a slow/failing install from retrying every launch, while a *forced*
   install (the explicit "install now" path) ignores the markers.
+- **`install_now(packages)` / `install_feature_now(key)`** are the **explicit,
+  user-initiated** path (the chooser's *Install* button, a feature's "install it
+  now?" prompt). Unlike `ensure()` they run **synchronously** (call from a worker
+  thread), **ignore the markers** (a prior failed attempt must not silently
+  no-op), and return `True` only when every missing package installed.
+- **`refresh_feature(key)` + the `_FEATURE_FLAGS` map** close the last gap so a
+  feature works **in-session, no restart**. A feature's optional package is
+  detected once at import into a module-level flag (e.g. `star.summarize._SUMY`);
+  after a *runtime* install that flag is stale-`False`, so the gate would still
+  refuse to run even though the package is now present. `refresh_feature()`
+  invalidates the import caches and flips the stale flags listed in
+  `_FEATURE_FLAGS` (`summarize`, `translate`, `feeds`, `vocab`, `spellcheck`,
+  `flashcards`) so the gate and the feature code agree and the deferred `import`
+  succeeds. It returns `False` for features that genuinely need a fresh process
+  (`transcribe` is intentionally absent — Whisper/PyTorch load into `_runtime`).
 - **Opt-out:** `enabled()` returns `False` when `STAR_NO_AUTOINSTALL` is set or
   when `set_enabled(False)` (driven by the `auto_install` setting) has been
   called; the install function and marker dir are injectable so the tests never
@@ -200,7 +230,10 @@ Other guidelines:
 - **Register every new optional dependency.** When you add a guarded import
   (`try: import x … except ImportError`), add a matching entry to
   `OPTIONAL_DEPENDENCIES` in [`star/diagnostics.py`](../star/diagnostics.py) so it
-  shows up in `star --deps`. The test suite enforces this.
+  shows up in `star --deps`. The test suite enforces this. If your feature caches
+  the import result in a **module-level flag** (e.g. `_SUMY`), also add it to
+  `autodeps._FEATURE_FLAGS` so a *runtime* install can flip the stale flag via
+  `autodeps.refresh_feature()` and the feature works in-session without a restart.
 - Follow the existing code style — keep lines ≤ 100 characters and write
   docstrings for all public functions.
 - When you touch user-facing docs, refresh the copies bundled with the package
