@@ -554,20 +554,6 @@ class ChromeMixin:
         view_menu.addAction(
             _mi("Change Font…", "Ctrl+Alt+F", self._qt_change_font_dialog)
         )
-        # Dyslexia-friendly font — a direct, top-level View item (users expect it
-        # here, not buried in a submenu). Applies across the WHOLE UI and fetches
-        # OpenDyslexic on first enable. The same QAction is also added to Reading
-        # Aids below, so it appears in both places with one shared shortcut.
-        self._dyslexia_font_act = _mi(
-            "Dyslexia-Friendly Font",
-            "Ctrl+Alt+X",
-            self._qt_toggle_dyslexia_font,
-            tip="Use a dyslexia-friendly font across the whole UI — fetches "
-            "OpenDyslexic on first use if none is installed",
-            checkable=True,
-            checked=bool(self.settings.get("qt_dyslexia_font", False)),
-        )
-        view_menu.addAction(self._dyslexia_font_act)
         # Reading Level is shared with the Tools menu (one Ctrl+L owner).
         level_act = _mi("Reading Level", "Ctrl+L", self._qt_reading_level)
         view_menu.addAction(level_act)
@@ -601,7 +587,15 @@ class ChromeMixin:
             )
         )
         aids_menu.addSeparator()
-        # Same QAction created in the View menu above (shared → one shortcut).
+        self._dyslexia_font_act = _mi(
+            "Dyslexia-Friendly Font",
+            "Ctrl+Alt+X",
+            self._qt_toggle_dyslexia_font,
+            tip="Use a dyslexia-friendly font across the whole UI — fetches "
+            "OpenDyslexic on first use if none is installed",
+            checkable=True,
+            checked=bool(self.settings.get("qt_dyslexia_font", False)),
+        )
         aids_menu.addAction(self._dyslexia_font_act)
         self._bionic_act = _mi(
             "Bionic Reading",
