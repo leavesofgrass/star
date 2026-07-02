@@ -416,6 +416,14 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         # can be processed for SC mode without fighting Qt's focus chain.
         self.editor.installEventFilter(self)
 
+        # Capture the real default application font BEFORE any dyslexia override,
+        # so toggling the dyslexia font off can restore it exactly. A
+        # default-constructed QFont() has no resolve mask and does NOT override
+        # widgets (menus, docks) that already resolved to OpenDyslexic — hence the
+        # explicit snapshot.
+        _app = QApplication.instance()
+        self._default_app_font = QFont(_app.font()) if _app is not None else None
+
         # If the dyslexia-friendly font was left on, apply it across the whole UI
         # now that the toolbar/menus exist (using an already-fetched / installed
         # family — no network on the GUI thread at launch).

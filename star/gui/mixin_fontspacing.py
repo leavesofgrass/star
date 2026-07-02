@@ -116,7 +116,11 @@ class FontSpacingMixin:
         app = QApplication.instance()
         if not on:
             if app is not None:
-                app.setFont(QFont())          # restore the platform default chrome font
+                # Restore the captured default font. A default-constructed QFont()
+                # has no resolve mask and would NOT revert widgets (menus, docks)
+                # already resolved to OpenDyslexic, so restore the real snapshot.
+                default = getattr(self, "_default_app_font", None)
+                app.setFont(default if default is not None else QFont())
             self.editor.setFont(self._make_editor_font())
             self._apply_qt_theme(str(self.settings.get("theme", "dark")))
             return ""

@@ -121,3 +121,18 @@ def test_dyslexia_font_reaches_the_document_even_for_css_themes(window):
     assert html.rfind("OpenDyslexic") > html.find("font-family")
     # Code stays monospace.
     assert "monospace" in html
+
+
+def test_dyslexia_font_toggles_off_and_reverts_chrome(window, qapp):
+    """Toggling the dyslexia font off must restore the original app font.
+
+    Regression: app.setFont(QFont()) (a default-constructed font, no resolve
+    mask) failed to revert already-styled widgets (menus, ToC), so they stayed
+    OpenDyslexic. The real default font is now captured and restored.
+    """
+    original = qapp.font().family()
+    window._find_dyslexia_font = lambda: "OpenDyslexic"
+    window._apply_dyslexia_font(True, fetch=False)
+    assert qapp.font().family() == "OpenDyslexic"
+    window._apply_dyslexia_font(False)
+    assert qapp.font().family() == original
