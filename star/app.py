@@ -58,6 +58,35 @@ def _install_optional(spec: str) -> None:
         print("Done — all selected optional features installed.")
 
 
+def _check_update() -> int:
+    """Handle ``star --check-update``: query PyPI and print the result.
+
+    Foreground, text-only, and lazy: imports :mod:`star.update` (which pulls in
+    only urllib, no GUI/TUI/document stacks) and prints a one-line verdict.  The
+    check is best-effort and offline-safe — a failed query prints a friendly "no
+    update known" rather than a traceback.  Returns a process exit code (0 when
+    up to date or the check could not complete, 0 when an update is available;
+    the presence of an update is not an error).
+    """
+    from . import update as _update
+
+    result = _update.check_for_update(current=APP_VERSION, use_cache=False)
+    if result.update_available and result.latest:
+        print(
+            f"A new version of star is available: {result.latest} "
+            f"(you have {APP_VERSION})."
+        )
+        print(f"Release notes and download: {result.url}")
+    elif result.latest:
+        print(f"star is up to date (version {APP_VERSION}).")
+    else:
+        print(
+            "Could not check for updates (offline or PyPI unreachable). "
+            f"You are running star {APP_VERSION}."
+        )
+    return 0
+
+
 def _run_plugins(argv: "list[str]") -> int:
     """Handle ``star --plugins [list|info <group> <name>|api]``.
 
@@ -253,6 +282,12 @@ def main() -> None:
         help="Print the status of every optional dependency and exit",
     )
     ap.add_argument(
+        "--check-update",
+        action="store_true",
+        help="Check PyPI for a newer release of star and exit (best-effort, "
+        "offline-safe — prints the result as plain text)",
+    )
+    ap.add_argument(
         "--install-optional",
         metavar="PRESET",
         nargs="?",
@@ -300,6 +335,9 @@ def main() -> None:
 
         sys.stdout.write(format_dependency_report())
         return
+
+    if args.check_update:
+        sys.exit(_check_update())
 
     if args.install_optional is not None:
         _install_optional(args.install_optional)

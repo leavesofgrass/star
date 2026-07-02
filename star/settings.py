@@ -28,6 +28,17 @@ DEFAULTS: Dict[str, Any] = {
     # chooser has been shown so it never nags again. STAR_NO_AUTOINSTALL overrides.
     "auto_install": True,
     "deps_prompted": False,
+    # ── Onboarding & discoverability (Qt GUI) ─────────────────────────────
+    # First-run guided tour (star/gui/mixin_tour.py). tour_seen flips true once
+    # the tour has been shown (or explicitly skipped) so it never re-triggers on
+    # its own; it stays re-runnable from Help ▸ Guided Tour.
+    "tour_seen": False,
+    # Quiet startup update check (star/update.py). OFF by default to respect
+    # privacy and offline use — star never phones home unless the user opts in.
+    # When True, star does one best-effort, cached PyPI check shortly after
+    # launch and only speaks up if a newer release exists. Help ▸ Check for
+    # Updates… always runs a manual check regardless of this setting.
+    "auto_check_updates": False,
     # UI chrome language (menus, toolbar, docks).  ISO-639-1 code of a catalog
     # in star/locale/ ("en" = English source, no catalog needed).  See star/i18n.py.
     "ui_language": "en",

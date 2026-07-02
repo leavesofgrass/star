@@ -52,6 +52,23 @@ class DependencyChooser(QDialog):
         intro.setWordWrap(True)
         root.addWidget(intro)
 
+        # A small contextual help line so a first-time user knows nothing here is
+        # required and how the choice can be revisited later.
+        help_line = QLabel(
+            tr("❓ Not sure? Everything here is optional — pick <b>All</b> for the "
+               "full experience, or <b>Not now</b> and add features later from "
+               "<i>Tools → Install Optional Features</i>."),
+            self,
+        )
+        help_line.setWordWrap(True)
+        help_line.setStyleSheet("color: gray; font-size: 11px;")
+        help_line.setAccessibleName(tr("Optional features help"))
+        help_line.setAccessibleDescription(
+            tr("All optional features can be installed now or later; none is "
+               "required to use star.")
+        )
+        root.addWidget(help_line)
+
         presets = QHBoxLayout()
         thin = QPushButton(tr("Thin  (~40 MB)"), self)
         _thin_tip = tr("Everyday reading & study aids only — no OCR, graph, or "

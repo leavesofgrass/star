@@ -6,6 +6,10 @@ highlights each word as it reads. No cloud account, no internet required.
 You are reading this welcome page **as a real document** — so every control
 works right here. Go ahead and try them on this text.
 
+**New here?** A short **guided tour** pops up on your first launch and points
+out the essentials. You can replay it any time from **Help ▸ Guided Tour**
+(**Shift+F1**).
+
 ## Hear it read aloud
 
 Press **Space** to start reading from the top. Press **Space** again to pause,
@@ -31,18 +35,40 @@ its keyboard shortcut).
 - **Ctrl+Shift+L** — point star at any folder (for example a synced Dropbox or
   OneDrive folder) and browse it as a library.
 
+## Choose a voice
+
+Click **Voice** on the toolbar to pick a speaking voice. For more, open the
+**Voice Manager** (**F4**, under the Speech menu) to search, preview, and
+favorite voices across every installed speech engine.
+
+## Study what you read
+
+- Highlight a selection and take notes (**Ctrl+Shift+A**) — both are saved per
+  document and can be exported (Markdown, Anki, and more).
+- **Study ▸ Review Due Cards…** turns your notes and highlights into a
+  spaced-repetition review session so what you read actually sticks.
+
+## Find anything
+
+Press **Ctrl+F** to open the Find bar and search the current document, with a
+live match count and next/previous navigation.
+
 ## Make it yours
 
-- **F5** cycles the color theme (Obsidian is the default; Zed and high-contrast
-  themes are included).
-- Change the display font, line spacing, and reading aids from the **View** menu.
-- Highlight a selection, take notes, and see your reading level — all from the
-  toolbar or the menus.
+- **F5** cycles the color theme (Obsidian is the default; Zed and a
+  **high-contrast** theme are included for low-vision reading).
+- Turn on the **dyslexia-friendly font**, adjust text spacing, bionic reading,
+  or one-word-at-a-time RSVP — all under **View ▸ Reading Aids**.
+- Change the display font and line spacing from the **View** menu, and see your
+  reading level from the toolbar.
 
 ## Get help any time
 
-Press **F1** to open the full README — the complete reference for every feature,
-keyboard shortcut, and setting. It opens right here as a document, so you can
-read it aloud and search it just like this page.
+- Press **F1** to open the full README — the complete reference for every
+  feature, keyboard shortcut, and setting. It opens right here as a document, so
+  you can read it aloud and search it just like this page.
+- **Help ▸ Open Documentation** opens the illustrated usage guide.
+- **Help ▸ Check for Updates…** tells you when a newer star is available (star
+  never checks on its own unless you turn that on in settings).
 
 Happy reading.

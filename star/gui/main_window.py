@@ -27,6 +27,7 @@ from ._qtcompat import (
     _RIGHT_DOCK,
     _WA_STYLED_BG,
 )
+from .a11y import announce
 from .mixin_aiddialogs import AidDialogsMixin
 from .mixin_chrome import ChromeMixin
 from .mixin_commands import CommandsMixin
@@ -49,6 +50,7 @@ from .mixin_find import FindMixin
 from .mixin_bookmarks_qt import BookmarksQtMixin
 from .mixin_voices import VoicesMixin
 from .mixin_review import ReviewMixin
+from .mixin_tour import TourMixin
 
 
 class _RSVPOverlay(QWidget):
@@ -218,7 +220,7 @@ class _RSVPOverlay(QWidget):
 
 # =========================================================================
 
-class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, HighlightsMixin, PresetsMixin, DocOpsMixin, DisplayMixin, DocToolsMixin, NavigationMixin, PlaybackMixin, FontSpacingMixin, DocumentMixin, AnnotationsMixin, ExportMixin, TranscriptionMixin, CitationsMixin, GraphMixin, FindMixin, BookmarksQtMixin, VoicesMixin, ReviewMixin, QMainWindow):
+class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, HighlightsMixin, PresetsMixin, DocOpsMixin, DisplayMixin, DocToolsMixin, NavigationMixin, PlaybackMixin, FontSpacingMixin, DocumentMixin, AnnotationsMixin, ExportMixin, TranscriptionMixin, CitationsMixin, GraphMixin, FindMixin, BookmarksQtMixin, VoicesMixin, ReviewMixin, TourMixin, QMainWindow):
     """Qt GUI window for star.
 
     Word-level highlight pipeline
@@ -282,6 +284,11 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
     # Definition lookup runs on a background thread (the first WordNet access
     # loads the corpus); carries (DefinitionResult-or-None, word, error_message).
     _define_signal = pyqtSignal(object, str, str)
+    # Update check runs on a background thread (star.update queries PyPI);
+    # carries the UpdateResult back to the GUI thread as a plain object, plus a
+    # flag distinguishing a user-initiated check (always report the outcome)
+    # from the quiet startup check (report only when an update is available).
+    _update_signal = pyqtSignal(object, bool)
 
     # Per-theme CSS colors used by _md_to_html and _apply_qt_theme.
     #: GUI colour palettes — the single source lives in star/themes.py
@@ -380,6 +387,8 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         self._translate_signal.connect(self._qt_on_translation, _QUEUED)
         self._feed_signal.connect(self._qt_on_feed, _QUEUED)
         self._define_signal.connect(self._qt_on_definition, _QUEUED)
+        # Update-check result → GUI thread (see mixin_tour.py / update wiring).
+        self._update_signal.connect(self._qt_on_update_result, _QUEUED)
 
         # Reading-statistics poll: a 1-second timer feeds self.stats while
         # speech is playing.
@@ -461,6 +470,15 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
             if welcome is not None:
                 self._open_path(str(welcome))
 
+        # Onboarding & discoverability, deferred to the next event-loop turn so
+        # the window is on screen first (and construction stays fast/testable):
+        #   • the first-run guided tour (once, gated by the tour_seen setting);
+        #   • an optional quiet update check (only if the user opted in).
+        # singleShot(0) means neither fires until the Qt event loop runs, so a
+        # test that merely constructs the window is unaffected.
+        QTimer.singleShot(0, self._maybe_run_first_run_tour)
+        QTimer.singleShot(0, self._maybe_startup_update_check)
+
     # ── Bundled documentation (README, welcome) ───────────────────────
     def _bundled_path(self, name: str) -> "Optional[Path]":
         """Resolve a bundled doc by filename, wherever star is installed.
@@ -487,6 +505,110 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
             return Path(path).resolve() == wp.resolve()
         except OSError:
             return False
+
+    def _open_documentation(self) -> None:
+        """Open the bundled documentation (Help ▸ Open Documentation).
+
+        Prefers the human-written guide bundled under ``docs/`` (the usage
+        guide, then the docs index), and falls back to the README — all opened
+        as *real documents* in the main window so they get full TTS, search, and
+        navigation, exactly like the F1 README help.  Never raises: if nothing
+        bundled is found it just reports it in the status bar.
+        """
+        for name in ("docs/usage_guide.md", "docs/README.md", "README.md"):
+            path = self._bundled_path(name)
+            if path is not None:
+                self._open_path(str(path))
+                return
+        self.statusBar().showMessage(
+            tr("Documentation not found in this install"), 6000
+        )
+
+    # ── Auto-update wiring (star/update.py) ────────────────────────────
+    def _qt_check_for_updates(self) -> None:
+        """Manually check PyPI for a newer star release (Help ▸ Check for Updates…).
+
+        Runs the check on a background thread (star.update queries PyPI over the
+        network) and reports the outcome via _update_signal → the GUI thread.
+        A user-initiated check always reports its result, including "you're up
+        to date" and offline failures.
+        """
+        self.statusBar().showMessage(tr("Checking for updates…"))
+        self._run_update_check(user_initiated=True)
+
+    def _maybe_startup_update_check(self) -> None:
+        """Quiet startup update check, gated by the auto_check_updates setting.
+
+        OFF by default (privacy / offline first): star does nothing unless the
+        user has explicitly opted in.  When on, it runs one best-effort, cached
+        check in the background and only surfaces a result if a newer release
+        exists — a failed/no-op check stays silent.
+        """
+        if not bool(self.settings.get("auto_check_updates", False)):
+            return
+        self._run_update_check(user_initiated=False)
+
+    def _run_update_check(self, user_initiated: bool) -> None:
+        """Spawn the background thread that queries PyPI and emits the result.
+
+        *user_initiated* is carried through to the handler so the quiet startup
+        check can stay silent unless an update is available, while a manual
+        check always reports.  A manual check bypasses the on-disk cache so the
+        user gets a live answer; the startup check uses the cache.
+        """
+        from .. import update as _update
+
+        def _work() -> None:
+            try:
+                result = _update.check_for_update(
+                    current=APP_VERSION, use_cache=not user_initiated
+                )
+            except Exception:  # noqa: BLE001 — an update check must never crash.
+                result = None
+            self._update_signal.emit(result, user_initiated)
+
+        threading.Thread(target=_work, daemon=True).start()
+
+    def _qt_on_update_result(self, result: Any, user_initiated: bool) -> None:
+        """GUI-thread handler for a completed update check.
+
+        Shows a message box (with a link to the release) when a newer version is
+        available.  For a manual check with no update it confirms the app is
+        current or reports that the check could not complete; the quiet startup
+        check stays silent in those cases.
+        """
+        available = bool(getattr(result, "update_available", False))
+        latest = getattr(result, "latest", None)
+        url = getattr(result, "url", "") or ""
+        if available and latest:
+            msg = tr(
+                "A new version of star is available: {latest} "
+                "(you have {current})."
+            ).format(latest=latest, current=APP_VERSION)
+            self.statusBar().showMessage(msg, 12000)
+            announce(self, msg)
+            box = QMessageBox(self)
+            box.setWindowTitle(tr("Update available"))
+            box.setTextFormat(Qt.TextFormat.RichText if hasattr(Qt, "TextFormat")
+                               else Qt.RichText)  # type: ignore[attr-defined]
+            link = f'<a href="{url}">{url}</a>' if url else ""
+            box.setText(
+                f"{msg}<br><br>" + tr("Release notes and download:") + f"<br>{link}"
+            )
+            box.exec()
+            return
+        # No update (or the check could not complete).  Only report for a manual
+        # check — the startup check must stay quiet.
+        if not user_initiated:
+            return
+        if latest:
+            done = tr("You're running the latest version of star ({current}).").format(
+                current=APP_VERSION
+            )
+        else:
+            done = tr("Could not check for updates (offline or PyPI unreachable).")
+        self.statusBar().showMessage(done, 8000)
+        announce(self, done)
 
     # ── UI construction ───────────────────────────────────────────────
 

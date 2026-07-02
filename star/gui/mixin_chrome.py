@@ -31,6 +31,10 @@ class ChromeMixin:
         tb = self.addToolBar("Controls")
         self._toolbar = tb
         tb.setMovable(False)
+        # Registry of toolbar QActions keyed by a stable English name, so the
+        # guided tour (star/gui/mixin_tour.py) can anchor a popover to the exact
+        # button a step describes.  Rebuilt whenever the toolbar is.
+        self._toolbar_actions: Dict[str, "QAction"] = {}
         # Icon-only toolbar: every button is a hand-drawn vector glyph (star/gui/
         # icons.py) with a descriptive tooltip — visually uniform, no text/glyph
         # mix.  The QAction *label* is kept as the accessible name so screen
@@ -53,6 +57,9 @@ class ChromeMixin:
             a.setToolTip(tr(tip) if tip else tr(label))
             a.triggered.connect(fn)
             tb.addAction(a)
+            # Key on the untranslated label so the tour can find a control by a
+            # stable name regardless of the active UI language.
+            self._toolbar_actions[label] = a
 
         # ── File ─────────────────────────────────────────────
         _act("Open", "open", self._open_dialog, "Open a file (Ctrl+O)")
@@ -815,7 +822,12 @@ class ChromeMixin:
                     "Ctrl+Alt+Q",
                 ),
                 None,
+                ("Guided Tour", self._start_tour, "Shift+F1"),
                 ("Open README (Help)", self._show_about, "F1"),
+                ("Open Documentation", self._open_documentation, ""),
+                None,
+                ("Check for Updates…", self._qt_check_for_updates, ""),
+                None,
                 (
                     "About star",
                     lambda: QMessageBox.about(
