@@ -264,7 +264,7 @@ class ChromeMixin:
         export_menu.addAction(
             _mi(
                 "Video (MP4)…",
-                "Ctrl+Alt+V",
+                "",  # menu-only: Ctrl+Alt+V is Tools ▸ Dictate Note
                 self._qt_export_video,
                 tip="Export as a karaoke MP4 — themed document with highlighted sentence and spoken audio",
             )
@@ -464,7 +464,9 @@ class ChromeMixin:
                 None,
                 ("Toggle Edit Mode", self._qt_edit_mode_toggle, "Ctrl+E"),
                 ("Save", self._qt_save, "Ctrl+S"),
-                ("Check Spelling", self._qt_check_spelling, "F7"),
+                # Menu-only: F7 is View ▸ Caret Browsing (an ambiguous shortcut
+                # would fire neither).
+                ("Check Spelling", self._qt_check_spelling),
             ],
         )
 
@@ -473,7 +475,8 @@ class ChromeMixin:
             "Citations",
             [
                 ("Import…", self._qt_import_citations, "Ctrl+Alt+I"),
-                ("Export…", self._qt_export_citations, "Ctrl+Alt+E"),
+                # Menu-only: Ctrl+Alt+E is View ▸ Reading Aids ▸ RSVP Mode.
+                ("Export…", self._qt_export_citations),
                 None,
                 ("Add Citation…", self._qt_add_citation, "Ctrl+Alt+C"),
                 ("Add by DOI…", self._qt_add_citation_by_doi, "Ctrl+Alt+D"),
@@ -582,10 +585,12 @@ class ChromeMixin:
         # Reading Level is shared with the Tools menu (one Ctrl+L owner).
         level_act = _mi("Reading Level", "Ctrl+L", self._qt_reading_level)
         view_menu.addAction(level_act)
-        # Live HTML preview while editing (checkable).
+        # Live HTML preview while editing (checkable).  Ctrl+Shift+Z — Ctrl+Shift+L
+        # is owned by File ▸ Open Folder as Library (avoids an ambiguous shortcut
+        # where Qt would fire neither).
         self._preview_act = _mi(
             "Live HTML Preview (edit mode)",
-            "Ctrl+Shift+L",
+            "Ctrl+Shift+Z",
             self._qt_toggle_preview,
             tip="Show a live-rendered HTML preview beside the Markdown source",
             checkable=True,

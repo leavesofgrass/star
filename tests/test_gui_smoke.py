@@ -234,3 +234,22 @@ def test_install_feature_now_ignores_markers(monkeypatch, tmp_path):
     # …but the explicit installer still runs it and reports success.
     assert autodeps.install_now([("sumy", "sumy")]) is True
     assert "sumy" in calls
+
+
+def test_no_ambiguous_shortcuts(window):
+    """No keyboard shortcut is claimed by two *different* QActions — Qt fires
+    neither in that case. Regression: Ctrl+Shift+L was bound to both
+    'Open Folder as Library' and 'Live HTML Preview'."""
+    from PyQt6.QtGui import QAction
+
+    owner = {}
+    dupes = []
+    for act in window.findChildren(QAction):
+        sc = act.shortcut().toString()
+        if not sc:
+            continue  # toolbar actions and separators carry no shortcut
+        if sc in owner and owner[sc] is not act:
+            dupes.append((sc, owner[sc].text(), act.text()))
+        else:
+            owner[sc] = act
+    assert not dupes, f"ambiguous shortcuts: {dupes}"
