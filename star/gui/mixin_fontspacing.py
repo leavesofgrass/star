@@ -41,6 +41,48 @@ class FontSpacingMixin:
         except Exception:
             pass  # best-effort; falls back to system fonts / the chosen family
 
+    def _maybe_prefetch_dyslexia_font(self) -> None:
+        """Download OpenDyslexic in the background if it isn't available yet.
+
+        Runs like the other optional dependencies: best-effort, off the GUI
+        thread, honoring the auto_install setting and STAR_NO_AUTOINSTALL. When
+        the download finishes, _font_ready_signal fires _on_dyslexia_font_ready on
+        the GUI thread to register + (re)apply. A no-op when the font is already
+        fetched, already installed, or auto-install is disabled."""
+        import os
+        import threading
+
+        from .. import fonts as _fontmod
+
+        if os.environ.get("STAR_NO_AUTOINSTALL") or not self.settings.get(
+            "auto_install", True
+        ):
+            return
+        if _fontmod.is_fetched() or self._find_dyslexia_font():
+            return
+
+        def _work() -> None:
+            try:
+                _fontmod.fetch()
+            except Exception:
+                return
+            try:
+                self._font_ready_signal.emit()   # register/apply on the GUI thread
+            except Exception:
+                pass
+
+        threading.Thread(target=_work, name="star-font-fetch", daemon=True).start()
+
+    def _on_dyslexia_font_ready(self) -> None:
+        """GUI-thread slot: register the freshly-fetched OpenDyslexic and, if the
+        dyslexia font is enabled, apply it across the UI now that it's available."""
+        self._register_dyslexia_font()
+        self._dyslexia_registered = True
+        if self.settings.get("qt_dyslexia_font", False):
+            self._apply_dyslexia_font(True, fetch=False)
+        else:
+            self.statusBar().showMessage("OpenDyslexic font ready", 4000)
+
     def _find_dyslexia_font(self) -> str:
         """Return the first available dyslexia-friendly family, or "".
 

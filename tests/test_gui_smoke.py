@@ -97,3 +97,27 @@ def test_welcome_loads_as_document(qapp, window):
 
     readme = window._bundled_path("README.md")
     assert readme is not None and readme.is_file()
+
+
+def test_dyslexia_font_reaches_the_document_even_for_css_themes(window):
+    """The dyslexia font must override a CSS/palette theme's own font-family.
+
+    Regression: the Obsidian (default) theme injects its CSS verbatim with a
+    hard-coded ``font-family: Georgia`` — which used to win in the reading pane,
+    so OpenDyslexic changed only the chrome and 'nothing happened' in the
+    document.  The renderer now appends an override the cascade resolves last.
+    """
+    # Avoid any network: pretend the family is available.
+    window._find_dyslexia_font = lambda: "OpenDyslexic"
+    window.settings["qt_dyslexia_font"] = True
+
+    # The default theme is CSS-based (has a `_css`), which is the failing case.
+    assert window._effective_palette(window.settings.get("theme")).get("_css")
+
+    html = window._md_to_html("# Heading\n\nHello world.")
+    # An OpenDyslexic font-family override is present…
+    assert "OpenDyslexic" in html
+    # …and it comes *after* the theme's own font-family so it wins the cascade.
+    assert html.rfind("OpenDyslexic") > html.find("font-family")
+    # Code stays monospace.
+    assert "monospace" in html

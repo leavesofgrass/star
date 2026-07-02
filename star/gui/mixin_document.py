@@ -373,6 +373,16 @@ class DocumentMixin:
         fam = self._effective_font_family()
         if custom_css:
             style = custom_css
+            # A CSS-file / palette theme may hard-set the body font-family (the
+            # Obsidian theme uses Georgia). When the dyslexia-friendly font is
+            # active it must win in the reading pane too, so append an override the
+            # cascade resolves last — across text elements, but never code/pre.
+            if self.settings.get("qt_dyslexia_font", False) and fam:
+                style += (
+                    "\nbody, p, li, blockquote, td, th, h1, h2, h3, h4, h5, h6, a "
+                    '{ font-family: "' + fam + '", sans-serif; }'
+                    "\ncode, pre, code *, pre * { font-family: monospace; }"
+                )
         else:
             muted = pal.get("muted", "#7d7d7d")
             code_bg = pal.get("code_bg", "#2a2a2a")

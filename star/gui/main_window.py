@@ -246,6 +246,9 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
     # Emitted from the word-map build thread once the map is ready so
     # _qt_restore_reading_position can be called safely on the GUI thread.
     _restore_signal = pyqtSignal()
+    # Emitted from the background OpenDyslexic prefetch thread once the font files
+    # are downloaded, so registration + (re)application happen on the GUI thread.
+    _font_ready_signal = pyqtSignal()
     # Emitted from the audio-export background thread when synthesis is
     # complete.  Carries the status-bar message to display (success or
     # error text) so the GUI thread can update safely.
@@ -343,6 +346,8 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         self._doc_loaded_signal.connect(self._on_doc_loaded, _QUEUED)
         # Wire the restore-position callback → main thread.
         self._restore_signal.connect(self._qt_restore_reading_position, _QUEUED)
+        # Wire the OpenDyslexic prefetch-complete callback → main thread.
+        self._font_ready_signal.connect(self._on_dyslexia_font_ready, _QUEUED)
         # Wire the audio-export completion signal → status bar update.
         self._export_audio_signal.connect(
             lambda msg: self.statusBar().showMessage(msg), _QUEUED
@@ -412,11 +417,15 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         self.editor.installEventFilter(self)
 
         # If the dyslexia-friendly font was left on, apply it across the whole UI
-        # now that the toolbar/menus exist.  fetch=False: never hit the network at
-        # launch — a previously-fetched or system-installed family is used, else
-        # it silently stays on the default until the user re-toggles it.
+        # now that the toolbar/menus exist (using an already-fetched / installed
+        # family — no network on the GUI thread at launch).
         if self.settings.get("qt_dyslexia_font", False):
             self._apply_dyslexia_font(True, fetch=False)
+        # Fetch OpenDyslexic automatically in the background — like the other
+        # optional dependencies — so it is ready when wanted without a wait. When
+        # it lands, _on_dyslexia_font_ready registers it and re-applies if the
+        # setting is on.  Honors auto_install / STAR_NO_AUTOINSTALL.
+        self._maybe_prefetch_dyslexia_font()
 
         if initial_path:
             self._open_path(initial_path)
