@@ -38,7 +38,6 @@ import threading
 # Grouped to match star's optional extras (see pyproject `[project.optional-
 # dependencies]` and diagnostics.OPTIONAL_DEPENDENCIES). Ordered light -> heavy.
 
-_HEAVY = {"transcribe", "ner"}  # excluded from the "all" preset (very large)
 
 FEATURES: dict[str, list[tuple[str, str]]] = {
     "documents": [("odfpy", "odf"), ("openpyxl", "openpyxl")],
@@ -105,13 +104,14 @@ FEATURE_INFO: dict[str, tuple[str, str, int]] = {
 }
 
 # Presets offered by the chooser. "thin" = the small everyday reading/study aids;
-# "all" = everything star can use EXCEPT the very large features (transcribe, ner),
-# which stay opt-in so "All" can never trigger a multi-gigabyte download.
+# "all" = literally every optional feature, including the very large ones
+# (speech-to-text dictation, named-entity extraction). The chooser labels the
+# download size so "All" is an informed, deliberate choice.
 PRESETS: dict[str, list[str]] = {
     "thin": ["documents", "dictionary", "spellcheck", "summarize", "flashcards",
              "translate", "feeds", "audio", "braille", "watch", "clipboard",
              "markup"],
-    "all": [k for k in FEATURES if k not in _HEAVY],
+    "all": list(FEATURES),
 }
 
 

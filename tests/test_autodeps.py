@@ -31,13 +31,12 @@ def test_presets_reference_real_features():
             assert key in autodeps.FEATURES, f"{name} references unknown {key}"
 
 
-def test_all_preset_excludes_the_heavy_packs():
+def test_all_preset_includes_everything():
+    # "All" means literally every optional feature, including the large ones.
     all_keys = set(autodeps.preset("all"))
-    assert "transcribe" not in all_keys
-    assert "ner" not in all_keys
-    # …but they still exist as pickable features.
-    assert "transcribe" in autodeps.FEATURES
-    assert "ner" in autodeps.FEATURES
+    assert all_keys == set(autodeps.FEATURES)
+    assert "transcribe" in all_keys
+    assert "ner" in all_keys
 
 
 def test_thin_is_a_subset_of_features_and_lighter_than_all():

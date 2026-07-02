@@ -44,8 +44,8 @@ class DependencyChooser(QDialog):
                 "what you'd like — you can change this any time from "
                 "<i>Tools → Install Optional Features</i>.<br><br>"
                 "<b>Thin</b> — the lightweight everyday reading and study aids.&nbsp; "
-                "<b>All</b> — everything star can use (large speech-to-text and "
-                "entity-extraction packs stay unchecked; tick them yourself)."
+                "<b>All</b> — literally everything star can use, including the large "
+                "speech-to-text and entity-extraction packs."
             ),
             self,
         )
@@ -77,9 +77,9 @@ class DependencyChooser(QDialog):
         thin.setAccessibleName(tr("Thin preset"))
         thin.setAccessibleDescription(_thin_tip)
         thin.clicked.connect(lambda: self._apply_preset("thin"))
-        allb = QPushButton(tr("All  (~150 MB)   — recommended"), self)
-        _all_tip = tr("Everything except the very large speech-to-text and "
-                      "named-entity packs.")
+        allb = QPushButton(tr("All  (~2.6 GB)   — everything"), self)
+        _all_tip = tr("Every optional feature, including the large speech-to-text "
+                      "and named-entity packs.")
         allb.setToolTip(_all_tip)
         allb.setAccessibleName(tr("All preset"))
         allb.setAccessibleDescription(_all_tip)

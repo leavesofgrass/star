@@ -62,7 +62,7 @@ def test_one_checkbox_per_feature(chooser):
 
 
 def test_default_checked_is_all_preset(chooser):
-    """The dialog defaults to the 'all' preset (excludes transcribe/ner)."""
+    """The dialog defaults to the 'all' preset (now literally every feature)."""
     from star import autodeps
 
     dlg, _win = chooser
