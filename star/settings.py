@@ -1,5 +1,9 @@
 """Persistent settings store and the default settings table."""
+import logging as _logging
+
 from ._runtime import *  # noqa: F401,F403
+
+_log = _logging.getLogger("star.settings")
 
 # =============================================================================
 # Default settings
@@ -247,8 +251,12 @@ class Settings:
                         self._data[k] = merged
                     else:
                         self._data[k] = v
-        except (FileNotFoundError, json.JSONDecodeError, OSError):
-            pass
+        except FileNotFoundError:
+            pass  # first launch — defaults are correct, not an error
+        except (json.JSONDecodeError, OSError) as exc:
+            # A corrupt or unreadable settings file silently resets every
+            # preference to default; surface it so the reset is diagnosable.
+            _log.warning("Could not read settings from %s: %s", SETTINGS_FILE, exc)
         self._migrate()
 
     def _migrate(self) -> None:
@@ -273,8 +281,12 @@ class Settings:
                 json.dumps(self._data, indent=2, ensure_ascii=False),
                 encoding="utf-8",
             )
-        except OSError:
-            pass
+        except OSError as exc:
+            # Persistence failure would otherwise be fully silent: the user's
+            # preferences, presets, annotations, highlights, and reading
+            # positions would appear to save but be lost on next launch.
+            # Keep degrading gracefully (never raise), but make it diagnosable.
+            _log.warning("Could not save settings to %s: %s", SETTINGS_FILE, exc)
 
     def get(self, key: str, default: Any = None) -> Any:
         return self._data.get(key, default)
