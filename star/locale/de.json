@@ -418,5 +418,8 @@
   "Document summarization": "Dokumentzusammenfassung",
   "Document translation": "Dokumentübersetzung",
   "Feed reading": "Feed-Lesen",
-  "Spell check": "Rechtschreibprüfung"
+  "Spell check": "Rechtschreibprüfung",
+  "Downloading {feature}…": "{feature} wird heruntergeladen…",
+  "{feature} installed — restart star to use it.": "{feature} installiert — starte star neu, um es zu nutzen.",
+  "Couldn't install {feature} — check your connection and try again.": "{feature} konnte nicht installiert werden — überprüfe deine Verbindung und versuche es erneut."
 }

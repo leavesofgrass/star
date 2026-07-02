@@ -300,9 +300,12 @@ class DependencyChooser(QDialog):
 
     def _install(self) -> None:
         autodeps.set_enabled(True)
+        # force=True: the user explicitly chose these, so a prior *attempt* (the
+        # once-per-machine marker) must not make "Install" silently do nothing.
         started: list[str] = []
         for key in self.selected():
-            started += autodeps.ensure_feature(key)
+            if not autodeps.feature_installed(key):
+                started += autodeps.ensure_feature(key, force=True)
         if started:
             self._status(
                 tr("Installing {n} optional package(s) in the background…").format(

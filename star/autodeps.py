@@ -248,3 +248,27 @@ def ensure(packages, *, background: bool = True, force: bool = False) -> list[st
 def ensure_feature(key: str, *, background: bool = True, force: bool = False) -> list[str]:
     """Ensure the packages backing one feature (e.g. ``"ocr"``/``"dictionary"``)."""
     return ensure(FEATURES.get(key, []), background=background, force=force)
+
+
+def install_now(packages) -> bool:
+    """Synchronously install any missing packages and report overall success.
+
+    For **explicit, user-initiated** installs (the first-run chooser's "Install"
+    button, a feature's "install it now?" prompt). Unlike :func:`ensure`, it
+    ignores the once-per-machine markers — the user asked for it, so a previous
+    failed attempt must not silently no-op — and returns True only when every
+    missing package installed. Blocks, so call it from a worker thread.
+    """
+    ok = True
+    for pip, mod in packages:
+        if installed(mod):
+            continue
+        _mark(pip)
+        if not _INSTALL_FN(pip):
+            ok = False
+    return ok
+
+
+def install_feature_now(key: str) -> bool:
+    """Synchronously install one feature's missing packages (see install_now)."""
+    return install_now(FEATURES.get(key, []))

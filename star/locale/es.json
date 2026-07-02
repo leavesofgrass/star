@@ -418,5 +418,8 @@
   "Document summarization": "Resumen de documentos",
   "Document translation": "Traducción de documentos",
   "Feed reading": "Lectura de feeds",
-  "Spell check": "Corrección ortográfica"
+  "Spell check": "Corrección ortográfica",
+  "Downloading {feature}…": "Descargando {feature}…",
+  "{feature} installed — restart star to use it.": "{feature} instalado — reinicia star para usarlo.",
+  "Couldn't install {feature} — check your connection and try again.": "No se pudo instalar {feature} — comprueba tu conexión e inténtalo de nuevo."
 }

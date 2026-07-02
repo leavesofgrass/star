@@ -41,22 +41,48 @@ class TranscriptionMixin:
             yes | no,
         )
         if ret == yes:
-            autodeps.set_enabled(True)
-            started = autodeps.ensure_feature(feature_key)
-            if started:
-                self.statusBar().showMessage(
-                    tr("Downloading {feature} in the background — this can take a "
-                       "few minutes. Restart star when it finishes.").format(
-                           feature=human_name),
-                    12000,
-                )
-            else:
-                self.statusBar().showMessage(
-                    tr("Couldn't start the download — check your internet "
-                       "connection and try again."),
-                    8000,
-                )
+            self._qt_start_feature_install(feature_key, human_name)
         return False
+
+    def _qt_start_feature_install(self, feature_key: str, human_name: str) -> None:
+        """Download a feature's packages on a worker thread, with real feedback.
+
+        Uses install_feature_now (ignores the once-per-machine markers — this is
+        an explicit request — and reports success), then _deps_installed_signal
+        delivers the outcome to the GUI thread."""
+        from .. import autodeps
+
+        autodeps.set_enabled(True)
+        self.statusBar().showMessage(
+            tr("Downloading {feature}…").format(feature=human_name), 0
+        )
+
+        def _work() -> None:
+            try:
+                ok = autodeps.install_feature_now(feature_key)
+            except Exception:
+                ok = False
+            try:
+                self._deps_installed_signal.emit(human_name, ok)
+            except Exception:
+                pass
+
+        threading.Thread(target=_work, name="star-feature-install", daemon=True).start()
+
+    def _on_feature_installed(self, human_name: str, ok: bool) -> None:
+        """GUI-thread slot: report the outcome of a feature download."""
+        if ok:
+            self.statusBar().showMessage(
+                tr("{feature} installed — restart star to use it.").format(
+                    feature=human_name),
+                15000,
+            )
+        else:
+            self.statusBar().showMessage(
+                tr("Couldn't install {feature} — check your connection and try "
+                   "again.").format(feature=human_name),
+                12000,
+            )
 
     def _qt_transcribe_file(self) -> None:
         """Transcribe an audio file with Whisper and open it as a document."""

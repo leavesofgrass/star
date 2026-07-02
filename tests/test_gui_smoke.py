@@ -193,7 +193,7 @@ def test_missing_feature_offers_autoinstall_not_pip(window, monkeypatch):
     monkeypatch.setattr(autodeps, "missing", lambda pkgs: [])
     assert window._qt_require_optional_feature("transcribe", "Speech recognition") is True
 
-    # Missing + user accepts -> kicks off ensure_feature, returns False.
+    # Missing + user accepts -> kicks off the (forced) install, returns False.
     monkeypatch.setattr(autodeps, "missing", lambda pkgs: [("openai-whisper", "whisper")])
     monkeypatch.setattr(
         QMessageBox, "question",
@@ -201,8 +201,8 @@ def test_missing_feature_offers_autoinstall_not_pip(window, monkeypatch):
     )
     started = {}
     monkeypatch.setattr(
-        autodeps, "ensure_feature",
-        lambda key, **k: (started.setdefault("key", key), ["openai-whisper"])[1],
+        window, "_qt_start_feature_install",
+        lambda key, name: started.update(key=key, name=name),
     )
     assert window._qt_require_optional_feature("transcribe", "Speech recognition") is False
     assert started["key"] == "transcribe"
@@ -215,3 +215,22 @@ def test_missing_feature_offers_autoinstall_not_pip(window, monkeypatch):
     )
     assert window._qt_require_optional_feature("transcribe", "Speech recognition") is False
     assert "key" not in started
+
+
+def test_install_feature_now_ignores_markers(monkeypatch, tmp_path):
+    """Explicit installs must ignore the once-per-machine markers (the bug that
+    made Summarize/Dictate say 'check your internet' while online)."""
+    from star import autodeps
+
+    monkeypatch.setattr(autodeps, "_MARKER_DIR", str(tmp_path))
+    monkeypatch.setattr(autodeps, "_attempted_session", set())
+    calls = []
+    monkeypatch.setattr(autodeps, "_INSTALL_FN", lambda pip, **k: calls.append(pip) or True)
+    monkeypatch.setattr(autodeps, "installed", lambda mod: False)
+
+    # Pre-mark the package as already attempted — ensure() would now skip it…
+    autodeps._mark("sumy")
+    assert autodeps.ensure([("sumy", "sumy")], background=False) == []   # blocked by marker
+    # …but the explicit installer still runs it and reports success.
+    assert autodeps.install_now([("sumy", "sumy")]) is True
+    assert "sumy" in calls
