@@ -440,6 +440,10 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         # Intercept keyboard events on the editor so Tab and arrow keys
         # can be processed for SC mode without fighting Qt's focus chain.
         self.editor.installEventFilter(self)
+        # QTextEdit delivers mouse events to its viewport, not the widget, so a
+        # separate filter there lets clicking an in-document anchor (footnote
+        # marker / backlink) jump to it.
+        self.editor.viewport().installEventFilter(self)
 
         # Capture the real default application font BEFORE any dyslexia override,
         # so toggling the dyslexia font off can restore it exactly. A

@@ -113,6 +113,13 @@ class NavigationMixin:
                 return True
             return super().eventFilter(obj, event)
 
+        # Clicking an in-document anchor (footnote marker or its ↩ backlink) jumps
+        # to it.  Mouse events land on the editor's viewport, not the editor.
+        if self.editor is not None and obj is self.editor.viewport():
+            if self._editor_anchor_click(event):
+                return True
+            return super().eventFilter(obj, event)
+
         if obj is not self.editor:
             return super().eventFilter(obj, event)
 
@@ -174,6 +181,37 @@ class NavigationMixin:
             return True
 
         return super().eventFilter(obj, event)
+
+    def _editor_anchor_click(self, event: Any) -> bool:
+        """Jump to an in-document anchor when its link is clicked.
+
+        Footnote markers link to ``#fn-<label>`` and their backlinks to
+        ``#fnref-<label>``; ``scrollToAnchor`` matches the ``<a name=…>`` targets
+        the renderer emits.  Returns True only when an anchor was actually clicked
+        (so ordinary clicks still place the caret)."""
+        try:
+            from PyQt6.QtCore import QEvent
+
+            rel = QEvent.Type.MouseButtonRelease
+        except (ImportError, AttributeError):
+            from PyQt5.QtCore import QEvent  # type: ignore
+
+            rel = QEvent.MouseButtonRelease  # type: ignore
+        if event.type() != rel:
+            return False
+        try:
+            pos = event.position().toPoint() if hasattr(event, "position") else event.pos()
+            anchor = self.editor.anchorAt(pos)
+        except Exception:
+            return False
+        if not anchor:
+            return False
+        name = anchor[1:] if anchor.startswith("#") else anchor
+        try:
+            self.editor.scrollToAnchor(name)
+        except Exception:
+            return False
+        return True
 
     def _qt_sc_enter(self) -> None:
         """Enter Qt Speech Cursor mode.

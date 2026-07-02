@@ -136,3 +136,31 @@ def test_dyslexia_font_toggles_off_and_reverts_chrome(window, qapp):
     assert qapp.font().family() == "OpenDyslexic"
     window._apply_dyslexia_font(False)
     assert qapp.font().family() == original
+
+
+def test_footnote_anchor_click_jumps(window):
+    """Clicking a footnote marker (or its backlink) scrolls to the anchor;
+    an ordinary click is not consumed so it still places the caret."""
+    from PyQt6.QtCore import QEvent, QPoint
+
+    md = "Body text.[^1]\n\n[^1]: The footnote."
+    html = window._md_to_html(md)
+    assert 'name="fn-1"' in html and 'href="#fn-1"' in html
+    window.editor.setHtml(html)
+
+    called = {}
+    window.editor.anchorAt = lambda _p: "#fn-1"
+    window.editor.scrollToAnchor = lambda n: called.__setitem__("n", n)
+
+    class _Evt:
+        def type(self):
+            return QEvent.Type.MouseButtonRelease
+
+        def pos(self):
+            return QPoint(1, 1)
+
+    assert window._editor_anchor_click(_Evt()) is True
+    assert called["n"] == "fn-1"
+
+    window.editor.anchorAt = lambda _p: ""   # not over an anchor
+    assert window._editor_anchor_click(_Evt()) is False
