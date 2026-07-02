@@ -110,8 +110,11 @@ video = ["Pillow"]
 # Test tooling (no test dependencies existed before the batch/watch features).
 # pytest-cov powers the per-module coverage gate on tts.py (see the `coverage`
 # CI job and [tool.coverage] below); plain `pytest` ignores it when --cov is
-# not passed, so the matrix legs are unaffected.
-test = ["pytest", "pytest-cov"]
+# not passed, so the matrix legs are unaffected.  pytest-qt (qtbot) drives the
+# interactive/end-to-end Qt GUI tests and hypothesis powers the loader property
+# tests; both are pure-Python wheels, so the base matrix legs pick them up too
+# and simply skip the Qt-guarded modules when PyQt is somehow absent.
+test = ["pytest", "pytest-cov", "pytest-qt", "hypothesis"]
 all = [
     "pytesseract",
     "pymupdf",
