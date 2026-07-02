@@ -6,7 +6,9 @@ state of its own.  IMPORT SAFETY: references Qt at module scope — imported
 lazily by main_window.py (itself imported by runner.py after the _QT guard).
 """
 from .._runtime import *  # noqa: F401,F403
-from ..themes import _load_css_themes
+from ..i18n import tr
+from ..themes import _load_css_themes, detect_os_color_scheme, theme_for_os_scheme
+from .a11y import announce
 
 
 class DisplayMixin:
@@ -152,6 +154,33 @@ class DisplayMixin:
             else "Caret browsing OFF — clean reader view."
         )
 
+    def _maybe_follow_os_theme(self) -> None:
+        """On startup, adopt the OS dark/light/high-contrast theme when asked.
+
+        Honors the ``qt_follow_os_theme`` setting and never overrides an
+        *explicit* user theme choice (``qt_theme_explicit``): the whole point is
+        to give a sensible default that tracks the desktop appearance while
+        leaving a deliberate pick untouched.  Detection is best-effort — an
+        unknown scheme (older Qt / PyQt5 / no running app) leaves the saved
+        theme in place.  Only writes ``theme`` when it actually changes so a
+        follow-mode user keeps tracking the OS across launches.
+        """
+        if not bool(self.settings.get("qt_follow_os_theme", True)):
+            return
+        if bool(self.settings.get("qt_theme_explicit", False)):
+            return
+        scheme = detect_os_color_scheme()
+        target = theme_for_os_scheme(scheme)
+        if target and target != str(self.settings.get("theme", "")):
+            # Do NOT mark this as an explicit choice — it must keep following
+            # the OS on subsequent launches.
+            self.settings["theme"] = target
+
+    def _mark_theme_explicit(self) -> None:
+        """Record that the user deliberately chose a theme (stops OS-follow)."""
+        if not bool(self.settings.get("qt_theme_explicit", False)):
+            self.settings["qt_theme_explicit"] = True
+
     def _next_theme(self) -> None:
         """Cycle to the next theme (built-in + custom CSS)."""
         all_themes = self._all_theme_names
@@ -159,8 +188,11 @@ class DisplayMixin:
         idx = all_themes.index(current) if current in all_themes else 0
         new_theme = all_themes[(idx + 1) % len(all_themes)]
         self.settings["theme"] = new_theme
+        self._mark_theme_explicit()
         self._apply_qt_theme(new_theme)
         self.statusBar().showMessage(f"Theme: {new_theme}")
+        # Announce so screen-reader users hear the change without losing focus.
+        announce(self.editor, tr("Theme: {name}").format(name=new_theme))
 
     def _qt_pick_theme(self) -> None:
         """Open a dialog listing all available themes for direct selection."""
@@ -177,8 +209,10 @@ class DisplayMixin:
         )
         if ok and chosen:
             self.settings["theme"] = chosen
+            self._mark_theme_explicit()
             self._apply_qt_theme(chosen)
             self.statusBar().showMessage(f"Theme: {chosen}")
+            announce(self.editor, tr("Theme: {name}").format(name=chosen))
 
     def _qt_reload_css_themes(self) -> None:
         """Re-scan THEMES_DIR and reload all *.css theme files.

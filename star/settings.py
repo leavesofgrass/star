@@ -11,6 +11,18 @@ _log = _logging.getLogger("star.settings")
 
 DEFAULTS: Dict[str, Any] = {
     "theme": "obsidian",
+    # ── OS colour-scheme / contrast following (Qt GUI) ────────────────────
+    # When True, star queries the OS appearance on startup (Qt 6.5+
+    # QStyleHints.colorScheme) and, if the user prefers Dark or Light, picks a
+    # matching built-in theme — UNLESS the user has explicitly chosen one, in
+    # which case their choice always wins (see qt_theme_explicit).  Set False to
+    # always honour the saved ``theme`` regardless of the OS appearance.
+    "qt_follow_os_theme": True,
+    # Set to True the first time the user *deliberately* picks a theme (Choose
+    # Theme, Next Theme, or a profile that carries a theme).  Once set, OS
+    # auto-detection never overrides the choice.  This is how "do not override
+    # an explicit user theme choice" is enforced across launches.
+    "qt_theme_explicit": False,
     # Optional-dependency auto-install (star/autodeps.py). auto_install gates the
     # first-run chooser and on-demand fetches; deps_prompted flips true once the
     # chooser has been shown so it never nags again. STAR_NO_AUTOINSTALL overrides.

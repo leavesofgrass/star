@@ -7,8 +7,10 @@ lazily by main_window.py (itself imported by runner.py after the _QT guard).
 """
 from .._runtime import *  # noqa: F401,F403
 from ..documents import Document, _build_word_map, load_document
+from ..i18n import tr
 from ..mathrender import has_math, render_math_to_unicode
 from ..stats import _record_library
+from .a11y import announce
 
 
 class DocumentMixin:
@@ -170,6 +172,9 @@ class DocumentMixin:
         if not self._is_welcome(doc):
             _record_library(self.settings, doc)
         self.statusBar().showMessage(f"Opened: {doc.title}")
+        # Announce the load to assistive tech without stealing focus from the
+        # document view (pairs with the visible status-bar message).
+        announce(self.editor, tr("Loaded {title}").format(title=doc.title))
 
     # ── Word-position mapping ─────────────────────────────────────────
 

@@ -337,6 +337,11 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         _seed_default_css_themes()
         self._css_themes: Dict[str, Dict[str, Any]] = _load_css_themes()
 
+        # Follow the OS dark/light/high-contrast preference on startup, unless
+        # the user has explicitly chosen a theme (their choice always wins).
+        # Runs before _setup_ui so the very first paint uses the right theme.
+        self._maybe_follow_os_theme()
+
         self._setup_ui()
 
         # Wire the TTS highlight callback → signal (thread-safe delivery).

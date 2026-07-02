@@ -384,6 +384,7 @@ class DocToolsMixin:
         buttons.accepted.connect(_accept_current)
         buttons.rejected.connect(dlg.reject)
         lst.itemDoubleClicked.connect(_accept_item)
+        lst.itemActivated.connect(_accept_item)  # Enter opens (keyboard parity)
 
         dlg.exec() if _QT == "PyQt6" else dlg.exec_()
         if chosen["url"]:

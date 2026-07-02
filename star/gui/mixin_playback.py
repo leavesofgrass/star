@@ -6,7 +6,9 @@ state of its own.  IMPORT SAFETY: references Qt at module scope — imported
 lazily by main_window.py (itself imported by runner.py after the _QT guard).
 """
 from .._runtime import *  # noqa: F401,F403
+from ..i18n import tr
 from ._qtcompat import _FULL_WIDTH_SEL, _KEEP_ANCHOR
+from .a11y import announce
 
 
 class PlaybackMixin:
@@ -45,6 +47,8 @@ class PlaybackMixin:
         self.statusBar().showMessage(
             f"Reading at {self.settings['tts_rate']} wpm …"
         )
+        # Announce to assistive tech without moving focus (pairs with status).
+        announce(self.editor, tr("Playing"))
 
     def _tts_play_from_word(self, word_idx: int) -> None:
         """Resume or start speech from a specific word-map index."""
@@ -68,6 +72,7 @@ class PlaybackMixin:
         self.statusBar().showMessage(
             f"Resuming at {self.settings['tts_rate']} wpm …"
         )
+        announce(self.editor, tr("Playing"))
 
     def _qt_play_from_cursor(self) -> None:
         """Start speech from the current text-cursor or selection position.
@@ -103,9 +108,14 @@ class PlaybackMixin:
         """
         if self.tts_manager.speaking:
             saved = self.tts_manager.current_word_idx
-            self._tts_stop()  # clears _tts_paused_at_word
+            # Suppress the stop announcement here — this is a *pause*, and we
+            # announce that explicitly below so a screen reader says "Paused"
+            # rather than "Stopped".
+            self._tts_stop(announce_state=False)  # clears _tts_paused_at_word
             if saved >= 0:
                 self._tts_paused_at_word = saved
+            announce(self.editor, tr("Paused"))
+            self.statusBar().showMessage(tr("Paused"))
         elif self._tts_paused_at_word >= 0:
             w = self._tts_paused_at_word
             self._tts_paused_at_word = -1
@@ -113,13 +123,20 @@ class PlaybackMixin:
         else:
             self._tts_play()
 
-    def _tts_stop(self) -> None:
-        """Full stop — saves position, clears speech."""
+    def _tts_stop(self, announce_state: bool = True) -> None:
+        """Full stop — saves position, clears speech.
+
+        *announce_state* is False when called as the internal half of a pause
+        (see :meth:`_tts_toggle`) so the caller can announce "Paused" instead of
+        the "Stopped" message this method would otherwise speak.
+        """
         self._qt_save_reading_position()
         self.tts_manager.stop()
         self.editor.setExtraSelections([])  # clear highlight immediately
         self._tts_paused_at_word = -1
-        self.statusBar().showMessage("Stopped.")
+        if announce_state:
+            self.statusBar().showMessage("Stopped.")
+            announce(self.editor, tr("Stopped"))
 
     # ── Word highlight (called on GUI thread via _word_signal) ─────────
 

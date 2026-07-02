@@ -295,6 +295,7 @@ class VoicesMixin:
         filt.textChanged.connect(lambda _t: _apply_filter())
         fav_only.stateChanged.connect(lambda _s: _apply_filter())
         lst.itemDoubleClicked.connect(lambda _i: _on_set())
+        lst.itemActivated.connect(lambda _i: _on_set())  # Enter sets (keyboard parity)
 
         _refresh()
         dlg.exec()

@@ -17,6 +17,7 @@ IMPORT SAFETY: references Qt at module scope — imported lazily by main_window.
 """
 from .._runtime import *  # noqa: F401,F403
 from ..i18n import tr
+from .a11y import announce
 
 
 class FindMixin:
@@ -320,6 +321,17 @@ class FindMixin:
                     q=self._find_query, c=self._find_count.text()
                 )
             )
+            # Announce the live result count ("3 of 12" / "No matches") so a
+            # screen-reader user hears their search progress without leaving the
+            # find input.  Announce against the find input (which holds focus)
+            # so the utterance is associated with the control being used.
+            widget = getattr(self, "_find_input", None) or self.editor
+            spoken = (
+                tr("No matches")
+                if total == 0
+                else tr("{i} of {n}").format(i=self._find_idx + 1, n=total)
+            )
+            announce(widget, spoken)
 
 
 def _find_all(text: str, query: str, case_sensitive: bool) -> List[int]:
