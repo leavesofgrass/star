@@ -187,7 +187,7 @@ def test_list_members_7z(tmp_path):
     sp = tmp_path / "test.7z"
     with py7zr.SevenZipFile(sp, mode="w") as sz:
         content = b"# Hello from 7z"
-        sz.writestr({"docs/hello.md": io.BytesIO(content)})
+        sz.writestr(content, "docs/hello.md")
     members = list_members(str(sp))
     assert "docs/hello.md" in members
 
@@ -201,7 +201,7 @@ def test_open_member_7z(tmp_path):
     sp = tmp_path / "test.7z"
     with py7zr.SevenZipFile(sp, mode="w") as sz:
         content = b"# Hello from 7z"
-        sz.writestr({"docs/hello.md": io.BytesIO(content)})
+        sz.writestr(content, "docs/hello.md")
     with open_member(str(sp), "docs/hello.md") as tmp:
         data = Path(tmp).read_bytes()
         assert b"Hello" in data

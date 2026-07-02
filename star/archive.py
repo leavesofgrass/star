@@ -124,12 +124,16 @@ def open_member(archive_path: str, member: str):
                 Path(tmp_path).write_bytes(fobj.read())
         elif pl.endswith(".7z"):
             py7zr = _load_7z()
+            # Extract the single target to a temp dir and read it back. Uses
+            # SevenZipFile.extract(path, targets=…), which is stable across py7zr
+            # 0.x and 1.x — py7zr 1.0 removed the older in-memory .read(targets=…).
             with py7zr.SevenZipFile(archive_path, mode="r") as sz:
-                data_dict = sz.read(targets=[member])
-                bio = data_dict.get(member)
-                if bio is None:
-                    raise KeyError(f"Member not found: {member!r}")
-                Path(tmp_path).write_bytes(bio.read())
+                with tempfile.TemporaryDirectory() as _td:
+                    sz.extract(path=_td, targets=[member])
+                    src = Path(_td) / member
+                    if not src.is_file():
+                        raise KeyError(f"Member not found: {member!r}")
+                    Path(tmp_path).write_bytes(src.read_bytes())
         elif pl.endswith(".rar"):
             rarfile = _load_rar()
             with rarfile.RarFile(archive_path) as rf:
