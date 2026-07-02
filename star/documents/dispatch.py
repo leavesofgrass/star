@@ -201,8 +201,13 @@ def load_document(path: str, settings: Settings) -> Document:
     # the fallback for every extension without a handler, and as a safety net if
     # entry-point discovery yields nothing (e.g. a frozen build), so behaviour is
     # unchanged when no extra plugins are installed.
+    # A Pandoc-only format (no native loader) must still honor `prefer_pandoc`:
+    # when it is off, skip the handler lookup so the format falls through to the
+    # guidance note below rather than being converted by the registered
+    # PandocHandler anyway (which would silently ignore the disabled preference).
     _handler = None
-    if not md:
+    _pandoc_only_disabled = fmt == "pandoc" and not settings.get("prefer_pandoc", True)
+    if not md and not _pandoc_only_disabled:
         from ..plugins import PluginRegistry
         _handler = PluginRegistry.get().handler_for(Path(path))
 
