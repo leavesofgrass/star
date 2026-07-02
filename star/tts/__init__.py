@@ -14,6 +14,7 @@ from .silent import SilentBackend
 from .festival import FestivalBackend
 from .coqui import CoquiBackend
 from .piper import PiperBackend, _piper_voice_dirs
+from . import piper_models
 from .pyttsx3 import Pyttsx3Backend
 from .espeak import ESpeakBackend, ESpeakLibBackend
 from .dectalk import DECtalkDLLBackend, DECtalkBackend
@@ -40,7 +41,7 @@ __all__ = [
     "SilentBackend", "FestivalBackend", "CoquiBackend", "PiperBackend",
     "Pyttsx3Backend", "ESpeakBackend", "ESpeakLibBackend",
     "DECtalkDLLBackend", "DECtalkBackend", "AppleSayBackend",
-    "_SCReader", "_piper_voice_dirs",
+    "_SCReader", "_piper_voice_dirs", "piper_models",
     "_apply_wav_adjustments", "_convert_audio_format", "_wav_duration_seconds",
     "_build_subtitle_cues", "_fmt_subtitle_time", "_format_subtitles",
     "_generate_subtitles",

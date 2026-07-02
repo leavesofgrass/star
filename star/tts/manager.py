@@ -691,6 +691,28 @@ class TTSManager:
     def list_voices(self) -> List[Dict[str, str]]:
         return self._backend.list_voices()
 
+    def piper_catalog(self) -> List[Dict[str, str]]:
+        """Return the downloadable Piper voice catalog (see PiperBackend).
+
+        Available regardless of the active backend so the voice manager can
+        offer Piper downloads even when another engine is currently selected.
+        """
+        from .piper import PiperBackend
+
+        return PiperBackend.catalog_voices()
+
+    def installed_piper_models(self) -> List[str]:
+        """Return the cached Piper catalog models' ``.onnx`` paths."""
+        from .piper import PiperBackend
+
+        return PiperBackend.installed_model_paths()
+
+    def download_piper_model(self, key: str, **kwargs: Any) -> str:
+        """Download the catalog Piper voice *key*; return its cached path or ""."""
+        from .piper import PiperBackend
+
+        return PiperBackend.download_model(key, **kwargs)
+
     def export_audio(
         self,
         text: str,

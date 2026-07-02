@@ -376,6 +376,7 @@ class ChromeMixin:
                 None,
                 ("Choose TTS Engine…", self._qt_pick_backend, "Ctrl+Shift+G"),
                 ("Choose Voice…", self._voice_picker_qt, "Ctrl+Shift+V"),
+                ("Voice Manager…", self._qt_voice_manager, "F4"),
                 (
                     "Speech Cursor Mode",
                     lambda: (

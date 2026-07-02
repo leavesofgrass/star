@@ -1,5 +1,6 @@
 """PiperBackend (neural, offline)."""
 from .._runtime import *  # noqa: F401,F403
+from . import piper_models
 from .base import TTSBackend
 from .audio import _apply_wav_adjustments
 from .coqui import CoquiBackend  # PiperBackend reuses CoquiBackend._player_cmd
@@ -234,3 +235,60 @@ class PiperBackend(TTSBackend):
     @property
     def speaking(self) -> bool:
         return self._speaking
+
+    # ── downloadable-model catalog (piper_models) ───────────────────────────
+
+    @staticmethod
+    def catalog_voices() -> List[Dict[str, str]]:
+        """Return the downloadable Piper voice catalog as plain dicts.
+
+        Each entry carries ``key``, ``name``, ``lang``, ``quality``, ``label``,
+        the cached model ``path`` (empty when not yet downloaded), and an
+        ``installed`` flag (``"1"``/``""``).  The GUI voice manager uses this to
+        show a one-click download list without importing ``piper_models`` itself.
+        """
+        out: List[Dict[str, str]] = []
+        for v in piper_models.catalog():
+            installed = piper_models.is_installed(v)
+            out.append(
+                {
+                    "key": v.key,
+                    "name": v.name,
+                    "lang": v.language,
+                    "quality": v.quality,
+                    "label": v.label,
+                    "path": str(piper_models.model_path(v)) if installed else "",
+                    "installed": "1" if installed else "",
+                }
+            )
+        return out
+
+    @staticmethod
+    def installed_model_paths() -> List[str]:
+        """Return the cached catalog models' ``.onnx`` paths (report/discovery)."""
+        return [str(piper_models.model_path(v)) for v in piper_models.installed_models()]
+
+    @staticmethod
+    def download_model(key: str, **kwargs: Any) -> str:
+        """Fetch the catalog voice *key* into the cache and return its path.
+
+        Returns the cached ``.onnx`` path on success, or ``""`` on any failure
+        (unknown key, offline, IO error) — never raises.  ``**kwargs`` are
+        forwarded to :func:`piper_models.fetch` (e.g. a test ``fetcher=``).
+        """
+        voice = piper_models.get(key)
+        if voice is None:
+            return ""
+        path = piper_models.fetch(voice, **kwargs)
+        return str(path) if path else ""
+
+    def use_model(self, path: str) -> bool:
+        """Point the backend at the ``.onnx`` model at *path*.
+
+        Returns True when the file exists and was adopted.  A thin wrapper over
+        :meth:`set_voice` that reports success so the UI can confirm the switch.
+        """
+        if path and path.lower().endswith(".onnx") and Path(path).is_file():
+            self._model = path
+            return True
+        return False
