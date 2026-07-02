@@ -11,15 +11,25 @@ from .._runtime import *  # noqa: F401,F403
 class AidDialogsMixin:
     # ── RSVP ─────────────────────────────────────────────────────────
 
-    def _qt_ensure_rsvp_overlay(self) -> "_RSVPOverlay":
-        """Create the RSVP overlay lazily (on first use)."""
+    def _qt_ensure_rsvp_overlay(self):
+        """Create the RSVP overlay lazily (on first use).
+
+        ``_RSVPOverlay`` lives in main_window.py; import it lazily here so this
+        mixin (which main_window imports) doesn't create a circular import.
+        """
         if self._rsvp_overlay is None:
+            from .main_window import _RSVPOverlay
             self._rsvp_overlay = _RSVPOverlay(self.editor, self.settings)
         return self._rsvp_overlay
 
     def _qt_toggle_rsvp(self) -> None:
-        """Toggle the RSVP (Rapid Serial Visual Presentation) overlay."""
-        new = not bool(self.settings.get("qt_rsvp_mode", False))
+        """Toggle the RSVP (Rapid Serial Visual Presentation) overlay.
+
+        Keyed on the overlay's actual visibility rather than the stored setting,
+        so a stale ``qt_rsvp_mode`` (e.g. left True by an earlier failed toggle)
+        can't require a double click to turn the overlay on."""
+        currently_on = self._rsvp_overlay is not None and not self._rsvp_overlay.isHidden()
+        new = not currently_on
         self.settings["qt_rsvp_mode"] = new
         if hasattr(self, "_rsvp_act"):
             self._rsvp_act.setChecked(new)
@@ -67,6 +77,7 @@ class AidDialogsMixin:
             dlg.accept()
             self.statusBar().showMessage(f"RSVP position: {key}")
 
+        from .main_window import _RSVPOverlay
         for row, col, key, label in _RSVPOverlay._GRID:
             btn = QPushButton(label)
             btn.setMinimumSize(80, 60)

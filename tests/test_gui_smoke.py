@@ -164,3 +164,19 @@ def test_footnote_anchor_click_jumps(window):
 
     window.editor.anchorAt = lambda _p: ""   # not over an anchor
     assert window._editor_anchor_click(_Evt()) is False
+
+
+def test_rsvp_overlay_toggles_and_feeds(window):
+    """RSVP mode creates + shows the floating one-word overlay and accepts word
+    updates. Regression: mixin_aiddialogs referenced _RSVPOverlay without
+    importing it, so toggling RSVP on raised NameError."""
+    window.settings["qt_rsvp_mode"] = True   # a stale setting must not block turning it on
+    window._qt_toggle_rsvp()
+    ov = window._rsvp_overlay
+    # isHidden() is ancestor-independent (the test window is never shown), so it
+    # reflects the explicit show/hide the toggle performs.
+    assert ov is not None and not ov.isHidden()
+    ov.update_word("a", "b", "c")            # the playback feed path
+    assert ov._word_lbl.text() == "b"
+    window._qt_toggle_rsvp()
+    assert ov.isHidden()
