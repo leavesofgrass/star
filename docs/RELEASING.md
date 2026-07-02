@@ -126,3 +126,13 @@ pwsh tools/build-windows.ps1 -AllowDeprecatedExe # DEPRECATED exe       -> dist/
 Use a suffix (e.g. `v0.1.12-rc1`) for a dry run: the workflow still builds the
 wheel, routes the publish to TestPyPI, and creates a (pre-)release you can inspect
 before cutting the final tag.
+
+## Optional signing & native installers
+
+The release workflow also carries **optional, off-by-default** jobs for
+GPG-signing the wheel/sdist and building native installers (Windows NSIS +
+Authenticode, macOS `.app`/DMG + notarization, Linux AppImage). Each is *skipped*
+— never failed — when its enabling variable/secret is absent, so they never block
+the wheel/PyPI pipeline or the manual `pypi` approval gate. See
+[`PACKAGING.md`](PACKAGING.md) for what each job does and exactly which GitHub
+secrets/certificates a maintainer must configure to turn them on.

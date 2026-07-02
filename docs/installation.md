@@ -151,6 +151,12 @@ What the fat zipapp does and does not remove:
 > longer built by CI or attached to releases — prefer the wheel. See
 > [`star/BUILD.md`](../star/BUILD.md).
 
+> **Native installers (opt-in).** The release workflow can additionally build a
+> Windows NSIS installer, a macOS `.app`/DMG, and a Linux AppImage — all
+> off-by-default and produced only when a maintainer enables them. Maintainers:
+> see [`PACKAGING.md`](PACKAGING.md) for the full channel matrix, the optional
+> CI jobs, and which signing certificates/secrets each one needs.
+
 ## Optional Packages
 
 | Package | Purpose | Install |

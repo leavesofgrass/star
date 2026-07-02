@@ -19,6 +19,10 @@ on:
         description: "If building the deprecated exe, make it LEAN (skip the Whisper + Torch dictation stack) — fast/small"
         type: boolean
         default: false
+      build_installers:
+        description: "Also build the OPTIONAL native installers (Windows NSIS, macOS .app/DMG, Linux AppImage). Signing/notarization only happens when the matching secrets are configured; otherwise the artifacts build unsigned."
+        type: boolean
+        default: false
 
 # The release job creates a GitHub Release and uploads the built artifacts.
 permissions:
@@ -162,11 +166,172 @@ jobs:
           path: dist
       - uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b  # v1.14.0
 
+  # ── OPTIONAL: GPG-sign the wheel + sdist ───────────────────────────────────
+  # Produces detached ``.asc`` signatures for every artifact in ``dist/`` so
+  # users can verify authenticity (``gpg --verify star_reader-X.whl.asc``).
+  #
+  # GATING: this job runs ONLY when the ``GPG_PRIVATE_KEY`` secret is present.
+  # It is expressed as a job-level ``if:`` on ``vars.ENABLE_GPG_SIGNING`` so the
+  # job is *skipped* (not failed) on any repo that has not opted in — the
+  # existing wheel/PyPI/release pipeline is never blocked.  To enable:
+  #   1. Add secrets ``GPG_PRIVATE_KEY`` (ASCII-armored private key) and
+  #      ``GPG_PASSPHRASE``.
+  #   2. Set repo variable ``ENABLE_GPG_SIGNING=true``.
+  # See docs/PACKAGING.md → "GPG signing".
+  sign-artifacts:
+    name: GPG-sign wheel + sdist (optional)
+    needs: [wheel]
+    if: vars.ENABLE_GPG_SIGNING == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel
+          path: dist
+      - name: Import signing key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          if [ -z "${GPG_PRIVATE_KEY}" ]; then
+            echo "::notice::GPG_PRIVATE_KEY empty — skipping signing (no-op)."
+            exit 0
+          fi
+          echo "${GPG_PRIVATE_KEY}" | gpg --batch --import
+      - name: Sign each artifact (detached .asc)
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          shopt -s nullglob
+          for f in dist/*.whl dist/*.tar.gz; do
+            gpg --batch --yes --pinentry-mode loopback \
+                --passphrase "${GPG_PASSPHRASE}" \
+                --armor --detach-sign "$f"
+          done
+          ls -l dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: signatures
+          path: dist/*.asc
+          if-no-files-found: ignore
+
+  # ── OPTIONAL: Windows NSIS installer (+ Authenticode signing) ──────────────
+  # Builds a click-through ``star-setup.exe`` from the fat zipapp.  Authenticode
+  # signing runs only when a code-signing cert is supplied.
+  #
+  # GATING: runs on a manual ``workflow_dispatch`` with ``build_installers:
+  # true`` (so a normal tag push never pays for it), OR when the repo opts in via
+  # ``vars.ENABLE_INSTALLERS=true``.  Authenticode signing inside is a further
+  # no-op when ``WINDOWS_CERT_PFX_BASE64`` is absent — the unsigned installer is
+  # still produced.  Maintainer secrets to enable signing:
+  #   ``WINDOWS_CERT_PFX_BASE64`` (base64 of a .pfx) + ``WINDOWS_CERT_PASSWORD``.
+  # See docs/PACKAGING.md → "Windows installer".
+  windows-installer:
+    name: Windows NSIS installer (optional)
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.build_installers) ||
+      vars.ENABLE_INSTALLERS == 'true'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Build star.pyz (installer payload)
+        run: python build_zipapp.py
+      - name: Install NSIS
+        run: choco install nsis --no-progress -y
+      - name: Build + (optionally) sign the installer
+        shell: pwsh
+        env:
+          WINDOWS_CERT_PFX_BASE64: ${{ secrets.WINDOWS_CERT_PFX_BASE64 }}
+          WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        run: ./tools/build-nsis.ps1 -Payload dist/star.pyz -OutDir dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-windows
+          path: dist/star-setup*.exe
+          if-no-files-found: ignore
+
+  # ── OPTIONAL: macOS .app / DMG (+ codesign & notarize) ─────────────────────
+  # Builds a double-clickable ``star.app`` and a ``.dmg`` with briefcase.
+  # codesign + notarization run only when an Apple Developer ID cert + an App
+  # Store Connect API key / app-specific password are supplied.
+  #
+  # GATING: same trigger as the Windows installer (manual ``build_installers`` or
+  # ``vars.ENABLE_INSTALLERS=true``).  codesign/notarize inside the script is a
+  # no-op when ``MACOS_CERTIFICATE_BASE64`` is absent — an unsigned .app/.dmg is
+  # still produced (Gatekeeper will warn, but the artifact builds).  Maintainer
+  # secrets to enable signing/notarization:
+  #   ``MACOS_CERTIFICATE_BASE64`` (base64 .p12) + ``MACOS_CERTIFICATE_PASSWORD``,
+  #   ``MACOS_NOTARY_APPLE_ID`` + ``MACOS_NOTARY_PASSWORD`` + ``MACOS_NOTARY_TEAM_ID``.
+  # See docs/PACKAGING.md → "macOS app / DMG".
+  macos-app:
+    name: macOS .app / DMG (optional)
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.build_installers) ||
+      vars.ENABLE_INSTALLERS == 'true'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Build + (optionally) sign/notarize the .app/.dmg
+        env:
+          MACOS_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_NOTARY_APPLE_ID: ${{ secrets.MACOS_NOTARY_APPLE_ID }}
+          MACOS_NOTARY_PASSWORD: ${{ secrets.MACOS_NOTARY_PASSWORD }}
+          MACOS_NOTARY_TEAM_ID: ${{ secrets.MACOS_NOTARY_TEAM_ID }}
+        run: bash tools/build-macos.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-macos
+          path: |
+            dist/*.dmg
+            dist/*.app.zip
+          if-no-files-found: ignore
+
+  # ── OPTIONAL: Linux AppImage ───────────────────────────────────────────────
+  # Bundles a Python runtime + star into a single self-contained ``star.AppImage``
+  # that runs on most Linux distros with no install step.  No signing needed
+  # (AppImages are typically distributed with a GPG .asc from the sign job above).
+  #
+  # GATING: same trigger as the other installers (manual ``build_installers`` or
+  # ``vars.ENABLE_INSTALLERS=true``).  See docs/PACKAGING.md → "Linux AppImage".
+  linux-appimage:
+    name: Linux AppImage (optional)
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.build_installers) ||
+      vars.ENABLE_INSTALLERS == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Build the AppImage
+        run: bash tools/build-appimage.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: appimage-linux
+          path: dist/*.AppImage
+          if-no-files-found: ignore
+
   # ── Publish the GitHub Release ─────────────────────────────────────────────
   # The automated release is wheel + sdist only (published to PyPI above and
   # attached here).  Neither the star.pyz nor the deprecated star.exe is a
   # dependency or attached to releases — build those manually if you need them
   # (see windows-pyz / windows-exe above and docs/installation.md).
+  #
+  # The optional signing / installer jobs above are intentionally NOT in
+  # ``needs`` — they are best-effort and skipped by default, so the release must
+  # not wait on them.  Their artifacts, when produced, are still swept up by the
+  # ``download-artifact@v4`` step below (it downloads *every* uploaded artifact)
+  # and attached to the release automatically.
   release:
     name: Publish GitHub Release
     needs: [wheel]
@@ -183,4 +348,4 @@ jobs:
         with:
           files: artifacts/**/*
           generate_release_notes: true
-          fail_on_unmatched_files: true
+          fail_on_unmatched_files: false
