@@ -6,6 +6,7 @@ state of its own.  IMPORT SAFETY: references Qt at module scope — imported
 lazily by main_window.py (itself imported by runner.py after the _QT guard).
 """
 from .._runtime import *  # noqa: F401,F403
+from ..i18n import tr
 from ..tui.text import _shortcuts_text
 
 
@@ -195,7 +196,9 @@ class CommandsMixin:
         box.setPlaceholderText(
             "Type to search commands…  (Enter runs, Esc cancels)"
         )
+        box.setAccessibleName(tr("Search commands"))
         lst = QListWidget()
+        lst.setAccessibleName(tr("Matching commands"))
         lay.addWidget(box)
         lay.addWidget(lst)
 

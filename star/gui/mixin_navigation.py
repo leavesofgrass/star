@@ -7,6 +7,7 @@ lazily by main_window.py (itself imported by runner.py after the _QT guard).
 """
 from .._runtime import *  # noqa: F401,F403
 from ..documents import _build_word_map
+from ..i18n import tr
 from ..feeds import _FEEDPARSER, fetch_feed
 from ..spellcheck import _SPELL, SpellHighlighter, misspelled_words
 from ..library import (
@@ -1007,6 +1008,7 @@ class NavigationMixin:
         row = QHBoxLayout()
         row.addWidget(QLabel("Translate to:"))
         combo = QComboBox()
+        combo.setAccessibleName(tr("Translate to language"))
         for name, code in COMMON_LANGUAGES:
             combo.addItem(name, code)
         row.addWidget(combo, 1)
@@ -1128,6 +1130,11 @@ class NavigationMixin:
         lay = QVBoxLayout(dlg)
         lay.addWidget(QLabel("Choose an article to open:"))
         lst = QListWidget()
+        lst.setAccessibleName(tr("Feed articles"))
+        lst.setAccessibleDescription(
+            tr("Articles in the feed. Select one and press Open, "
+               "or double-click to open it.")
+        )
         for ent in entries:
             published = ent.get("published", "")
             label = ent.get("title", "") or ent.get("url", "")
@@ -1245,7 +1252,13 @@ class NavigationMixin:
         lay = QVBoxLayout(dlg)
         box = QLineEdit()
         box.setPlaceholderText("Filter by title, path, or folder…  (Enter opens, Esc closes)")
+        box.setAccessibleName(tr("Filter library"))
         lst = QListWidget()
+        lst.setAccessibleName(tr("Library documents"))
+        lst.setAccessibleDescription(
+            tr("Documents in your library. Press Enter to open the "
+               "selected document.")
+        )
         lay.addWidget(box)
         lay.addWidget(lst)
         btn_row = QHBoxLayout()

@@ -472,6 +472,10 @@ class StarWindow(AidDialogsMixin, CommandsMixin, TocMixin, HighlightsMixin, Pres
         # the user can drag the divider.
         self._preview = QTextBrowser()
         self._preview.setObjectName("preview")
+        self._preview.setAccessibleName(tr("HTML preview"))
+        self._preview.setAccessibleDescription(
+            tr("Live-rendered preview of the document shown while editing.")
+        )
         self._preview.setVisible(False)
         try:
             _horiz = Qt.Orientation.Horizontal  # PyQt6
@@ -509,7 +513,13 @@ class StarWindow(AidDialogsMixin, CommandsMixin, TocMixin, HighlightsMixin, Pres
         self._toc_dock.setAllowedAreas(
             _LEFT_DOCK | _RIGHT_DOCK  # type: ignore[operator]
         )
+        self._toc_dock.setAccessibleName(tr("Table of Contents panel"))
         self._toc_list = QListWidget()
+        self._toc_list.setAccessibleName(tr("Table of contents"))
+        self._toc_list.setAccessibleDescription(
+            tr("Document headings. Enter scrolls to a heading; "
+               "double-click or double-Enter reads from it.")
+        )
         self._toc_list.setMinimumWidth(180)
         # Single-click / Enter: scroll to heading and stop speech so the
         # viewport and audio stay synchronized.
@@ -532,6 +542,7 @@ class StarWindow(AidDialogsMixin, CommandsMixin, TocMixin, HighlightsMixin, Pres
         self._annot_dock.setAllowedAreas(
             _LEFT_DOCK | _RIGHT_DOCK  # type: ignore[operator]
         )
+        self._annot_dock.setAccessibleName(tr("Notes panel"))
         _annot_panel = QWidget()
         _annot_layout = QVBoxLayout(_annot_panel)
         _annot_layout.setContentsMargins(4, 4, 4, 4)
@@ -539,25 +550,35 @@ class StarWindow(AidDialogsMixin, CommandsMixin, TocMixin, HighlightsMixin, Pres
         # Full-text search / tag filter box (type `#tag` to filter by tag).
         self._annot_filter = QLineEdit()
         self._annot_filter.setPlaceholderText(tr("Filter notes — text or #tag…"))
+        self._annot_filter.setAccessibleName(tr("Filter notes"))
+        self._annot_filter.setAccessibleDescription(
+            tr("Type text to filter notes, or #tag to filter by tag.")
+        )
         self._annot_filter.setClearButtonEnabled(True)
         self._annot_filter.textChanged.connect(
             lambda _t: self._qt_build_annotations()
         )
         _annot_layout.addWidget(self._annot_filter)
         self._annot_list = QListWidget()
+        self._annot_list.setAccessibleName(tr("Notes"))
+        self._annot_list.setAccessibleDescription(
+            tr("Notes anchored in the document. Enter scrolls to a note; "
+               "double-click or double-Enter reads from it.")
+        )
         self._annot_list.setMinimumWidth(200)
         self._annot_list.setWordWrap(True)
         self._annot_list.itemActivated.connect(self._qt_annotation_navigate)
         self._annot_list.itemDoubleClicked.connect(self._qt_annotation_play)
         _annot_layout.addWidget(self._annot_list)
         _btn_row = QHBoxLayout()
-        for _lbl, _fn in (
-            ("Add", self._qt_add_annotation),
-            ("Edit", self._qt_edit_annotation),
-            ("Delete", self._qt_delete_annotation),
-            ("Export…", self._qt_export_annotations),
+        for _lbl, _fn, _desc in (
+            ("Add", self._qt_add_annotation, tr("Add a note at the cursor")),
+            ("Edit", self._qt_edit_annotation, tr("Edit the selected note")),
+            ("Delete", self._qt_delete_annotation, tr("Delete the selected note")),
+            ("Export…", self._qt_export_annotations, tr("Export all notes to a file")),
         ):
             _b = QPushButton(tr(_lbl))
+            _b.setAccessibleDescription(_desc)
             _b.clicked.connect(lambda _chk=False, fn=_fn: fn())
             _btn_row.addWidget(_b)
         _annot_layout.addLayout(_btn_row)

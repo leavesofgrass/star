@@ -11,6 +11,7 @@ IMPORT SAFETY: references Qt at module scope — import lazily only (imported by
 main_window.py, itself imported lazily by runner.py after the _QT guard).
 """
 from .._runtime import *  # noqa: F401,F403
+from ..i18n import tr
 from ._qtcompat import _RIGHT_DOCK, _USER_ROLE
 
 
@@ -310,6 +311,7 @@ class GraphMixin:
         lay = QVBoxLayout(dlg)
         scene = QGraphicsScene(dlg)
         view = QGraphicsView(scene)
+        view.setAccessibleName(tr("Knowledge graph image"))
         renderer = QSvgRenderer(QByteArray(svg_text.encode("utf-8")))
         item = QGraphicsSvgItem()
         item.setSharedRenderer(renderer)

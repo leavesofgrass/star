@@ -4,6 +4,7 @@ Renders SVG output from KnowledgeGraph.to_svg() in a QGraphicsView.
 """
 from .._runtime import *  # noqa: F401,F403
 from ..annotations import RELATION_TYPES, _ensure_id, add_relation
+from ..i18n import tr
 
 # QtSvgWidgets/QtSvg are a separate wheel component that is not always present
 # (e.g. a minimal PyQt6 install); when absent the dock falls back to showing the
@@ -45,21 +46,25 @@ class RelationDialog(QDialog):
 
         self._type = QComboBox()
         self._type.addItems(RELATION_TYPES)
+        self._type.setAccessibleName(tr("Relation type"))
         layout.addWidget(QLabel("Relation type:"))
         layout.addWidget(self._type)
 
         self._search = QLineEdit()
         self._search.setPlaceholderText("Filter target annotations…")
+        self._search.setAccessibleName(tr("Filter target annotations"))
         self._search.setClearButtonEnabled(True)
         self._search.textChanged.connect(self._populate)
         layout.addWidget(QLabel("Target annotation:"))
         layout.addWidget(self._search)
 
         self._targets = QListWidget()
+        self._targets.setAccessibleName(tr("Target annotation"))
         layout.addWidget(self._targets)
 
         self._note = QLineEdit()
         self._note.setPlaceholderText("Optional edge label…")
+        self._note.setAccessibleName(tr("Edge label (optional)"))
         layout.addWidget(QLabel("Note (optional):"))
         layout.addWidget(self._note)
 
@@ -73,6 +78,7 @@ class RelationDialog(QDialog):
 
         self._candidates = []
         self._populate()
+        self._search.setFocus()
 
     def _populate(self):
         query = (self._search.text() or "").strip().lower()
@@ -117,6 +123,7 @@ class GraphViewDock(QDockWidget):
         super().__init__("Knowledge Graph", window)
         self._window = window
         self.setObjectName("graph_dock")
+        self.setAccessibleName(tr("Knowledge graph panel"))
         self._graph = None
         self._node_index = []  # parallel to the node list rows: (doc, ann_id)
 
@@ -139,6 +146,7 @@ class GraphViewDock(QDockWidget):
         fl.setContentsMargins(0, 0, 0, 0)
         self._filter_text = QLineEdit()
         self._filter_text.setPlaceholderText("Search text / #tag…")
+        self._filter_text.setAccessibleName(tr("Filter graph nodes"))
         self._filter_text.returnPressed.connect(self.rebuild)
         fl.addWidget(self._filter_text)
         apply_btn = QPushButton("Apply")
@@ -159,8 +167,16 @@ class GraphViewDock(QDockWidget):
 
         outer.addWidget(QLabel("Nodes (double-click to open):"))
         self._node_list = QListWidget()
+        self._node_list.setAccessibleName(tr("Graph nodes"))
+        self._node_list.setAccessibleDescription(
+            tr("Annotations in the knowledge graph. "
+               "Double-click or press Enter to open a node.")
+        )
         self._node_list.itemClicked.connect(self._on_select)
         self._node_list.itemDoubleClicked.connect(self._on_activate)
+        # itemActivated fires on Enter too, so a node is reachable by keyboard
+        # (itemDoubleClicked alone is mouse-only).
+        self._node_list.itemActivated.connect(self._on_activate)
         outer.addWidget(self._node_list, 1)
 
         self._info = QLabel("No relations yet. Add relations via Graph > Add Relation…")

@@ -51,12 +51,18 @@ class DependencyChooser(QDialog):
 
         presets = QHBoxLayout()
         thin = QPushButton(tr("Thin  (~40 MB)"), self)
-        thin.setToolTip(tr("Everyday reading & study aids only — no OCR, graph, or "
-                           "large ML packs."))
+        _thin_tip = tr("Everyday reading & study aids only — no OCR, graph, or "
+                       "large ML packs.")
+        thin.setToolTip(_thin_tip)
+        thin.setAccessibleName(tr("Thin preset"))
+        thin.setAccessibleDescription(_thin_tip)
         thin.clicked.connect(lambda: self._apply_preset("thin"))
         allb = QPushButton(tr("All  (~150 MB)   — recommended"), self)
-        allb.setToolTip(tr("Everything except the very large speech-to-text and "
-                           "named-entity packs."))
+        _all_tip = tr("Everything except the very large speech-to-text and "
+                      "named-entity packs.")
+        allb.setToolTip(_all_tip)
+        allb.setAccessibleName(tr("All preset"))
+        allb.setAccessibleDescription(_all_tip)
         allb.clicked.connect(lambda: self._apply_preset("all"))
         presets.addWidget(thin)
         presets.addWidget(allb)
@@ -75,6 +81,11 @@ class DependencyChooser(QDialog):
                     else (f"~{mb} MB" if mb < 1000 else f"~{mb / 1000:.1f} GB"))
             cb = QCheckBox(f"{tr(label)}   ({size})", self)
             cb.setToolTip(detail)
+            # Screen readers don't reliably associate the adjacent gray
+            # sub-label with the checkbox, so mirror the detail text into the
+            # checkbox's own accessible description.
+            cb.setAccessibleName(f"{tr(label)} ({size})")
+            cb.setAccessibleDescription(detail)
             sub = QLabel(f"    {detail}", self)
             sub.setWordWrap(True)
             sub.setStyleSheet("color: gray; font-size: 11px;")
@@ -88,6 +99,7 @@ class DependencyChooser(QDialog):
         scroll = QScrollArea(self)
         scroll.setWidgetResizable(True)
         scroll.setWidget(inner)
+        scroll.setAccessibleName(tr("Optional features"))
         root.addWidget(scroll, 1)
 
         actions = QHBoxLayout()
@@ -102,6 +114,9 @@ class DependencyChooser(QDialog):
         root.addLayout(actions)
 
         self._apply_preset("all")                    # default to the recommended set
+        # Initial keyboard focus on the default action so Enter installs and
+        # Escape (QDialog default) dismisses without reaching for the mouse.
+        install.setFocus()
 
     # ── behaviour ────────────────────────────────────────────────────────
     def _apply_preset(self, name: str) -> None:

@@ -6,6 +6,7 @@ state of its own.  IMPORT SAFETY: references Qt at module scope — imported
 lazily by main_window.py (itself imported by runner.py after the _QT guard).
 """
 from .._runtime import *  # noqa: F401,F403
+from ..i18n import tr
 from ..stats import _apply_profile_values, _delete_profile, _save_profile
 from ._qtcompat import _USER_ROLE
 
@@ -119,6 +120,10 @@ class PresetsMixin:
         lay.addWidget(info)
 
         lst = QListWidget()
+        lst.setAccessibleName(tr("Pronunciation entries"))
+        lst.setAccessibleDescription(
+            tr("Term and its spoken form. Select an entry to edit or remove it.")
+        )
         lay.addWidget(lst)
 
         def _refresh() -> None:
