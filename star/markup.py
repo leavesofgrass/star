@@ -2,6 +2,107 @@
 AsciiDoc, Textile, Creole, LaTeX) and the Pandoc bridge."""
 from ._runtime import *  # noqa: F401,F403
 
+# ---------------------------------------------------------------------------
+# Precompiled regexes for the per-line conversion loops.
+# ---------------------------------------------------------------------------
+# These patterns previously lived as literal ``re.sub``/``re.match`` calls
+# inside ``for line in ...`` loops, so CPython re-looked-up (and, on a cold
+# cache, re-compiled) each one on every source line.  They are constant, so
+# hoisting them to module scope removes that per-line overhead with byte-for-
+# byte identical results.  (The single-pass ``_latex_to_md`` applies each of
+# its patterns once per document, so it is intentionally left inline.)
+
+# Org-mode inline markup (applied per line by _orgmode_to_md._inline).
+_ORG_BOLD_RE = re.compile(r"\*([^*\s][^*]*[^*\s]|[^*\s])\*")
+_ORG_ITALIC_RE = re.compile(r"/([^/\s][^/]*[^/\s]|[^/\s])/")
+_ORG_STRIKE_RE = re.compile(r"\+([^+\s][^+]*[^+\s]|[^+\s])\+")
+_ORG_CODE_RE = re.compile(r"~([^~]+)~")
+_ORG_VERBATIM_RE = re.compile(r"=([^=]+)=")
+_ORG_LINK_DESC_RE = re.compile(r"\[\[([^\]]+)\]\[([^\]]+)\]\]")
+_ORG_LINK_BARE_RE = re.compile(r"\[\[([^\]]+)\]\]")
+_ORG_FOOTNOTE_RE = re.compile(r"\[fn:(\w+)\]")
+
+# MediaWiki (per line by _mediawiki_to_md).
+_MW_HEADING_RE = re.compile(r"^(={2,6})\s*(.+?)\s*\1\s*$")
+_MW_TEMPLATE_RE = re.compile(r"\{\{[^}]+\}\}")
+_MW_FILE_RE = re.compile(r"\[\[(?:File|Image|Media):[^\]]*\]\]", re.I)
+_MW_WIKILINK_PIPE_RE = re.compile(r"\[\[([^|\]]+)\|([^\]]+)\]\]")
+_MW_WIKILINK_RE = re.compile(r"\[\[([^\]]+)\]\]")
+_MW_EXTLINK_TEXT_RE = re.compile(r"\[https?://\S+\s+([^\]]+)\]")
+_MW_EXTLINK_BARE_RE = re.compile(r"\[https?://\S+\]")
+_MW_BOLD_RE = re.compile(r"'''(.+?)'''")
+_MW_ITALIC_RE = re.compile(r"''(.+?)''")
+_MW_HEADER_CELL_RE = re.compile(r"^!\s*")
+_MW_CELL_SEP_RE = re.compile(r"^\|\|")
+_MW_ROW_SEP_RE = re.compile(r"^\|-")
+
+# AsciiDoc (per line by _asciidoc_to_md).
+_AD_BLOCK_DELIM_RE = re.compile(r"^[-=.+*_]{4,}$")
+_AD_SOURCE_RE = re.compile(r"\[source(?:,\s*(\w+))?")
+_AD_HEADING_RE = re.compile(r"^(={1,6})\s+(.+)$")
+_AD_ATTR_RE = re.compile(r"^:[\w-]+:")
+_AD_ADMONITION_RE = re.compile(r"^(NOTE|TIP|WARNING|IMPORTANT|CAUTION):\s*(.*)$")
+_AD_MONO_RE = re.compile(r"`(.+?)`")
+_AD_BOLD2_RE = re.compile(r"\*\*(.+?)\*\*")
+_AD_BOLD1_RE = re.compile(r"\*(?!\*)(.+?)\*")
+_AD_BOLDITALIC_RE = re.compile(r"_\*(.+?)\*_|\*_(.+?)_\*")
+_AD_ITALIC_RE = re.compile(r"_(?!_)(.+?)_(?!_)")
+_AD_LINK_RE = re.compile(r"link:([^\[]+)\[([^\]]*)\]")
+_AD_URL_RE = re.compile(r"https?://\S+\[([^\]]+)\]")
+_AD_XREF_TEXT_RE = re.compile(r"<<([^,>]+),([^>]+)>>")
+_AD_XREF_RE = re.compile(r"<<([^>]+)>>")
+_AD_LIST_RE = re.compile(r"^\*\s+")
+_AD_NUM_RE = re.compile(r"^\. ")
+_AD_BLOCK_ATTR_RE = re.compile(r"^\[.*?\]\s*$")
+
+# Textile (per line by _textile_to_md).
+_TX_HEADING_RE = re.compile(r"^h([1-6])\. (.+)$")
+_TX_BOLD2_RE = re.compile(r"\*\*(.+?)\*\*")
+_TX_BOLD1_RE = re.compile(r"\*(?!\*)(.+?)\*")
+_TX_ITALIC2_RE = re.compile(r"__(.+?)__")
+_TX_ITALIC1_RE = re.compile(r"_(?!_)(.+?)_")
+_TX_CODE_RE = re.compile(r"@(.+?)@")
+_TX_LINK_RE = re.compile(r'"([^"]+)":(https?://\S+)')
+_TX_BULLET_RE = re.compile(r"^\*{1,3} ")
+_TX_NUM_RE = re.compile(r"^#{1,3} ")
+
+# Creole (per line by _creole_to_md).
+_CR_HEADING_RE = re.compile(r"^(={1,6})\s*(.+?)\s*=*\s*$")
+_CR_HR_RE = re.compile(r"^-{4,}$")
+_CR_NOWIKI_RE = re.compile(r"\{\{\{(.+?)\}\}\}")
+_CR_ITALIC_RE = re.compile(r"//(.+?)//")
+_CR_LINK_PIPE_RE = re.compile(r"\[\[([^|\]]+)\|([^\]]+)\]\]")
+_CR_LINK_RE = re.compile(r"\[\[([^\]]+)\]\]")
+_CR_IMG_ALT_RE = re.compile(r"\{\{([^|\}]+)\|([^\}]+)\}\}")
+_CR_IMG_RE = re.compile(r"\{\{([^\}]+)\}\}")
+_CR_NUM_RE = re.compile(r"^(#+) ")
+
+# reStructuredText inline markup (per line by _rst_to_md).
+_RST_DIRECTIVE_RE = re.compile(r"\.\.\s+(\w[\w-]*)::(.*)$")
+_RST_CODE_RE = re.compile(r"``(.+?)``")
+_RST_BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
+_RST_ITALIC_RE = re.compile(r"(?<!\*)\*(?!\s)(.+?)(?<!\s)\*(?!\*)")
+_RST_HYPERLINK_RE = re.compile(r"`([^`]+)\s+<([^>]+)>`_+")
+_RST_NAMEDREF_RE = re.compile(r"`([^`]+)`_\b")
+
+# Org-mode block-structure patterns (per line by _orgmode_to_md's main loop).
+_ORG_BLOCK_BEGIN_RE = re.compile(r"^\s*#\+BEGIN_(\w+)(.*)", re.I)
+_ORG_BLOCK_END_RE = re.compile(r"^\s*#\+END_", re.I)
+_ORG_DIRECTIVE_RE = re.compile(r"#\+(\w+):\s*(.*)", re.I)
+_ORG_DRAWER_RE = re.compile(r"^:[\w-]+:\s*$")
+_ORG_HEADLINE_RE = re.compile(r"^(\*+)\s+(.*)")
+_ORG_TODO_RE = re.compile(r"^(TODO|DONE|NEXT|WAITING|CANCELED|HOLD)\s+")
+_ORG_COMMENT_RE = re.compile(r"^COMMENT\s+")
+_ORG_PRIORITY_RE = re.compile(r"\[#[A-Z]\]\s*")
+_ORG_TAGS_RE = re.compile(r"\s+:[:\w@#%]+:\s*$")
+_ORG_STATS_RE = re.compile(r"\s*\[\d*/?\d*%?\]\s*")
+_ORG_TABLE_SEP_RE = re.compile(r"^\|[-+]+\|?$")
+_ORG_LIST_RE = re.compile(r"^(\s*)[-+]\s+(\[[ X-]\]\s+)?(.*)")
+_ORG_OLIST_RE = re.compile(r"^(\s*)\d+[.)]]\s+(.*)")
+
+# Creole table header cell (per cell inside _creole_to_md's table branch).
+_CR_TABLE_HDR_RE = re.compile(r"^=(.+?)=$")
+
 
 def _orgmode_to_md(text: str) -> str:  # noqa: C901
     """Convert Org-mode markup to Markdown.
@@ -22,14 +123,14 @@ def _orgmode_to_md(text: str) -> str:  # noqa: C901
 
     def _inline(ln: str) -> str:
         """Apply Org inline markup to a plain line."""
-        ln = re.sub(r"\*([^*\s][^*]*[^*\s]|[^*\s])\*", r"**\1**", ln)  # bold
-        ln = re.sub(r"/([^/\s][^/]*[^/\s]|[^/\s])/", r"*\1*", ln)  # italic
-        ln = re.sub(r"\+([^+\s][^+]*[^+\s]|[^+\s])\+", r"~~\1~~", ln)  # strike
-        ln = re.sub(r"~([^~]+)~", r"`\1`", ln)  # code
-        ln = re.sub(r"=([^=]+)=", r"`\1`", ln)  # verbatim
-        ln = re.sub(r"\[\[([^\]]+)\]\[([^\]]+)\]\]", r"[\2](\1)", ln)  # link+desc
-        ln = re.sub(r"\[\[([^\]]+)\]\]", r"[\1](\1)", ln)  # bare link
-        ln = re.sub(r"\[fn:(\w+)\]", r"^[\1]^", ln)  # footnote
+        ln = _ORG_BOLD_RE.sub(r"**\1**", ln)  # bold
+        ln = _ORG_ITALIC_RE.sub(r"*\1*", ln)  # italic
+        ln = _ORG_STRIKE_RE.sub(r"~~\1~~", ln)  # strike
+        ln = _ORG_CODE_RE.sub(r"`\1`", ln)  # code
+        ln = _ORG_VERBATIM_RE.sub(r"`\1`", ln)  # verbatim
+        ln = _ORG_LINK_DESC_RE.sub(r"[\2](\1)", ln)  # link+desc
+        ln = _ORG_LINK_BARE_RE.sub(r"[\1](\1)", ln)  # bare link
+        ln = _ORG_FOOTNOTE_RE.sub(r"^[\1]^", ln)  # footnote
         return ln
 
     while i < len(lines):
@@ -37,7 +138,7 @@ def _orgmode_to_md(text: str) -> str:  # noqa: C901
         stripped = line.strip()
 
         # ── Block begin ─────────────────────────────────────────────────
-        bm = re.match(r"^\s*#\+BEGIN_(\w+)(.*)", stripped, re.I)
+        bm = _ORG_BLOCK_BEGIN_RE.match(stripped)
         if bm:
             btype = bm.group(1).lower()
             barg = bm.group(2).strip()
@@ -52,7 +153,7 @@ def _orgmode_to_md(text: str) -> str:  # noqa: C901
             continue
 
         # ── Block end ────────────────────────────────────────────────────
-        if re.match(r"^\s*#\+END_", stripped, re.I):
+        if _ORG_BLOCK_END_RE.match(stripped):
             if in_block in ("src", "example", "verbatim"):
                 out.append("```")
             in_block = None
@@ -74,7 +175,7 @@ def _orgmode_to_md(text: str) -> str:  # noqa: C901
 
         # ── File-level directives ───────────────────────────────────────
         if stripped.startswith("#"):
-            dm = re.match(r"#\+(\w+):\s*(.*)", stripped, re.I)
+            dm = _ORG_DIRECTIVE_RE.match(stripped)
             if dm:
                 key, val = dm.group(1).upper(), dm.group(2).strip()
                 if key == "TITLE":
@@ -90,21 +191,21 @@ def _orgmode_to_md(text: str) -> str:  # noqa: C901
             continue
 
         # ── Drawers  :PROPERTIES: / :LOGBOOK: / arbitrary ──────────────
-        if re.match(r"^:[\w-]+:\s*$", stripped) and stripped != ":END:":
+        if _ORG_DRAWER_RE.match(stripped) and stripped != ":END:":
             while i < len(lines) and lines[i].strip() != ":END:":
                 i += 1
             i += 1  # skip :END:
             continue
 
         # ── Headlines ────────────────────────────────────────────────────
-        hm = re.match(r"^(\*+)\s+(.*)", line)
+        hm = _ORG_HEADLINE_RE.match(line)
         if hm:
             body = hm.group(2)
-            body = re.sub(r"^(TODO|DONE|NEXT|WAITING|CANCELED|HOLD)\s+", "", body)
-            body = re.sub(r"^COMMENT\s+", "", body)
-            body = re.sub(r"\[#[A-Z]\]\s*", "", body)  # priority
-            body = re.sub(r"\s+:[:\w@#%]+:\s*$", "", body)  # tags
-            body = re.sub(r"\s*\[\d*/?\d*%?\]\s*", "", body)  # statistics
+            body = _ORG_TODO_RE.sub("", body)
+            body = _ORG_COMMENT_RE.sub("", body)
+            body = _ORG_PRIORITY_RE.sub("", body)  # priority
+            body = _ORG_TAGS_RE.sub("", body)  # tags
+            body = _ORG_STATS_RE.sub("", body)  # statistics
             out.append("#" * min(len(hm.group(1)), 6) + " " + body.strip())
             i += 1
             continue
@@ -112,7 +213,7 @@ def _orgmode_to_md(text: str) -> str:  # noqa: C901
         # ── Tables ──────────────────────────────────────────────────────
         if stripped.startswith("|"):
             # Separator row  |---+---|  → Markdown  | --- | --- |
-            if re.match(r"^\|[-+]+\|?$", stripped.replace(" ", "")):
+            if _ORG_TABLE_SEP_RE.match(stripped.replace(" ", "")):
                 # Count columns from previous row if available
                 prev = out[-1] if out else ""
                 ncols = prev.count("|") - 1 if "|" in prev else 1
@@ -125,7 +226,7 @@ def _orgmode_to_md(text: str) -> str:  # noqa: C901
 
         # ── Lists ────────────────────────────────────────────────────────
         # Org unordered: - item  + item  (checkboxes: - [ ] item)
-        lm = re.match(r"^(\s*)[-+]\s+(\[[ X-]\]\s+)?(.*)", line)
+        lm = _ORG_LIST_RE.match(line)
         if lm:
             checkbox = lm.group(2) or ""
             check_md = "[x] " if "X" in checkbox else "[ ] " if "[" in checkbox else ""
@@ -133,7 +234,7 @@ def _orgmode_to_md(text: str) -> str:  # noqa: C901
             i += 1
             continue
         # Org ordered: 1. item  1) item
-        lm2 = re.match(r"^(\s*)\d+[.)]]\s+(.*)", line)
+        lm2 = _ORG_OLIST_RE.match(line)
         if lm2:
             out.append(lm2.group(1) + "1. " + _inline(lm2.group(2)))
             i += 1
@@ -236,7 +337,7 @@ def _rst_to_md(text: str) -> str:
             continue
 
         # Directives: .. code-block::, .. note::, etc.
-        dm = re.match(r"\.\.\s+(\w[\w-]*)::(.*)$", stripped)
+        dm = _RST_DIRECTIVE_RE.match(stripped)
         if dm:
             directive, arg = dm.group(1).lower(), dm.group(2).strip()
             if directive in ("code", "code-block", "sourcecode"):
@@ -286,11 +387,11 @@ def _rst_to_md(text: str) -> str:
             continue
 
         # Inline markup
-        raw = re.sub(r"``(.+?)``", r"`\1`", raw)  # inline code
-        raw = re.sub(r"\*\*(.+?)\*\*", r"**\1**", raw)  # bold
-        raw = re.sub(r"(?<!\*)\*(?!\s)(.+?)(?<!\s)\*(?!\*)", r"*\1*", raw)  # italic
-        raw = re.sub(r"`([^`]+)\s+<([^>]+)>`_+", r"[\1](\2)", raw)  # hyperlink
-        raw = re.sub(r"`([^`]+)`_\b", r"\1", raw)  # named ref
+        raw = _RST_CODE_RE.sub(r"`\1`", raw)  # inline code
+        raw = _RST_BOLD_RE.sub(r"**\1**", raw)  # bold
+        raw = _RST_ITALIC_RE.sub(r"*\1*", raw)  # italic
+        raw = _RST_HYPERLINK_RE.sub(r"[\1](\2)", raw)  # hyperlink
+        raw = _RST_NAMEDREF_RE.sub(r"\1", raw)  # named ref
         out.append(raw)
         i += 1
 
@@ -305,31 +406,31 @@ def _mediawiki_to_md(text: str) -> str:
     out_lines = []
     for line in text.splitlines():
         # Headings  == Title ==  /  === Title ===  etc.
-        hm = re.match(r"^(={2,6})\s*(.+?)\s*\1\s*$", line)
+        hm = _MW_HEADING_RE.match(line)
         if hm:
             level = len(hm.group(1)) - 1  # == is h2 in wiki, treat as ##
             out_lines.append("#" * max(1, level) + " " + hm.group(2))
             continue
 
         # Template calls  {{...}}  — strip silently
-        line = re.sub(r"\{\{[^}]+\}\}", "", line)
+        line = _MW_TEMPLATE_RE.sub("", line)
         # File / Image links  [[File:...]]  [[Image:...]]
-        line = re.sub(r"\[\[(?:File|Image|Media):[^\]]*\]\]", "", line, flags=re.I)
+        line = _MW_FILE_RE.sub("", line)
         # Wikilinks  [[Page|display]]  or  [[Page]]
-        line = re.sub(r"\[\[([^|\]]+)\|([^\]]+)\]\]", r"\2", line)
-        line = re.sub(r"\[\[([^\]]+)\]\]", r"\1", line)
+        line = _MW_WIKILINK_PIPE_RE.sub(r"\2", line)
+        line = _MW_WIKILINK_RE.sub(r"\1", line)
         # External links  [url text]
-        line = re.sub(r"\[https?://\S+\s+([^\]]+)\]", r"\1", line)
-        line = re.sub(r"\[https?://\S+\]", "", line)  # bare external link
+        line = _MW_EXTLINK_TEXT_RE.sub(r"\1", line)
+        line = _MW_EXTLINK_BARE_RE.sub("", line)  # bare external link
         # Bold + italic  '''text'''  /  ''text''
-        line = re.sub(r"'''(.+?)'''", r"**\1**", line)
-        line = re.sub(r"''(.+?)''", r"*\1*", line)
+        line = _MW_BOLD_RE.sub(r"**\1**", line)
+        line = _MW_ITALIC_RE.sub(r"*\1*", line)
         # Tables (very basic): just strip table markup
         if line.startswith("{|") or line.startswith("|}") or line.startswith("|+"):
             continue
-        line = re.sub(r"^!\s*", "| ", line)  # header cell
-        line = re.sub(r"^\|\|", "|", line)  # cell separator
-        if re.match(r"^\|-", line):
+        line = _MW_HEADER_CELL_RE.sub("| ", line)  # header cell
+        line = _MW_CELL_SEP_RE.sub("|", line)  # cell separator
+        if _MW_ROW_SEP_RE.match(line):
             continue  # row separator
         out_lines.append(line)
     return "\n".join(out_lines)
@@ -347,12 +448,12 @@ def _asciidoc_to_md(text: str) -> str:
     while i < len(lines):
         line = lines[i]
         # Block delimiter  ---- or ==== or ....  (listing / example blocks)
-        if re.match(r"^[-=.+*_]{4,}$", line.strip()):
+        if _AD_BLOCK_DELIM_RE.match(line.strip()):
             skip_next_block = not skip_next_block
             if skip_next_block:
                 # Check if it is a source block by looking at [source] above
                 prev = out_lines[-1].strip() if out_lines else ""
-                lang_m = re.match(r"\[source(?:,\s*(\w+))?", prev)
+                lang_m = _AD_SOURCE_RE.match(prev)
                 lang = lang_m.group(1) if lang_m and lang_m.group(1) else ""
                 if lang_m:
                     out_lines.pop()  # remove [source,...] line
@@ -365,14 +466,14 @@ def _asciidoc_to_md(text: str) -> str:
         stripped = line.strip()
 
         # Section title  = h1  == h2  === h3 …
-        hm = re.match(r"^(={1,6})\s+(.+)$", stripped)
+        hm = _AD_HEADING_RE.match(stripped)
         if hm:
             out_lines.append("#" * len(hm.group(1)) + " " + hm.group(2))
             i += 1
             continue
 
         # Attribute entries  :name: value  (skip)
-        if re.match(r"^:[\w-]+:", stripped):
+        if _AD_ATTR_RE.match(stripped):
             i += 1
             continue
 
@@ -383,29 +484,28 @@ def _asciidoc_to_md(text: str) -> str:
             continue
 
         # Admonitions  NOTE: / TIP: / WARNING: / IMPORTANT: / CAUTION:
-        am = re.match(r"^(NOTE|TIP|WARNING|IMPORTANT|CAUTION):\s*(.*)$", stripped)
+        am = _AD_ADMONITION_RE.match(stripped)
         if am:
             out_lines.append(f"> **{am.group(1)}:** {am.group(2)}")
             i += 1
             continue
 
         # Inline markup
-        line = re.sub(r"`(.+?)`", r"`\1`", line)  # monospace
-        line = re.sub(r"\*\*(.+?)\*\*", r"**\1**", line)  # bold (unchanged)
-        line = re.sub(r"\*(?!\*)(.+?)\*", r"**\1**", line)  # AsciiDoc *bold*
-        line = re.sub(r"_\*(.+?)\*_|\*_(.+?)_\*", r"***\1\2***", line)  # bold italic
-        line = re.sub(r"_(?!_)(.+?)_(?!_)", r"*\1*", line)  # italic
-        line = re.sub(r"link:([^\[]+)\[([^\]]*)\]", r"[\2](\1)", line)  # link
-        line = re.sub(
-            r"https?://\S+\[([^\]]+)\]",
+        line = _AD_MONO_RE.sub(r"`\1`", line)  # monospace
+        line = _AD_BOLD2_RE.sub(r"**\1**", line)  # bold (unchanged)
+        line = _AD_BOLD1_RE.sub(r"**\1**", line)  # AsciiDoc *bold*
+        line = _AD_BOLDITALIC_RE.sub(r"***\1\2***", line)  # bold italic
+        line = _AD_ITALIC_RE.sub(r"*\1*", line)  # italic
+        line = _AD_LINK_RE.sub(r"[\2](\1)", line)  # link
+        line = _AD_URL_RE.sub(
             lambda m: f"[{m.group(1)}]({m.group(0)[: m.group(0).index('[')]})",
             line,
         )  # URL[text]
-        line = re.sub(r"<<([^,>]+),([^>]+)>>", r"\2", line)  # xref
-        line = re.sub(r"<<([^>]+)>>", r"\1", line)  # bare xref
-        line = re.sub(r"^\*\s+", "* ", line)  # list continuity
-        line = re.sub(r"^\. ", "1. ", line)  # numbered list item
-        line = re.sub(r"^\[.*?\]\s*$", "", line)  # block attribute lines
+        line = _AD_XREF_TEXT_RE.sub(r"\2", line)  # xref
+        line = _AD_XREF_RE.sub(r"\1", line)  # bare xref
+        line = _AD_LIST_RE.sub("* ", line)  # list continuity
+        line = _AD_NUM_RE.sub("1. ", line)  # numbered list item
+        line = _AD_BLOCK_ATTR_RE.sub("", line)  # block attribute lines
         out_lines.append(line)
         i += 1
     return "\n".join(out_lines)
@@ -419,7 +519,7 @@ def _textile_to_md(text: str) -> str:
     out_lines = []
     for line in text.splitlines():
         # Block tags  h1. h2. …  p.  bq.
-        hm = re.match(r"^h([1-6])\. (.+)$", line)
+        hm = _TX_HEADING_RE.match(line)
         if hm:
             out_lines.append("#" * int(hm.group(1)) + " " + hm.group(2))
             continue
@@ -435,14 +535,14 @@ def _textile_to_md(text: str) -> str:
             continue
 
         # Inline
-        line = re.sub(r"\*\*(.+?)\*\*", r"**\1**", line)  # bold
-        line = re.sub(r"\*(?!\*)(.+?)\*", r"**\1**", line)  # Textile *bold*
-        line = re.sub(r"__(.+?)__", r"*\1*", line)  # italic
-        line = re.sub(r"_(?!_)(.+?)_", r"*\1*", line)  # Textile _italic_
-        line = re.sub(r"@(.+?)@", r"`\1`", line)  # code
-        line = re.sub(r'"([^"]+)":(https?://\S+)', r"[\1](\2)", line)  # link
-        line = re.sub(r"^\*{1,3} ", "* ", line)  # bullets (Textile allows */**)
-        line = re.sub(r"^#{1,3} ", "1. ", line)  # numbered
+        line = _TX_BOLD2_RE.sub(r"**\1**", line)  # bold
+        line = _TX_BOLD1_RE.sub(r"**\1**", line)  # Textile *bold*
+        line = _TX_ITALIC2_RE.sub(r"*\1*", line)  # italic
+        line = _TX_ITALIC1_RE.sub(r"*\1*", line)  # Textile _italic_
+        line = _TX_CODE_RE.sub(r"`\1`", line)  # code
+        line = _TX_LINK_RE.sub(r"[\1](\2)", line)  # link
+        line = _TX_BULLET_RE.sub("* ", line)  # bullets (Textile allows */**)
+        line = _TX_NUM_RE.sub("1. ", line)  # numbered
         out_lines.append(line)
     return "\n".join(out_lines)
 
@@ -473,35 +573,35 @@ def _creole_to_md(text: str) -> str:
             continue
 
         # Headings  == h2 ==  up to ====== h6 ======
-        hm = re.match(r"^(={1,6})\s*(.+?)\s*=*\s*$", line)
+        hm = _CR_HEADING_RE.match(line)
         if hm:
             out_lines.append("#" * len(hm.group(1)) + " " + hm.group(2))
             continue
 
         # Horizontal rule  ----
-        if re.match(r"^-{4,}$", line.strip()):
+        if _CR_HR_RE.match(line.strip()):
             out_lines.append("---")
             continue
 
         # Inline nowiki  {{{text}}}
-        line = re.sub(r"\{\{\{(.+?)\}\}\}", r"`\1`", line)
+        line = _CR_NOWIKI_RE.sub(r"`\1`", line)
         # Bold  **text**  → already Markdown
         # Italic  //text//
-        line = re.sub(r"//(.+?)//", r"*\1*", line)
+        line = _CR_ITALIC_RE.sub(r"*\1*", line)
         # Links  [[url|text]]  [[url]]
-        line = re.sub(r"\[\[([^|\]]+)\|([^\]]+)\]\]", r"[\2](\1)", line)
-        line = re.sub(r"\[\[([^\]]+)\]\]", r"[\1](\1)", line)
+        line = _CR_LINK_PIPE_RE.sub(r"[\2](\1)", line)
+        line = _CR_LINK_RE.sub(r"[\1](\1)", line)
         # Images  {{url|alt}}  {{url}}
-        line = re.sub(r"\{\{([^|\}]+)\|([^\}]+)\}\}", r"![\2](\1)", line)
-        line = re.sub(r"\{\{([^\}]+)\}\}", r"![](\1)", line)
+        line = _CR_IMG_ALT_RE.sub(r"![\2](\1)", line)
+        line = _CR_IMG_RE.sub(r"![](\1)", line)
         # Bullet lists  * item  (already Markdown-compatible)
         # Numbered lists  # item  → 1. item
-        line = re.sub(r"^(#+) ", lambda m: "1. " * len(m.group(1)), line)
+        line = _CR_NUM_RE.sub(lambda m: "1. " * len(m.group(1)), line)
         # Table rows  |cell|cell|
         if line.startswith("|") and line.endswith("|"):
             cells = [c.strip() for c in line.strip("|").split("|")]
             # Header row has = in first cell convention; keep as-is
-            cells = [re.sub(r"^=(.+?)=$", r"**\1**", c) for c in cells]
+            cells = [_CR_TABLE_HDR_RE.sub(r"**\1**", c) for c in cells]
             line = "| " + " | ".join(cells) + " |"
         out_lines.append(line)
     return "\n".join(out_lines)

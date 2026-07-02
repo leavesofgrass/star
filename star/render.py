@@ -30,6 +30,29 @@ _SYNTAX_R_KW = set(
     "Inf NaN NA_integer_ NA_real_ NA_complex_ NA_character_".split()
 )
 
+# Block-structure patterns for render_markdown, compiled once at import.  These
+# were previously re.compile'd on every call (per source line, in the render
+# hot loop); the patterns are constant, so hoisting them out is a pure speed win
+# with identical matching behaviour.
+_WS_SPLIT_RE = re.compile(r"(\s+)")
+_FENCE_RE = re.compile(r"^(`{3,}|~{3,})\s*(\S*)")
+_SETEXT_H1_RE = re.compile(r"^=+\s*$")
+_SETEXT_H2_RE = re.compile(r"^-+\s*$")
+_ATX_HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)(?:\s+#+\s*)?$")
+_HR_RE = re.compile(r"^(\*{3,}|-{3,}|_{3,})\s*$")
+_ULIST_RE = re.compile(r"^\s*[-*+]\s+\S")
+_ULIST_ITEM_RE = re.compile(r"^\s*[-*+]\s+(.*)")
+_OLIST_RE = re.compile(r"^\s*\d+[.)]\s+\S")
+_OLIST_ITEM_RE = re.compile(r"^\s*\d+[.)]\s+(.*)")
+_TABLE_SEP_RE = re.compile(r"^\|?[\s\-:|]+\|")
+_PARA_BREAK_RE = re.compile(r"^(#{1,6}\s|[-*+]\s|\d+[.)]\s|>|`{3,}|~{3,})")
+
+# Lexer token patterns for _lex_python_line / _lex_r_line, compiled once.
+_LEX_STRING_RE = re.compile(r'"[^"]*"|\'[^\']*\'')
+_LEX_PY_IDENT_RE = re.compile(r"[A-Za-z_]\w*")
+_LEX_NUMBER_RE = re.compile(r"\d+\.?\d*")
+_LEX_R_IDENT_RE = re.compile(r"[A-Za-z_.][A-Za-z0-9_.]*")
+
 
 def _parse_inline(text: str) -> List[Seg]:
     out: List[Seg] = []
@@ -62,7 +85,7 @@ def _wrap_segs(segs: List[Seg], width: int) -> List[Line]:
     line: Line = []
     col = 0
     for text, role in segs:
-        for tok in re.split(r"(\s+)", text):
+        for tok in _WS_SPLIT_RE.split(text):
             if not tok:
                 continue
             is_ws = not tok.strip()
@@ -112,7 +135,7 @@ def render_markdown(
         ln = src[i]
 
         # Fenced code block
-        fm = re.match(r"^(`{3,}|~{3,})\s*(\S*)", ln)
+        fm = _FENCE_RE.match(ln)
         if fm:
             fence, lang = fm.group(1), fm.group(2).lower()
             i += 1
@@ -138,13 +161,13 @@ def render_markdown(
             continue
 
         # Setext headings
-        if i + 1 < n and re.match(r"^=+\s*$", src[i + 1]) and ln.strip():
+        if i + 1 < n and _SETEXT_H1_RE.match(src[i + 1]) and ln.strip():
             lines.append([("# " + ln.strip(), "h1")])
             lines.append([("═" * min(len(ln) + 2, width), "h1")])
             lines.append([])
             i += 2
             continue
-        if i + 1 < n and re.match(r"^-+\s*$", src[i + 1]) and ln.strip():
+        if i + 1 < n and _SETEXT_H2_RE.match(src[i + 1]) and ln.strip():
             lines.append([("## " + ln.strip(), "h2")])
             lines.append([("─" * min(len(ln) + 3, width), "h2")])
             lines.append([])
@@ -152,7 +175,7 @@ def render_markdown(
             continue
 
         # ATX heading
-        hm = re.match(r"^(#{1,6})\s+(.*?)(?:\s+#+\s*)?$", ln)
+        hm = _ATX_HEADING_RE.match(ln)
         if hm:
             lv = min(len(hm.group(1)), 4)
             role = f"h{lv}"
@@ -169,7 +192,7 @@ def render_markdown(
             continue
 
         # Horizontal rule
-        if re.match(r"^(\*{3,}|-{3,}|_{3,})\s*$", ln.strip()):
+        if _HR_RE.match(ln.strip()):
             lines.append([("─" * width, "hr")])
             i += 1
             continue
@@ -188,9 +211,9 @@ def render_markdown(
             continue
 
         # Unordered list
-        if re.match(r"^\s*[-*+]\s+\S", ln):
-            while i < n and re.match(r"^\s*[-*+]\s+\S", src[i]):
-                m2 = re.match(r"^\s*[-*+]\s+(.*)", src[i])
+        if _ULIST_RE.match(ln):
+            while i < n and _ULIST_RE.match(src[i]):
+                m2 = _ULIST_ITEM_RE.match(src[i])
                 item = m2.group(1) if m2 else ""
                 rows = _wrap_segs(_parse_inline(item), width - 3)
                 for k, row in enumerate(rows):
@@ -201,10 +224,10 @@ def render_markdown(
             continue
 
         # Ordered list
-        if re.match(r"^\s*\d+[.)]\s+\S", ln):
+        if _OLIST_RE.match(ln):
             counter = 1
-            while i < n and re.match(r"^\s*\d+[.)]\s+\S", src[i]):
-                m2 = re.match(r"^\s*\d+[.)]\s+(.*)", src[i])
+            while i < n and _OLIST_RE.match(src[i]):
+                m2 = _OLIST_ITEM_RE.match(src[i])
                 item = m2.group(1) if m2 else ""
                 pfx_str = f"  {counter}. "
                 rows = _wrap_segs(_parse_inline(item), width - len(pfx_str))
@@ -221,13 +244,13 @@ def render_markdown(
             continue
 
         # Table
-        if "|" in ln and i + 1 < n and re.match(r"^\|?[\s\-:|]+\|", src[i + 1]):
+        if "|" in ln and i + 1 < n and _TABLE_SEP_RE.match(src[i + 1]):
             tls: List[str] = []
             while i < n and "|" in src[i]:
                 tls.append(src[i])
                 i += 1
             for tl in tls:
-                if re.match(r"^\|?[\s\-:|]+\|", tl):
+                if _TABLE_SEP_RE.match(tl):
                     cells = [c.strip() for c in tl.strip("|").split("|")]
                     sep = "┼".join("─" * (len(c) + 2) for c in cells)
                     lines.append([("├" + sep + "┤", "table")])
@@ -257,7 +280,7 @@ def render_markdown(
         while (
             i < n
             and src[i].strip()
-            and not re.match(r"^(#{1,6}\s|[-*+]\s|\d+[.)]\s|>|`{3,}|~{3,})", src[i])
+            and not _PARA_BREAK_RE.match(src[i])
         ):
             pls.append(src[i])
             i += 1
@@ -277,19 +300,19 @@ def _lex_python_line(line: str) -> List[Seg]:
         if rest.startswith("#"):
             out.append((rest, "comment"))
             break
-        m = re.match(r'"[^"]*"|\'[^\']*\'', rest)
+        m = _LEX_STRING_RE.match(rest)
         if m:
             out.append((m.group(), "string"))
             rest = rest[m.end() :]
             continue
-        m = re.match(r"[A-Za-z_]\w*", rest)
+        m = _LEX_PY_IDENT_RE.match(rest)
         if m:
             w = m.group()
             role = "keyword" if w in _SYNTAX_PY_KW else "code_normal"
             out.append((w, role))
             rest = rest[m.end() :]
             continue
-        m = re.match(r"\d+\.?\d*", rest)
+        m = _LEX_NUMBER_RE.match(rest)
         if m:
             out.append((m.group(), "number"))
             rest = rest[m.end() :]
@@ -307,19 +330,19 @@ def _lex_r_line(line: str) -> List[Seg]:
         if rest.startswith("#"):
             out.append((rest, "comment"))
             break
-        m = re.match(r'"[^"]*"|\'[^\']*\'', rest)
+        m = _LEX_STRING_RE.match(rest)
         if m:
             out.append((m.group(), "string"))
             rest = rest[m.end() :]
             continue
-        m = re.match(r"[A-Za-z_.][A-Za-z0-9_.]*", rest)
+        m = _LEX_R_IDENT_RE.match(rest)
         if m:
             w = m.group()
             role = "keyword" if w in _SYNTAX_R_KW else "code_normal"
             out.append((w, role))
             rest = rest[m.end() :]
             continue
-        m = re.match(r"\d+\.?\d*", rest)
+        m = _LEX_NUMBER_RE.match(rest)
         if m:
             out.append((m.group(), "number"))
             rest = rest[m.end() :]
