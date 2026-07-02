@@ -41,6 +41,13 @@ it can also grow on demand, guided by a first-run chooser.
   also show the native engines star can use but cannot install for you —
   Tesseract, Pandoc, ffmpeg, Graphviz, liblouis, piper, eSpeak NG, DECtalk —
   each with a ✓/✗ availability indicator and an install hint.
+- **OpenDyslexic font, everywhere.** *View ▸ Reading Aids ▸ Dyslexia-Friendly
+  Font* now applies a dyslexia-friendly typeface across the entire interface —
+  document, menus, toolbar, dialogs, and panels — not just the reading pane. If
+  no dyslexia-friendly family is installed, OpenDyslexic (SIL OFL) is fetched on
+  demand the first time you enable it; nothing is bundled, and it falls back
+  gracefully offline. It appears as an optional item in the chooser's System
+  tools list and in `star --deps`.
 
 ### 🔧 Changed
 

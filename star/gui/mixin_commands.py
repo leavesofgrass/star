@@ -229,24 +229,28 @@ class CommandsMixin:
         dlg.exec() if _QT == "PyQt6" else dlg.exec_()
 
     def _qt_toggle_dyslexia_font(self) -> None:
-        """Toggle the dyslexia-friendly display font preference."""
+        """Toggle the dyslexia-friendly display font across the whole UI.
+
+        On first enable, OpenDyslexic is fetched on demand if no dyslexia-friendly
+        family is already installed (best-effort, offline-safe)."""
         new = not bool(self.settings.get("qt_dyslexia_font", False))
         self.settings["qt_dyslexia_font"] = new
         if hasattr(self, "_dyslexia_font_act"):
             self._dyslexia_font_act.setChecked(new)
-        self.editor.setFont(self._make_editor_font())
-        self._apply_qt_theme(str(self.settings.get("theme", "dark")))
-        if new:
-            fam = self._find_dyslexia_font()
-            if fam:
-                self.statusBar().showMessage(f"Dyslexia-friendly font: {fam}")
-            else:
-                self.statusBar().showMessage(
-                    "No dyslexia-friendly font found — install OpenDyslexic, "
-                    "Atkinson Hyperlegible, or Lexend"
-                )
-        else:
+        if not new:
+            self._apply_dyslexia_font(False)
             self.statusBar().showMessage("Dyslexia-friendly font: OFF")
+            return
+        self.statusBar().showMessage("Enabling dyslexia-friendly font (fetching OpenDyslexic if needed)…")
+        QApplication.processEvents()
+        fam = self._apply_dyslexia_font(True, fetch=True)
+        if fam:
+            self.statusBar().showMessage(f"Dyslexia-friendly font: {fam} — applied across the UI")
+        else:
+            self.statusBar().showMessage(
+                "OpenDyslexic unavailable (offline?) — install OpenDyslexic, "
+                "Atkinson Hyperlegible, or Lexend and try again"
+            )
 
     def _qt_toggle_bionic(self) -> None:
         """Toggle bionic-reading emphasis and re-render the document."""

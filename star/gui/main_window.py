@@ -411,6 +411,13 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         # can be processed for SC mode without fighting Qt's focus chain.
         self.editor.installEventFilter(self)
 
+        # If the dyslexia-friendly font was left on, apply it across the whole UI
+        # now that the toolbar/menus exist.  fetch=False: never hit the network at
+        # launch — a previously-fetched or system-installed family is used, else
+        # it silently stays on the default until the user re-toggles it.
+        if self.settings.get("qt_dyslexia_font", False):
+            self._apply_dyslexia_font(True, fetch=False)
+
         if initial_path:
             self._open_path(initial_path)
         else:

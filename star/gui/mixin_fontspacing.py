@@ -27,12 +27,30 @@ class FontSpacingMixin:
         "Comic Neue",
     )
 
-    def _find_dyslexia_font(self) -> str:
-        """Return the first installed dyslexia-friendly family, or "".
+    def _register_dyslexia_font(self, paths=None) -> None:
+        """Register any fetched OpenDyslexic .otf files with Qt (idempotent).
 
-        QFontDatabase.families() is a static method in PyQt6 but an
-        instance method in PyQt5, so both call styles are attempted.
+        Makes the on-demand-fetched font visible to QFontDatabase.families()
+        without a system-wide install, so _find_dyslexia_font picks it up."""
+        from .. import fonts as _fontmod
+
+        try:
+            paths = _fontmod.fetched_paths() if paths is None else paths
+            for p in paths:
+                QFontDatabase.addApplicationFont(str(p))
+        except Exception:
+            pass  # best-effort; falls back to system fonts / the chosen family
+
+    def _find_dyslexia_font(self) -> str:
+        """Return the first available dyslexia-friendly family, or "".
+
+        Checks system-installed families AND the on-demand-fetched OpenDyslexic
+        (registered here first). QFontDatabase.families() is static in PyQt6 but
+        an instance method in PyQt5, so both call styles are attempted.
         """
+        if not getattr(self, "_dyslexia_registered", False):
+            self._register_dyslexia_font()
+            self._dyslexia_registered = True
         try:
             fams = QFontDatabase.families()  # PyQt6 (static)
         except TypeError:
@@ -44,6 +62,37 @@ class FontSpacingMixin:
             if cand.lower() in available:
                 return cand
         return ""
+
+    def _apply_dyslexia_font(self, on: bool, *, fetch: bool = True) -> str:
+        """Apply (or remove) the dyslexia-friendly font across the WHOLE UI.
+
+        When *on*, prefers a system-installed dyslexia family; if none is present
+        and *fetch* is true, downloads OpenDyslexic on demand (best-effort). The
+        family is applied to the QApplication (menus, toolbar, dialogs, docks,
+        labels) as well as the document editor, then the view is re-rendered.
+        Returns the family applied (\"\" if none / when turning off)."""
+        app = QApplication.instance()
+        if not on:
+            if app is not None:
+                app.setFont(QFont())          # restore the platform default chrome font
+            self.editor.setFont(self._make_editor_font())
+            self._apply_qt_theme(str(self.settings.get("theme", "dark")))
+            return ""
+        fam = self._find_dyslexia_font()
+        if not fam and fetch:
+            from .. import fonts as _fontmod
+
+            paths = _fontmod.fetch()
+            if paths:
+                self._register_dyslexia_font(paths)
+                fam = self._find_dyslexia_font()
+        if fam and app is not None:
+            base = int(self.settings.get("qt_font_size", 14)) or 14
+            app.setFont(QFont(fam, base))     # chrome: menus, toolbar, dialogs, labels
+        # The editor family flows from _effective_font_family (honors the setting).
+        self.editor.setFont(self._make_editor_font())
+        self._apply_qt_theme(str(self.settings.get("theme", "dark")))
+        return fam
 
     def _effective_font_family(self) -> str:
         """The display family, honoring the dyslexia-font preference.

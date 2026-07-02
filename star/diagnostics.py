@@ -546,6 +546,26 @@ def system_tools() -> List[Dict[str, Any]]:
                 "install": install,
             }
         )
+    # OpenDyslexic is an optional font asset (not a binary or pip package): it is
+    # fetched on demand into the cache the first time the reader enables it.
+    try:
+        from . import fonts as _fonts
+        od_available = _fonts.is_fetched()
+    except Exception:
+        od_available = False
+    out.append(
+        {
+            "key": "opendyslexic",
+            "label": "OpenDyslexic font (dyslexia-friendly)",
+            "available": od_available,
+            "vendored": False,
+            "binary": None,
+            "enables": "A dyslexia-friendly display font applied across the whole "
+                       "UI (View ▸ Reading Aids ▸ Dyslexia-Friendly Font)",
+            "install": "Fetched automatically the first time you enable it, or "
+                       "install OpenDyslexic system-wide (https://opendyslexic.org)",
+        }
+    )
     return out
 
 
