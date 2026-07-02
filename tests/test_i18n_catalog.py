@@ -9,12 +9,14 @@ from one language.
 """
 from __future__ import annotations
 
+import ast
 import json
 from pathlib import Path
 
 import pytest
 
-_LOCALE_DIR = Path(__file__).resolve().parent.parent / "star" / "locale"
+_STAR_DIR = Path(__file__).resolve().parent.parent / "star"
+_LOCALE_DIR = _STAR_DIR / "locale"
 _LANGS = ("es", "fr", "de", "pt")
 
 # The runtime value of the "Toggle Contents panel" tooltip contains two literal
@@ -54,12 +56,23 @@ _REQUIRED_KEYS = (
     "Open a file (Ctrl+O)",
     "Play / pause speech (Space)",
     _CONTENTS_TOGGLE,
+    # first-run language picker (deps_dialog.py)
+    "Interface language:",
+    "Interface language",
+    "Choose the language for menus, toolbar, and messages.",
+    # TUI chrome (status line + prompts) — the i18n audit's TUI wrap
+    "No document",
+    "Line",
+    "Search: ",
+    "Go to line: ",
+    "Terminal too small (need 20×8 minimum)",
 )
 
 # Source strings that are intentionally left English-only in the catalogs.
 # Encoded as an explicit allowlist so future additions here are a conscious act,
 # not accidental drift.  (Currently empty: every tr()-wrapped UI-chrome string
-# is translated in all four catalogs.)
+# with a *static* literal is translated in all four catalogs.)  Add a key here
+# only when a source-only string is deliberate — the reason belongs in a comment.
 _UNTRANSLATED_ALLOWLIST: frozenset[str] = frozenset()
 
 
@@ -72,6 +85,57 @@ def _load(lang: str) -> dict:
 def _keys(lang: str) -> set[str]:
     # "@meta" is bookkeeping, not a translatable key (see i18n._load_catalog).
     return {k for k in _load(lang) if k != "@meta"}
+
+
+def _static_str(node: ast.AST) -> str | None:
+    """Return the fully-static string value of *node*, else ``None``.
+
+    Handles a bare string constant and ``+``-concatenation of string constants
+    (Python already folds *adjacent* literals into one Constant, so this only
+    needs to cover the explicit ``a + b`` form the codebase uses for long
+    tooltips).  Anything with an f-string, a variable, or a ``.format(...)`` is
+    treated as non-static and skipped — those keys, when present, are guarded
+    instead by the parity/required-key tests.
+    """
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        left = _static_str(node.left)
+        right = _static_str(node.right)
+        if left is not None and right is not None:
+            return left + right
+    return None
+
+
+def _code_tr_keys() -> dict[str, str]:
+    """Every static ``tr("literal")`` key across ``star/`` → first source file.
+
+    Only the *first positional argument* of a call to a function named ``tr``
+    is considered a key (matching both ``tr(...)`` and ``x.tr(...)``).  Keys
+    reached via a variable (menu-spec tuples, ``tr(label)`` loops) are invisible
+    to this static scan by design — they are covered by the parity guard.
+    """
+    keys: dict[str, str] = {}
+    for py in sorted(_STAR_DIR.rglob("*.py")):
+        try:
+            tree = ast.parse(py.read_text(encoding="utf-8"))
+        except (SyntaxError, UnicodeDecodeError):  # pragma: no cover - defensive
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call) or not node.args:
+                continue
+            fn = node.func
+            name = (
+                fn.id if isinstance(fn, ast.Name)
+                else fn.attr if isinstance(fn, ast.Attribute)
+                else None
+            )
+            if name != "tr":
+                continue
+            val = _static_str(node.args[0])
+            if val:  # skip empty string and non-static args
+                keys.setdefault(val, str(py.relative_to(_STAR_DIR)))
+    return keys
 
 
 def test_all_catalogs_load_and_are_nonempty() -> None:
@@ -93,6 +157,39 @@ def test_catalogs_are_at_key_parity() -> None:
         if missing:
             problems.append(f"{lang} is missing {len(missing)} key(s): {sorted(missing)}")
     assert not problems, "\n".join(problems)
+
+
+def test_every_static_code_key_is_translated() -> None:
+    """Every static ``tr("literal")`` in star/ must exist in all four catalogs.
+
+    This is the guard the i18n audit adds: when a developer wraps a new UI
+    string in ``tr()`` but forgets to add its translation, this test names the
+    key and the file it came from so the catalogs never silently drift behind
+    the code.  Intentional source-only strings go in ``_UNTRANSLATED_ALLOWLIST``.
+    """
+    code_keys = _code_tr_keys()
+    per_lang = {lang: _keys(lang) for lang in _LANGS}
+    problems = []
+    for key, src in sorted(code_keys.items()):
+        if key in _UNTRANSLATED_ALLOWLIST:
+            continue
+        absent = [lang for lang in _LANGS if key not in per_lang[lang]]
+        if absent:
+            problems.append(f"{key!r} (from {src}) missing from: {', '.join(absent)}")
+    assert not problems, (
+        "code strings wrapped in tr() but not translated in every catalog "
+        "(add the translation, or allowlist an intentional source-only key):\n  "
+        + "\n  ".join(problems)
+    )
+
+
+def test_code_key_extractor_finds_known_keys() -> None:
+    """Sanity-check the extractor itself so a broken scan can't pass vacuously."""
+    code_keys = _code_tr_keys()
+    assert len(code_keys) >= 50, f"extractor found only {len(code_keys)} keys"
+    # A couple of strings we know are statically wrapped somewhere in star/.
+    assert "star — Optional Features" in code_keys
+    assert "Install selected" in code_keys
 
 
 def test_no_empty_translations() -> None:

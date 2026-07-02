@@ -15,12 +15,12 @@ from __future__ import annotations
 from .._runtime import *  # noqa: F401,F403  (Qt widgets: QDialog, QCheckBox, …)
 from .. import autodeps
 from .. import diagnostics
-from ..i18n import tr
+from ..i18n import available_languages, get_language, set_language, tr
 
-try:  # QScrollArea isn't re-exported by _runtime
-    from PyQt6.QtWidgets import QScrollArea
+try:  # QScrollArea / QComboBox aren't re-exported by _runtime
+    from PyQt6.QtWidgets import QComboBox, QScrollArea
 except ImportError:  # PyQt5
-    from PyQt5.QtWidgets import QScrollArea  # type: ignore
+    from PyQt5.QtWidgets import QComboBox, QScrollArea  # type: ignore
 
 
 class DependencyChooser(QDialog):
@@ -34,6 +34,8 @@ class DependencyChooser(QDialog):
 
     def _build(self) -> None:
         root = QVBoxLayout(self)
+
+        self._build_language_row(root)
 
         intro = QLabel(
             tr(
@@ -120,6 +122,81 @@ class DependencyChooser(QDialog):
         # Initial keyboard focus on the default action so Enter installs and
         # Escape (QDialog default) dismisses without reaching for the mouse.
         install.setFocus()
+
+    # ── first-run language picker ─────────────────────────────────────────
+    def _build_language_row(self, root) -> None:
+        """A compact interface-language selector at the top of the chooser.
+
+        First launch is the earliest natural point to pick a UI language, so it
+        sits above everything else.  Choosing a language calls set_language()
+        immediately and, when the host window supports a live chrome rebuild
+        (_set_ui_language), triggers one so the surrounding app localises
+        without a restart.  Native language names are shown untranslated so a
+        user can always recognise their own.
+        """
+        row = QHBoxLayout()
+        caption = QLabel(tr("Interface language:"), self)
+        combo = QComboBox(self)
+        self._lang_combo = combo
+        current = get_language()
+        for disp, code in available_languages():
+            combo.addItem(disp, code)
+            if code == current:
+                combo.setCurrentIndex(combo.count() - 1)
+        # Accessibility: the bare combo has no visible <label for> association,
+        # so mirror the caption into its own accessible name/description.
+        _acc_desc = tr("Choose the language for menus, toolbar, and messages.")
+        combo.setAccessibleName(tr("Interface language"))
+        combo.setAccessibleDescription(_acc_desc)
+        combo.setToolTip(_acc_desc)
+        caption.setBuddy(combo)
+        combo.currentIndexChanged.connect(self._on_language_changed)
+        row.addWidget(caption)
+        row.addWidget(combo)
+        row.addStretch(1)
+        root.addLayout(row)
+
+    def _on_language_changed(self, index: int) -> None:
+        """Apply the picked UI language and rebuild the app chrome if possible."""
+        combo = getattr(self, "_lang_combo", None)
+        if combo is None:
+            return
+        code = str(combo.itemData(index) or "en")
+        win = self._win
+        # Prefer the window's own switch (persists + live-rebuilds toolbar/menu);
+        # fall back to activating the catalog directly when hosted standalone.
+        setter = getattr(win, "_set_ui_language", None)
+        if callable(setter):
+            try:
+                setter(code)
+            except Exception:
+                set_language(code)
+        else:
+            set_language(code)
+        # Rebuild this dialog's own chrome in the new language — but *after* this
+        # signal handler returns.  _retranslate() destroys the combo that just
+        # emitted currentIndexChanged; tearing it down synchronously inside its
+        # own slot crashes Qt, so defer to the next event-loop turn.
+        QTimer.singleShot(0, self._retranslate)
+
+    def _retranslate(self) -> None:
+        """Rebuild the dialog in the active language (drop and re-lay widgets).
+
+        The chooser is transient (first-run / on-demand), so the simplest
+        correct refresh is to clear the layout and rebuild it — no need to hold
+        references to every label.  The current checkbox selection is preserved
+        so a language switch mid-dialog doesn't reset the user's picks.
+        """
+        prev_selected = set(self.selected())
+        old = self.layout()
+        if old is not None:
+            QWidget().setLayout(old)  # reparent the old layout off this dialog
+        self.setWindowTitle(tr("star — Optional Features"))  # not set by _build()
+        self._boxes = {}
+        self._build()
+        for key, cb in self._boxes.items():
+            if cb.isEnabled():
+                cb.setChecked(key in prev_selected)
 
     # ── system tools (read-only status) ──────────────────────────────────
     def _build_system_tools(self, root) -> None:

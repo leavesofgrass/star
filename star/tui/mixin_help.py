@@ -4,6 +4,7 @@ Methods of StarApp, split out of the former monolithic star/tui.py.
 Mixed into StarApp in app.py; calls other groups via ``self``.
 """
 from .._runtime import *  # noqa: F401,F403
+from ..i18n import tr
 from .text import _HELP_TEXT, _shortcuts_text
 from ..documents import Document, load_document
 from ..themes import _LICENSE_TEXT
@@ -28,7 +29,7 @@ class HelpMixin:
         self.doc = tmp
         self._render_doc()
         self.scroll = 0
-        self.notify("README.md  —  q / Esc to return")
+        self.notify(tr("README.md  —  q / Esc to return"))
         # Pager loop
         while True:
             self.draw()

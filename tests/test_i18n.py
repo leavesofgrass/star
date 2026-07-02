@@ -158,3 +158,142 @@ def test_meta_key_is_ignored_by_loader():
 def test_settings_default_ui_language():
     from star.settings import DEFAULTS
     assert DEFAULTS["ui_language"] == "en"
+
+
+# =============================================================================
+# Locale-aware TTS voice fallback (star/tts/manager.py)
+# =============================================================================
+#
+# The manager biases the *default* voice (when the user has not pinned one)
+# toward a voice whose language matches the UI language, then English, then the
+# engine default.  These tests drive that logic with a fake multilingual
+# backend injected through the plugin registry — no real speech engine is
+# constructed.
+
+from star import tts  # noqa: E402
+from star.plugins import override_plugins  # noqa: E402
+from star.settings import Settings  # noqa: E402
+
+# A small multilingual voice roster covering the shipped UI languages, with the
+# several `lang`-tag spellings real engines use (bare code, locale, and one that
+# only names the language in `name`/`id`, exercising the name→code sniffer).
+_FAKE_VOICES = [
+    {"id": "v-en", "name": "English (US)", "lang": "en-US"},
+    {"id": "v-es", "name": "Spanish (Spain)", "lang": "es_ES"},
+    {"id": "v-fr", "name": "Voix française", "lang": "fr"},
+    {"id": "v-de", "name": "Deutsch Stimme", "lang": ""},  # lang only in name
+]
+
+
+def _voice_backend_cls():
+    class _VoiceFake(tts.TTSBackend):
+        name = "voicefake"
+        priority = 20
+        _avail = True
+
+        def __init__(self, *args, **kwargs):
+            self.voice_set = None
+
+        def available(self):
+            return True
+
+        def speak(self, text, on_word=None, on_done=None):
+            if on_done:
+                on_done()
+
+        def stop(self):
+            pass
+
+        def set_rate(self, wpm):
+            pass
+
+        def set_volume(self, vol):
+            pass
+
+        def set_voice(self, voice_id):
+            self.voice_set = voice_id
+
+        def list_voices(self):
+            return list(_FAKE_VOICES)
+
+    return _VoiceFake
+
+
+def _voice_manager(ui_language="en", tts_voice="", prefer_voice=""):
+    s = Settings()
+    s["tts_backend"] = "voicefake"
+    s["tts_voice"] = tts_voice
+    s["tts_prefer_voice"] = prefer_voice
+    s["ui_language"] = ui_language
+    return tts.TTSManager(s)
+
+
+def test_tts_picks_voice_matching_ui_language():
+    with override_plugins(backends=[_voice_backend_cls()]):
+        mgr = _voice_manager(ui_language="es")
+        assert mgr._backend.voice_set == "v-es"
+        assert mgr.preferred_language == "es"
+
+
+def test_tts_matches_language_by_locale_tag():
+    # "es_ES" must normalise to "es" and still match.
+    with override_plugins(backends=[_voice_backend_cls()]):
+        mgr = _voice_manager(ui_language="es")
+        assert mgr._backend.voice_set == "v-es"
+
+
+def test_tts_matches_language_by_voice_name_when_no_lang_tag():
+    # The German voice carries no lang tag; the name→code sniffer must find it.
+    with override_plugins(backends=[_voice_backend_cls()]):
+        mgr = _voice_manager(ui_language="de")
+        assert mgr._backend.voice_set == "v-de"
+
+
+def test_tts_english_ui_leaves_default_voice_untouched():
+    # English / no preference must not force a language voice (historical
+    # behaviour): the default-voice resolver ran, but no language override.
+    with override_plugins(backends=[_voice_backend_cls()]):
+        mgr = _voice_manager(ui_language="en")
+        assert mgr._backend.voice_set is None
+        assert mgr.preferred_language == ""
+
+
+def test_tts_no_matching_voice_keeps_default():
+    # UI language with no matching voice must fall back (no override applied).
+    with override_plugins(backends=[_voice_backend_cls()]):
+        mgr = _voice_manager(ui_language="pt")  # no Portuguese voice in roster
+        assert mgr._backend.voice_set is None
+
+
+def test_tts_explicit_user_voice_always_wins():
+    # A pinned tts_voice must never be overridden by the language preference.
+    with override_plugins(backends=[_voice_backend_cls()]):
+        mgr = _voice_manager(ui_language="es", tts_voice="my-custom-voice")
+        assert mgr._backend.voice_set is None
+
+
+def test_tts_set_language_reresolves_voice():
+    with override_plugins(backends=[_voice_backend_cls()]):
+        mgr = _voice_manager(ui_language="en")
+        assert mgr._backend.voice_set is None
+        mgr.set_language("fr")
+        assert mgr.preferred_language == "fr"
+        assert mgr._backend.voice_set == "v-fr"
+        # Switching back to English clears the preference but leaves the last
+        # applied voice in place (we only ever set a voice, never unset it).
+        mgr.set_language("en")
+        assert mgr.preferred_language == ""
+
+
+def test_voice_lang_normalisation():
+    vl = tts.TTSManager._voice_lang
+    assert vl({"lang": "es_ES"}) == "es"
+    assert vl({"lang": "fr-FR"}) == "fr"
+    assert vl({"lang": "en"}) == "en"
+    assert vl({"lang": "", "name": "Deutsch Stimme"}) == "de"
+    # The name/id sniffer matches spelled-out language *words* only, not bare
+    # ISO codes, so a code embedded in an id ("mbrola-en1") does NOT match —
+    # this is deliberate: substring-matching "en" would over-match ("generic").
+    assert vl({"lang": "", "name": "", "id": "english-us"}) == "en"
+    assert vl({"lang": "", "name": "", "id": "mbrola-en1"}) == ""
+    assert vl({"lang": "", "name": "Robot"}) == ""

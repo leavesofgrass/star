@@ -4,6 +4,7 @@ Methods of StarApp, split out of the former monolithic star/tui.py.
 Mixed into StarApp in app.py; calls other groups via ``self``.
 """
 from .._runtime import *  # noqa: F401,F403
+from ..i18n import tr
 from .text import MX_COMMANDS
 from ..search import LineEditor
 
@@ -157,12 +158,12 @@ class CommandsMixin:
             "pause": self._tts_toggle,
             "speak-line": self._tts_speak_current_line,
             "search": lambda: self._enter_minibuffer(
-                "Search: ",
+                tr("Search: "),
                 mode="search",
                 on_commit=lambda q: self._do_search(q, "forward"),
             ),
             "search-backward": lambda: self._enter_minibuffer(
-                "Search ↑: ",
+                tr("Search ↑: "),
                 mode="search",
                 on_commit=lambda q: self._do_search(q, "backward"),
             ),

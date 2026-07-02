@@ -8,6 +8,23 @@ from .espeak import ESpeakLibBackend
 from .audio import _convert_audio_format
 from .subtitles import _generate_subtitles
 
+# Spelled-out language names → ISO-639-1, for engines (e.g. macOS ``say``,
+# eSpeak) that put the language in the voice *name*/``id`` rather than a ``lang``
+# tag.  Kept to the five UI languages star ships plus common near-synonyms; the
+# lookup is a plain substring test so entries must be distinctive words.
+_LANG_NAME_TO_CODE: Dict[str, str] = {
+    "english": "en",
+    "spanish": "es",
+    "español": "es",
+    "castilian": "es",
+    "french": "fr",
+    "français": "fr",
+    "german": "de",
+    "deutsch": "de",
+    "portuguese": "pt",
+    "português": "pt",
+}
+
 
 class _SCReader:
     """Persistent single-line TTS reader for Speech Cursor mode.
@@ -193,6 +210,13 @@ class TTSManager:
         # playback-accurate, so the highlight timer can track them tightly
         # instead of allowing the looser slack SAPI5's lagging callbacks need.
         self._paced_playback: bool = False
+        # Preferred spoken-language tag (ISO-639-1, e.g. "es"), used to bias
+        # automatic voice selection toward a voice that speaks the UI language.
+        # Seeded from the persisted UI-language setting; the GUI/TUI can update
+        # it live via set_language().  Empty string means "no preference"
+        # (English/platform default), which is the historical behaviour.
+        raw_lang = str(settings.get("ui_language", "") or "").strip().lower()
+        self._pref_lang: str = "" if raw_lang in ("", "en") else raw_lang
         self._select_backend(settings["tts_backend"])
 
     def _select_backend(self, preference: str) -> None:
@@ -242,6 +266,7 @@ class TTSManager:
         self._backend.set_rate(rate)
         self._backend.set_volume(vol)
         self._resolve_default_voice()
+        self._resolve_language_voice()
 
     def _construct_backend(self, cls: "type[TTSBackend]") -> TTSBackend:
         """Instantiate *cls* with the per-engine constructor arguments derived
@@ -307,6 +332,82 @@ class TTSManager:
         vid = best.get("id") or best.get("name")
         if vid:
             self._backend.set_voice(vid)
+
+    @staticmethod
+    def _voice_lang(voice: Dict[str, str]) -> str:
+        """Return a voice's language as a lowercase ISO-639-1 prefix.
+
+        Backends report ``lang`` inconsistently — ``"es"``, ``"es_ES"``,
+        ``"es-ES"``, ``"Spanish (Spain)"``, or sometimes only baked into the
+        voice *name*/``id`` (``"english-us"``, ``"spanish"``).  We normalise to
+        the leading two-letter code so an equality test against the UI-language
+        code (also ISO-639-1) is meaningful, falling back to a small
+        English-name → code map for engines that spell the language out.
+        """
+        lang = str(voice.get("lang", "")).strip().lower()
+        if lang:
+            # "es_ES" / "es-ES" / "es" → "es"; ignore anything non-alphabetic.
+            head = lang.replace("-", "_").split("_", 1)[0]
+            if len(head) >= 2 and head[:2].isalpha():
+                return head[:2]
+        # No usable lang tag — sniff the human-readable name/id for a language
+        # word (covers eSpeak's "english-us" ids and macOS's spelled-out names).
+        blob = (str(voice.get("name", "")) + " " + str(voice.get("id", ""))).lower()
+        for word, code in _LANG_NAME_TO_CODE.items():
+            if word in blob:
+                return code
+        return ""
+
+    def _resolve_language_voice(self) -> None:
+        """Bias the default voice toward one that speaks the UI language.
+
+        Preference order, applied only when the user has **not** pinned an
+        explicit ``tts_voice`` and the active backend enumerates voices:
+
+        1. a voice whose language matches :attr:`_pref_lang` (the UI language);
+        2. otherwise leave whatever :meth:`_resolve_default_voice` chose (which
+           already favours the bundled English default) — i.e. English, then
+           the platform/engine default.
+
+        This is deliberately conservative: with no UI-language preference, or
+        no matching voice, nothing changes, so English/mono-lingual setups keep
+        their existing behaviour.  The user's explicit voice choice always wins.
+        """
+        if not self._pref_lang or self._pref_lang == "en":
+            return  # English or no preference → default resolution already fits
+        if str(self._settings.get("tts_voice", "")):
+            return  # explicit user voice; never override it
+        try:
+            voices = self._backend.list_voices()
+        except Exception:
+            voices = []
+        if not voices:
+            return
+        matches = [v for v in voices if self._voice_lang(v) == self._pref_lang]
+        if not matches:
+            return  # no voice speaks the UI language → keep the English default
+        best = matches[0]
+        vid = best.get("id") or best.get("name")
+        if vid:
+            self._backend.set_voice(vid)
+
+    def set_language(self, code: str) -> None:
+        """Set the preferred spoken-language tag and re-resolve the voice.
+
+        *code* is an ISO-639-1 UI-language code (``"es"``, ``"fr"`` …); ``"en"``
+        or an empty string clears the preference (English / platform default).
+        Safe to call at any time — it only changes the *default* voice and only
+        when the user has not pinned one; a mid-speech call takes effect on the
+        next utterance, not the current one.
+        """
+        raw = str(code or "").strip().lower()
+        self._pref_lang = "" if raw in ("", "en") else raw
+        self._resolve_language_voice()
+
+    @property
+    def preferred_language(self) -> str:
+        """The active spoken-language preference (``""`` = English/default)."""
+        return self._pref_lang
 
     @property
     def backend_name(self) -> str:

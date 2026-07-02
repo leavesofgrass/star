@@ -4,6 +4,7 @@ Methods of StarApp, split out of the former monolithic star/tui.py.
 Mixed into StarApp in app.py; calls other groups via ``self``.
 """
 from .._runtime import *  # noqa: F401,F403
+from ..i18n import tr
 from ._screen import _addstr, _fillrow
 from ..themes import _WELCOME_TEXT
 
@@ -16,7 +17,7 @@ class DrawMixin:
         h, w = self.scr.getmaxyx()
         if h < 8 or w < 20:
             self.scr.erase()
-            _addstr(self.scr, 0, 0, "Terminal too small (need 20×8 minimum)")
+            _addstr(self.scr, 0, 0, tr("Terminal too small (need 20×8 minimum)"))
             self.scr.refresh()
             return
         self.scr.erase()
@@ -278,8 +279,8 @@ class DrawMixin:
             )
             bar = (
                 (
-                    f" {self.doc.title[:40] if self.doc else 'No document'}  "
-                    f"Line {self.scroll + 1}/{total}  {pct}%"
+                    f" {self.doc.title[:40] if self.doc else tr('No document')}  "
+                    f"{tr('Line')} {self.scroll + 1}/{total}  {pct}%"
                     f"{search_info}"
                 )
                 if self.doc
@@ -288,8 +289,11 @@ class DrawMixin:
             _fillrow(self.scr, status_row, self._a("status"))
             _addstr(self.scr, status_row, 0, bar[: w - 1], self._a("status"))
 
-        # Hints bar
-        hints = (
+        # Hints bar.  The whole shortcut cheat-line is one translatable unit so
+        # translators can localise the labels while keeping the key names (which
+        # are fixed bindings) intact — mirroring how the Qt catalogs treat
+        # tooltip shortcut hints.
+        hints = tr(
             "  Space:play/pause  Tab:speech-cursor  Ctrl+T:voice  Ctrl+X:stop  "
             ",/.:sent  [/]:para  {/}:head-scroll  </>:read-head  "
             ";:replay-sent  r:replay-para  "
@@ -331,7 +335,7 @@ class DrawMixin:
             except curses.error:
                 pass
         elif self.mode == "search":
-            prompt = getattr(self, "_search_prompt", "Search: ")
+            prompt = getattr(self, "_search_prompt", tr("Search: "))
             ed = self.search_ed
             _fillrow(self.scr, mb_row, self._a("minibuf"))
             _addstr(
@@ -342,7 +346,7 @@ class DrawMixin:
             except curses.error:
                 pass
         elif self.mode == "goto":
-            prompt = "Go to line: "
+            prompt = tr("Go to line: ")
             ed = self.goto_ed
             _fillrow(self.scr, mb_row, self._a("minibuf"))
             _addstr(
@@ -355,13 +359,16 @@ class DrawMixin:
         else:
             _fillrow(self.scr, mb_row, self._a("dim"))
             if self.mode == "sc":
-                idle = (
+                idle = tr(
                     "  SC CURSOR  \u2191\u2193:line  ,/.:sent  [/]:para  {/}:head"
                     "  t/T:table  Enter:read-on  Space:pause  Esc:exit  Tab:normal"
                 )
             else:
                 idle = (
-                    f"  F2:commands  Ctrl-O:open  Space:play/pause"
-                    f"  Tab:speech-cursor  F1:help  Esc:stop  \u2502  {self.tts.backend_name}"
+                    tr(
+                        "  F2:commands  Ctrl-O:open  Space:play/pause"
+                        "  Tab:speech-cursor  F1:help  Esc:stop  \u2502  "
+                    )
+                    + self.tts.backend_name
                 )
             _addstr(self.scr, mb_row, 0, idle[: w - 1], self._a("dim"))

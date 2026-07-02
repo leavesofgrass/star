@@ -4,6 +4,7 @@ Methods of StarApp, split out of the former monolithic star/tui.py.
 Mixed into StarApp in app.py; calls other groups via ``self``.
 """
 from .._runtime import *  # noqa: F401,F403
+from ..i18n import tr
 
 
 class KeysMixin:
@@ -110,7 +111,7 @@ class KeysMixin:
         # ── Search ─────────────────────────────────────────────────────────
         elif ch == 6:  # Ctrl+F — find
             self._enter_minibuffer(
-                "Search: ",
+                tr("Search: "),
                 mode="search",
                 on_commit=lambda q: self._do_search(q, "forward"),
             )

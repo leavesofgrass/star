@@ -1,5 +1,6 @@
 """The curses terminal user interface (StarApp)."""
 from .._runtime import *  # noqa: F401,F403
+from ..i18n import set_language
 from .theming import _setup_colors
 from ..documents import Document
 from ..render import Line
@@ -38,6 +39,11 @@ class StarApp(
     ) -> None:
         self.scr = stdscr
         self.settings = settings
+        # Activate the persisted UI language so every tr()-wrapped TUI string
+        # (status line, hints, minibuffer prompts) renders localised.  The Qt
+        # GUI does this in its own window; the TUI has its own entry path, so it
+        # must activate the catalog here.  Unknown codes fall back to English.
+        set_language(str(settings.get("ui_language", "en")))
         self.doc: Optional[Document] = None
         self.rendered: List[Line] = []  # rendered display lines
         self.scroll = 0  # top visible display line
