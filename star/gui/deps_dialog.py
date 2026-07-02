@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from .._runtime import *  # noqa: F401,F403  (Qt widgets: QDialog, QCheckBox, …)
 from .. import autodeps
+from .. import diagnostics
 from ..i18n import tr
 
 try:  # QScrollArea isn't re-exported by _runtime
@@ -102,6 +103,8 @@ class DependencyChooser(QDialog):
         scroll.setAccessibleName(tr("Optional features"))
         root.addWidget(scroll, 1)
 
+        self._build_system_tools(root)
+
         actions = QHBoxLayout()
         actions.addStretch(1)
         later = QPushButton(tr("Not now"), self)
@@ -117,6 +120,53 @@ class DependencyChooser(QDialog):
         # Initial keyboard focus on the default action so Enter installs and
         # Escape (QDialog default) dismisses without reaching for the mouse.
         install.setFocus()
+
+    # ── system tools (read-only status) ──────────────────────────────────
+    def _build_system_tools(self, root) -> None:
+        """Append a read-only status list of native (non-pip) tools.
+
+        These are separate downloads star cannot install for you (OCR, markup,
+        audio/video, graph layout, TTS engines). They are *status rows*, never
+        checkboxes, and are deliberately kept out of ``self._boxes``.
+        """
+        self._sys_rows: dict[str, QLabel] = {}
+        heading = QLabel(tr("<b>System tools</b> (native engines)"), self)
+        heading.setAccessibleName(tr("System tools"))
+        root.addWidget(heading)
+
+        note = QLabel(
+            tr("These are separate downloads star can use but cannot install "
+               "for you — put them on your PATH (or use the self-contained "
+               "build, which bundles them)."),
+            self,
+        )
+        note.setWordWrap(True)
+        note.setStyleSheet("color: gray; font-size: 11px;")
+        note.setAccessibleName(tr("System tools note"))
+        note.setAccessibleDescription(
+            tr("Native tools listed below are not managed by star.")
+        )
+        root.addWidget(note)
+
+        for tool in diagnostics.system_tools():
+            available = bool(tool["available"])
+            mark = "✓" if available else "✗"      # ✓ / ✗
+            state = (tr("available") if available
+                     else tr("not found"))
+            label = tr(str(tool["label"]))
+            row = QLabel(f"  {mark} {label} — {tool['enables']}", self)
+            row.setWordWrap(True)
+            # Accessible name announces the availability up front (the glyph
+            # alone is not reliably read); description carries what it enables
+            # and, when missing, how to get it.
+            row.setAccessibleName(f"{label}: {state}")
+            desc = str(tool["enables"])
+            if not available and tool.get("install"):
+                desc = f"{desc}. {tr('Install')}: {tool['install']}"
+            row.setAccessibleDescription(desc)
+            row.setToolTip(desc)
+            self._sys_rows[str(tool["key"])] = row
+            root.addWidget(row)
 
     # ── behaviour ────────────────────────────────────────────────────────
     def _apply_preset(self, name: str) -> None:

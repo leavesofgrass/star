@@ -424,6 +424,131 @@ def dependency_status() -> List[Dict[str, Any]]:
     return out
 
 
+# Native engines star can drive but pip cannot install — separate downloads
+# that must live on PATH (or be vendored into the self-contained build). Each
+# entry adds, on top of what a matching OPTIONAL_DEPENDENCIES record already
+# says, how to *detect* the tool: a vendored-path attribute on ``star._runtime``
+# (checked first) and/or an executable name looked up on PATH.
+#
+# ``derive_key`` reuses an existing binary/path OPTIONAL_DEPENDENCIES entry's
+# label/enables/install so their data is never duplicated; the remaining
+# engines (ffmpeg, tesseract, graphviz `dot`, espeak-ng, dectalk) are described
+# here because they have no dedicated pip guard of their own.
+_SYSTEM_TOOLS: List[Dict[str, Any]] = [
+    {
+        "key": "pandoc", "derive_key": "pandoc_bin",
+        "vendor_attr": "_PANDOC_BUNDLED", "binary": "pandoc",
+    },
+    {
+        "key": "piper", "derive_key": "piper",
+        "vendor_attr": None, "binary": "piper", "binary_alt": ("piper-tts",),
+    },
+    {
+        "key": "ffmpeg", "derive_key": "ffmpeg",
+        "vendor_attr": "_FFMPEG_BUNDLED", "binary": "ffmpeg",
+    },
+    {
+        "key": "tesseract",
+        "label": "Tesseract (OCR engine)",
+        "vendor_attr": "_TESSERACT_BUNDLED", "binary": "tesseract",
+        "enables": "The native OCR engine behind scanned-PDF / image reading "
+                   "(pair with the pytesseract Python feature)",
+        "install": "Install Tesseract and put it on PATH "
+                   "(https://github.com/tesseract-ocr/tesseract)",
+    },
+    {
+        "key": "dot",
+        "label": "Graphviz dot (graph layout)",
+        "vendor_attr": None, "binary": "dot",
+        "enables": "High-quality knowledge-graph layout and SVG/DOT export "
+                   "(a pure-Python layout is used otherwise)",
+        "install": "Install Graphviz and put dot on PATH "
+                   "(https://graphviz.org/download/)",
+    },
+    {
+        "key": "espeak_ng",
+        "label": "eSpeak-NG (offline TTS)",
+        "vendor_attr": "_ESPEAK_NG_DLL", "binary": "espeak-ng",
+        "binary_alt": ("espeak",),
+        "enables": "Compact fully-offline speech synthesis with word-timing "
+                   "highlight",
+        "install": "Install espeak-ng and put it on PATH "
+                   "(https://github.com/espeak-ng/espeak-ng)",
+    },
+    {
+        "key": "dectalk",
+        "label": "DECtalk (classic TTS)",
+        "vendor_attr": "_DECTALK_DLL", "binary": "say",
+        "binary_alt": ("dtalk", "dectalk"),
+        "enables": "The classic DECtalk voices (vendored/self-contained build)",
+        "install": "Vendor the DECtalk DLL/CLI into the build "
+                   "(no public installer)",
+    },
+]
+
+
+def _vendored(attr: Optional[str]) -> bool:
+    """True when ``star._runtime`` exposes *attr* as an existing file path."""
+    if not attr:
+        return False
+    try:
+        runtime = importlib.import_module("star._runtime")
+    except Exception:  # noqa: BLE001
+        return False
+    value = getattr(runtime, attr, None)
+    if value is None:
+        return False
+    try:
+        return Path(str(value)).is_file()
+    except (TypeError, ValueError, OSError):
+        return False
+
+
+def system_tools() -> List[Dict[str, Any]]:
+    """Report native (non-pip) tools/engines star can use.
+
+    These are separate downloads pip cannot install — OCR, markup conversion,
+    audio/video muxing, graph layout, and several TTS engines — that must be on
+    ``PATH`` or vendored into the self-contained build. Complements
+    :func:`dependency_status` (which covers the pip-installable features).
+
+    Each record has: ``key``, ``label``, ``available`` (bool — vendored *or*
+    found on PATH), ``vendored`` (bool), ``binary`` (the executable probed on
+    PATH, or ``None``), ``enables`` (what it unlocks), and ``install`` (a short
+    install hint / URL). Records reusing a binary/path OPTIONAL_DEPENDENCIES
+    entry inherit its label/enables/install rather than duplicating them.
+    """
+    by_key = {d["key"]: d for d in OPTIONAL_DEPENDENCIES}
+    out: List[Dict[str, Any]] = []
+    for tool in _SYSTEM_TOOLS:
+        base = by_key.get(tool.get("derive_key", ""), {})
+        label = tool.get("label") or base.get("label") or tool["key"]
+        enables = tool.get("enables") or base.get("enables") or ""
+        install = tool.get("install") or base.get("install") or ""
+        binary = tool.get("binary")
+        vendored = _vendored(tool.get("vendor_attr"))
+        on_path = False
+        if binary:
+            on_path = shutil.which(binary) is not None
+            if not on_path:
+                for alt in tool.get("binary_alt", ()):
+                    if shutil.which(alt) is not None:
+                        on_path = True
+                        break
+        out.append(
+            {
+                "key": tool["key"],
+                "label": label,
+                "available": bool(vendored or on_path),
+                "vendored": vendored,
+                "binary": binary,
+                "enables": enables,
+                "install": install,
+            }
+        )
+    return out
+
+
 def format_dependency_report(statuses: Optional[List[Dict[str, Any]]] = None) -> str:
     """Render :func:`dependency_status` as a grouped, human-readable report."""
     if statuses is None:
