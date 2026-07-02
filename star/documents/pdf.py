@@ -20,6 +20,33 @@ _PDF_PAGENUM_RE = re.compile(
     re.IGNORECASE,
 )
 
+# A figure / table caption line: "Figure 3. …", "Fig. 3: …", "Table 2 …".
+# Used to tag captions so they render distinctly (emphasised) from body text.
+_PDF_CAPTION_RE = re.compile(
+    r"^\s*(?:figure|fig\.?|table|tbl\.?|scheme|plate|chart|exhibit)\s+"
+    r"\d+[.:)]?\s+\S",
+    re.IGNORECASE,
+)
+
+
+def _pdf_mark_captions(text: str) -> str:
+    """Italicise standalone figure/table caption lines in extracted PDF text.
+
+    Detects lines that begin with a figure/table label and a number (e.g.
+    ``Figure 3. Foo``) and wraps them in ``*…*`` so the display render shows
+    them as captions.  Already-emphasised or blank lines are left untouched.
+    This is a display-fidelity nicety only; the TTS strip removes the emphasis
+    markers so speech is unaffected.
+    """
+    out: List[str] = []
+    for ln in text.split("\n"):
+        s = ln.strip()
+        if s and not s.startswith("*") and _PDF_CAPTION_RE.match(s):
+            out.append(f"*{s}*")
+        else:
+            out.append(ln)
+    return "\n".join(out)
+
 
 def _pdf_norm_margin(text: str) -> str:
     """Normalize a margin line so it matches across pages: lowercased,
@@ -191,7 +218,8 @@ def _load_pdf(path: str, reconstruct: bool = True) -> str:
                     ]
                     page_boxes = _pdf_order_boxes(page_boxes, c["w"])
                 parts.extend(b.text for b in page_boxes)
-            return "\n".join(parts)
+            assembled = "\n".join(parts)
+            return _pdf_mark_captions(assembled) if reconstruct else assembled
         elif _PDF == "simple":
             extract_text = _load_pdf_text()
             return _strip_markdown_for_tts(extract_text(path) or "")

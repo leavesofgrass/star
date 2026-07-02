@@ -7,7 +7,7 @@ from .._runtime import *  # noqa: F401,F403
 from ..formats import FormatHandler, UnsupportedFormatError  # noqa: F401
 from ..settings import Settings  # noqa: F401
 from .model import (Document, WordPos, _build_word_map)
-from .pdf import (_PDF_PAGENUM_RE, _PdfBox, _load_pdf, _pdf_detect_columns, _pdf_is_running, _pdf_norm_margin, _pdf_order_boxes, _pdf_running_heads_feet)
+from .pdf import (_PDF_PAGENUM_RE, _PdfBox, _load_pdf, _pdf_detect_columns, _pdf_is_running, _pdf_mark_captions, _pdf_norm_margin, _pdf_order_boxes, _pdf_running_heads_feet)
 from .html import (_HTML2MD, _load_html, _load_html_str)
 from .ebook import (_epub_extract_chapters, _load_daisy_zip, _load_dtbook, _load_epub)
 from .office import (_load_csv_tsv, _load_doc, _load_docx, _load_odt_raw_xml, _load_odt_v2, _load_odt_via_odfpy, _load_pptx, _load_xlsx, _odt_table_to_md)
@@ -76,6 +76,7 @@ __all__ = [
     "_pandoc_handles",
     "_pdf_detect_columns",
     "_pdf_is_running",
+    "_pdf_mark_captions",
     "_pdf_norm_margin",
     "_pdf_order_boxes",
     "_pdf_running_heads_feet",

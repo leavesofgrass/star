@@ -7,6 +7,7 @@ lazily by main_window.py (itself imported by runner.py after the _QT guard).
 """
 from .._runtime import *  # noqa: F401,F403
 from ..documents import Document, _build_word_map, load_document
+from ..mathrender import has_math, render_math_to_unicode
 from ..stats import _record_library
 
 
@@ -238,11 +239,18 @@ class DocumentMixin:
         return builtin + extra
 
     def _md_inline(self, text: str) -> str:
-        """Apply inline Markdown (images→alt, links, code, bold, italic)."""
+        """Apply inline Markdown (images→alt/caption, links, code, bold, italic,
+        and visual LaTeX math)."""
         import html as _h
 
-        # images → alt text (Qt can't fetch remote images; badges become labels)
-        text = re.sub(r"!\[([^\]]*)\]\([^)]*\)", r"\1", text)
+        # Inline math → Unicode for display (the raw LaTeX is kept in the TTS
+        # plain-text, which is stripped separately and never sees this).
+        if has_math(text):
+            text = render_math_to_unicode(text)
+        # images → a labelled placeholder (Qt can't fetch remote images).  Show
+        # the alt text; when it's missing, fall back to the file's name so the
+        # reader still knows an image is present rather than getting nothing.
+        text = re.sub(r"!\[([^\]]*)\]\(([^)\s]*)[^)]*\)", self._md_image_label, text)
         # links → anchors
         text = re.sub(r"\[([^\]]+)\]\(([^)\s]+)[^)]*\)", r'<a href="\2">\1</a>', text)
         # inline code (content escaped so e.g. <html> shows literally)
@@ -250,6 +258,116 @@ class DocumentMixin:
         text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
         text = re.sub(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)", r"<i>\1</i>", text)
         return text
+
+    @staticmethod
+    def _md_image_label(m: "re.Match") -> str:
+        """Render an image reference as a visible alt-text label.
+
+        Uses the alt text when present; otherwise derives a readable fallback
+        from the image URL's file name so images with no alt attribute are not
+        rendered as an empty span (an accessibility gap).
+        """
+        alt = (m.group(1) or "").strip()
+        src = (m.group(2) or "").strip()
+        if not alt:
+            stem = Path(src).stem if src else ""
+            stem = stem.replace("_", " ").replace("-", " ").strip()
+            alt = stem or "image"
+        return f'<span class="imgalt">🖼 {alt}</span>'
+
+    @staticmethod
+    def _parse_table_aligns(sep_line: str, ncols: int) -> List[str]:
+        """Parse a Markdown table separator row into per-column alignments.
+
+        ``:---`` → ``left`` · ``---:`` → ``right`` · ``:---:`` → ``center`` ·
+        otherwise ``""`` (default).  Returns a list of length *ncols*.
+        """
+        specs = [c.strip() for c in sep_line.strip().strip("|").split("|")]
+        aligns: List[str] = []
+        for spec in specs:
+            left = spec.startswith(":")
+            right = spec.endswith(":")
+            if left and right:
+                aligns.append("center")
+            elif right:
+                aligns.append("right")
+            elif left:
+                aligns.append("left")
+            else:
+                aligns.append("")
+        # Pad / truncate to the header column count.
+        if len(aligns) < ncols:
+            aligns += [""] * (ncols - len(aligns))
+        return aligns[:ncols]
+
+    @staticmethod
+    def _align_attr(aligns: List[str], col: int) -> str:
+        """Return an ``align="…"`` attribute for *col* (empty when default)."""
+        if 0 <= col < len(aligns) and aligns[col]:
+            return f' align="{aligns[col]}"'
+        return ""
+
+    def _footnotes_to_anchors(self, md: str) -> str:
+        """Rewrite Markdown footnote references/definitions into anchored HTML.
+
+        * A reference ``word[^label]`` becomes a superscript, visually-distinct
+          anchor (``fnref-label``) linking to ``#fn-label``.
+        * Each definition ``[^label]: text`` is collected and re-emitted as a
+          "Footnotes" list at the end, each item named ``fn-label`` with a
+          backlink (``↩``) to its first reference.
+
+        Runs *before* the block parser so the emitted ``<sup>``/``<a>`` markup
+        survives to the final HTML.  It only fires when both a reference and a
+        matching definition exist, so the inline/deferred/skip footnote_mode
+        handling in the loader (which may have already resolved markers) is left
+        untouched — there is simply nothing here to rewrite in those cases.
+        """
+        if "[^" not in md:
+            return md
+
+        # Collect definitions:  [^label]: text  (single line).
+        definitions: "Dict[str, str]" = {}
+
+        def _grab(m: "re.Match") -> str:
+            definitions[m.group(1)] = m.group(2).strip()
+            return ""
+
+        body = re.sub(
+            r"^[ \t]*\[\^([^\]]+)\]:[ \t]*(.+)$", _grab, md, flags=re.MULTILINE
+        )
+        if not definitions:
+            return md
+
+        order: "List[str]" = []
+
+        def _ref(m: "re.Match") -> str:
+            label = m.group(1)
+            if label not in definitions:
+                return m.group(0)  # dangling ref — leave as-is
+            if label not in order:
+                order.append(label)
+            num = order.index(label) + 1
+            return (
+                f'<sup class="fnref"><a name="fnref-{label}" '
+                f'href="#fn-{label}">[{num}]</a></sup>'
+            )
+
+        body = re.sub(r"\[\^([^\]]+)\]", _ref, body)
+        if not order:
+            return md  # definitions but no references — nothing to anchor
+
+        # Remove the blank lines a stripped definition block leaves behind at EOF.
+        body = re.sub(r"\n{3,}", "\n\n", body).rstrip()
+
+        lines = ["", "## Footnotes", ""]
+        for label in order:
+            num = order.index(label) + 1
+            text = definitions.get(label, "")
+            lines.append(
+                f'<a name="fn-{label}"></a>{num}. {text} '
+                f'<a class="fnback" href="#fnref-{label}">↩</a>'
+            )
+        return body + "\n" + "\n".join(lines) + "\n"
 
     def _md_body_to_html(self, md: str) -> str:
         """Render Markdown block structure to QTextEdit-friendly HTML.
@@ -259,6 +377,8 @@ class DocumentMixin:
         for star's documents (and its own README) to render with real structure.
         """
         import html as _h
+
+        md = self._footnotes_to_anchors(md)
 
         lines = (md or "").split("\n")
         out: List[str] = []
@@ -294,16 +414,41 @@ class DocumentMixin:
                 and re.match(r"^\s*\|?[\s:|-]+\|?\s*$", lines[i + 1])
             ):
                 close_list()
-                cells = [c.strip() for c in stripped.strip("|").split("|")]
-                rows = ["<tr>" + "".join(f"<th>{self._md_inline(c)}</th>" for c in cells) + "</tr>"]
+                header_cells = [c.strip() for c in stripped.strip("|").split("|")]
+                # Column alignments parsed from the separator row's colons:
+                #   :---  left · ---:  right · :---:  center.  The Qt rich-text
+                # subset honors the ``align`` attribute on <th>/<td>.
+                aligns = self._parse_table_aligns(lines[i + 1], len(header_cells))
+                # Header row: scope="col" + emphasis distinguish headers for
+                # assistive tech and sighted readers alike.
+                head = "".join(
+                    f'<th scope="col"{self._align_attr(aligns, ci)}>'
+                    f"{self._md_inline(c)}</th>"
+                    for ci, c in enumerate(header_cells)
+                )
+                rows = ['<thead><tr>' + head + "</tr></thead>"]
+                body_rows: List[str] = []
                 i += 2
                 while i < n and "|" in lines[i] and lines[i].strip():
                     body_cells = [c.strip() for c in lines[i].strip().strip("|").split("|")]
-                    rows.append(
-                        "<tr>" + "".join(f"<td>{self._md_inline(c)}</td>" for c in body_cells) + "</tr>"
-                    )
+                    cell_html: List[str] = []
+                    for ci, c in enumerate(body_cells):
+                        # First column of each body row acts as a row header.
+                        if ci == 0:
+                            cell_html.append(
+                                f'<th scope="row"{self._align_attr(aligns, ci)}>'
+                                f"{self._md_inline(c)}</th>"
+                            )
+                        else:
+                            cell_html.append(
+                                f"<td{self._align_attr(aligns, ci)}>"
+                                f"{self._md_inline(c)}</td>"
+                            )
+                    body_rows.append("<tr>" + "".join(cell_html) + "</tr>")
                     i += 1
-                out.append("<table>" + "".join(rows) + "</table>")
+                if body_rows:
+                    rows.append("<tbody>" + "".join(body_rows) + "</tbody>")
+                out.append('<table border="1" cellspacing="0">' + "".join(rows) + "</table>")
                 continue
 
             m = re.match(r"^(#{1,6})\s+(.*)$", line)  # ATX heading
@@ -383,6 +528,7 @@ class DocumentMixin:
                     '{ font-family: "' + fam + '", sans-serif; }'
                     "\ncode, pre, code *, pre * { font-family: monospace; }"
                 )
+            style += self._fidelity_css(pal)
         else:
             muted = pal.get("muted", "#7d7d7d")
             code_bg = pal.get("code_bg", "#2a2a2a")
@@ -400,11 +546,35 @@ class DocumentMixin:
                 f"     font-family:monospace;white-space:pre-wrap;padding:8px;}}"
                 f"blockquote{{color:{muted};border-left:3px solid {muted};padding-left:10px;}}"
                 f"hr{{border:0;border-top:1px solid {muted};}}"
+                f"table{{border:1px solid {muted};}}"
                 f"th,td{{border:1px solid {muted};padding:3px 8px;}}"
-                f"th{{color:{pal['h2']};}}"
+                # Header emphasis: distinct background + bold so column/row
+                # headers are visually and structurally distinguishable.
+                f"th{{color:{pal['h2']};background:{code_bg};font-weight:bold;}}"
+                + self._fidelity_css(pal)
             )
         return (
             "<html><head><style>" + style + "</style></head>"
             f"<body>{body}</body></html>"
+        )
+
+    def _fidelity_css(self, pal: Dict[str, Any]) -> str:
+        """Shared CSS for document-fidelity elements (footnote anchors,
+        figure captions, image-alt labels) — appended to both the built-in and
+        custom-CSS themes so the features render consistently regardless of
+        theme source.
+        """
+        link = pal.get("link", pal.get("h1", "#4a9eff"))
+        muted = pal.get("muted", "#7d7d7d")
+        return (
+            # Footnote reference markers: small, coloured, non-underlined.
+            f"\nsup.fnref a, sup.fnref{{color:{link};text-decoration:none;"
+            "font-weight:bold;}"
+            # The backlink (↩) in the footnotes list.
+            f"\na.fnback{{color:{link};text-decoration:none;}}"
+            # Image alt / caption labels stand apart from body prose.
+            f"\nspan.imgalt{{color:{muted};font-style:italic;}}"
+            f"\np.figcaption, .figcaption{{color:{muted};font-style:italic;"
+            "font-size:90%;}"
         )
 

@@ -46,6 +46,7 @@ class _HTML2MD(HTMLParser):
         self._in_link = False
         self._title_buf: List[str] = []
         self._in_title = False
+        self._in_figcaption = False
 
     def handle_starttag(self, tag: str, attrs: list) -> None:
         a = dict(attrs)
@@ -84,6 +85,22 @@ class _HTML2MD(HTMLParser):
             self._in_link = True
             self._link_href = a.get("href", "")
             self._link_buf = []
+        elif tag == "img":
+            # Preserve the image with its semantic metadata: alt text is the
+            # primary label; ``title``/``aria-label`` are fallbacks; a
+            # ``longdesc`` reference is noted so nothing is silently dropped.
+            alt = (a.get("alt") or a.get("title") or a.get("aria-label") or "").strip()
+            src = (a.get("src") or "").strip()
+            frag = f"![{alt}]({src})"
+            longdesc = (a.get("longdesc") or "").strip()
+            if longdesc:
+                frag += f" (long description: {longdesc})"
+            (self._tcell if self._in_cell else self._buf).append(frag)
+        elif tag == "figure":
+            self._emit()
+        elif tag == "figcaption":
+            self._emit()
+            self._in_figcaption = True
         elif tag == "br":
             self._buf.append("\n")
         elif tag == "hr":
@@ -127,6 +144,16 @@ class _HTML2MD(HTMLParser):
             self._heading = 0
         elif tag == "title":
             self._in_title = False
+        elif tag == "figcaption":
+            # Emit the caption as an emphasised line so it reads as a caption,
+            # distinct from surrounding body text.
+            cap = "".join(self._buf).strip()
+            if cap:
+                self._out += [f"*{cap}*", ""]
+            self._buf = []
+            self._in_figcaption = False
+        elif tag == "figure":
+            self._emit_para()
         elif tag in ("p", "section", "article", "main", "header", "div"):
             self._emit_para()
         elif tag in ("b", "strong"):

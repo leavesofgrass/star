@@ -61,6 +61,41 @@ def _load_xlsx(path: str) -> str:
         return f"# XLSX Error\n\n```\n{e}\n```\n"
 
 
+# Word drawing namespace for the <wp:docPr> element that holds an image's
+# accessibility name (``descr`` = alt text) and ``title``.
+_DOCX_WP_NS = "{http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing}"
+
+
+def _docx_para_images(para: Any, counter: List[int]) -> List[str]:
+    """Return Markdown lines for any images in *para*, with figure metadata.
+
+    Reads the ``<wp:docPr>`` element of each drawing to recover the image's
+    ``descr`` (alt text / long description) and ``title``.  Emits an image
+    reference plus a numbered figure caption; falls back to a generic label
+    when no alt text is present so the image is never silently dropped.
+    """
+    lines: List[str] = []
+    try:
+        docprs = para._p.findall(f".//{_DOCX_WP_NS}docPr")
+    except Exception:
+        return lines
+    for dp in docprs:
+        counter[0] += 1
+        n = counter[0]
+        title = (dp.get("title") or "").strip()
+        descr = (dp.get("descr") or "").strip()
+        name = (dp.get("name") or "").strip()
+        alt = descr or title or name or f"Figure {n}"
+        lines.append(f"![{alt}]()")
+        caption = f"*Figure {n}"
+        if descr or title:
+            caption += f": {descr or title}"
+        caption += "*"
+        lines.append(caption)
+        lines.append("")
+    return lines
+
+
 def _load_docx(path: str) -> str:
     if not _DOCX:
         return (
@@ -70,9 +105,20 @@ def _load_docx(path: str) -> str:
     try:
         doc = _load_docx().Document(path)
         out: List[str] = []
+        fig_counter = [0]
         for para in doc.paragraphs:
             sn = para.style.name.lower()
             txt = para.text
+            # Inline images carry semantic metadata (alt-text description +
+            # optional title) in the drawing's <wp:docPr>.  Surface them as a
+            # figure label + caption so the reader knows an image is present and
+            # gets its description instead of nothing.
+            img_md = _docx_para_images(para, fig_counter)
+            if img_md:
+                if txt.strip():
+                    out.append(txt)
+                out.extend(img_md)
+                continue
             if not txt.strip():
                 out.append("")
                 continue
@@ -219,6 +265,22 @@ def _load_doc(path: str) -> str:
     )
 
 
+def _pptx_shape_descr(shape: Any) -> str:
+    """Best-effort alt-text (``descr``) for a python-pptx picture shape.
+
+    The value lives on the shape's ``<p:cNvPr>`` element; python-pptx does not
+    expose it directly, so read it from the underlying XML.  Returns "" when
+    absent or on any parsing error (images without alt text are common).
+    """
+    try:
+        cnv = shape._element.find(".//{*}cNvPr")
+        if cnv is not None:
+            return (cnv.get("descr") or cnv.get("title") or "").strip()
+    except Exception:
+        pass
+    return ""
+
+
 def _load_pptx(path: str) -> str:
     """Load a PowerPoint .pptx file as Markdown.
 
@@ -242,8 +304,15 @@ def _load_pptx(path: str) -> str:
         for shape in slide.shapes:
             # Images (MSO_SHAPE_TYPE.PICTURE == 13)
             if shape.shape_type == 13:
-                alt = getattr(shape, "name", f"slide {slide_num} image")
-                body_parts.append(f"[Image: {alt}]")
+                # PowerPoint stores an image's alt text in the shape's
+                # description (``descr``) attribute; the shape name is the
+                # fallback.  Surface both a labelled image and a caption.
+                descr = _pptx_shape_descr(shape)
+                name = getattr(shape, "name", "") or f"slide {slide_num} image"
+                alt = descr or name
+                body_parts.append(f"![{alt}]()")
+                if descr:
+                    body_parts.append(f"*{descr}*")
                 continue
 
             # Tables
