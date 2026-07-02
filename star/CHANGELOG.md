@@ -37,11 +37,29 @@ it can also grow on demand, guided by a first-run chooser.
   (`auto_install`) and the `STAR_NO_AUTOINSTALL` environment variable; once the
   chooser has been shown, `deps_prompted` keeps it from re-appearing on its own.
 
+- **System tools in view.** The optional-features chooser and `star --deps` now
+  also show the native engines star can use but cannot install for you —
+  Tesseract, Pandoc, ffmpeg, Graphviz, liblouis, piper, eSpeak NG, DECtalk —
+  each with a ✓/✗ availability indicator and an install hint.
+
 ### 🔧 Changed
 
-- Polish: (details appended at release) — this release also folds in
-  accessibility, internationalization (i18n), TUI-clipboard, test-coverage, and
-  internal-refactor improvements.
+- **Accessibility.** Screen-reader accessible names and descriptions added
+  across the window — the Table-of-Contents and Notes docks and lists, the notes
+  filter and action buttons, the live HTML preview, the command-palette /
+  navigation / library / feed / pronunciation lists, the knowledge-graph views,
+  and every checkbox in the optional-features chooser. Keyboard fix: graph nodes
+  now open with Enter, not just a double-click.
+- **Terminal-UI clipboard.** Copy now takes the current selection or the whole
+  paragraph (not just the top visible line), using the system clipboard when
+  `pyperclip` is present and falling back to an OSC-52 terminal escape otherwise.
+- **Interface translations.** The icon-toolbar labels and the optional-features
+  chooser are now translated in the Spanish, French, German, and Portuguese
+  interface catalogs.
+- **More resilient settings.** A failed settings write is now logged instead of
+  silently discarding your preferences, profiles, notes, and reading positions.
+- Internal: the two largest GUI modules were split into focused mixins, and the
+  offscreen GUI / chooser / clipboard paths gained test coverage.
 
 ---
 

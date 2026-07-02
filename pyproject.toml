@@ -189,6 +189,9 @@ star = ["README.md", "LICENSE", "CHANGELOG.md", "welcome.md", "locale/*.json", "
 testpaths = ["tests"]
 addopts = "-q"
 pythonpath = ["."]
+markers = [
+    "network: test requires network access (may be skipped offline)",
+]
 
 # Coverage is opt-in (the `coverage` CI job passes --cov), so the default test
 # run stays fast and dependency-light.  The gate enforces a per-module floor on
