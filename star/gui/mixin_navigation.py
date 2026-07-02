@@ -7,6 +7,7 @@ lazily by main_window.py (itself imported by runner.py after the _QT guard).
 """
 from .._runtime import *  # noqa: F401,F403
 from ..documents import _build_word_map
+from ..i18n import tr
 from ..spellcheck import _SPELL, SpellHighlighter, misspelled_words
 from ..library import (
     progress_for,
@@ -772,13 +773,7 @@ class NavigationMixin:
         it checks the editable source in edit mode, otherwise the loaded
         document's plain text.
         """
-        if not _SPELL:
-            QMessageBox.information(
-                self,
-                "Spell check unavailable",
-                "Spell checking requires pyspellchecker:\n\n"
-                "    pip install pyspellchecker",
-            )
+        if not self._qt_require_optional_feature("spellcheck", tr("Spell check")):
             return
         if self._qt_edit_mode:
             text = self.editor.toPlainText()

@@ -7,22 +7,60 @@ lazily by main_window.py (itself imported by runner.py after the _QT guard).
 """
 from .._runtime import *  # noqa: F401,F403
 from ..documents import Document
+from ..i18n import tr
 from ..transcribe import _record_audio_to_wav, _transcribe_audio
 
 
 class TranscriptionMixin:
     # ── Speech recognition (Whisper) ───────────────────
 
+    def _qt_require_optional_feature(self, feature_key: str, human_name: str) -> bool:
+        """True if *feature_key*'s packages are importable now.
+
+        Otherwise offer to auto-install them and return False.  star's users are
+        students who don't know Python — a missing add-on is a one-click download
+        in the background, never a ``pip install`` instruction."""
+        from .. import autodeps
+
+        pkgs = autodeps.FEATURES.get(feature_key, [])
+        if pkgs and not autodeps.missing(pkgs):
+            return True
+        _label, _detail, mb = autodeps.FEATURE_INFO.get(feature_key, (human_name, "", 0))
+        size = f"~{mb} MB" if mb < 1000 else f"~{mb / 1000:.1f} GB"
+        try:
+            yes, no = QMessageBox.StandardButton.Yes, QMessageBox.StandardButton.No
+        except AttributeError:  # PyQt5
+            yes, no = QMessageBox.Yes, QMessageBox.No  # type: ignore[attr-defined]
+        ret = QMessageBox.question(
+            self,
+            tr("Install {feature}?").format(feature=human_name),
+            tr("{feature} needs an add-on that isn't installed yet (about a {size} "
+               "download). Install it now? star downloads it in the background while "
+               "you keep reading — then restart star to use {feature}.").format(
+                   feature=human_name, size=size),
+            yes | no,
+        )
+        if ret == yes:
+            autodeps.set_enabled(True)
+            started = autodeps.ensure_feature(feature_key)
+            if started:
+                self.statusBar().showMessage(
+                    tr("Downloading {feature} in the background — this can take a "
+                       "few minutes. Restart star when it finishes.").format(
+                           feature=human_name),
+                    12000,
+                )
+            else:
+                self.statusBar().showMessage(
+                    tr("Couldn't start the download — check your internet "
+                       "connection and try again."),
+                    8000,
+                )
+        return False
+
     def _qt_transcribe_file(self) -> None:
         """Transcribe an audio file with Whisper and open it as a document."""
-        if not _WHISPER:
-            QMessageBox.information(
-                self,
-                "Speech recognition unavailable",
-                "Transcription requires Whisper:\n\n"
-                "    pip install openai-whisper\n"
-                "or  pip install faster-whisper",
-            )
+        if not self._qt_require_optional_feature("transcribe", tr("Speech recognition")):
             return
         src, _flt = QFileDialog.getOpenFileName(
             self,
@@ -72,13 +110,7 @@ class TranscriptionMixin:
         if not self.doc:
             self.statusBar().showMessage("Open a document before dictating a note")
             return
-        if not _WHISPER or not _AUDIO_IN:
-            QMessageBox.information(
-                self,
-                "Dictation unavailable",
-                "Voice dictation requires Whisper and a microphone library:\n\n"
-                "    pip install openai-whisper sounddevice numpy",
-            )
+        if not self._qt_require_optional_feature("transcribe", tr("Voice dictation")):
             return
         secs, ok = QInputDialog.getInt(
             self, "Dictate Note", "Record for how many seconds?", 8, 2, 300

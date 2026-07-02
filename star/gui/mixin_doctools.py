@@ -9,7 +9,7 @@ IMPORT SAFETY: references Qt at module scope — imported lazily by main_window.
 """
 from .._runtime import *  # noqa: F401,F403
 from ..i18n import tr
-from ..feeds import _FEEDPARSER, fetch_feed
+from ..feeds import fetch_feed
 from ..library import (
     add_library_folder,
     library_folders,
@@ -22,8 +22,8 @@ from ..dictionary import (
     define as _dict_define,
     format_definition_markdown as _dict_markdown,
 )
-from ..summarize import _SUMY, summarize_document
-from ..translate import _DEEP_TRANSLATOR, COMMON_LANGUAGES, translate_text
+from ..summarize import summarize_document
+from ..translate import COMMON_LANGUAGES, translate_text
 from ._qtcompat import _USER_ROLE
 
 
@@ -71,12 +71,7 @@ class DocToolsMixin:
         long document; the result is delivered to the GUI thread via
         _summary_signal.
         """
-        if not _SUMY:
-            QMessageBox.information(
-                self,
-                "Summarization unavailable",
-                "Document summarization requires sumy:\n\n    pip install sumy",
-            )
+        if not self._qt_require_optional_feature("summarize", tr("Document summarization")):
             return
         if not self.doc:
             self.statusBar().showMessage("Open a document to summarize")
@@ -198,13 +193,7 @@ class DocToolsMixin:
         network call runs on a background thread and its result is
         delivered to the GUI thread via _translate_signal.
         """
-        if not _DEEP_TRANSLATOR:
-            QMessageBox.information(
-                self,
-                "Translation unavailable",
-                "Document translation requires deep-translator:\n\n"
-                "    pip install deep-translator",
-            )
+        if not self._qt_require_optional_feature("translate", tr("Document translation")):
             return
         if not self.doc or not (self.doc.plain_text or "").strip():
             QMessageBox.information(
@@ -302,13 +291,7 @@ class DocToolsMixin:
 
     def _qt_open_feed(self) -> None:
         """Prompt for a feed URL, fetch it, and pick an article to open."""
-        if not _FEEDPARSER:
-            QMessageBox.information(
-                self,
-                "Feed reading unavailable",
-                "Reading RSS / Atom feeds requires feedparser:\n\n"
-                "    pip install feedparser",
-            )
+        if not self._qt_require_optional_feature("feeds", tr("Feed reading")):
             return
         url, ok = QInputDialog.getText(
             self, "Open Feed", "Enter an RSS / Atom feed URL:"

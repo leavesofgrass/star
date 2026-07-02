@@ -7,7 +7,7 @@ lazily by main_window.py (itself imported by runner.py after the _QT guard).
 """
 from .._runtime import *  # noqa: F401,F403
 from ..annotations import _annotation_matches, _format_annotations, _parse_tags
-from ..flashcards import _GENANKI, export_anki_deck
+from ..flashcards import export_anki_deck
 from ..i18n import tr
 from ._qtcompat import _USER_ROLE
 
@@ -280,13 +280,7 @@ class AnnotationsMixin:
         Each note becomes a card: the highlighted passage on the front, the
         user's note on the back.  Requires genanki and at least one note.
         """
-        if not _GENANKI:
-            QMessageBox.information(
-                self,
-                "Anki export unavailable",
-                "Anki flashcard export requires genanki:\n\n"
-                "    pip install genanki",
-            )
+        if not self._qt_require_optional_feature("flashcards", tr("Anki export")):
             return
         if not self.doc:
             self.statusBar().showMessage("No document loaded")

@@ -406,5 +406,17 @@
   "❓ Not sure? Everything here is optional — pick <b>All</b> for the full experience, or <b>Not now</b> and add features later from <i>Tools → Install Optional Features</i>.": "❓ Não tem certeza? Tudo aqui é opcional — escolha <b>Tudo</b> para a experiência completa, ou <b>Agora não</b> e adicione recursos depois em <i>Ferramentas → Instalar recursos opcionais</i>.",
   "<b>star works right now with nothing extra.</b> These optional features add capabilities by fetching a few Python packages. Pick what you'd like — you can change this any time from <i>Tools → Install Optional Features</i>.<br><br><b>Thin</b> — the lightweight everyday reading and study aids.&nbsp; <b>All</b> — literally everything star can use, including the large speech-to-text and entity-extraction packs.": "<b>o star já funciona sem nada a mais.</b> Estes recursos opcionais adicionam capacidades ao baixar alguns pacotes Python. Escolha o que quiser — você pode mudar isto a qualquer momento em <i>Ferramentas → Instalar recursos opcionais</i>.<br><br><b>Leve</b> — os recursos leves do dia a dia para leitura e estudo.&nbsp; <b>Tudo</b> — literalmente tudo o que o star pode usar, incluindo os grandes pacotes de fala e de extração de entidades.",
   "All  (~2.6 GB)   — everything": "Tudo  (~2,6 GB)   — completo",
-  "Every optional feature, including the large speech-to-text and named-entity packs.": "Todos os recursos opcionais, incluindo os grandes pacotes de fala e de reconhecimento de entidades."
+  "Every optional feature, including the large speech-to-text and named-entity packs.": "Todos os recursos opcionais, incluindo os grandes pacotes de fala e de reconhecimento de entidades.",
+  "Install {feature}?": "Instalar {feature}?",
+  "{feature} needs an add-on that isn't installed yet (about a {size} download). Install it now? star downloads it in the background while you keep reading — then restart star to use {feature}.": "{feature} precisa de um complemento que ainda não está instalado (um download de cerca de {size}). Instalar agora? o star baixa em segundo plano enquanto você continua lendo — depois reinicie o star para usar {feature}.",
+  "Downloading {feature} in the background — this can take a few minutes. Restart star when it finishes.": "Baixando {feature} em segundo plano — isto pode levar alguns minutos. Reinicie o star quando terminar.",
+  "Couldn't start the download — check your internet connection and try again.": "Não foi possível iniciar o download — verifique sua conexão com a internet e tente novamente.",
+  "Speech recognition": "Reconhecimento de fala",
+  "Voice dictation": "Ditado por voz",
+  "Anki export": "Exportação para Anki",
+  "Difficult-word highlighting": "Realce de palavras difíceis",
+  "Document summarization": "Resumo de documentos",
+  "Document translation": "Tradução de documentos",
+  "Feed reading": "Leitura de feeds",
+  "Spell check": "Verificação ortográfica"
 }

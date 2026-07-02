@@ -6,6 +6,7 @@ state of its own.  IMPORT SAFETY: references Qt at module scope — imported
 lazily by main_window.py (itself imported by runner.py after the _QT guard).
 """
 from .._runtime import *  # noqa: F401,F403
+from ..i18n import tr
 from ..vocab import _WORDFREQ, find_difficult_words
 from ._qtcompat import _KEEP_ANCHOR
 
@@ -139,13 +140,7 @@ class HighlightsMixin:
 
     def _qt_toggle_vocab_highlight(self) -> None:
         """Toggle the difficult-word overlay on the current document."""
-        if not _WORDFREQ:
-            QMessageBox.information(
-                self,
-                "Vocabulary overlay unavailable",
-                "Highlighting difficult words requires wordfreq:\n\n"
-                "    pip install wordfreq",
-            )
+        if not self._qt_require_optional_feature("vocab", tr("Difficult-word highlighting")):
             if hasattr(self, "_vocab_act"):
                 self._vocab_act.setChecked(False)
             return

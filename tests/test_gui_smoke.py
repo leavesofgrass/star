@@ -180,3 +180,38 @@ def test_rsvp_overlay_toggles_and_feeds(window):
     assert ov._word_lbl.text() == "b"
     window._qt_toggle_rsvp()
     assert ov.isHidden()
+
+
+def test_missing_feature_offers_autoinstall_not_pip(window, monkeypatch):
+    """A gated feature offers a one-click background install — never a pip
+    instruction. Students don't know Python."""
+    from PyQt6.QtWidgets import QMessageBox
+
+    from star import autodeps
+
+    # Already installed -> True, no prompt.
+    monkeypatch.setattr(autodeps, "missing", lambda pkgs: [])
+    assert window._qt_require_optional_feature("transcribe", "Speech recognition") is True
+
+    # Missing + user accepts -> kicks off ensure_feature, returns False.
+    monkeypatch.setattr(autodeps, "missing", lambda pkgs: [("openai-whisper", "whisper")])
+    monkeypatch.setattr(
+        QMessageBox, "question",
+        staticmethod(lambda *a, **k: QMessageBox.StandardButton.Yes),
+    )
+    started = {}
+    monkeypatch.setattr(
+        autodeps, "ensure_feature",
+        lambda key, **k: (started.setdefault("key", key), ["openai-whisper"])[1],
+    )
+    assert window._qt_require_optional_feature("transcribe", "Speech recognition") is False
+    assert started["key"] == "transcribe"
+
+    # Missing + user declines -> nothing installed.
+    started.clear()
+    monkeypatch.setattr(
+        QMessageBox, "question",
+        staticmethod(lambda *a, **k: QMessageBox.StandardButton.No),
+    )
+    assert window._qt_require_optional_feature("transcribe", "Speech recognition") is False
+    assert "key" not in started
