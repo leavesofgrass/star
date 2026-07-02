@@ -272,3 +272,46 @@ def install_now(packages) -> bool:
 def install_feature_now(key: str) -> bool:
     """Synchronously install one feature's missing packages (see install_now)."""
     return install_now(FEATURES.get(key, []))
+
+
+# A feature's optional packages are detected once at import into a module-level
+# flag (e.g. star.summarize._SUMY).  After a *runtime* install those flags are
+# stale-False, so the feature still refuses to run ("pip install …") even though
+# the package is now present.  This maps each feature to the flags to flip so it
+# works immediately, no restart.  transcribe is intentionally absent: its flags
+# live in _runtime and Whisper/PyTorch generally need a fresh process.
+_FEATURE_FLAGS: dict[str, list[tuple[str, str]]] = {
+    "summarize": [("star.summarize", "_SUMY")],
+    "translate": [("star.translate", "_DEEP_TRANSLATOR")],
+    "feeds": [("star.feeds", "_FEEDPARSER")],
+    "vocab": [("star.vocab", "_WORDFREQ")],
+    "spellcheck": [("star.spellcheck", "_SPELL")],
+    "flashcards": [("star.flashcards", "_GENANKI")],
+}
+
+
+def refresh_feature(key: str) -> bool:
+    """After a runtime install, make *key* usable without a restart.
+
+    Clears import caches and flips the stale module-level availability flags so
+    the gate and the feature code agree and the deferred ``import`` succeeds.
+    Returns True when the feature is ready to use in-session; False when a restart
+    is needed (e.g. transcribe → PyTorch)."""
+    import importlib
+    import sys
+
+    importlib.invalidate_caches()
+    flags = _FEATURE_FLAGS.get(key)
+    if not flags:
+        return False
+    ready = True
+    for mod_name, flag in flags:
+        mod = sys.modules.get(mod_name)
+        if mod is None or not hasattr(mod, flag):
+            ready = False
+            continue
+        try:
+            setattr(mod, flag, True)
+        except Exception:
+            ready = False
+    return ready

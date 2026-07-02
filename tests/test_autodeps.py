@@ -124,3 +124,20 @@ def test_ensure_feature_uses_the_registry(sandbox, monkeypatch):
 def test_marker_file_written(sandbox, tmp_path):
     autodeps.ensure([("markerpkg", "no_such_mod_ggg")], background=False)
     assert (tmp_path / "markerpkg.attempted").exists()
+
+
+def test_refresh_feature_flips_stale_availability_flag():
+    """After a runtime install the stale module flag is flipped so the feature
+    works in-session (the summarize/dictate 'pip install' dead end)."""
+    import star.summarize as sm
+
+    orig = sm._SUMY
+    try:
+        sm._SUMY = False   # as if sumy was installed after star started
+        assert autodeps.refresh_feature("summarize") is True
+        assert sm._SUMY is True
+    finally:
+        sm._SUMY = orig
+    # A feature not in the in-session-refreshable set needs a restart.
+    assert autodeps.refresh_feature("transcribe") is False
+    assert autodeps.refresh_feature("nope") is False

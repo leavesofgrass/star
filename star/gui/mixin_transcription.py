@@ -58,30 +58,42 @@ class TranscriptionMixin:
         )
 
         def _work() -> None:
+            ready = False
             try:
                 ok = autodeps.install_feature_now(feature_key)
+                if ok:
+                    # Flip the stale availability flags + clear import caches so
+                    # the feature works right now instead of dead-ending on a
+                    # "pip install" message.
+                    ready = autodeps.refresh_feature(feature_key)
             except Exception:
                 ok = False
             try:
-                self._deps_installed_signal.emit(human_name, ok)
+                self._deps_installed_signal.emit(human_name, ok, ready)
             except Exception:
                 pass
 
         threading.Thread(target=_work, name="star-feature-install", daemon=True).start()
 
-    def _on_feature_installed(self, human_name: str, ok: bool) -> None:
+    def _on_feature_installed(self, human_name: str, ok: bool, ready: bool) -> None:
         """GUI-thread slot: report the outcome of a feature download."""
-        if ok:
-            self.statusBar().showMessage(
-                tr("{feature} installed — restart star to use it.").format(
-                    feature=human_name),
-                15000,
-            )
-        else:
+        if not ok:
             self.statusBar().showMessage(
                 tr("Couldn't install {feature} — check your connection and try "
                    "again.").format(feature=human_name),
                 12000,
+            )
+        elif ready:
+            self.statusBar().showMessage(
+                tr("{feature} installed — you can use it now.").format(
+                    feature=human_name),
+                12000,
+            )
+        else:
+            self.statusBar().showMessage(
+                tr("{feature} installed — restart star to use it.").format(
+                    feature=human_name),
+                15000,
             )
 
     def _qt_transcribe_file(self) -> None:

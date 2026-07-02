@@ -255,9 +255,9 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
     # Emitted from the background OpenDyslexic prefetch thread once the font files
     # are downloaded, so registration + (re)application happen on the GUI thread.
     _font_ready_signal = pyqtSignal()
-    # Emitted from a feature-install worker thread with (human_name, success) so
-    # the outcome is reported on the GUI thread.
-    _deps_installed_signal = pyqtSignal(str, bool)
+    # Emitted from a feature-install worker thread with (human_name, success,
+    # ready_in_session) so the outcome is reported on the GUI thread.
+    _deps_installed_signal = pyqtSignal(str, bool, bool)
     # Emitted from the audio-export background thread when synthesis is
     # complete.  Carries the status-bar message to display (success or
     # error text) so the GUI thread can update safely.

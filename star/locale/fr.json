@@ -421,5 +421,6 @@
   "Spell check": "Vérification orthographique",
   "Downloading {feature}…": "Téléchargement de {feature}…",
   "{feature} installed — restart star to use it.": "{feature} installé — redémarrez star pour l'utiliser.",
-  "Couldn't install {feature} — check your connection and try again.": "Impossible d'installer {feature} — vérifiez votre connexion et réessayez."
+  "Couldn't install {feature} — check your connection and try again.": "Impossible d'installer {feature} — vérifiez votre connexion et réessayez.",
+  "{feature} installed — you can use it now.": "{feature} installé — vous pouvez l'utiliser maintenant."
 }
