@@ -1,0 +1,172 @@
+"""First-run optional-feature chooser (the "selection menu").
+
+star runs fully out of the box; heavier capabilities are optional Python packages
+with graceful fallbacks. Rather than silently fetching everything, this dialog
+explains each feature group, offers two presets (**Thin** and **All**), and lets
+the user pick exactly what to fetch. It is shown once on first launch
+(:func:`maybe_prompt`) and re-openable from *Tools → Install Optional Features…*.
+Installation itself is delegated to :mod:`star.autodeps` (background, best-effort).
+
+IMPORT SAFETY: references Qt at module scope — imported lazily (never at package
+import time), like the other gui dialogs.
+"""
+from __future__ import annotations
+
+from .._runtime import *  # noqa: F401,F403  (Qt widgets: QDialog, QCheckBox, …)
+from .. import autodeps
+from ..i18n import tr
+
+try:  # QScrollArea isn't re-exported by _runtime
+    from PyQt6.QtWidgets import QScrollArea
+except ImportError:  # PyQt5
+    from PyQt5.QtWidgets import QScrollArea  # type: ignore
+
+
+class DependencyChooser(QDialog):
+    def __init__(self, window=None) -> None:
+        super().__init__(window)
+        self._win = window
+        self.setWindowTitle(tr("star — Optional Features"))
+        self.resize(600, 560)
+        self._boxes: dict[str, QCheckBox] = {}
+        self._build()
+
+    def _build(self) -> None:
+        root = QVBoxLayout(self)
+
+        intro = QLabel(
+            tr(
+                "<b>star works right now with nothing extra.</b> These optional "
+                "features add capabilities by fetching a few Python packages. Pick "
+                "what you'd like — you can change this any time from "
+                "<i>Tools → Install Optional Features</i>.<br><br>"
+                "<b>Thin</b> — the lightweight everyday reading and study aids.&nbsp; "
+                "<b>All</b> — everything star can use (large speech-to-text and "
+                "entity-extraction packs stay unchecked; tick them yourself)."
+            ),
+            self,
+        )
+        intro.setWordWrap(True)
+        root.addWidget(intro)
+
+        presets = QHBoxLayout()
+        thin = QPushButton(tr("Thin  (~40 MB)"), self)
+        thin.setToolTip(tr("Everyday reading & study aids only — no OCR, graph, or "
+                           "large ML packs."))
+        thin.clicked.connect(lambda: self._apply_preset("thin"))
+        allb = QPushButton(tr("All  (~150 MB)   — recommended"), self)
+        allb.setToolTip(tr("Everything except the very large speech-to-text and "
+                           "named-entity packs."))
+        allb.clicked.connect(lambda: self._apply_preset("all"))
+        presets.addWidget(thin)
+        presets.addWidget(allb)
+        presets.addStretch(1)
+        root.addLayout(presets)
+
+        # One checkbox per feature (light -> heavy) inside a scroll area, each with
+        # its purpose, size, and install status.
+        inner = QWidget(self)
+        col = QVBoxLayout(inner)
+        col.setContentsMargins(4, 4, 4, 4)
+        for key in autodeps.FEATURE_INFO:
+            label, detail, mb = autodeps.FEATURE_INFO[key]
+            present = autodeps.feature_installed(key)
+            size = (tr("installed") if present
+                    else (f"~{mb} MB" if mb < 1000 else f"~{mb / 1000:.1f} GB"))
+            cb = QCheckBox(f"{tr(label)}   ({size})", self)
+            cb.setToolTip(detail)
+            sub = QLabel(f"    {detail}", self)
+            sub.setWordWrap(True)
+            sub.setStyleSheet("color: gray; font-size: 11px;")
+            if present:
+                cb.setChecked(True)
+                cb.setEnabled(False)                 # already there
+            self._boxes[key] = cb
+            col.addWidget(cb)
+            col.addWidget(sub)
+        col.addStretch(1)
+        scroll = QScrollArea(self)
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(inner)
+        root.addWidget(scroll, 1)
+
+        actions = QHBoxLayout()
+        actions.addStretch(1)
+        later = QPushButton(tr("Not now"), self)
+        later.clicked.connect(self._skip)
+        install = QPushButton(tr("Install selected"), self)
+        install.setDefault(True)
+        install.clicked.connect(self._install)
+        actions.addWidget(later)
+        actions.addWidget(install)
+        root.addLayout(actions)
+
+        self._apply_preset("all")                    # default to the recommended set
+
+    # ── behaviour ────────────────────────────────────────────────────────
+    def _apply_preset(self, name: str) -> None:
+        chosen = set(autodeps.preset(name))
+        for key, cb in self._boxes.items():
+            if cb.isEnabled():                       # don't touch already-installed
+                cb.setChecked(key in chosen)
+
+    def selected(self) -> list[str]:
+        """Feature keys currently checked (whether enabled or already installed)."""
+        return [k for k, cb in self._boxes.items() if cb.isChecked()]
+
+    def _status(self, msg: str) -> None:
+        win = self._win
+        if win is not None and hasattr(win, "statusBar"):
+            try:
+                win.statusBar().showMessage(msg, 8000)
+            except Exception:
+                pass
+
+    def _mark_prompted(self) -> None:
+        settings = getattr(self._win, "settings", None)
+        if settings is None:
+            return
+        try:
+            settings.set("deps_prompted", True)
+            settings.save()
+        except Exception:
+            pass
+
+    def done(self, result: int) -> None:  # noqa: N802 (Qt override)
+        # One-shot: however the chooser is dismissed — Install, Not now, Esc, or
+        # the window close button — don't auto-open it again. It stays reachable
+        # via Tools → Install Optional Features.
+        self._mark_prompted()
+        super().done(result)
+
+    def _install(self) -> None:
+        autodeps.set_enabled(True)
+        started: list[str] = []
+        for key in self.selected():
+            started += autodeps.ensure_feature(key)
+        if started:
+            self._status(
+                tr("Installing {n} optional package(s) in the background…").format(
+                    n=len(started))
+            )
+        else:
+            self._status(tr("Selected optional features are already installed."))
+        self.accept()
+
+    def _skip(self) -> None:
+        self.reject()                                # done() marks it prompted
+
+
+def maybe_prompt(window) -> None:
+    """Show the chooser once, on first launch (unless disabled / already prompted)."""
+    settings = getattr(window, "settings", None)
+    if settings is None:
+        return
+    if settings.get("deps_prompted", False) or not settings.get("auto_install", True):
+        return
+    if not autodeps.enabled():                       # STAR_NO_AUTOINSTALL kill-switch
+        return
+    try:
+        DependencyChooser(window).exec()
+    except Exception:
+        pass  # a chooser failure must never block launching the app

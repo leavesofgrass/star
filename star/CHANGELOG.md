@@ -8,6 +8,43 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.19] 2026-07-01
+
+star still runs out of the box on nothing but the Python standard library — now
+it can also grow on demand, guided by a first-run chooser.
+
+### ✨ Added
+
+- **Optional-features chooser (selection menu).** On first launch star offers a
+  short menu of optional capabilities instead of silently fetching everything.
+  Pick a preset — **Thin** (the lightweight everyday reading and study aids) or
+  **All** (everything star can use) — or tick individual features (OCR,
+  offline dictionary, summarize, translate, knowledge-graph extras, and more).
+  Each entry shows its purpose and approximate download size. star then fetches
+  the Python packages in the background, best-effort, and remembers what it has
+  attempted so it never re-tries on every launch. The very large packs
+  (speech-to-text dictation, named-entity extraction) stay unchecked and opt-in,
+  so **All** can never trigger a multi-gigabyte download. Re-open the chooser any
+  time from **Tools → Install Optional Features…**.
+- **`star --install-optional` (headless install).** Install optional features
+  from the command line: `star --install-optional` (defaults to the `all`
+  preset), `star --install-optional thin`, or a comma-separated list of feature
+  keys such as `star --install-optional ocr,dictionary`. Run it with no value (or
+  an unknown value) to list every feature with its size and install status. This
+  is the scriptable counterpart to the GUI chooser; the fetch runs in the
+  foreground with plain progress output.
+- **Opt-out.** The chooser and background fetching honour a settings switch
+  (`auto_install`) and the `STAR_NO_AUTOINSTALL` environment variable; once the
+  chooser has been shown, `deps_prompted` keeps it from re-appearing on its own.
+
+### 🔧 Changed
+
+- Polish: (details appended at release) — this release also folds in
+  accessibility, internationalization (i18n), TUI-clipboard, test-coverage, and
+  internal-refactor improvements.
+
+---
+
 ## [0.1.18] 2026-06-28
 
 A clearer toolbar and a working out-of-the-box first screen.

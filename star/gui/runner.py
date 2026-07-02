@@ -90,4 +90,15 @@ def _run_qt_gui(settings: Settings, initial_path: str = "") -> None:
 
     window = StarWindow(settings, initial_path)
     window.show()
+
+    # First launch only: offer the optional-feature chooser (Thin / All / custom).
+    # Honors the auto_install setting and STAR_NO_AUTOINSTALL; marks itself shown so
+    # it never nags again. Best-effort — a failure here must not block the app.
+    try:
+        from .deps_dialog import maybe_prompt
+
+        maybe_prompt(window)
+    except Exception:
+        pass
+
     sys.exit(app.exec() if _QT == "PyQt6" else app.exec_())

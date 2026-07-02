@@ -7,6 +7,11 @@ from ._runtime import *  # noqa: F401,F403
 
 DEFAULTS: Dict[str, Any] = {
     "theme": "obsidian",
+    # Optional-dependency auto-install (star/autodeps.py). auto_install gates the
+    # first-run chooser and on-demand fetches; deps_prompted flips true once the
+    # chooser has been shown so it never nags again. STAR_NO_AUTOINSTALL overrides.
+    "auto_install": True,
+    "deps_prompted": False,
     # UI chrome language (menus, toolbar, docks).  ISO-639-1 code of a catalog
     # in star/locale/ ("en" = English source, no catalog needed).  See star/i18n.py.
     "ui_language": "en",

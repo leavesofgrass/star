@@ -14,32 +14,131 @@ from ..stats import _format_reading_stats, _library_entries
 
 class DocOpsMixin:
 
-    # ── Clipboard copy (TUI stub) ──────────────────
+    # ── Clipboard copy ─────────────────────────────────────────────────────
+
+    def _line_text(self, idx: int) -> str:
+        "Plain text of rendered display line *idx* (empty when out of range)."
+        try:
+            if 0 <= idx < len(self.rendered):
+                return "".join(t for t, _ in self.rendered[idx])
+        except Exception:
+            pass
+        return ""
 
     def _copy_current_line(self) -> str:
         "Return the text of the current top-visible display line."
         if not self.rendered or self.scroll >= len(self.rendered):
             return ""
-        return "".join(t for t, _ in self.rendered[self.scroll]).strip()
+        return self._line_text(self.scroll).strip()
+
+    def _selection_text(self) -> str:
+        """Text of the active selection, if the TUI has one.
+
+        The TUI's notion of a live selection is the current search match
+        (``self.search.current_match`` — a ``(line, col_start, col_end)``
+        span).  Returns "" when there is no active match.  Never raises."""
+        try:
+            match = getattr(getattr(self, "search", None), "current_match", None)
+            if not match:
+                return ""
+            line, col_start, col_end = match
+            return self._line_text(line)[col_start:col_end]
+        except Exception:
+            return ""
+
+    def _current_paragraph_text(self) -> str:
+        """Text of the logical block (paragraph) around the reading cursor.
+
+        Walks outward from the cursor line over consecutive non-blank display
+        lines and joins them, so a wrapped paragraph is copied whole rather
+        than a single visual row.  Never raises."""
+        try:
+            rendered = self.rendered
+            n = len(rendered)
+            if not n:
+                return ""
+            # Prefer the reading cursor's display line; fall back to scroll top.
+            i = getattr(self, "_sc_line", -1)
+            if not (0 <= i < n):
+                i = self.scroll
+            i = max(0, min(i, n - 1))
+            # If we landed on a blank line, step forward to content.
+            while i < n - 1 and not self._line_text(i).strip():
+                i += 1
+            if not self._line_text(i).strip():
+                return ""
+            start = i
+            while start > 0 and self._line_text(start - 1).strip():
+                start -= 1
+            end = i
+            while end < n - 1 and self._line_text(end + 1).strip():
+                end += 1
+            lines = [self._line_text(k).strip() for k in range(start, end + 1)]
+            return " ".join(s for s in lines if s).strip()
+        except Exception:
+            return ""
+
+    def _clipboard_text(self) -> str:
+        """The text a copy action should place on the clipboard.
+
+        Selection (active search match) wins; otherwise the current paragraph
+        around the cursor; otherwise the top-visible line.  Never raises."""
+        return (
+            self._selection_text().strip()
+            or self._current_paragraph_text()
+            or self._copy_current_line()
+        )
+
+    @staticmethod
+    def _osc52_copy(text: str) -> bool:
+        """Copy *text* to the terminal clipboard via the OSC-52 escape.
+
+        Works over SSH and in many modern terminals without any Python
+        clipboard package.  Best-effort — returns True if the escape was
+        written, False on any error.  Never raises."""
+        try:
+            import base64
+
+            payload = base64.b64encode(text.encode("utf-8", "replace")).decode("ascii")
+            seq = f"\033]52;c;{payload}\a"
+            stream = getattr(sys, "__stdout__", None) or sys.stdout
+            stream.write(seq)
+            stream.flush()
+            return True
+        except Exception:
+            return False
 
     def _copy_to_clipboard(self) -> None:
-        """Copy the current top-visible line to the system clipboard.
+        """Copy the current selection / paragraph / line to the clipboard.
 
-        Uses pyperclip when available; otherwise shows the text in the
-        status bar so the user can select it manually. Never raises."""
-        text = self._copy_current_line()
+        Copies the active selection if there is one, else the paragraph around
+        the reading cursor, else the top-visible line.  Uses pyperclip when
+        importable, falls back to an OSC-52 terminal-clipboard escape, and
+        finally surfaces the text in the status line for manual selection.
+        Never raises."""
+        try:
+            text = self._clipboard_text()
+        except Exception:
+            text = ""
         if not text:
-            self.notify("Nothing to copy (empty line).", error=True)
+            self.notify("Nothing to copy (empty selection).", error=True)
             return
+        truncated = text[:60] + ("…" if len(text) > 60 else "")
+        # 1) pyperclip — the real system clipboard when available.
         try:
             import pyperclip  # type: ignore
 
             pyperclip.copy(text)
-            truncated = text[:60] + ("…" if len(text) > 60 else "")
             self.notify(f"Copied to clipboard: {truncated}")
+            return
         except Exception:
-            # pyperclip unavailable or clipboard inaccessible — surface the text.
-            self.notify(f"Copy (select manually): {text}", dur=10.0)
+            pass
+        # 2) OSC-52 — terminal clipboard (works over SSH, no extra package).
+        if self._osc52_copy(text):
+            self.notify(f"Copied to clipboard: {truncated}")
+            return
+        # 3) Last resort — show the text so the user can select it manually.
+        self.notify(f"Copy (select manually): {text}", dur=10.0)
 
     # ── Reading statistics & library ─────────────
 

@@ -89,6 +89,9 @@ dictionary = ["nltk"]
 # It lives in its own lightweight group because it is only needed for that one
 # headless feature; star falls back to directory polling when it is absent.
 watch = ["watchdog"]
+# System clipboard copy in the TUI via pyperclip.  Optional — an OSC-52 terminal
+# escape and a status-line fallback are used when it is absent.
+clipboard = ["pyperclip"]
 # Knowledge graph & Obsidian: nicer graph layout/SVG (graphviz needs its system
 # binary too), PlantUML rendering, and richer YAML front matter for vault import.
 # All optional — the graph works with a pure-Python layout and a built-in front-
@@ -119,6 +122,7 @@ all = [
     "louis",
     "pydub",
     "watchdog",
+    "pyperclip",
     "sumy",
     "genanki",
     "pyspellchecker",

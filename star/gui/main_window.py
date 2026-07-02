@@ -666,7 +666,7 @@ class StarWindow(AidDialogsMixin, CommandsMixin, TocMixin, HighlightsMixin, Pres
         tb.addSeparator()
         # ── View ─────────────────────────────────────────
         _act("Theme", "theme", self._next_theme, "Cycle color theme (F5)")
-        _act("Contents", "contents", self._qt_toggle_toc, "Toggle Contents panel (Ctrl+\\\\)")
+        _act("Contents", "contents", self._qt_toggle_toc, "Toggle Contents panel (Ctrl+\\)")
         _act(
             "Notes",
             "notes",
@@ -1234,6 +1234,16 @@ class StarWindow(AidDialogsMixin, CommandsMixin, TocMixin, HighlightsMixin, Pres
 
         # Tools menu — transcription, dictation, and maintenance.
         tools_menu: QMenu = mb.addMenu(tr("Tools"))
+        tools_menu.addAction(
+            _mi(
+                "Install Optional Features…",
+                "",
+                self._qt_install_optional_features,
+                tip="Pick which optional capabilities to download (OCR, dictionary, "
+                    "graph, speech-to-text, …)",
+            )
+        )
+        tools_menu.addSeparator()
         tools_menu.addAction(
             _mi(
                 "Transcribe Audio File…",

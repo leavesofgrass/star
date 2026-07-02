@@ -16,6 +16,48 @@ from .settings import Settings
 # =============================================================================
 
 
+def _install_optional(spec: str) -> None:
+    """Install optional features from a preset or comma-separated feature keys.
+
+    Runs in the foreground with plain progress output (the GUI chooser is the
+    interactive path). Best-effort per package — see :mod:`star.autodeps`.
+    """
+    from . import autodeps
+
+    spec = (spec or "all").strip().lower()
+    if spec in autodeps.PRESETS:
+        keys = autodeps.preset(spec)
+    else:
+        keys = [k.strip() for k in spec.split(",") if k.strip()]
+    unknown = [k for k in keys if k not in autodeps.FEATURES]
+    if not keys or unknown:
+        if unknown:
+            print(f"Unknown feature(s): {', '.join(unknown)}\n")
+        print("Presets:  thin  all")
+        print("Features:")
+        for key, (label, _detail, mb) in autodeps.FEATURE_INFO.items():
+            size = f"~{mb} MB" if mb < 1000 else f"~{mb / 1000:.1f} GB"
+            state = "installed" if autodeps.feature_installed(key) else size
+            print(f"  {key:<12} {label}  ({state})")
+        return
+
+    autodeps.set_enabled(True)
+    pkgs = [pair for k in keys for pair in autodeps.FEATURES.get(k, [])]
+    todo = autodeps.missing(pkgs)
+    if not todo:
+        print("All selected optional features are already installed.")
+        return
+    print(f"Installing {len(todo)} package(s): {', '.join(p for p, _m in todo)}")
+    # Foreground + force so the CLI actually waits and ignores once-per-machine markers.
+    autodeps.ensure(pkgs, background=False, force=True)
+    still = autodeps.missing(pkgs)
+    if still:
+        print(f"Done — {len(still)} package(s) could not be installed: "
+              f"{', '.join(p for p, _m in still)} (offline, no pip, or build failure).")
+    else:
+        print("Done — all selected optional features installed.")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(
         prog=APP_NAME,
@@ -78,6 +120,16 @@ def main() -> None:
         action="store_true",
         help="Print the status of every optional dependency and exit",
     )
+    ap.add_argument(
+        "--install-optional",
+        metavar="PRESET",
+        nargs="?",
+        const="all",
+        default=None,
+        help="Install optional features and exit. PRESET is a preset (thin|all) or a "
+        "comma-separated list of feature keys (e.g. ocr,dictionary); default 'all'. "
+        "Run with no value or an unknown value to see the available features.",
+    )
     # ── Hot-folder watching (headless batch conversion) ──────────────────
     ap.add_argument(
         "--watch",
@@ -105,6 +157,10 @@ def main() -> None:
         from .diagnostics import format_dependency_report
 
         sys.stdout.write(format_dependency_report())
+        return
+
+    if args.install_optional is not None:
+        _install_optional(args.install_optional)
         return
 
     if args.list_themes:

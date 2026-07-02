@@ -152,6 +152,14 @@ OPTIONAL_DEPENDENCIES: List[Dict[str, Any]] = [
         "enables": "The keyboard-driven --tui terminal interface",
         "install": "pip install windows-curses  (Windows only; built in elsewhere)",
     },
+    {
+        "key": "clipboard", "label": "Clipboard (pyperclip)", "group": "Interface",
+        "module": None, "attr": None, "kind": "probe",
+        "probe": ["pyperclip"],
+        "enables": "Copy the selection / paragraph to the system clipboard in the "
+                   "TUI (an OSC-52 terminal escape is used otherwise)",
+        "install": _extra("clipboard"),
+    },
     # ── Export & study aids ────────────────────────────────────────────────
     {
         "key": "braille2", "label": "Grade 2 Braille (liblouis)",

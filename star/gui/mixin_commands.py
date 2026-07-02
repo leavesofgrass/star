@@ -10,6 +10,17 @@ from ..tui.text import _shortcuts_text
 
 
 class CommandsMixin:
+    # ── Optional features ───────────────────────────
+
+    def _qt_install_optional_features(self) -> None:
+        """Open the optional-feature chooser (Thin / All / custom).
+
+        The same dialog shown once on first launch — re-openable any time to add
+        capabilities (OCR, dictionary, knowledge graph, speech-to-text, …)."""
+        from .deps_dialog import DependencyChooser
+
+        DependencyChooser(self).exec()
+
     # ── Keyboard cheat sheet ────────────────────────
 
     def _qt_show_shortcuts(self) -> None:

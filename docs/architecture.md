@@ -38,6 +38,7 @@ that ships in every distribution form.
 | `star/gui/` | The Qt GUI **package** (see below). |
 | `star/app.py` | Command-line entry point (`star.app:main`). |
 | `star/diagnostics.py` | `OPTIONAL_DEPENDENCIES` registry powering `star --deps`. |
+| `star/autodeps.py` | On-demand optional-dependency installer: the `FEATURES` registry, `FEATURE_INFO`/`PRESETS`, and the best-effort `ensure()` engine behind the first-run chooser and `star --install-optional`. |
 | `star/__main__.py` · `run_star.py` | `python -m star`, and the source-tree entry script. |
 
 ### The `star/gui/` package
@@ -64,6 +65,61 @@ star.gui` safe when PyQt is absent (the graceful-degradation invariant). The
 PyQt5/PyQt6 enum-compat constants (e.g. `QTextCursor.MoveMode`, `Qt.ConnectionType`)
 were captured closure values in the monolith; they now live in `_qtcompat.py` and
 are imported by the modules that need them.
+
+### On-demand optional features (`star/autodeps.py` + `star/gui/deps_dialog.py`)
+
+star's core is stdlib + a small base install; every heavier capability is an
+*optional* package with a graceful fallback (catalogued in `star/diagnostics.py`).
+`star/autodeps.py` turns those optional groups into user-choosable **features**
+and installs them on request via pip — so star runs out of the box and grows on
+demand.
+
+- **`FEATURES`** maps each feature key (`"ocr"`, `"dictionary"`, `"transcribe"`,
+  …) to its list of `(pip name, import name)` pairs, grouped to match star's
+  optional extras and ordered light → heavy.
+- **`FEATURE_INFO`** carries the human-facing `(label, detail, approx MB)` used by
+  the chooser and by `star --install-optional`'s listing.
+- **`PRESETS`** defines **`thin`** (the small everyday reading/study aids) and
+  **`all`** (everything *except* the very large `transcribe`/`ner` packs, which
+  are held in `_HEAVY` so "All" can never trigger a multi-gigabyte download).
+- **`ensure()` / `ensure_feature()`** install any missing packages best-effort in
+  a daemon thread — the UI never blocks on pip. Installs are **attempted once per
+  machine**: a per-package marker file under the cache dir (`CACHE_DIR/autodeps`)
+  stops a slow/failing install from retrying every launch, while a *forced*
+  install (the explicit "install now" path) ignores the markers.
+- **Opt-out:** `enabled()` returns `False` when `STAR_NO_AUTOINSTALL` is set or
+  when `set_enabled(False)` (driven by the `auto_install` setting) has been
+  called; the install function and marker dir are injectable so the tests never
+  touch the network or the real cache.
+
+`star/gui/deps_dialog.py` is the interactive front end: `DependencyChooser`
+(a `QDialog`) renders one checkbox per feature — with its purpose, size, and
+install status — plus **Thin**/**All** preset buttons, and delegates the actual
+fetch to `autodeps`. `maybe_prompt(window)` shows it **once** on first launch
+(guarded by the `deps_prompted` / `auto_install` settings and the
+`STAR_NO_AUTOINSTALL` kill-switch); however the dialog is dismissed it records
+`deps_prompted` so it never re-opens on its own, staying reachable from *Tools →
+Install Optional Features…*. Like the other GUI dialogs it references Qt at module
+scope and is imported lazily, never at package-import time. The scriptable
+counterpart is `star/app.py`'s `_install_optional()`, invoked by
+`star --install-optional [thin|all|feature,…]`.
+
+### Bundled docs & the icon toolbar (`star/gui/`)
+
+- **`star/gui/icons.py`** draws every toolbar button as a monochrome vector
+  `QIcon` with `QPainter` — no PNG/SVG asset files to bundle — tinted to the
+  chrome text colour so the toolbar reads on any platform. `make_icon(name)`
+  returns the icon for a name, falling back to a small neutral dot for unknown
+  names so the toolbar never breaks. Each `QAction` keeps its text label as the
+  accessible name (plus a tooltip), so screen readers still announce it.
+- **`welcome.md` + `StarWindow._bundled_path`.** The startup welcome screen is a
+  real, readable document (`star/welcome.md`) rather than a static splash — it
+  reads aloud and supports the caret/lookup controls. `_bundled_path(name)`
+  resolves a bundled doc by filename wherever star is installed (package root for
+  wheel/pyz, then the repo root for source checkouts, then `gui/`), which is how
+  both the welcome page (`_welcome_path`) and **F1 → README** work reliably on
+  every install form. When you edit user-facing docs, refresh the copies bundled
+  with the package so these stay current (see *Contributing*).
 
 ### The `star/tui/` package
 

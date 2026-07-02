@@ -37,17 +37,34 @@ pip install star-reader       # into the current environment
 Then run it:
 
 ```bash
-star                 # launch the Qt GUI
-star document.pdf    # open a file
-star --tui           # force the terminal UI
-star --deps          # show which optional features are installed
+star                          # launch the Qt GUI
+star document.pdf             # open a file
+star --tui                    # force the terminal UI
+star --deps                   # show which optional features are installed
+star --install-optional       # fetch optional features from the command line
 ```
 
-Add optional features with extras — `pip install "star-reader[all]"` for the
-full feature set (everything except the multi-GB Whisper/Torch dictation stack,
-which is `[transcribe]`), or groups like `star-reader[translate,vocab]`. Full
-instructions (wheel, single-file `star.pyz`, native engines, per-platform notes)
-are in the **[Installation guide](docs/installation.md)**.
+### Optional features
+
+**star runs out of the box** on nothing but the Python standard library, and
+**grows on demand.** On first launch the GUI shows a short **optional-features
+chooser**: pick the **Thin** or **All** preset, or tick exactly the capabilities
+you want (OCR, offline dictionary, summarize, translate, knowledge-graph extras,
+…), and star fetches the Python packages in the background — best-effort, once
+per machine. Re-open it any time from **Tools → Install Optional Features…**. The
+very large packs (speech-to-text dictation, named-entity extraction) stay opt-in,
+so **All** never triggers a multi-gigabyte download.
+
+Prefer the command line or a scripted setup? `star --install-optional` installs
+the `all` preset; `star --install-optional thin` or
+`star --install-optional ocr,dictionary` install a preset or a comma-separated
+list of features; run it with no value to list every feature with its size. You
+can also install extras yourself the classic way — `pip install
+"star-reader[all]"` (everything except the multi-GB Whisper/Torch dictation
+stack, `[transcribe]`), or groups like `star-reader[translate,vocab]`.
+
+Full instructions (wheel, single-file `star.pyz`, native engines, per-platform
+notes) are in the **[Installation guide](docs/installation.md)**.
 
 ---
 
@@ -77,6 +94,13 @@ are in the **[Installation guide](docs/installation.md)**.
   reading, adjustable spacing (WCAG 1.4.12), and high-DPI support.
 - **Graceful degradation:** every third-party dependency is optional and guarded,
   so the core runs on the Python standard library alone.
+- **Runs out of the box, grows on demand:** a first-run chooser (or `star
+  --install-optional`) fetches only the optional features you pick, in the
+  background — nothing to configure before your first document.
+- **Clear, consistent UI:** an all-icon toolbar with descriptive tooltips (vector
+  glyphs drawn programmatically and tinted to your theme — no image files); a
+  **readable welcome page** that reads aloud like any document; and **F1** opens
+  the bundled README as a document on every install.
 
 See the **[full feature reference](docs/features.md)** for everything.
 
