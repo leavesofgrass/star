@@ -167,8 +167,8 @@ jobs:
           python -m coverage report --include="*/citations.py" --fail-under=70
           python -m coverage report --include="*/obsidian.py" --fail-under=78
           python -m coverage report --include="*/graph.py" --fail-under=88
-          python -m coverage report --include="*/markup.py" --fail-under=66
-          python -m coverage report --include="*/ttstext.py" --fail-under=92
+          python -m coverage report --include="*/markup/*.py" --fail-under=66
+          python -m coverage report --include="*/ttstext/*.py" --fail-under=92
           python -m coverage report --include="*/dictionary.py" --fail-under=70
           python -m coverage report --include="*/autodeps.py" --fail-under=83
           python -m coverage report --include="*/library.py" --fail-under=88
