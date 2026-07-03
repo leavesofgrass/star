@@ -38,12 +38,22 @@ class PresetsMixin:
         for attr, key in (
             ("_dyslexia_font_act", "qt_dyslexia_font"),
             ("_bionic_act", "qt_bionic_reading"),
+            ("_syllable_act", "qt_syllable_split"),
             ("_current_line_act", "qt_current_line_highlight"),
+            ("_ruler_act", "qt_reading_ruler"),
             ("_vocab_act", "qt_vocab_highlight"),
         ):
             act = getattr(self, attr, None)
             if act is not None:
                 act.setChecked(bool(self.settings.get(key, False)))
+        # Sync the reading-font submenu radio state and re-apply the font.
+        if hasattr(self, "_sync_reading_font_menu"):
+            self._sync_reading_font_menu()
+        if hasattr(self, "_apply_dyslexia_font"):
+            self._apply_dyslexia_font(self._reading_font_key() != "default", fetch=False)
+        # A profile may have toggled the reading ruler; apply its state.
+        if hasattr(self, "_apply_reading_ruler"):
+            self._apply_reading_ruler(bool(self.settings.get("qt_reading_ruler", False)))
         # A profile may have flipped the difficult-word overlay; rebuild it.
         self._qt_refresh_vocab_highlight()
 

@@ -229,28 +229,72 @@ class CommandsMixin:
         dlg.exec() if _QT == "PyQt6" else dlg.exec_()
 
     def _qt_toggle_dyslexia_font(self) -> None:
-        """Toggle the dyslexia-friendly display font across the whole UI.
+        """Toggle the dyslexia-friendly display font (OpenDyslexic) across the UI.
 
-        On first enable, OpenDyslexic is fetched on demand if no dyslexia-friendly
-        family is already installed (best-effort, offline-safe)."""
-        new = not bool(self.settings.get("qt_dyslexia_font", False))
-        self.settings["qt_dyslexia_font"] = new
+        Retained for the classic Ctrl+Alt+X accelerator and any code/profiles
+        that referenced it; routed through the unified reading-font chooser so the
+        submenu, the legacy boolean, and the applied font stay in sync.  On first
+        enable OpenDyslexic is fetched on demand (best-effort, offline-safe)."""
+        self._qt_toggle_dyslexia_font_shortcut()
+
+    # Reading-font chooser labels (menu order) → the qt_reading_font key.
+    _READING_FONT_CHOICES = (
+        ("Default", "default"),
+        ("OpenDyslexic", "opendyslexic"),
+        ("Atkinson Hyperlegible", "atkinson"),
+        ("Lexend", "lexend"),
+    )
+
+    def _qt_set_reading_font(self, key: str) -> None:
+        """Select a reading font (Default / OpenDyslexic / Atkinson / Lexend).
+
+        Applies app-wide + in-document exactly like the dyslexia toggle: the
+        chosen family is fetched from GitHub on demand if needed (no pip), then
+        applied to the QApplication and the reading pane.  "default" restores the
+        user's chosen font.  Persisted via ``qt_reading_font``.
+        """
+        valid = {k for _lbl, k in self._READING_FONT_CHOICES}
+        if key not in valid:
+            key = "default"
+        self.settings["qt_reading_font"] = key
+        # Keep the legacy boolean coherent so old profiles / the classic toggle
+        # and the new chooser never disagree.
+        self.settings["qt_dyslexia_font"] = key != "default"
+        self._sync_reading_font_menu()
         if hasattr(self, "_dyslexia_font_act"):
-            self._dyslexia_font_act.setChecked(new)
-        if not new:
+            self._dyslexia_font_act.setChecked(key != "default")
+        if key == "default":
             self._apply_dyslexia_font(False)
-            self.statusBar().showMessage("Dyslexia-friendly font: OFF")
+            self.statusBar().showMessage("Reading font: Default")
             return
-        self.statusBar().showMessage("Enabling dyslexia-friendly font (fetching OpenDyslexic if needed)…")
+        label = next((lbl for lbl, k in self._READING_FONT_CHOICES if k == key), key)
+        self.statusBar().showMessage(f"Enabling reading font ({label}) — fetching if needed…")
         QApplication.processEvents()
         fam = self._apply_dyslexia_font(True, fetch=True)
         if fam:
-            self.statusBar().showMessage(f"Dyslexia-friendly font: {fam} — applied across the UI")
+            self.statusBar().showMessage(f"Reading font: {fam} — applied across the UI")
         else:
             self.statusBar().showMessage(
-                "OpenDyslexic unavailable (offline?) — install OpenDyslexic, "
-                "Atkinson Hyperlegible, or Lexend and try again"
+                f"{label} unavailable (offline?) — install it or try again"
             )
+
+    def _sync_reading_font_menu(self) -> None:
+        """Tick the reading-font submenu radio item matching the current key."""
+        acts = getattr(self, "_reading_font_acts", {})
+        cur = str(self.settings.get("qt_reading_font", "default"))
+        if cur == "default" and self.settings.get("qt_dyslexia_font", False):
+            cur = "opendyslexic"
+        for k, act in acts.items():
+            act.setChecked(k == cur)
+
+    def _qt_toggle_dyslexia_font_shortcut(self) -> None:
+        """Classic Ctrl+Alt+X toggle: flip OpenDyslexic on/off via the chooser.
+
+        Preserves the original accelerator's behavior — a single keypress turns a
+        dyslexia-friendly font on (OpenDyslexic) or back to Default — now routed
+        through the unified reading-font machinery."""
+        on = self._reading_font_key() != "default"
+        self._qt_set_reading_font("default" if on else "opendyslexic")
 
     def _qt_toggle_bionic(self) -> None:
         """Toggle bionic-reading emphasis and re-render the document."""
@@ -261,6 +305,26 @@ class CommandsMixin:
         self._apply_qt_theme(str(self.settings.get("theme", "dark")))
         self.statusBar().showMessage("Bionic reading: " + ("ON" if new else "OFF"))
 
+    def _qt_toggle_syllables(self) -> None:
+        """Toggle offline syllable splitting (read·a·bil·i·ty) and re-render.
+
+        Needs the optional ``pyphen`` package.  When it's missing, offer the
+        one-click background download (no pip) via the shared feature-install
+        flow; the toggle only turns on once Pyphen is importable.  Display-only:
+        the TTS text and highlight word map are unaffected."""
+        new = not bool(self.settings.get("qt_syllable_split", False))
+        if new and not self._qt_require_optional_feature("syllables", tr("Syllable splitting")):
+            # Not installed yet — the install was offered; leave the aid off and
+            # the menu unchecked until pyphen is present.
+            if hasattr(self, "_syllable_act"):
+                self._syllable_act.setChecked(False)
+            return
+        self.settings["qt_syllable_split"] = new
+        if hasattr(self, "_syllable_act"):
+            self._syllable_act.setChecked(new)
+        self._apply_qt_theme(str(self.settings.get("theme", "dark")))
+        self.statusBar().showMessage("Syllable splitting: " + ("ON" if new else "OFF"))
+
     def _qt_toggle_current_line(self) -> None:
         """Toggle the current-line focus band shown while reading."""
         new = not bool(self.settings.get("qt_current_line_highlight", False))
@@ -270,4 +334,13 @@ class CommandsMixin:
         self.statusBar().showMessage(
             "Current-line highlight: " + ("ON" if new else "OFF")
         )
+
+    def _qt_toggle_reading_ruler(self) -> None:
+        """Toggle the reading ruler / typoscope overlay (a movable focus band)."""
+        new = not bool(self.settings.get("qt_reading_ruler", False))
+        self.settings["qt_reading_ruler"] = new
+        if hasattr(self, "_ruler_act"):
+            self._ruler_act.setChecked(new)
+        self._apply_reading_ruler(new)
+        self.statusBar().showMessage("Reading ruler: " + ("ON" if new else "OFF"))
 

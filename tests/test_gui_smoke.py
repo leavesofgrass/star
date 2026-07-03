@@ -108,7 +108,7 @@ def test_dyslexia_font_reaches_the_document_even_for_css_themes(window):
     document.  The renderer now appends an override the cascade resolves last.
     """
     # Avoid any network: pretend the family is available.
-    window._find_dyslexia_font = lambda: "OpenDyslexic"
+    window._find_dyslexia_font = lambda prefer="": "OpenDyslexic"
     window.settings["qt_dyslexia_font"] = True
 
     # The default theme is CSS-based (has a `_css`), which is the failing case.
@@ -131,7 +131,7 @@ def test_dyslexia_font_toggles_off_and_reverts_chrome(window, qapp):
     OpenDyslexic. The real default font is now captured and restored.
     """
     original = qapp.font().family()
-    window._find_dyslexia_font = lambda: "OpenDyslexic"
+    window._find_dyslexia_font = lambda prefer="": "OpenDyslexic"
     window._apply_dyslexia_font(True, fetch=False)
     assert qapp.font().family() == "OpenDyslexic"
     window._apply_dyslexia_font(False)
@@ -180,6 +180,85 @@ def test_rsvp_overlay_toggles_and_feeds(window):
     assert ov._word_lbl.text() == "b"
     window._qt_toggle_rsvp()
     assert ov.isHidden()
+
+
+def test_reading_font_chooser_selects_and_reverts(window):
+    """The Reading Font chooser applies a family app-wide and back to default.
+
+    Pretend every family is available so no network fetch happens; verify the
+    chooser key is persisted, the legacy boolean stays coherent, and Default
+    reverts the app font.
+    """
+    from PyQt6.QtWidgets import QApplication
+
+    app = QApplication.instance()
+    original = app.font().family()
+    window._find_dyslexia_font = lambda prefer="": (prefer or "OpenDyslexic")
+
+    window._qt_set_reading_font("atkinson")
+    assert window.settings.get("qt_reading_font") == "atkinson"
+    assert window.settings.get("qt_dyslexia_font") is True  # legacy alias coherent
+    assert window._reading_font_key() == "atkinson"
+    assert app.font().family() == "Atkinson Hyperlegible"
+
+    window._qt_set_reading_font("default")
+    assert window.settings.get("qt_reading_font") == "default"
+    assert window.settings.get("qt_dyslexia_font") is False
+    assert app.font().family() == original
+
+
+def test_reading_font_submenu_present_with_all_families(window):
+    """View ▸ Reading Aids ▸ Reading Font offers Default + the three families."""
+    acts = window._reading_font_acts
+    assert set(acts) == {"default", "opendyslexic", "atkinson", "lexend"}
+    # Exactly one is checked (radio behavior via the QActionGroup).
+    assert sum(1 for a in acts.values() if a.isChecked()) == 1
+
+
+def test_syllable_split_is_display_only(window, monkeypatch):
+    """Syllable splitting inserts middots into the rendered HTML only; the Qt
+    word-map text (which drives speech highlighting) is unchanged."""
+    import star.syllables as _syl
+
+    # Force pyphen "available" with a deterministic splitter so the test does not
+    # depend on the package being installed.
+    monkeypatch.setattr(
+        _syl, "_hyphenator",
+        lambda lang=_syl._DEFAULT_LANG: type(
+            "H", (), {"inserted": staticmethod(lambda w, hyphen="·": hyphen.join(w))}
+        )(),
+    )
+    md = "# Title\n\nHello there reader."
+    window.settings["qt_syllable_split"] = False
+    off_html = window._md_to_html(md)
+    plain_ref = window._plain_text_without_syllables(md)
+
+    window.settings["qt_syllable_split"] = True
+    on_html = window._md_to_html(md)
+    # The rendered HTML now carries the visible separator…
+    assert _syl.MIDDOT in on_html and _syl.MIDDOT not in off_html
+    # …but the word-map source text is byte-identical (no middots leak into it).
+    assert window._plain_text_without_syllables(md) == plain_ref
+    assert _syl.MIDDOT not in plain_ref
+
+
+def test_reading_ruler_toggles_and_tears_down_cleanly(window):
+    """The reading ruler overlay is created on first toggle, persists its
+    setting, and disconnects its caret-tracking slot when turned off."""
+    assert window.settings.get("qt_reading_ruler", False) is False
+    window._qt_toggle_reading_ruler()
+    assert window.settings.get("qt_reading_ruler") is True
+    ruler = window._reading_ruler
+    assert ruler is not None
+    # Moving the caret must not raise while the ruler tracks it.
+    from PyQt6.QtGui import QTextCursor
+
+    cur = window.editor.textCursor()
+    cur.movePosition(QTextCursor.MoveOperation.NextWord)
+    window.editor.setTextCursor(cur)
+    window._qt_toggle_reading_ruler()
+    assert window.settings.get("qt_reading_ruler") is False
+    assert ruler.isHidden()
 
 
 def test_missing_feature_offers_autoinstall_not_pip(window, monkeypatch):

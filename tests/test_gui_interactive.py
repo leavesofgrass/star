@@ -257,7 +257,7 @@ def test_dyslexia_font_toggle_applies_and_reverts(window, qtbot):
     original = app.font().family()
 
     # Pretend OpenDyslexic is installed so no network fetch happens.
-    window._find_dyslexia_font = lambda: "OpenDyslexic"
+    window._find_dyslexia_font = lambda prefer="": "OpenDyslexic"
 
     # The setting flag is what _md_to_html / _effective_font_family gate on
     # (the menu toggle sets it before calling _apply_dyslexia_font).

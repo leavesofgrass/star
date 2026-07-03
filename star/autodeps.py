@@ -44,6 +44,7 @@ FEATURES: dict[str, list[tuple[str, str]]] = {
     "dictionary": [("nltk", "nltk")],
     "spellcheck": [("pyspellchecker", "spellchecker")],
     "summarize": [("sumy", "sumy")],
+    "syllables": [("pyphen", "pyphen")],
     "flashcards": [("genanki", "genanki")],
     "translate": [("deep-translator", "deep_translator")],
     "feeds": [("feedparser", "feedparser")],
@@ -70,6 +71,8 @@ FEATURE_INFO: dict[str, tuple[str, str, int]] = {
                    "download: python -m nltk.downloader wordnet omw-1.4 cmudict", 12),
     "spellcheck": ("Spell check in edit mode", "pyspellchecker", 5),
     "summarize": ("Summarize documents", "sumy — extractive LexRank summaries", 6),
+    "syllables": ("Syllable splitting (decoding aid)",
+                  "pyphen — split words into syllables (read·a·bil·i·ty) offline", 2),
     "flashcards": ("Anki flashcard export", "genanki", 2),
     "translate": ("Translate documents",
                   "deep-translator — uses online translation services", 2),
@@ -108,9 +111,9 @@ FEATURE_INFO: dict[str, tuple[str, str, int]] = {
 # (speech-to-text dictation, named-entity extraction). The chooser labels the
 # download size so "All" is an informed, deliberate choice.
 PRESETS: dict[str, list[str]] = {
-    "thin": ["documents", "dictionary", "spellcheck", "summarize", "flashcards",
-             "translate", "feeds", "audio", "braille", "watch", "clipboard",
-             "markup"],
+    "thin": ["documents", "dictionary", "spellcheck", "summarize", "syllables",
+             "flashcards", "translate", "feeds", "audio", "braille", "watch",
+             "clipboard", "markup"],
     "all": list(FEATURES),
 }
 
@@ -282,6 +285,7 @@ def install_feature_now(key: str) -> bool:
 # live in _runtime and Whisper/PyTorch generally need a fresh process.
 _FEATURE_FLAGS: dict[str, list[tuple[str, str]]] = {
     "summarize": [("star.summarize", "_SUMY")],
+    "syllables": [("star.syllables", "_PYPHEN")],
     "translate": [("star.translate", "_DEEP_TRANSLATOR")],
     "feeds": [("star.feeds", "_FEEDPARSER")],
     "vocab": [("star.vocab", "_WORDFREQ")],

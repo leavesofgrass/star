@@ -422,5 +422,11 @@
   "Downloading {feature}…": "Téléchargement de {feature}…",
   "{feature} installed — restart star to use it.": "{feature} installé — redémarrez star pour l'utiliser.",
   "Couldn't install {feature} — check your connection and try again.": "Impossible d'installer {feature} — vérifiez votre connexion et réessayez.",
-  "{feature} installed — you can use it now.": "{feature} installé — vous pouvez l'utiliser maintenant."
+  "{feature} installed — you can use it now.": "{feature} installé — vous pouvez l'utiliser maintenant.",
+  "Reading Font": "Police de lecture",
+  "Syllable splitting": "Découpage en syllabes",
+  "Syllable Splitting": "Découpage en syllabes",
+  "Reading Ruler": "Règle de lecture",
+  "Reading Ruler…": "Règle de lecture…",
+  "Default": "Par défaut"
 }

@@ -70,6 +70,9 @@ audio = ["pydub"]
 transcribe = ["openai-whisper", "sounddevice", "numpy"]
 # Extractive document summarization (Tools ▸ Summarize Document) via sumy.
 summarize = ["sumy"]
+# Syllable splitting decoding aid (View ▸ Reading Aids ▸ Syllable Splitting) via
+# pyphen — pure-Python hyphenation, offline.
+syllables = ["pyphen"]
 # Anki flashcard export (File ▸ Export ▸ Anki Flashcards) via genanki.
 flashcards = ["genanki"]
 # Spell checking in edit mode (Edit ▸ Check Spelling) via pyspellchecker.
@@ -127,6 +130,7 @@ all = [
     "watchdog",
     "pyperclip",
     "sumy",
+    "pyphen",
     "genanki",
     "pyspellchecker",
     "deep-translator",

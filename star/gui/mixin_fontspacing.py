@@ -27,11 +27,22 @@ class FontSpacingMixin:
         "Comic Neue",
     )
 
-    def _register_dyslexia_font(self, paths=None) -> None:
-        """Register any fetched OpenDyslexic .otf files with Qt (idempotent).
+    # Reading-font chooser keys → the QFont family each provides.  "default"
+    # means "no override" (the user's chosen family / theme font wins).  Kept in
+    # sync with star.fonts.FONTS; the dyslexia toggle maps onto "opendyslexic".
+    _READING_FONTS = {
+        "default": "",
+        "opendyslexic": "OpenDyslexic",
+        "atkinson": "Atkinson Hyperlegible",
+        "lexend": "Lexend",
+    }
 
-        Makes the on-demand-fetched font visible to QFontDatabase.families()
-        without a system-wide install, so _find_dyslexia_font picks it up."""
+    def _register_dyslexia_font(self, paths=None) -> None:
+        """Register any fetched reading-font files with Qt (idempotent).
+
+        Makes the on-demand-fetched fonts (OpenDyslexic / Atkinson Hyperlegible /
+        Lexend, ``.otf`` and ``.ttf``) visible to QFontDatabase.families()
+        without a system-wide install, so the family lookups pick them up."""
         from .. import fonts as _fontmod
 
         try:
@@ -40,6 +51,19 @@ class FontSpacingMixin:
                 QFontDatabase.addApplicationFont(str(p))
         except Exception:
             pass  # best-effort; falls back to system fonts / the chosen family
+
+    def _reading_font_key(self) -> str:
+        """The active reading-font chooser key, honoring the legacy toggle.
+
+        The pre-0.1.21 ``qt_dyslexia_font`` boolean is treated as an alias for
+        selecting OpenDyslexic, so the old Dyslexia-Friendly Font accelerator and
+        any saved profiles keep working alongside the new chooser."""
+        key = str(self.settings.get("qt_reading_font", "default"))
+        if key not in self._READING_FONTS:
+            key = "default"
+        if key == "default" and self.settings.get("qt_dyslexia_font", False):
+            return "opendyslexic"
+        return key
 
     def _maybe_prefetch_dyslexia_font(self) -> None:
         """Download OpenDyslexic in the background if it isn't available yet.
@@ -58,12 +82,17 @@ class FontSpacingMixin:
             "auto_install", True
         ):
             return
-        if _fontmod.is_fetched() or self._find_dyslexia_font():
+        # Prefetch whichever reading font is currently selected (OpenDyslexic by
+        # default so the classic behavior is unchanged); a no-op once it's on
+        # disk or a matching system family is already installed.
+        key = self._reading_font_key()
+        font_key = key if key in _fontmod.FONTS else "opendyslexic"
+        if _fontmod.is_font_fetched(font_key) or self._find_dyslexia_font():
             return
 
         def _work() -> None:
             try:
-                _fontmod.fetch()
+                _fontmod.fetch_font(font_key)
             except Exception:
                 return
             try:
@@ -74,22 +103,21 @@ class FontSpacingMixin:
         threading.Thread(target=_work, name="star-font-fetch", daemon=True).start()
 
     def _on_dyslexia_font_ready(self) -> None:
-        """GUI-thread slot: register the freshly-fetched OpenDyslexic and, if the
-        dyslexia font is enabled, apply it across the UI now that it's available."""
+        """GUI-thread slot: register the freshly-fetched reading font and, if a
+        reading font is selected, apply it across the UI now that it's available."""
         self._register_dyslexia_font()
         self._dyslexia_registered = True
-        if self.settings.get("qt_dyslexia_font", False):
+        if self._reading_font_key() != "default":
             self._apply_dyslexia_font(True, fetch=False)
         else:
-            self.statusBar().showMessage("OpenDyslexic font ready", 4000)
+            self.statusBar().showMessage("Reading font ready", 4000)
 
-    def _find_dyslexia_font(self) -> str:
-        """Return the first available dyslexia-friendly family, or "".
+    def _available_families(self) -> "set[str]":
+        """Lower-cased set of every family Qt can resolve, or empty on failure.
 
-        Checks system-installed families AND the on-demand-fetched OpenDyslexic
-        (registered here first). QFontDatabase.families() is static in PyQt6 but
-        an instance method in PyQt5, so both call styles are attempted.
-        """
+        Registers any fetched reading fonts first so they're visible.
+        QFontDatabase.families() is static in PyQt6 but an instance method in
+        PyQt5, so both call styles are attempted."""
         if not getattr(self, "_dyslexia_registered", False):
             self._register_dyslexia_font()
             self._dyslexia_registered = True
@@ -98,40 +126,60 @@ class FontSpacingMixin:
         except TypeError:
             fams = QFontDatabase().families()  # PyQt5 (instance)
         except Exception:
+            return set()
+        return {str(f).lower() for f in fams}
+
+    def _find_dyslexia_font(self, prefer: str = "") -> str:
+        """Return an available reading-aid family, or "".
+
+        When *prefer* (a family name) is installed/fetched it wins; otherwise the
+        first available family from _DYSLEXIA_FONTS is used (preserving the
+        original OpenDyslexic-first fallback order).
+        """
+        available = self._available_families()
+        if not available:
             return ""
-        available = {str(f).lower() for f in fams}
+        if prefer and prefer.lower() in available:
+            return prefer
         for cand in self._DYSLEXIA_FONTS:
             if cand.lower() in available:
                 return cand
         return ""
 
     def _apply_dyslexia_font(self, on: bool, *, fetch: bool = True) -> str:
-        """Apply (or remove) the dyslexia-friendly font across the WHOLE UI.
+        """Apply (or remove) the selected reading font across the WHOLE UI.
 
-        When *on*, prefers a system-installed dyslexia family; if none is present
-        and *fetch* is true, downloads OpenDyslexic on demand (best-effort). The
-        family is applied to the QApplication (menus, toolbar, dialogs, docks,
-        labels) as well as the document editor, then the view is re-rendered.
-        Returns the family applied (\"\" if none / when turning off)."""
+        When *on*, resolves the chosen reading font (OpenDyslexic / Atkinson
+        Hyperlegible / Lexend, honoring the legacy dyslexia toggle); if it isn't
+        installed and *fetch* is true, downloads it on demand from GitHub
+        (best-effort, no pip). The family is applied to the QApplication (menus,
+        toolbar, dialogs, docks, labels) as well as the document editor, then the
+        view is re-rendered.  Returns the family applied (\"\" if none / when
+        turning off)."""
         app = QApplication.instance()
         if not on:
             if app is not None:
                 # Restore the captured default font. A default-constructed QFont()
                 # has no resolve mask and would NOT revert widgets (menus, docks)
-                # already resolved to OpenDyslexic, so restore the real snapshot.
+                # already resolved to the reading font, so restore the snapshot.
                 default = getattr(self, "_default_app_font", None)
                 app.setFont(default if default is not None else QFont())
             self.editor.setFont(self._make_editor_font())
             self._apply_qt_theme(str(self.settings.get("theme", "dark")))
             return ""
-        fam = self._find_dyslexia_font()
-        if not fam and fetch:
-            from .. import fonts as _fontmod
+        from .. import fonts as _fontmod
 
-            paths = _fontmod.fetch()
+        key = self._reading_font_key()
+        prefer = self._READING_FONTS.get(key, "")
+        fam = self._find_dyslexia_font(prefer)
+        # Fetch the specific selected family (not just OpenDyslexic) if it isn't
+        # available yet and we're allowed to.
+        if (not fam or (prefer and fam != prefer)) and fetch:
+            font_key = key if key in _fontmod.FONTS else "opendyslexic"
+            paths = _fontmod.fetch_font(font_key)
             if paths:
                 self._register_dyslexia_font(paths)
-                fam = self._find_dyslexia_font()
+                fam = self._find_dyslexia_font(prefer)
         if fam and app is not None:
             base = int(self.settings.get("qt_font_size", 14)) or 14
             app.setFont(QFont(fam, base))     # chrome: menus, toolbar, dialogs, labels
@@ -141,13 +189,15 @@ class FontSpacingMixin:
         return fam
 
     def _effective_font_family(self) -> str:
-        """The display family, honoring the dyslexia-font preference.
+        """The display family, honoring the reading-font preference.
 
-        When 'qt_dyslexia_font' is on and a dyslexia-friendly family is
-        installed it wins; otherwise the user's chosen family is used.
+        When a reading font is selected (via the chooser or the legacy dyslexia
+        toggle) and an appropriate family is installed/fetched it wins; otherwise
+        the user's chosen family is used.
         """
-        if self.settings.get("qt_dyslexia_font", False):
-            fam = self._find_dyslexia_font()
+        key = self._reading_font_key()
+        if key != "default":
+            fam = self._find_dyslexia_font(self._READING_FONTS.get(key, ""))
             if fam:
                 return fam
         return str(self.settings.get("qt_font_family", "Georgia"))

@@ -128,8 +128,16 @@ class DocumentMixin:
         # unless the overlay is toggled on); also repaints the highlights.
         self._qt_refresh_vocab_highlight()
 
-        # Read Qt plain text NOW (main thread required) then hand off.
-        qt_plain = self.editor.document().toPlainText()
+        # Read Qt plain text NOW (main thread required) then hand off.  The word
+        # map is aligned against this text; the syllable-splitting aid inserts
+        # visible middots into the *rendered* HTML (and thus toPlainText()),
+        # which would break the word→offset search.  So when it's on, derive the
+        # word-map text from an un-syllabified render — keeping speech and
+        # highlighting identical whether or not the aid is displayed.
+        if self.settings.get("qt_syllable_split", False):
+            qt_plain = self._plain_text_without_syllables(doc.markdown or "")
+        else:
+            qt_plain = self.editor.document().toPlainText()
 
         def _build() -> None:
             try:
@@ -503,6 +511,30 @@ class DocumentMixin:
         close_list()
         return "\n".join(out)
 
+    def _plain_text_without_syllables(self, md: str) -> str:
+        """Plain text of the rendered document as if syllable splitting were off.
+
+        The word map is aligned against the editor's ``toPlainText()``.  When the
+        syllable aid is on, that text carries visible middots that would break the
+        word→offset search, so we render once with the aid suppressed and read the
+        plain text back through a throwaway QTextDocument.  This keeps the word
+        map (and therefore speech highlighting) identical regardless of whether
+        the display aid is shown.
+        """
+        try:
+            from PyQt6.QtGui import QTextDocument
+        except ImportError:
+            from PyQt5.QtGui import QTextDocument  # type: ignore[no-redef]
+        prev = self.settings.get("qt_syllable_split", False)
+        try:
+            self.settings._data["qt_syllable_split"] = False
+            html = self._md_to_html(md)
+        finally:
+            self.settings._data["qt_syllable_split"] = prev
+        scratch = QTextDocument()
+        scratch.setHtml(html)
+        return scratch.toPlainText()
+
     def _md_to_html(self, md: str) -> str:
         """Convert internal Markdown to styled HTML for QTextEdit.
 
@@ -520,14 +552,24 @@ class DocumentMixin:
         # eye is pulled forward through the text (a dyslexia reading aid).
         if self.settings.get("qt_bionic_reading", False):
             body = self._bionic_html(body)
+        # Syllable splitting: insert a visible separator between syllables
+        # (read·a·bil·i·ty) as a decoding aid.  DISPLAY-ONLY, exactly like
+        # bionic: it transforms the rendered HTML only — the TTS plain text and
+        # the highlight word map are built from the untransformed document, so
+        # speech and highlighting are unaffected.
+        if self.settings.get("qt_syllable_split", False):
+            from .. import syllables as _syl
+
+            sep = str(self.settings.get("qt_syllable_sep", _syl.MIDDOT)) or _syl.MIDDOT
+            body = _syl.syllabify_html(body, sep)
         fam = self._effective_font_family()
         if custom_css:
             style = custom_css
             # A CSS-file / palette theme may hard-set the body font-family (the
-            # Obsidian theme uses Georgia). When the dyslexia-friendly font is
-            # active it must win in the reading pane too, so append an override the
-            # cascade resolves last — across text elements, but never code/pre.
-            if self.settings.get("qt_dyslexia_font", False) and fam:
+            # Obsidian theme uses Georgia). When a reading font is active it must
+            # win in the reading pane too, so append an override the cascade
+            # resolves last — across text elements, but never code/pre.
+            if self._reading_font_key() != "default" and fam:
                 style += (
                     "\nbody, p, li, blockquote, td, th, h1, h2, h3, h4, h5, h6, a "
                     '{ font-family: "' + fam + '", sans-serif; }'

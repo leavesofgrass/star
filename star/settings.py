@@ -160,8 +160,23 @@ DEFAULTS: Dict[str, Any] = {
     "qt_edit_preview": False,
     # ── Dyslexia-friendly reading aids — Qt GUI ───────────────────
     "qt_dyslexia_font": False,  # prefer a bundled/installed dyslexia-friendly font
+    # Reading-font chooser (View ▸ Reading Aids ▸ Reading Font): "default" (no
+    # override), "opendyslexic", "atkinson" (Atkinson Hyperlegible), or "lexend".
+    # Fetched on demand from GitHub (OFL) and applied app-wide + in-document.
+    "qt_reading_font": "default",
     "qt_current_line_highlight": False,  # band-highlight the line being read
     "qt_bionic_reading": False,  # embolden the leading part of each word
+    # ── Syllable splitting (offline decoding aid, needs pyphen) ────
+    # Display-only: inserts a middot between syllables (read·a·bil·i·ty) in the
+    # rendered document; never alters the TTS text or the highlight word map.
+    "qt_syllable_split": False,      # whether syllable separators are shown
+    "qt_syllable_sep": "·",          # the visible separator (U+00B7 middot)
+    # ── Reading ruler / typoscope (Qt GUI) ────────────────────────
+    # A wide translucent band tracking the caret line — a movable typoscope,
+    # distinct from the thin current-line focus tint above.
+    "qt_reading_ruler": False,       # whether the ruler overlay is shown
+    "qt_ruler_height": 40,           # band height in pixels (16–160)
+    "qt_ruler_opacity": 22,          # band opacity, 0–100 (percent)
     # ── RSVP (Rapid Serial Visual Presentation) ───────────────────
     # One word at a time displayed at a fixed point — an aid for some dyslexic
     # readers and users with restricted visual fields.

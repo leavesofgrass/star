@@ -42,6 +42,106 @@ class AidDialogsMixin:
                 self._rsvp_overlay.hide()
         self.statusBar().showMessage("RSVP mode: " + ("ON" if new else "OFF"))
 
+    # ── Reading ruler / typoscope ──────────────────────────────────────
+
+    def _apply_reading_ruler(self, on: bool) -> None:
+        """Show or hide the reading-ruler overlay, wiring caret tracking.
+
+        Teardown-safe: the ``cursorPositionChanged`` connection is made only
+        while the ruler is visible and torn down the moment it hides, so a closed
+        window never fires the slot into a half-destroyed overlay."""
+        if not on:
+            ruler = getattr(self, "_reading_ruler", None)
+            if ruler is not None:
+                try:
+                    self.editor.cursorPositionChanged.disconnect(ruler.follow_caret)
+                except (TypeError, RuntimeError):
+                    pass  # never connected / already gone
+                ruler.hide()
+            return
+        ruler = self._qt_ensure_reading_ruler()
+        # Reflect any settings changes made while it was off.
+        ruler.set_height(int(self.settings.get("qt_ruler_height", 40)))
+        ruler.set_opacity(int(self.settings.get("qt_ruler_opacity", 22)))
+        try:
+            self.editor.cursorPositionChanged.connect(ruler.follow_caret)
+        except (TypeError, RuntimeError):
+            pass
+        ruler.follow_caret()
+        ruler.show()
+        ruler.raise_()
+
+    def _qt_ensure_reading_ruler(self):
+        """Create the reading-ruler overlay lazily (on first use)."""
+        if getattr(self, "_reading_ruler", None) is None:
+            from .main_window import _ReadingRulerOverlay
+            self._reading_ruler = _ReadingRulerOverlay(self.editor, self.settings)
+        return self._reading_ruler
+
+    def _qt_reading_ruler_dialog(self) -> None:
+        """Adjust the reading ruler's band height and opacity (previews live)."""
+        keys = ("qt_ruler_height", "qt_ruler_opacity")
+        orig = {k: self.settings.get(k) for k in keys}
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Reading Ruler")
+        form = QFormLayout(dlg)
+        info = QLabel(
+            "A translucent band tracks the line you're reading.\n"
+            "Changes preview live — OK to keep, Cancel to revert."
+        )
+        info.setWordWrap(True)
+        form.addRow(info)
+
+        height = QSpinBox()
+        height.setRange(16, 160)
+        height.setSuffix(" px")
+        height.setValue(int(orig["qt_ruler_height"] or 40))
+        form.addRow("Band height:", height)
+
+        opacity = QSpinBox()
+        opacity.setRange(0, 100)
+        opacity.setSuffix(" %")
+        opacity.setValue(int(orig["qt_ruler_opacity"] or 22))
+        form.addRow("Band opacity:", opacity)
+
+        def _preview() -> None:
+            self.settings._data["qt_ruler_height"] = height.value()
+            self.settings._data["qt_ruler_opacity"] = opacity.value()
+            ruler = getattr(self, "_reading_ruler", None)
+            if ruler is not None:
+                ruler.set_height(height.value())
+                ruler.set_opacity(opacity.value())
+
+        height.valueChanged.connect(lambda _v: _preview())
+        opacity.valueChanged.connect(lambda _v: _preview())
+
+        try:
+            _ok = QDialogButtonBox.StandardButton.Ok
+            _cancel = QDialogButtonBox.StandardButton.Cancel
+        except AttributeError:
+            _ok = QDialogButtonBox.Ok  # type: ignore[attr-defined]
+            _cancel = QDialogButtonBox.Cancel  # type: ignore[attr-defined]
+        buttons = QDialogButtonBox(_ok | _cancel)
+        buttons.accepted.connect(dlg.accept)
+        buttons.rejected.connect(dlg.reject)
+        form.addRow(buttons)
+
+        result = dlg.exec() if _QT == "PyQt6" else dlg.exec_()
+        if result:
+            _preview()
+            self.settings.save()
+            self.statusBar().showMessage(
+                f"Reading ruler — {height.value()} px, {opacity.value()}% opacity"
+            )
+        else:
+            for k, v in orig.items():
+                self.settings._data[k] = v
+            ruler = getattr(self, "_reading_ruler", None)
+            if ruler is not None:
+                ruler.set_height(int(orig["qt_ruler_height"] or 40))
+                ruler.set_opacity(int(orig["qt_ruler_opacity"] or 22))
+
     def _qt_rsvp_position_dialog(self) -> None:
         """Show a 3×3 grid dialog to pick the RSVP overlay position.
 

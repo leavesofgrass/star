@@ -625,14 +625,37 @@ class ChromeMixin:
             )
         )
         aids_menu.addSeparator()
+        # ── Reading Font chooser (Default / OpenDyslexic / Atkinson / Lexend) ─
+        # Each choice fetches its OFL font from GitHub on demand (no pip) and
+        # applies it app-wide + in-document.  A radio-style submenu; the classic
+        # Ctrl+Alt+X toggle (below) flips OpenDyslexic on/off for muscle memory.
+        font_menu: QMenu = aids_menu.addMenu(tr("Reading Font"))
+        try:
+            from PyQt6.QtGui import QActionGroup
+        except ImportError:
+            from PyQt5.QtWidgets import QActionGroup  # type: ignore[no-redef]
+        self._reading_font_group = QActionGroup(self)
+        self._reading_font_acts: Dict[str, QAction] = {}
+        _cur_font = str(self.settings.get("qt_reading_font", "default"))
+        if _cur_font == "default" and self.settings.get("qt_dyslexia_font", False):
+            _cur_font = "opendyslexic"
+        for _label, _key in self._READING_FONT_CHOICES:
+            _act = QAction(tr(_label), self)
+            _act.setCheckable(True)
+            _act.setChecked(_key == _cur_font)
+            _act.triggered.connect(lambda _c=False, k=_key: self._qt_set_reading_font(k))
+            self._reading_font_group.addAction(_act)
+            font_menu.addAction(_act)
+            self._reading_font_acts[_key] = _act
+        # Hidden accelerator preserving the classic dyslexia-font toggle. Keyed on
+        # the same English label so keybinding overrides stay stable.
         self._dyslexia_font_act = _mi(
             "Dyslexia-Friendly Font",
             "Ctrl+Alt+X",
             self._qt_toggle_dyslexia_font,
-            tip="Use a dyslexia-friendly font across the whole UI — fetches "
-            "OpenDyslexic on first use if none is installed",
+            tip="Toggle OpenDyslexic on/off (see Reading Font for more choices)",
             checkable=True,
-            checked=bool(self.settings.get("qt_dyslexia_font", False)),
+            checked=_cur_font != "default",
         )
         aids_menu.addAction(self._dyslexia_font_act)
         self._bionic_act = _mi(
@@ -644,6 +667,16 @@ class ChromeMixin:
             checked=bool(self.settings.get("qt_bionic_reading", False)),
         )
         aids_menu.addAction(self._bionic_act)
+        self._syllable_act = _mi(
+            "Syllable Splitting",
+            "",
+            self._qt_toggle_syllables,
+            tip="Split words into syllables (read·a·bil·i·ty) — a decoding aid "
+            "(display-only; speech is unaffected)",
+            checkable=True,
+            checked=bool(self.settings.get("qt_syllable_split", False)),
+        )
+        aids_menu.addAction(self._syllable_act)
         self._current_line_act = _mi(
             "Current-Line Highlight",
             "Ctrl+Alt+L",
@@ -653,6 +686,24 @@ class ChromeMixin:
             checked=bool(self.settings.get("qt_current_line_highlight", False)),
         )
         aids_menu.addAction(self._current_line_act)
+        self._ruler_act = _mi(
+            "Reading Ruler",
+            "",
+            self._qt_toggle_reading_ruler,
+            tip="Show a movable translucent band (typoscope) that tracks the "
+            "caret line",
+            checkable=True,
+            checked=bool(self.settings.get("qt_reading_ruler", False)),
+        )
+        aids_menu.addAction(self._ruler_act)
+        aids_menu.addAction(
+            _mi(
+                "Reading Ruler…",
+                "",
+                self._qt_reading_ruler_dialog,
+                tip="Adjust the reading ruler's height and opacity",
+            )
+        )
         self._vocab_act = _mi(
             "Highlight Difficult Words",
             "Ctrl+Alt+O",

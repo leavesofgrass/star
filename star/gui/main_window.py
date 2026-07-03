@@ -220,6 +220,93 @@ class _RSVPOverlay(QWidget):
 
 # =========================================================================
 
+
+class _ReadingRulerOverlay(QWidget):
+    """A movable translucent reading ruler (typoscope) over the reading view.
+
+    A wide, adjustable horizontal band that tracks the caret line — distinct
+    from the thin current-line focus tint (which paints *behind text* via an
+    ExtraSelection).  This overlay floats above the text as a child of the
+    editor's viewport, is mouse-transparent (it never steals clicks), and follows
+    the text caret.  Height and opacity are user-adjustable.
+
+    Teardown-safe by construction: it holds no timers and installs no event
+    filters.  The only external wiring is a connection to the editor's
+    ``cursorPositionChanged`` signal, made and unmade by
+    :meth:`StarWindow._apply_reading_ruler`, so a hidden/closed window leaves no
+    dangling connection.
+    """
+
+    def __init__(self, editor: QWidget, settings: "Settings") -> None:
+        # Parent to the editor's viewport so (0, y) coordinates line up with the
+        # caret rectangle QTextEdit reports.
+        super().__init__(editor.viewport())
+        self._editor = editor
+        self._height: int = int(settings.get("qt_ruler_height", 40))
+        self._opacity: int = int(settings.get("qt_ruler_opacity", 22))
+        self._color = QColor(str(settings.get("highlight_color", "cyan")))
+        if not self._color.isValid():
+            self._color = QColor("#06b6d4")
+        self._center_y: int = 0
+        # Transparent to mouse events — reading/selecting/clicking still hit the
+        # text underneath.  Attribute name differs across PyQt5/6 enum styles.
+        try:
+            attr = Qt.WidgetAttribute.WA_TransparentForMouseEvents
+        except AttributeError:  # PyQt5
+            attr = Qt.WA_TransparentForMouseEvents  # type: ignore[attr-defined]
+        self.setAttribute(attr, True)
+        self.setVisible(False)
+
+    def set_height(self, px: int) -> None:
+        self._height = max(16, min(int(px), 160))
+        self._reposition()
+
+    def set_opacity(self, pct: int) -> None:
+        self._opacity = max(0, min(int(pct), 100))
+        self.update()
+
+    def set_color(self, color: "QColor") -> None:
+        if color.isValid():
+            self._color = color
+            self.update()
+
+    def follow_caret(self) -> None:
+        """Recompute the band's vertical center from the editor's caret rect."""
+        try:
+            rect = self._editor.cursorRect()
+        except Exception:
+            return
+        # cursorRect is in viewport coordinates — the same space as this widget.
+        self._center_y = rect.center().y()
+        self._reposition()
+
+    def _reposition(self) -> None:
+        vp = self.parentWidget()
+        if vp is None:
+            return
+        w = vp.width()
+        y = int(self._center_y - self._height / 2)
+        # Keep the band within the viewport so it never floats off-screen.
+        y = max(0, min(y, max(0, vp.height() - self._height)))
+        self.setGeometry(0, y, w, self._height)
+        self.raise_()
+        self.update()
+
+    def paintEvent(self, event: Any) -> None:
+        try:
+            from PyQt6.QtGui import QPainter
+        except ImportError:
+            from PyQt5.QtGui import QPainter  # type: ignore[no-redef]
+        painter = QPainter(self)
+        fill = QColor(self._color)
+        # opacity is 0–100 (percent) → 0–255 alpha.
+        fill.setAlpha(int(self._opacity / 100.0 * 255))
+        painter.fillRect(self.rect(), fill)
+        painter.end()
+
+
+# =========================================================================
+
 class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, HighlightsMixin, PresetsMixin, DocOpsMixin, DisplayMixin, DocToolsMixin, NavigationMixin, PlaybackMixin, FontSpacingMixin, DocumentMixin, AnnotationsMixin, ExportMixin, TranscriptionMixin, CitationsMixin, GraphMixin, FindMixin, BookmarksQtMixin, VoicesMixin, ReviewMixin, TourMixin, QMainWindow):
     """Qt GUI window for star.
 
@@ -458,16 +545,23 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         _app = QApplication.instance()
         self._default_app_font = QFont(_app.font()) if _app is not None else None
 
-        # If the dyslexia-friendly font was left on, apply it across the whole UI
-        # now that the toolbar/menus exist (using an already-fetched / installed
-        # family — no network on the GUI thread at launch).
-        if self.settings.get("qt_dyslexia_font", False):
+        # If a reading font was left selected (chooser or legacy dyslexia
+        # toggle), apply it across the whole UI now that the toolbar/menus exist
+        # (using an already-fetched / installed family — no network on the GUI
+        # thread at launch).
+        if self._reading_font_key() != "default":
             self._apply_dyslexia_font(True, fetch=False)
-        # Fetch OpenDyslexic automatically in the background — like the other
-        # optional dependencies — so it is ready when wanted without a wait. When
-        # it lands, _on_dyslexia_font_ready registers it and re-applies if the
-        # setting is on.  Honors auto_install / STAR_NO_AUTOINSTALL.
+        # Fetch the selected reading font automatically in the background — like
+        # the other optional dependencies — so it is ready when wanted without a
+        # wait. When it lands, _on_dyslexia_font_ready registers it and re-applies
+        # if selected.  Honors auto_install / STAR_NO_AUTOINSTALL.
         self._maybe_prefetch_dyslexia_font()
+
+        # Reading ruler / typoscope overlay: created lazily on first toggle
+        # (None until then).  Restore it if it was left on.
+        self._reading_ruler: Optional[Any] = None
+        if self.settings.get("qt_reading_ruler", False):
+            self._apply_reading_ruler(True)
 
         if initial_path:
             self._open_path(initial_path)
@@ -869,6 +963,13 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
                 pass
             self._watcher = None
         self.tts_manager.stop()
+        # Disconnect + hide the reading-ruler overlay so its caret-tracking slot
+        # can never fire into a half-destroyed widget during teardown.
+        if getattr(self, "_reading_ruler", None) is not None:
+            try:
+                self._apply_reading_ruler(False)
+            except Exception:
+                pass
         # Stop the periodic timers so a closed window can never fire _stats_poll /
         # the preview refresh into a half-destroyed object during teardown (a
         # source of Qt shutdown segfaults, e.g. the pytest-qt CI legs).
