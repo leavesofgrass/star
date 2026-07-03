@@ -269,6 +269,14 @@ class ChromeMixin:
                 tip="Export as a karaoke MP4 — themed document with highlighted sentence and spoken audio",
             )
         )
+        export_menu.addAction(
+            _mi(
+                "Export Audiobook (M4B)…",
+                "",  # menu-only (avoids an ambiguous accelerator)
+                self._qt_export_audiobook,
+                tip="Export as a chaptered M4B audiobook (chapters from headings; needs ffmpeg)",
+            )
+        )
         # Registry-driven exporters: the remaining built-ins (HTML, EPUB) and any
         # installed third-party ``star.exporters`` plugin appear here automatically.
         _plugin_exps = self._plugin_exporters()

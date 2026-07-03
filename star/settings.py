@@ -47,6 +47,9 @@ DEFAULTS: Dict[str, Any] = {
     "tts_volume": 1.0,  # 0.0 – 1.0
     "tts_voice": "",  # empty = system default (auto-resolved per platform)
     "tts_prefer_voice": "eloquence",  # substring of a preferred default voice
+    # Opt-in ElevenLabs cloud neural voice.  Empty = disabled (no network egress);
+    # paste a key AND select the "elevenlabs" engine to enable.  See star/tts/cloud.
+    "elevenlabs_api_key": "",
     "tts_auto_play": False,  # start reading on file open
     "tts_skip_code": True,  # don't read code blocks aloud
     "wrap_width": 0,  # 0 = terminal width
@@ -59,6 +62,7 @@ DEFAULTS: Dict[str, Any] = {
     "braille_table": "en-ueb-g2.ctb",
     "braille_grade2": False,  # opt-in liblouis Grade 2; built-in Grade 1 is default
     "audio_export_format": "wav",  # default audio export container (no ffmpeg needed)
+    "audiobook_bitrate": "64k",  # AAC bitrate for M4B audiobook export (needs ffmpeg)
     "last_path": "",
     "recent_files": [],  # list of recently opened paths/URLs
     # Reading statistics & progress: per-document time read, furthest word
@@ -70,6 +74,11 @@ DEFAULTS: Dict[str, Any] = {
     # OneDrive / Syncthing folder).  The library is the filesystem itself, so it
     # syncs across machines for free.  See star/library.py.
     "library_folders": [],  # [absolute folder paths]
+    # Conflict-resolution policy when a synced .star/ sidecar diverges between
+    # machines: "newest" (newer timestamp wins — the historical last-write-wins
+    # behaviour), "highest_progress" (keep the furthest reading position), or
+    # "manual" (keep local and surface conflicts).  See star/sync.py.
+    "sync_conflict_policy": "newest",
     # Voice & profile presets: named bundles of voice, rate, theme, font,
     # spacing, and highlight settings that can be applied in one step.
     "profiles": {},  # {name: {setting_key: value}}

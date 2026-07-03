@@ -5,6 +5,7 @@ from .base import TTSBackend
 from .silent import SilentBackend
 from .pyttsx3 import Pyttsx3Backend
 from .espeak import ESpeakLibBackend
+from .cloud.base import CloudTTSError
 from .audio import _convert_audio_format
 from .subtitles import _generate_subtitles
 
@@ -168,7 +169,7 @@ class TTSManager:
 
     #: Engine names never chosen in ``auto`` mode: piper/coqui need an explicit
     #: opt-in (downloaded model), and ``silent`` is the last-resort fallback.
-    _AUTO_SKIP = frozenset({"silent", "piper", "coqui"})
+    _AUTO_SKIP = frozenset({"silent", "piper", "coqui", "elevenlabs"})
 
     def __init__(self, settings: Settings):
         self._settings = settings
@@ -525,7 +526,16 @@ class TTSManager:
         else:
             self._expect_callbacks = False
             self._paced_playback = False
-            self._backend.speak(text, on_done=on_done)
+            try:
+                self._backend.speak(text, on_done=on_done)
+            except CloudTTSError:
+                # An opt-in cloud voice failed at synth time (missing key or a
+                # network error).  Fall back to a local engine with timer-only
+                # highlight so playback never dead-ends.  Cloud engines are in
+                # _AUTO_SKIP, so "auto" resolves to a local backend (or the
+                # SilentBackend floor); never re-raises into the reader.
+                self._select_backend("auto")
+                self._backend.speak(text, on_done=on_done)
 
         # Always start the timer — it is the reliable baseline for all backends.
         self._start_timer_highlight(start_word_idx)

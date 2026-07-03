@@ -31,13 +31,13 @@ from .subtitles import (
     _generate_subtitles,
 )
 from .manager import TTSManager, _SCReader
-from .exporters import WAVExporter
+from .exporters import WAVExporter, M4BExporter
 
 # Explicit re-export surface (mirrors the old flat module).  Private helpers are
 # listed too because external callers (star.video) and the tests import them by
 # name from ``star.tts``.
 __all__ = [
-    "TTSBackend", "TTSManager", "WAVExporter",
+    "TTSBackend", "TTSManager", "WAVExporter", "M4BExporter",
     "SilentBackend", "FestivalBackend", "CoquiBackend", "PiperBackend",
     "Pyttsx3Backend", "ESpeakBackend", "ESpeakLibBackend",
     "DECtalkDLLBackend", "DECtalkBackend", "AppleSayBackend",

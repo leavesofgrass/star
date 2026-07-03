@@ -159,6 +159,8 @@ piper      = "star.tts.piper:PiperBackend"
 coqui      = "star.tts.coqui:CoquiBackend"
 dectalk    = "star.tts.dectalk:DECtalkBackend"
 dectalkdll = "star.tts.dectalk:DECtalkDLLBackend"
+qtspeech   = "star.tts.qtspeech:QtSpeechBackend"
+elevenlabs = "star.tts.cloud.elevenlabs:ElevenLabsBackend"
 
 [project.entry-points."star.formats"]
 pdf      = "star.documents.handlers:PDFHandler"
@@ -181,6 +183,7 @@ html     = "star.export:HTMLExporter"
 epub     = "star.export:EPUBExporter"
 wav      = "star.tts.exporters:WAVExporter"
 mp4      = "star.video:MP4Exporter"
+m4b      = "star.tts.exporters:M4BExporter"
 
 [tool.setuptools.packages.find]
 include = ["star*"]
