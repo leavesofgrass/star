@@ -14,6 +14,7 @@ carries the documents; progress remains per-machine (keyed by absolute path).
 from ._runtime import *  # noqa: F401,F403
 from .documents import _detect_format, supported_extensions
 from .settings import Settings
+from .sync import merge_progress
 
 # Directory names never worth descending into.
 _SKIP_DIRS = {
@@ -194,6 +195,37 @@ def load_sidecar(folder: "str | Path") -> Dict[str, Any]:
     return {k: v for k, v in _sidecar_state(folder).items() if k != _META_KEY}
 
 
+def _conflict_policy(settings: Settings) -> str:
+    """The configured sidecar sync-conflict policy (defaults to ``newest``)."""
+    return settings.get("sync_conflict_policy", "newest") or "newest"
+
+
+def _reconcile_before_write(
+    folder: "str | Path", local: Dict[str, Any], policy: str
+) -> Dict[str, Any]:
+    """Merge our pending *local* sidecar payload against the current on-disk copy.
+
+    The library folder is expected to be under cloud sync, so the file on disk
+    may have been rewritten by a sync (bringing another machine's progress /
+    annotations) after we last read it.  Blindly writing *local* would be the
+    old last-write-wins clobber; instead we treat the on-disk copy as the
+    incoming *remote* and reconcile via :func:`sync.merge_progress` under
+    *policy*, so a concurrent remote update survives.  When the on-disk copy is
+    absent, empty, or identical, the merge is a no-op and *local* is written
+    unchanged — the public behaviour is exactly as before when there is no
+    conflict.
+    """
+    remote = _read_sidecar_raw(folder)
+    if not remote:
+        return local
+    # prefer="local": our pending payload is the freshest local edit, so an
+    # equal-timestamp on-disk entry must not overwrite it (keeps the historical
+    # coalesced-write behaviour); a genuinely *newer* remote entry from a sync
+    # still wins, and annotations are always unioned so no edit is dropped.
+    merged, _conflicts = merge_progress(local, remote, policy, prefer="local")
+    return merged
+
+
 def _atomic_write_json(path: Path, data: Any) -> bool:
     """Serialize *data* to JSON and write it to *path* atomically.
 
@@ -320,25 +352,43 @@ def record_progress(settings: Settings, path: "str | Path", entry: Dict[str, Any
             # …but coalesce this write: within the debounce window we skip the
             # disk hit and let a later flush persist the most recent data.
             return True
-        ok = _write_sidecar(folder, data)
+        # Reconcile against a sync that may have rewritten the file since we
+        # read it — but this document's just-recorded position is the freshest
+        # local edit, so re-assert it (and its _meta) after the merge.
+        to_write = _reconcile_before_write(folder, data, _conflict_policy(settings))
+        to_write[rel] = entry
+        if meta_entry is not None:
+            meta = dict(to_write.get(_META_KEY) or {})
+            meta[rel] = meta_entry
+            to_write[_META_KEY] = meta
+        _pending[sidecar_path] = to_write
+        ok = _write_sidecar(folder, to_write)
         if ok:
             _last_write[sidecar_path] = now
             _pending.pop(sidecar_path, None)
         return ok
 
 
-def flush_pending(folder: "str | Path") -> bool:
+def flush_pending(folder: "str | Path", settings: "Optional[Settings]" = None) -> bool:
     """Force any debounced-but-unwritten sidecar data for *folder* to disk.
 
     Returns ``True`` if a pending write was flushed (or there was nothing
     pending), ``False`` only if the disk write failed.  Call on shutdown/close so
     a coalesced final scrub position is not left only in memory.
+
+    When *settings* is supplied, the pending payload is reconciled against the
+    current on-disk copy (which a sync may have rewritten since it was staged)
+    using the configured ``sync_conflict_policy`` before landing, so a concurrent
+    remote update is not clobbered by the coalesced local tail.  Omitting
+    *settings* keeps the historical newest-wins behaviour.
     """
     sidecar_path = str(_sidecar_file(folder))
     with _sidecar_lock:
         data = _pending.get(sidecar_path)
         if data is None:
             return True
+        policy = _conflict_policy(settings) if settings is not None else "newest"
+        data = _reconcile_before_write(folder, data, policy)
         ok = _write_sidecar(folder, data)
         if ok:
             _last_write[sidecar_path] = time.monotonic()
