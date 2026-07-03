@@ -160,11 +160,25 @@ class PlaybackMixin:
         if session != self._hl_session:
             return
 
+        # Pagination: if the spoken word has crossed out of the rendered window,
+        # advance the window (a GUI-thread re-render) so its offset exists before
+        # we paint.  No-op when pagination is off.  This is how reading continues
+        # smoothly across a page boundary.
+        if getattr(self, "_paginator", None) is not None and word_idx >= 0:
+            self._page_ensure_word_visible(word_idx)
+
         # Build base list from persistent user highlights so they are
         # never erased by TTS word advances.
         selections = self._get_user_highlight_selections()
 
         if word_idx < 0 or not self._qt_word_map:
+            self.editor.setExtraSelections(selections)
+            return
+
+        # Under pagination a word can still be out of window (e.g. the highlight
+        # lead pushed vis_idx past the edge, or the re-render lagged); skip the
+        # paint rather than dereference a sentinel offset.
+        if self._qt_word_map[min(word_idx, len(self._qt_word_map) - 1)] < 0:
             self.editor.setExtraSelections(selections)
             return
 
@@ -179,6 +193,17 @@ class PlaybackMixin:
         vis_idx = max(0, min(vis_idx, len(self._qt_word_map) - 1))
 
         char_pos = self._qt_word_map[vis_idx]
+        # Under pagination the lead-shifted vis_idx may fall just outside the
+        # rendered window (sentinel -1); anchor the visual highlight on the
+        # spoken word itself instead of painting at a bogus offset.
+        if char_pos < 0:
+            char_pos = self._qt_word_map[word_idx] if word_idx < len(
+                self._qt_word_map
+            ) else -1
+            if char_pos < 0:
+                self.editor.setExtraSelections(selections)
+                return
+            vis_idx = word_idx
 
         # Word length from the word map built in _build_qt_word_map.
         word_len = 1
@@ -237,7 +262,10 @@ class PlaybackMixin:
             if self.doc and e_word < len(self.doc.word_map):
                 e_len = max(1, self.doc.word_map[e_word].tts_len)
             e_char = min(e_char + e_len, doc_len - 1)
-            if e_char > s_char:
+            # Under pagination the sentence may straddle the window edge (one end
+            # a sentinel -1); fall back to the word-level mark rather than paint a
+            # bogus span.
+            if s_char >= 0 and e_char > s_char:
                 sent_cursor = QTextCursor(doc_obj)
                 sent_cursor.setPosition(s_char)
                 sent_cursor.setPosition(e_char, _KEEP_ANCHOR)

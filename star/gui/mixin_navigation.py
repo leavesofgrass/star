@@ -402,8 +402,12 @@ class NavigationMixin:
         wm = getattr(self.doc, "word_map", []) if self.doc else []
         if not wm or word_idx >= len(wm):
             return
+        # Pagination: advance the rendered window to the target if it is off
+        # screen so its char offset exists (no-op when pagination is off).
+        if getattr(self, "_paginator", None) is not None:
+            self._page_ensure_word_visible(word_idx)
         qwm = self._qt_word_map
-        if word_idx < len(qwm):
+        if word_idx < len(qwm) and qwm[word_idx] >= 0:
             cursor = QTextCursor(self.editor.document())
             cursor.setPosition(qwm[word_idx])
             self.editor.setTextCursor(cursor)
@@ -1013,8 +1017,11 @@ class NavigationMixin:
         # a subsequent _qt_save_reading_position call (e.g. from
         # closeEvent before the user ever starts TTS) would see position 0
         # and overwrite the just-restored offset with the start of the doc.
+        # Pagination: page to the saved word first so its offset is rendered.
+        if getattr(self, "_paginator", None) is not None:
+            self._page_ensure_word_visible(best)
         qwm = self._qt_word_map
-        if best < len(qwm):
+        if best < len(qwm) and qwm[best] >= 0:
             cursor = QTextCursor(self.editor.document())
             cursor.setPosition(qwm[best])
             self.editor.setTextCursor(cursor)

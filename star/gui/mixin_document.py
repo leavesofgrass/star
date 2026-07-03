@@ -9,6 +9,7 @@ from .._runtime import *  # noqa: F401,F403
 from ..documents import Document, _build_word_map, load_document
 from ..i18n import tr
 from ..mathrender import has_math, render_math_to_unicode
+from ..pagination import Paginator, paginate
 from ..stats import _record_library
 from .a11y import announce
 
@@ -115,8 +116,25 @@ class DocumentMixin:
         if not doc:
             return
         self.doc = doc
-        self.editor.setHtml(self._md_to_html(doc.markdown or ""))
-        self._apply_block_spacing()  # line-height (reset by setHtml)
+        # Reset any pagination state from a previously open document; the render
+        # decision (whole document vs. windowed) is (re)made below per document.
+        self._paginator = None
+        self._page_blocks = []
+        self._page_block_starts = []
+        # Fast size gate (GUI thread, no word map yet): when pagination is opted
+        # in and the document is very large, render only a *provisional* leading
+        # window instead of laying out the whole HTML — the one-shot full layout
+        # is exactly the stall pagination exists to avoid.  The background build
+        # then confirms the real page boundaries and re-renders precisely.  For
+        # normal-sized documents this is a no-op and the whole document renders
+        # exactly as before (byte-for-byte unchanged path).
+        provisional = self._page_provisional_render(doc)
+        # Remember, so the background build can render the whole document if it
+        # ultimately decides *not* to paginate after a provisional window.
+        self._page_provisional = provisional
+        if not provisional:
+            self.editor.setHtml(self._md_to_html(doc.markdown or ""))
+            self._apply_block_spacing()  # line-height (reset by setHtml)
         self.editor.setExtraSelections([])  # clear leftover TTS highlights
         # Build the ToC panel from the new document's headings.
         self._qt_build_toc()
@@ -134,7 +152,15 @@ class DocumentMixin:
         # which would break the word→offset search.  So when it's on, derive the
         # word-map text from an un-syllabified render — keeping speech and
         # highlighting identical whether or not the aid is displayed.
-        if self.settings.get("qt_syllable_split", False):
+        #
+        # When a provisional window is showing, the visible editor holds only
+        # part of the document, so the whole-document word map must be aligned
+        # against a *scratch* render of the full markdown (a throwaway
+        # QTextDocument — it parses the HTML but never does the expensive visual
+        # layout of the visible widget), not the on-screen text.
+        if provisional:
+            qt_plain = self._scratch_plain_text(doc.markdown or "")
+        elif self.settings.get("qt_syllable_split", False):
             qt_plain = self._plain_text_without_syllables(doc.markdown or "")
         else:
             qt_plain = self.editor.document().toPlainText()
@@ -146,8 +172,24 @@ class DocumentMixin:
                 flat = qt_plain.splitlines()
                 doc.word_map = _build_word_map(plain, flat)
                 self.tts_manager.set_word_map(doc.word_map)
-                # Qt char-offset map (used by _apply_word_highlight)
-                self._build_qt_word_map(plain, qt_plain)
+                # Decide pagination now that the word map (and thus the true word
+                # count) is known.  When the document qualifies, set up the
+                # paginator (block→word alignment) and signal the GUI thread to
+                # render the initial window — that GUI-thread render also rebuilds
+                # the windowed word→char map.  Otherwise the whole document is
+                # already rendered, so build the map for it here in the thread.
+                did_paginate = self._page_setup_if_large(doc)
+                if did_paginate or getattr(self, "_page_provisional", False):
+                    # Either we are paginating, or a provisional leading window is
+                    # on screen that must now be reconciled (precise window
+                    # render when paginating, or a full render when not) on the
+                    # GUI thread.  _page_render_initial_window handles both and
+                    # rebuilds the appropriate word→char map itself.
+                    self._paginate_signal.emit()
+                else:
+                    # Qt char-offset map for the whole rendered document
+                    # (used by _apply_word_highlight).
+                    self._build_qt_word_map(plain, qt_plain)
                 # Sentence map — same algorithm as StarApp._build_sentence_map
                 wm = doc.word_map
                 if wm and plain:
@@ -225,6 +267,379 @@ class DocumentMixin:
                 # Don't update search_from; we haven't moved forward.
 
         self._qt_word_map = result
+
+    def _build_qt_word_map_windowed(
+        self, word_start: int, word_end: int, qt_text: str
+    ) -> None:
+        """Populate self._qt_word_map for a *rendered window* of the document.
+
+        The list is always full-document length (one entry per word in
+        ``doc.word_map``); words inside ``[word_start, word_end)`` get their real
+        character offset inside *qt_text* (the plain text of the currently
+        rendered page window), and every word outside that range carries the
+        sentinel ``-1``.  Keeping the map full-length means every consumer's
+        index arithmetic (highlight, caret nav, Define-Word, restore-position)
+        is unchanged: the only new rule is "an entry of -1 means that word is not
+        on screen yet — advance the window first" (see _page_ensure_word_visible).
+
+        Uses the same rolling forward-search as :meth:`_build_qt_word_map`, but
+        anchored to just the window's words, so it stays O(window size) rather
+        than O(document).
+        """
+        wm = self.doc.word_map if self.doc else []
+        n = len(wm)
+        result: List[int] = [-1] * n
+        if not wm:
+            self._qt_word_map = result
+            return
+        word_start = max(0, word_start)
+        word_end = min(n, word_end)
+        qt_lower = qt_text.lower()
+        search_from = 0
+        last_good_pos = 0
+        for i in range(word_start, word_end):
+            word = wm[i].word.lower()
+            if not word:
+                result[i] = last_good_pos
+                continue
+            pos = qt_lower.find(word, search_from)
+            if pos >= 0:
+                result[i] = pos
+                search_from = pos + 1
+                last_good_pos = pos
+            else:
+                global_pos = qt_lower.find(word, 0)
+                result[i] = last_good_pos if global_pos >= 0 else 0
+        self._qt_word_map = result
+
+    # ── Large-document pagination ─────────────────────────────────────
+    #
+    # See star/pagination.py and docs/PERFORMANCE.md.  Rationale: QTextEdit lays
+    # out a document's whole HTML at once, so a 100k+-word document stalls on
+    # open and drags every later scroll/repaint.  When enabled and past the size
+    # gate we render only a *window* of pages; the full plain text + word map
+    # stay resident, and the word→char map is rebuilt per window so highlight,
+    # caret nav, and Define-Word remain correct across page boundaries.
+
+    def _scratch_plain_text(self, md: str) -> str:
+        """Plain text of the fully-rendered *md* via a throwaway QTextDocument.
+
+        Renders the whole document's HTML into an off-screen QTextDocument and
+        reads its plain text.  This parses the markup but skips the expensive
+        visual layout the on-screen QTextEdit performs, so it is cheap even for
+        very large documents — used to align the whole-document word map while
+        only a page window is shown in the visible editor.  Honors the syllable
+        aid the same way :meth:`_plain_text_without_syllables` does.
+        """
+        try:
+            from PyQt6.QtGui import QTextDocument
+        except ImportError:
+            from PyQt5.QtGui import QTextDocument  # type: ignore[no-redef]
+        if self.settings.get("qt_syllable_split", False):
+            return self._plain_text_without_syllables(md)
+        scratch = QTextDocument()
+        scratch.setHtml(self._md_to_html(md))
+        return scratch.toPlainText()
+
+    def _page_provisional_render(self, doc: Any) -> bool:
+        """Render a cheap leading window if *doc* is a pagination candidate.
+
+        A GUI-thread, word-map-free heuristic run *before* the background build:
+        estimates the word count from the plain text (a whitespace split) and, if
+        pagination is enabled and the estimate clears the threshold, renders only
+        the leading markdown blocks — enough to fill the initial window — so the
+        first paint never pays the whole-document layout cost.  Returns True when
+        it rendered a provisional window (the caller then skips the full render),
+        False otherwise (normal whole-document path, completely unchanged).
+        """
+        if not bool(self.settings.get("qt_paginate_large_docs", False)):
+            return False
+        plain = doc.plain_text or ""
+        # Cheap upper-bound word estimate — a split is far faster than tokenizing.
+        est_words = plain.count(" ") + 1
+        threshold = int(self.settings.get("qt_paginate_threshold_words", 60000))
+        if est_words < max(1, threshold):
+            return False
+        blocks = self._page_split_markdown_blocks(doc.markdown or "")
+        if len(blocks) <= 1:
+            return False
+        # Leading window: enough blocks to comfortably cover the eventual window
+        # span (window_pages on each side + the active page).  A block is ~one
+        # paragraph; take a generous prefix and let the precise re-render trim it.
+        wpp = int(self.settings.get("qt_paginate_words_per_page", 1200))
+        win_pages = int(self.settings.get("qt_paginate_window_pages", 2))
+        target_words = wpp * (win_pages + 1)
+        token_re = re.compile(r"\b\w[\w'-]*")
+        chosen: List[str] = []
+        acc = 0
+        for blk in blocks:
+            chosen.append(blk)
+            acc += len(token_re.findall(blk))
+            if acc >= target_words:
+                break
+        if len(chosen) >= len(blocks):
+            return False  # whole doc fits the leading window — just render it whole
+        self.editor.setHtml(self._md_to_html("\n\n".join(chosen)))
+        self._apply_block_spacing()
+        return True
+
+    def _page_split_markdown_blocks(self, md: str) -> List[str]:
+        """Split *md* into rendering blocks at blank lines.
+
+        Blank-line separated blocks are the natural page-boundary unit: each is a
+        whole paragraph / heading / table / list, so a page never bisects one.
+        Fenced code blocks are kept intact (a blank line inside ``` … ``` does
+        not split them) so code renders correctly within a window.
+        """
+        lines = (md or "").split("\n")
+        blocks: List[str] = []
+        cur: List[str] = []
+        in_fence = False
+        for ln in lines:
+            if ln.lstrip().startswith("```"):
+                in_fence = not in_fence
+                cur.append(ln)
+                continue
+            if not ln.strip() and not in_fence:
+                if cur:
+                    blocks.append("\n".join(cur))
+                    cur = []
+            else:
+                cur.append(ln)
+        if cur:
+            blocks.append("\n".join(cur))
+        return blocks or [md or ""]
+
+    def _page_align_block_starts(
+        self, blocks: List[str], word_map: List[Any]
+    ) -> List[int]:
+        """Return the global word-map index at which each block begins.
+
+        Rather than trusting a per-block token count (which drifts from the TTS
+        word map whenever markdown syntax, skipped code, or table narration make
+        the two tokenizations disagree), each block is anchored by rolling its
+        leading tokens forward through the word map.  This keeps page boundaries
+        aligned to real word indices even on structured documents.
+        """
+        token_re = re.compile(r"\b\w[\w'-]*")
+        n = len(word_map)
+        starts: List[int] = []
+        cursor = 0
+        # Bound the forward scan for each block's anchor so a token that never
+        # matches (a markdown artifact absent from the TTS plain text) can't make
+        # the whole alignment O(n²); past the cap we keep the rolling cursor.
+        _scan_cap = 4096
+        for blk in blocks:
+            toks = token_re.findall(blk.lower())
+            # Anchor this block at the first word-map word (from the rolling
+            # cursor) that matches its first token; fall back to the cursor.
+            anchor = cursor
+            if toks:
+                first = toks[0]
+                limit = min(n, cursor + _scan_cap)
+                j = cursor
+                while j < limit:
+                    if word_map[j].word.lower() == first:
+                        anchor = j
+                        break
+                    j += 1
+                else:
+                    anchor = min(cursor, n)
+            starts.append(min(anchor, n))
+            # Advance the cursor past this block's token count from its anchor so
+            # the next block searches forward, not from the top.
+            cursor = min(anchor + len(toks), n)
+        # Enforce monotonic, in-range, first-block-at-0 invariants the paginator
+        # relies on.
+        starts = starts or [0]
+        starts[0] = 0
+        for i in range(1, len(starts)):
+            if starts[i] < starts[i - 1]:
+                starts[i] = starts[i - 1]
+        return starts
+
+    def _page_setup_if_large(self, doc: Any) -> bool:
+        """Decide pagination for *doc*; set up the paginator when it qualifies.
+
+        Returns True when the document is being paginated (the caller must then
+        render the initial window on the GUI thread), False when the whole
+        document is rendered as usual.  Called from the word-map build thread —
+        pure Python, no Qt calls, so it is thread-safe.
+        """
+        if not bool(self.settings.get("qt_paginate_large_docs", False)):
+            return False
+        wm = getattr(doc, "word_map", None) or []
+        threshold = int(self.settings.get("qt_paginate_threshold_words", 60000))
+        if len(wm) < max(1, threshold):
+            return False
+        blocks = self._page_split_markdown_blocks(doc.markdown or "")
+        block_starts = self._page_align_block_starts(blocks, wm)
+        pages = paginate(
+            len(wm),
+            block_starts,
+            words_per_page=int(
+                self.settings.get("qt_paginate_words_per_page", 1200)
+            ),
+        )
+        if len(pages) <= 1:
+            return False  # fits in a single page — no benefit to paging
+        self._page_blocks = blocks
+        self._page_block_starts = block_starts
+        self._paginator = Paginator(
+            pages,
+            window_pages=int(self.settings.get("qt_paginate_window_pages", 2)),
+        )
+        return True
+
+    def _page_window_markdown(self) -> str:
+        """Markdown for the paginator's current window of pages.
+
+        Joins the blocks whose global word index falls in the window's
+        ``[word_start, word_end)`` span, reconstructing the blank-line
+        separation so the windowed markdown renders exactly as that slice of the
+        whole document would.
+        """
+        pg = self._paginator
+        if pg is None or not self._page_blocks:
+            return self.doc.markdown if self.doc else ""
+        w0, w1 = pg.word_start, pg.word_end
+        starts = self._page_block_starts
+        chosen: List[str] = []
+        for i, blk in enumerate(self._page_blocks):
+            b_start = starts[i]
+            b_end = starts[i + 1] if i + 1 < len(starts) else len(
+                self.doc.word_map if self.doc else []
+            )
+            # Include the block if its word range overlaps the window span.
+            if b_end > w0 and b_start < w1:
+                chosen.append(blk)
+        return "\n\n".join(chosen)
+
+    def _page_render_window(self, restore_caret_word: Optional[int] = None) -> None:
+        """Render the paginator's current window into the editor and rebuild the
+        windowed word→char map.
+
+        Must run on the GUI thread (it touches the editor).  When
+        *restore_caret_word* is given and lands inside the new window, the text
+        cursor is placed on it so the caret/ruler stay put across a re-render.
+        """
+        pg = self._paginator
+        if pg is None:
+            return
+        md = self._page_window_markdown()
+        self.editor.setHtml(self._md_to_html(md))
+        self._apply_block_spacing()
+        # Rebuild the windowed word→char map against the freshly rendered text.
+        qt_plain = self.editor.document().toPlainText()
+        self._build_qt_word_map_windowed(pg.word_start, pg.word_end, qt_plain)
+        # Re-apply persisted user highlights (their stored offsets are validated
+        # against the rendered length, so out-of-window ones are simply skipped).
+        self._qt_apply_user_highlights()
+        if restore_caret_word is not None and pg.covers_word(restore_caret_word):
+            off = self._qt_word_map[restore_caret_word]
+            if off is not None and off >= 0:
+                cursor = QTextCursor(self.editor.document())
+                cursor.setPosition(off)
+                self.editor.setTextCursor(cursor)
+                self.editor.ensureCursorVisible()
+        # Keep the reading-ruler overlay tracking the caret after a re-render.
+        ruler = getattr(self, "_reading_ruler", None)
+        if ruler is not None:
+            try:
+                ruler.follow_caret()
+            except Exception:
+                pass
+
+    def _page_render_initial_window(self) -> None:
+        """GUI-thread handler (via _paginate_signal) for the first render right
+        after a large document loads.
+
+        Two cases: the document is being paginated (render the precise initial
+        window), or a provisional leading window was shown but pagination was
+        ultimately declined (render the whole document so nothing is missing).
+        """
+        if self._paginator is None:
+            # Provisional window shown but not paginating → render the whole doc
+            # and build the whole-document word→char map, matching the normal
+            # path exactly from here on.
+            if getattr(self, "_page_provisional", False) and self.doc:
+                self.editor.setHtml(self._md_to_html(self.doc.markdown or ""))
+                self._apply_block_spacing()
+                qt_plain = self.editor.document().toPlainText()
+                self._build_qt_word_map(self.doc.plain_text or "", qt_plain)
+                self._qt_apply_user_highlights()
+                self._qt_build_toc()
+            self._page_provisional = False
+            return
+        self._page_provisional = False
+        self._page_render_window()
+        # Rebuild the ToC now that only a window is rendered — headings resolve
+        # against whatever is on screen; the ToC still lists all headings from
+        # doc.markdown, so navigation via the ToC advances the window as needed.
+        try:
+            self._qt_build_toc()
+        except Exception:
+            pass
+        self.statusBar().showMessage(
+            tr("Large document — paginated ({n} pages) for performance").format(
+                n=self._paginator.n_pages
+            )
+        )
+
+    def _page_disable_and_render_whole(self) -> bool:
+        """Turn pagination off for the open document and render it whole.
+
+        Used by features that need the *entire* document present in the editor
+        at once — currently Find, whose match offsets and highlight-all must span
+        the whole document, not just the visible window.  This is the documented,
+        safe degradation for large documents: paging is suspended (the one-shot
+        layout cost is paid once) so the feature is fully correct rather than
+        silently limited to the visible pages.  Returns True if it did anything.
+        """
+        if self._paginator is None or not self.doc:
+            return False
+        # Remember the current reading word so we can keep the caret in place.
+        try:
+            cur_word = self._qt_current_word_for_nav()
+        except Exception:
+            cur_word = 0
+        self._paginator = None
+        self._page_blocks = []
+        self._page_block_starts = []
+        self.editor.setHtml(self._md_to_html(self.doc.markdown or ""))
+        self._apply_block_spacing()
+        qt_plain = self.editor.document().toPlainText()
+        self._build_qt_word_map(self.doc.plain_text or "", qt_plain)
+        self._qt_apply_user_highlights()
+        self._qt_build_toc()
+        # Restore the caret onto the word the reader was on.
+        qwm = self._qt_word_map
+        if 0 <= cur_word < len(qwm) and qwm[cur_word] >= 0:
+            cursor = QTextCursor(self.editor.document())
+            cursor.setPosition(qwm[cur_word])
+            self.editor.setTextCursor(cursor)
+            self.editor.ensureCursorVisible()
+        self.statusBar().showMessage(
+            tr("Whole document loaded for search (pagination paused)")
+        )
+        return True
+
+    def _page_ensure_word_visible(self, word_idx: int) -> bool:
+        """Ensure the rendered window covers *word_idx*, re-rendering if needed.
+
+        The single choke-point every feature calls before it dereferences
+        ``self._qt_word_map[word_idx]`` under pagination.  Returns True if the
+        window moved (a re-render happened), False if the word was already on
+        screen (or pagination is off).  Safe to call on the GUI thread only.
+        """
+        pg = self._paginator
+        if pg is None:
+            return False
+        if pg.covers_word(word_idx):
+            return False
+        pg.window_for_word(word_idx)
+        self._page_render_window(restore_caret_word=word_idx)
+        return True
 
     # ── HTML rendering ────────────────────────────────────────────────
 

@@ -428,5 +428,7 @@
   "Syllable Splitting": "Découpage en syllabes",
   "Reading Ruler": "Règle de lecture",
   "Reading Ruler…": "Règle de lecture…",
-  "Default": "Par défaut"
+  "Default": "Par défaut",
+  "Large document — paginated ({n} pages) for performance": "Document volumineux — paginé ({n} pages) pour la performance",
+  "Whole document loaded for search (pagination paused)": "Document entier chargé pour la recherche (pagination suspendue)"
 }

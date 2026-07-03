@@ -158,6 +158,28 @@ DEFAULTS: Dict[str, Any] = {
     # When True, edit mode shows a split pane with a live-rendered HTML
     # preview of the Markdown source beside the editor (debounced).
     "qt_edit_preview": False,
+    # ── Large-document pagination (Qt GUI) — see docs/PERFORMANCE.md ───────
+    # QTextEdit lays out a whole document's HTML at once; for very large
+    # documents that one-shot layout (and every later scroll/repaint) is slow.
+    # When this is on AND a document exceeds qt_paginate_threshold_words, star
+    # renders only a *window* of pages into the editor at a time, advancing the
+    # window as reading / navigation / Find crosses a page boundary.  The full
+    # plain text and word map stay in memory so speech, highlighting, caret
+    # navigation, and Define-Word remain correct; the word→char map is rebuilt
+    # per window (out-of-window words carry a sentinel).  OFF by default: normal
+    # documents (and all existing behavior) are completely unaffected, and even
+    # opted-in it engages only past the threshold.  See docs/PERFORMANCE.md for
+    # the design, the size gate, and the features that degrade under paging.
+    "qt_paginate_large_docs": False,
+    # Only paginate documents with at least this many words (the size gate).
+    # Chosen high so ordinary books/articles always take the unchanged
+    # whole-document path; pagination is for the pathologically large outliers.
+    "qt_paginate_threshold_words": 60000,
+    # Target words per rendered page and how many pages flank the active one in
+    # the rendered window (a larger window re-renders less often but lays out
+    # more at once).  See star/pagination.py.
+    "qt_paginate_words_per_page": 1200,
+    "qt_paginate_window_pages": 2,
     # ── Dyslexia-friendly reading aids — Qt GUI ───────────────────
     "qt_dyslexia_font": False,  # prefer a bundled/installed dyslexia-friendly font
     # Reading-font chooser (View ▸ Reading Aids ▸ Reading Font): "default" (no

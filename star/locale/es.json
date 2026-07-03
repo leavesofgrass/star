@@ -428,5 +428,7 @@
   "Syllable Splitting": "División en sílabas",
   "Reading Ruler": "Regla de lectura",
   "Reading Ruler…": "Regla de lectura…",
-  "Default": "Predeterminada"
+  "Default": "Predeterminada",
+  "Large document — paginated ({n} pages) for performance": "Documento grande — paginado ({n} páginas) por rendimiento",
+  "Whole document loaded for search (pagination paused)": "Documento completo cargado para la búsqueda (paginación en pausa)"
 }

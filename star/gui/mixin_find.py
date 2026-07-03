@@ -111,6 +111,12 @@ class FindMixin:
     # ── open / close ───────────────────────────────────────────────────
     def _find_show(self) -> None:
         """Show the find bar and focus the input (Ctrl+F)."""
+        # Find must see the *whole* document: its match offsets and highlight-all
+        # span the entire text, not just a rendered page window.  When a large
+        # document is paginated, suspend paging and render it whole so search is
+        # fully correct (the documented safe degradation — see docs/PERFORMANCE.md).
+        if getattr(self, "_paginator", None) is not None:
+            self._page_disable_and_render_whole()
         self._ensure_find_bar()
         self._find_bar.setVisible(True)
         # Seed the query from the current selection, if any, for a fast workflow.

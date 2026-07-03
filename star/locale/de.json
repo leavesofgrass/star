@@ -428,5 +428,7 @@
   "Syllable Splitting": "Silbentrennung",
   "Reading Ruler": "Leselineal",
   "Reading Ruler…": "Leselineal…",
-  "Default": "Standard"
+  "Default": "Standard",
+  "Large document — paginated ({n} pages) for performance": "Großes Dokument — für die Leistung paginiert ({n} Seiten)",
+  "Whole document loaded for search (pagination paused)": "Gesamtes Dokument für die Suche geladen (Paginierung pausiert)"
 }

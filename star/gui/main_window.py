@@ -339,6 +339,10 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
     # Emitted from the word-map build thread once the map is ready so
     # _qt_restore_reading_position can be called safely on the GUI thread.
     _restore_signal = pyqtSignal()
+    # Emitted from the word-map build thread when a document qualifies for
+    # pagination, so the initial page-window render (a Qt call) happens on the
+    # GUI thread.  Carries nothing; the paginator state is read from self.
+    _paginate_signal = pyqtSignal()
     # Emitted from the background OpenDyslexic prefetch thread once the font files
     # are downloaded, so registration + (re)application happen on the GUI thread.
     _font_ready_signal = pyqtSignal()
@@ -404,8 +408,22 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         self._tts_paused_at_word: int = -1
 
         # Maps TTS word index → absolute character offset in the Qt document.
-        # Built asynchronously after each document load.
+        # Built asynchronously after each document load.  When pagination is
+        # active this stays full-document length, but words outside the rendered
+        # window carry the sentinel -1 until the window advances to them.
         self._qt_word_map: List[int] = []
+
+        # Large-document pagination (see star/pagination.py + docs/PERFORMANCE.md).
+        # _paginator is None whenever the whole document is rendered (the normal
+        # path); it is a Paginator only for documents past the size gate with the
+        # opt-in setting on.  _page_block_starts is the global word index at which
+        # each rendered markdown block begins, used to slice a window's markdown.
+        self._paginator: Optional[Any] = None
+        self._page_blocks: List[str] = []
+        self._page_block_starts: List[int] = []
+        # True while a cheap provisional leading window is shown pending the
+        # background build's precise pagination decision.
+        self._page_provisional: bool = False
 
         # QTextCharFormat applied to the currently spoken word.
         # Built from the user's highlight style/color settings so the
@@ -452,6 +470,8 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         self._doc_loaded_signal.connect(self._on_doc_loaded, _QUEUED)
         # Wire the restore-position callback → main thread.
         self._restore_signal.connect(self._qt_restore_reading_position, _QUEUED)
+        # Wire the pagination initial-window render → main thread.
+        self._paginate_signal.connect(self._page_render_initial_window, _QUEUED)
         # Wire the OpenDyslexic prefetch-complete callback → main thread.
         self._font_ready_signal.connect(self._on_dyslexia_font_ready, _QUEUED)
         # Wire the feature-install completion callback → main thread.
