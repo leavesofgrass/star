@@ -340,6 +340,121 @@ class ExportMixin:
 
         threading.Thread(target=_do_export, daemon=True).start()
 
+    def _qt_export_audiobook(self) -> None:
+        """Export the document as a chaptered audiobook (``.m4b``).
+
+        Chapters come from the document's Markdown headings (fallback: a single
+        chapter).  Synthesis + ffmpeg muxing run on a background thread; a
+        cancelable :class:`QProgressDialog` on the GUI thread shows per-chapter
+        progress, driven by a short ``QTimer`` that reads worker state (so nothing
+        touches Qt from the worker).  Cancel sets a flag the worker checks between
+        chapters; the dialog and timer are torn down cleanly on finish or cancel.
+
+        Requires **ffmpeg**; when it is absent the user is told to install ffmpeg
+        (never to run ``pip``), matching the no-pip UX invariant.
+        """
+        try:
+            from PyQt6.QtWidgets import QProgressDialog  # type: ignore
+        except ImportError:
+            from PyQt5.QtWidgets import QProgressDialog  # type: ignore
+
+        from ..audiobook import find_ffmpeg
+        from ..tts.exporters import M4BExporter
+
+        if not self.doc:
+            self.statusBar().showMessage("No document loaded")
+            return
+        if not (self.doc.plain_text or "").strip():
+            self.statusBar().showMessage("Document has no readable text")
+            return
+        if not find_ffmpeg():
+            QMessageBox.warning(
+                self,
+                "Audiobook Export",
+                "Exporting an M4B audiobook needs ffmpeg.\n\n"
+                "Install ffmpeg and make sure it is on your PATH, then try again.",
+            )
+            return
+
+        p = Path(self.doc.path) if self.doc.path else Path("export")
+        default = str(p.parent / (p.stem + ".m4b"))
+        dest, _ = QFileDialog.getSaveFileName(
+            self, "Export Audiobook (M4B)", default, "Audiobook (*.m4b);;All Files (*)"
+        )
+        if not dest:
+            return
+
+        doc = self.doc
+        backend = getattr(self.tts_manager, "_backend", None)
+        # Shared worker/UI state.  Only the worker writes progress fields; only the
+        # GUI timer reads them.  ``cancel`` is set by the GUI, read by the worker.
+        state: Dict[str, Any] = {
+            "done": False,
+            "error": None,
+            "cur": 0,
+            "total": 0,
+            "label": "Preparing…",
+            "cancel": False,
+        }
+
+        dlg = QProgressDialog("Preparing audiobook…", "Cancel", 0, 0, self)
+        dlg.setWindowTitle("Export Audiobook (M4B)")
+        dlg.setMinimumDuration(0)
+        dlg.setAutoClose(False)
+        dlg.setAutoReset(False)
+        dlg.setValue(0)
+
+        def _on_progress(cur: int, total: int, label: str) -> None:
+            state["cur"], state["total"], state["label"] = cur, total, label
+
+        def _work() -> None:
+            try:
+                M4BExporter().export(
+                    doc,
+                    dest,
+                    settings=self.settings,
+                    backend=backend,
+                    title=getattr(doc, "title", ""),
+                    progress=_on_progress,
+                    cancel=lambda: state["cancel"],
+                )
+            except Exception as exc:  # noqa: BLE001 — surfaced via status bar
+                state["error"] = str(exc)
+            finally:
+                state["done"] = True
+
+        thread = threading.Thread(target=_work, daemon=True)
+
+        def _poll() -> None:
+            if dlg.wasCanceled():
+                state["cancel"] = True
+            total = state["total"]
+            if total:
+                if dlg.maximum() != total:
+                    dlg.setMaximum(total)
+                dlg.setValue(min(state["cur"], total))
+            dlg.setLabelText(state["label"])
+            if state["done"]:
+                timer.stop()
+                dlg.reset()
+                dlg.close()
+                err = state["error"]
+                if err:
+                    if "cancelled" in err.lower():
+                        self.statusBar().showMessage("Audiobook export cancelled")
+                    else:
+                        self.statusBar().showMessage(f"Audiobook export error: {err}")
+                else:
+                    self.statusBar().showMessage(f"Audiobook exported → {dest}")
+
+        timer = QTimer(self)
+        timer.setInterval(150)
+        timer.timeout.connect(_poll)
+
+        self.statusBar().showMessage("Exporting audiobook … this may take a while")
+        thread.start()
+        timer.start()
+
     # ── Plugin-registry exporters ────────────────────────────────────────────
     # File ▸ Export lists the built-in exporters that have dedicated, specialised
     # handlers above (Markdown, Anki, Audio→wav, Video→mp4).  The names below are
@@ -347,7 +462,7 @@ class ExportMixin:
     # registry, so the dynamic section surfaces the remaining built-ins (HTML,
     # EPUB) plus any installed third-party ``star.exporters`` plugin — with no
     # change to star itself.
-    _MENU_COVERED_EXPORTERS = frozenset({"markdown", "anki", "wav", "mp4"})
+    _MENU_COVERED_EXPORTERS = frozenset({"markdown", "anki", "wav", "mp4", "m4b"})
 
     def _plugin_exporters(self) -> "List[type]":
         """Return the installed Exporter classes that should appear in the
