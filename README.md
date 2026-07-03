@@ -77,10 +77,14 @@ notes) are in the **[Installation guide](docs/installation.md)**.
 
 - **Reads aloud with live word highlighting** in both the Qt GUI and the terminal
   TUI — including in-process eSpeak-NG with true audio-position sync.
-- **Many TTS engines + Voice Manager:** pyttsx3 (SAPI5 / NSSpeechSynthesizer),
-  macOS `say`, eSpeak-NG, Festival, **Piper** (neural, offline, free), Coqui, and
-  DECtalk — browse, filter, preview, and favorite voices in the **Voice Manager
-  (F4)**, with one-click download of offline Piper neural voices.
+- **Many TTS engines + Voice Manager:** **Qt-native system voices** (your OS's
+  built-in voices, no key or download, with per-word highlighting), pyttsx3
+  (SAPI5 / NSSpeechSynthesizer), macOS `say`, eSpeak-NG, Festival, **Piper**
+  (neural, offline, free), Coqui, DECtalk, and opt-in **ElevenLabs cloud neural
+  voices** (text leaves your machine only after you set a key *and* choose the
+  cloud voice; any failure falls back to a local engine) — browse, filter,
+  preview, and favorite voices in the **Voice Manager (F4)**, with one-click
+  download of offline Piper neural voices.
 - **Opens almost anything:** PDF (incl. OCR), DOCX, PPTX, EPUB, HTML, Markdown,
   spreadsheets, DAISY/DTBook, and dozens more formats.
 - **Find, bookmark, and search:** incremental **find in document (Ctrl+F)**, named
@@ -99,22 +103,32 @@ notes) are in the **[Installation guide](docs/installation.md)**.
   (`CONFLICTS_WITH`, `SUPPORTS`, `CITES`, …), extract concepts, view the graph
   interactively, and export to SVG/PlantUML/DOT/JSON.
 - **Export:** Markdown, HTML, EPUB, PDF (with highlights), BRF braille, TTS
-  audio (WAV/MP3/OGG/MP4), karaoke video (MP4), Anki decks, and synchronized
-  SRT/VTT subtitles.
+  audio (WAV/MP3/OGG/MP4), **chaptered M4B audiobooks** (chapters from headings;
+  needs ffmpeg), karaoke video (MP4), Anki decks, and synchronized SRT/VTT
+  subtitles.
 - **Extensible:** TTS engines, document formats, and export targets are
   discovered through `importlib.metadata` entry-points — installing a
   third-party plugin package adds backends, loaders, or exporters with no
   changes to star itself.
 - **Accessibility-first:** NVDA/JAWS/Orca/VoiceOver compatible, screen-reader
   announcements for playback / load / theme / find results, a **high-contrast
-  (AAA) theme** with automatic light / dark / high-contrast following your OS, the
-  **OpenDyslexic** font auto-fetched and applied across the whole UI, four
+  (AAA) theme** with automatic light / dark / high-contrast following your OS, a
+  **Reading Font chooser** (**OpenDyslexic**, **Atkinson Hyperlegible**, **Lexend**
+  — auto-fetched and applied across the whole UI), **syllable splitting**
+  (display-only decoding aid), a caret-tracking **reading ruler**, four
   colorblind-friendly themes + custom CSS themes, bionic reading, adjustable
   spacing (WCAG 1.4.12), and high-DPI support.
 - **Guided tour & translations:** a skippable first-run walkthrough (replay any
   time from **Help ▸ Guided Tour**, Shift+F1), Help ▸ Check for Updates, and a
   translatable TUI with a first-run language picker (Spanish, French, German,
-  Portuguese).
+  Portuguese). **Right-to-left interface languages mirror the whole app** —
+  Arabic is included as a first catalog.
+- **Fast on huge documents:** opt-in pagination renders only a window of a very
+  large document at a time, dropping first paint on a ~500-page file from seconds
+  to well under one (off by default).
+- **Sync without losing work:** reading progress and annotations from two machines
+  now *merge* instead of last-write-wins — position resolves by a policy you pick
+  (newest / furthest / manual) and notes union by id.
 - **Graceful degradation:** every third-party dependency is optional and guarded,
   so the core runs on the Python standard library alone.
 - **One-click optional features:** when a capability needs an add-on, star

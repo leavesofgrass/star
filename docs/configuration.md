@@ -34,6 +34,7 @@ Open it from the TUI with `M-x settings`.
 | `ui_language` | `"en"` | UI-chrome language (menus, toolbar, docks): `en`, `es`, `fr`, `de`, `pt`. See [Interface language](features.md#interface-language-i18n) |
 | `tts_backend` | `"auto"` | TTS engine: `auto`, `pyttsx3`, `espeak`, `festival`, `piper`, `coqui`, `dectalk`, `none` |
 | `piper_model` | `""` | Path to a Piper `.onnx` voice model for the `piper` backend (neural, offline). The matching `.onnx.json` must sit beside it. Also honored: `PIPER_MODEL` env var and Piper voice directories. |
+| `elevenlabs_api_key` | `""` | API key for the opt-in `elevenlabs` cloud neural voice. Empty = disabled (no network egress); paste a key **and** select the `elevenlabs` engine to enable |
 | `tts_rate` | `265` | Reading speed in words per minute |
 | `tts_volume` | `1.0` | Volume from `0.0` (silent) to `1.0` (full) |
 | `tts_voice` | `""` | Voice ID; empty = system default (auto-resolved via `tts_prefer_voice`) |
@@ -52,6 +53,7 @@ Open it from the TUI with `M-x settings`.
 | `braille_table` | `"en-ueb-g2.ctb"` | liblouis translation table (only used when `braille_grade2` is true) |
 | `braille_grade2` | `false` | Opt in to contracted Grade 2 via liblouis; otherwise the built-in Grade 1 translator is used |
 | `audio_export_format` | `"wav"` | Default audio export container (WAV needs no external tools) |
+| `audiobook_bitrate` | `"64k"` | AAC bitrate for M4B audiobook export (**File ▸ Export ▸ Audiobook**; needs ffmpeg) |
 | `subtitle_format` | `"srt"` | Caption format for subtitle export: `srt` or `vtt` |
 | `subtitle_word_level` | `false` | Emit one subtitle cue per word instead of sentence-grouped cues |
 | `export_subtitles_with_audio` | `false` | Also write an SRT/VTT caption track next to every audio export |
@@ -73,6 +75,7 @@ Open it from the TUI with `M-x settings`.
 | `qt_caret_browsing` | `true` | Show a movable text caret in the read-only document view for keyboard navigation, passage selection, and Define Word (toggle with `F7` or **View ▸ Caret Browsing**) |
 | `reading_stats` | `{}` | Per-document reading time, progress, and session counts (populated automatically) |
 | `library` | `{}` | Library/bookshelf metadata for every opened document (populated automatically) |
+| `sync_conflict_policy` | `"newest"` | How to resolve a synced `.star/` sidecar that diverges between machines: `newest` (newer timestamp wins — the classic last-write-wins), `highest_progress` (keep the furthest reading position), or `manual` (keep local and surface conflicts). Annotations always union by id |
 | `profiles` | `{}` | Named setting bundles (voice, rate, theme, font, spacing, highlight) saved via the Profiles menu |
 | `pronunciations` | `{}` | Pronunciation lexicon: `{term: spoken form}` applied before other TTS normalization |
 | `use_pronunciations` | `true` | Apply the pronunciation lexicon while reading |
@@ -83,8 +86,14 @@ Open it from the TUI with `M-x settings`.
 | `qt_letter_spacing` | `0.0` | Qt extra letter spacing, percent of font size (`0` = normal) |
 | `qt_word_spacing` | `0.0` | Qt extra word spacing in pixels (`0` = normal) |
 | `qt_dyslexia_font` | `false` | Prefer an installed dyslexia-friendly font (OpenDyslexic / Atkinson Hyperlegible / Lexend / Comic Sans) when available |
+| `qt_reading_font` | `"default"` | Reading-font override (**View ▸ Reading Aids ▸ Reading Font**): `default` (none), `opendyslexic`, `atkinson` (Atkinson Hyperlegible, for low vision), or `lexend`. Fetched on demand and applied app-wide + in-document |
 | `qt_current_line_highlight` | `false` | Tint the line being read with a focus band |
 | `qt_bionic_reading` | `false` | Embolden the leading part of each word (bionic reading) |
+| `qt_syllable_split` | `false` | Show words split into syllables (`read·a·bil·i·ty`) as a decoding aid (**View ▸ Reading Aids ▸ Syllable Splitting**; needs `pyphen`). Display-only — speech and highlighting are unaffected |
+| `qt_syllable_sep` | `"·"` | The visible separator inserted between syllables (U+00B7 middot) |
+| `qt_reading_ruler` | `false` | Show a movable, translucent band (typoscope) that follows the caret to help keep your place |
+| `qt_ruler_height` | `40` | Reading-ruler band height in pixels (16–160) |
+| `qt_ruler_opacity` | `22` | Reading-ruler band opacity, `0`–`100` (percent) |
 | `qt_vocab_highlight` | `false` | Highlight uncommon / academic vocabulary (difficult-word overlay; needs `wordfreq`) |
 | `qt_rsvp_mode` | `false` | Qt GUI: show the RSVP (Rapid Serial Visual Presentation) overlay — one word at a time at a fixed point |
 | `qt_rsvp_position` | `"top-center"` | Qt RSVP overlay placement: `top-left`/`center`/`right`, `center-left`/`right`, `center`, `bottom-left`/`center`/`right` |
@@ -98,6 +107,10 @@ Open it from the TUI with `M-x settings`.
 | `user_highlights` | `{}` | Persistent text highlights per document path |
 | `document_cache` | `true` | Cache parsed documents for instant reopening |
 | `cache_max_size_mb` | `100` | Maximum cache directory size in MB |
+| `qt_paginate_large_docs` | `false` | Qt GUI: opt into windowed pagination so only part of a very large document is laid out at a time (much faster first paint). Off by default; see the caveat below. See [Performance](PERFORMANCE.md) |
+| `qt_paginate_threshold_words` | `60000` | Only paginate documents with at least this many words (the size gate) — ordinary books/articles always take the unchanged whole-document path |
+| `qt_paginate_words_per_page` | `1200` | Target words per rendered page under pagination |
+| `qt_paginate_window_pages` | `2` | Pages of context rendered on each side of the active page (a larger window re-renders less often but lays out more at once) |
 | `footnote_mode` | `"inline"` | Footnote handling: `inline`, `deferred`, `skip` |
 | `pdf_reading_order` | `"reconstruct"` | PDF layout handling: `reconstruct` rebuilds multi-column reading order and suppresses running headers/footers/page numbers; `raw` keeps pdfminer's native box order |
 | `prefer_pandoc` | `true` | When Pandoc is installed, prefer it as a first-class importer for the office/markup formats it handles (and Pandoc-only types like `.rtf`, `.fb2`, `.typst`); falls back to native loaders if Pandoc fails. EPUB always stays native (chapter navigation). Set `false` to always use native loaders |
@@ -133,6 +146,11 @@ eSpeak-NG highlight timing offset (advanced): `espeak_highlight_offset_ms`
 (default `120`) nudges the in-process eSpeak highlight to compensate for
 audio-output latency — raise it if highlights lead the speech, lower it toward
 `0` if they lag.
+
+Large-document pagination caveat: to keep highlight and difficult-word placement
+exact, a document you have saved highlights on — or have the difficult-word
+overlay (`qt_vocab_highlight`) enabled on — is rendered whole rather than
+paginated, even when `qt_paginate_large_docs` is on.
 
 ---
 

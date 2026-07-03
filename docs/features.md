@@ -25,6 +25,7 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 - [Voice dictation & transcription](#voice-dictation--transcription-optional)
 - [Table of contents & EPUB / DAISY navigation](#table-of-contents--epub--daisy-navigation)
 - [Document caching](#document-caching)
+- [Large-document pagination](#large-document-pagination)
 - [Document fidelity](#document-fidelity)
 - [Footnote handling](#footnote-handling)
 - [OCR support](#ocr-support)
@@ -54,7 +55,7 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 |---|---|
 | Qt GUI (primary) | Windowed application with menu bar, toolbar, dock panels, and a keyboard shortcut for every command; launches by default when PyQt6/PyQt5 is installed |
 | Terminal TUI (secondary) | Full-featured, fully keyboard-driven curses interface for headless / text-only use; force it with `--tui` |
-| Built-in TTS | pyttsx3 (SAPI5 / NSSpeechSynthesizer / eSpeak-NG), macOS `say` (native, default on Mac), eSpeak-NG (in-process libespeak-ng, or CLI), DECtalk, Festival, Piper (neural, offline, free), Coqui |
+| Built-in TTS | Qt-native system voices (`qtspeech` — OS voices, no key/download, per-word highlighting), pyttsx3 (SAPI5 / NSSpeechSynthesizer / eSpeak-NG), macOS `say` (native, default on Mac), eSpeak-NG (in-process libespeak-ng, or CLI), DECtalk, Festival, Piper (neural, offline, free), Coqui, ElevenLabs (opt-in cloud neural) |
 | Voice Manager | Browse, filter, preview, and favorite voices across every engine (`F4`); one-click download of offline Piper neural voices |
 | eSpeak-NG playback sync | Driven in-process via libespeak-ng (ctypes); per-word events carry their audio position, so the highlight follows the actual audio, not a timer estimate |
 | Default reading rate | **265 wpm** — intentionally brisk; adjustable at runtime |
@@ -73,6 +74,7 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 | EPUB NCX / NAV navigation | Parses EPUB 2 NCX and EPUB 3 NAV documents for chapter-level navigation |
 | Async document loading | Documents load in a background thread — the UI never freezes |
 | Document caching | Parsed documents cached per platform; reopening a large file is instant |
+| Large-document pagination | Opt-in: renders only a window of a very large document at a time (~5× faster first paint on huge docs); off by default (`qt_paginate_large_docs`) |
 | Markdown rendering | All documents are converted to clean Markdown for display |
 | Math normalization | LaTeX and inline math expressions converted to natural spoken English |
 | Inline math display | Inline / display LaTeX rendered to Unicode (`x²`, `√2`, `½`, `α`) in the Qt document view |
@@ -87,8 +89,10 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 | Metadata editor | Edit title, author, year, DOI, ISBN, publisher per document; one-click DOI / ISBN lookup (CrossRef / OpenLibrary) |
 | Library search | AND-combined search over title, author, DOI, ISBN, and annotation full-text |
 | Karaoke video export | Sentence-synchronized MP4: TTS audio + rendered page frames with highlight advancing sentence by sentence; soft SRT subtitle track |
+| Audiobook export (M4B) | Export a document as a chaptered `.m4b` audiobook — chapters come from its headings — for listening on the go (needs ffmpeg) |
 | RSVP reading mode | One-word-at-a-time display at a fixed on-screen point; 9 placement positions for limited-visual-field accessibility; prev/next context words; syncs with TTS |
-| Interface language | Localize the menus, toolbar, and docks — **and now the terminal UI** — (English, Spanish, French, German, Portuguese); first-run language picker; switch live from View ▸ Interface Language; TTS prefers a voice matching the interface language |
+| Interface language | Localize the menus, toolbar, and docks — **and now the terminal UI** — (English, Spanish, French, German, Portuguese, plus a first Arabic catalog); first-run language picker; switch live from View ▸ Interface Language; TTS prefers a voice matching the interface language |
+| Right-to-left interface | Choosing a right-to-left interface language mirrors the whole app and reading view; Arabic is included as a first catalog |
 | Export | Markdown, PDF (with highlights), BRF braille, TTS audio, SRT/VTT subtitles, and karaoke MP4 video |
 | Reading statistics | Per-document time read, progress %, and session count, with totals and a most-read dashboard |
 | Library / bookshelf | Searchable list of every opened document with progress and last-opened time |
@@ -101,7 +105,9 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 | Define word (offline) | Selected word → definition, senses, synonyms, pronunciation; WordNet via `nltk`, or a custom JSON glossary |
 | Screen-reader announcements | Playback, document load, theme change, and find results are spoken to NVDA / JAWS / Orca without moving focus |
 | High-contrast AAA theme | WCAG 2.1 AAA (§1.4.6) low-vision theme; theming can also follow the OS light / dark / high-contrast preference |
-| OpenDyslexic everywhere | The dyslexia-friendly font (auto-fetched) applies across the whole UI — document, menus, toolbar, and panels |
+| Reading Font chooser | Pick OpenDyslexic, Atkinson Hyperlegible, or Lexend from View ▸ Reading Aids ▸ Reading Font; auto-fetched on first use and applied across the whole UI — document, menus, toolbar, and panels |
+| Syllable splitting | Show words split into syllables (`read·a·bil·i·ty`) as a decoding aid; display-only, so speech and highlighting are unaffected |
+| Reading ruler | A movable, translucent band (typoscope) that follows the caret line to help keep your place; adjustable height and opacity |
 | One-click optional features | Missing add-ons are offered for background download — no `pip` required; the feature works in the same session |
 | Plugin system | Third parties add TTS engines, document formats, or exporters via entry-point plugins; introspect with `star --plugins` |
 | Dependency status report | `star --deps` lists every optional dependency and how to add the rest |
@@ -194,6 +200,11 @@ Switch engines any time with **Speech → Choose TTS Engine…** (`Ctrl+Shift+G`
   `ctypes`); each per-word event carries the word's audio position, so the
   highlight follows actual playback. Falls back to the `espeak-ng` CLI
   (timer-paced) when the shared library is absent.
+- **Qt-native system voices (`qtspeech`)** — speaks with your operating system's
+  built-in voices (SAPI on Windows, AVSpeech on macOS, speech-dispatcher on
+  Linux) through Qt's own speech module. No API key and no download, and it
+  reports word boundaries so the highlight follows each spoken word. Available
+  when the Qt binding ships `QtTextToSpeech`.
 
   | Platform | Install |
   |---|---|
@@ -209,6 +220,11 @@ Switch engines any time with **Speech → Choose TTS Engine…** (`Ctrl+Shift+G`
   is **opt-in** and never chosen in `auto` mode.
 - **Coqui TTS** — neural TTS via the Coqui library (`pip install TTS`); high
   quality but needs a GPU-capable machine for real-time synthesis. Opt-in.
+- **ElevenLabs (cloud neural, opt-in)** — premium neural voices from the
+  ElevenLabs cloud API. It is **strictly opt-in and privacy-preserving**: nothing
+  ever leaves your machine unless you paste a key (`elevenlabs_api_key`) **and**
+  choose the cloud voice, and on any failure (no key, offline, quota) star
+  silently falls back to a local engine. Never chosen in `auto` mode.
 - **DECtalk** — the legendary "Perfect Paul" synthesizer; all nine classic
   speakers appear in the voice picker. Set `DECTALK_BIN` to a `dtalk`/`dectalk`
   CLI, or install system DECtalk. Source:
@@ -222,9 +238,11 @@ Switch engines any time with **Speech → Choose TTS Engine…** (`Ctrl+Shift+G`
 M-x tts-backend pyttsx3
 M-x tts-backend applesay     # macOS native `say`
 M-x tts-backend espeak
+M-x tts-backend qtspeech     # OS voices via Qt (no key/download)
 M-x tts-backend festival
 M-x tts-backend piper        # neural, offline, free (needs a .onnx model)
 M-x tts-backend coqui
+M-x tts-backend elevenlabs   # opt-in cloud neural (needs an API key)
 M-x tts-backend dectalk
 M-x tts-backend none
 ```
@@ -390,6 +408,24 @@ across spoken tokens by length); no external tools are required.
   list.
 - **Storage:** `settings.json` under `reading_stats`, flushed periodically and on
   exit.
+
+### Sync without losing work (conflict merge)
+
+When the same document is read on two machines through a synced folder (Dropbox,
+iCloud, Syncthing, …), star now **merges** the per-document `.star/` sidecars
+instead of last-write-wins. Reading position resolves by a policy you choose,
+`sync_conflict_policy`:
+
+| Policy | Behaviour |
+|---|---|
+| `newest` (default) | Newer timestamp wins — the classic last-write-wins |
+| `highest_progress` | Keep the furthest reading position |
+| `manual` | Keep the local position and surface the conflict |
+
+**Annotations always union by id**, so an edit made on either machine is never
+dropped. Corruption-hardened: a malformed sidecar value no longer discards valid
+reading progress or crashes resume — the bad value is ignored and the good state
+is kept.
 
 ---
 
@@ -660,6 +696,28 @@ On reopen, star checks the file's modification time and the settings fingerprint
 if both match, the cached result is used immediately. Cache files are JSON named
 by a hash of the path and settings. Force a fresh parse with `M-x cache-clear`.
 Configure via `document_cache` and `cache_max_size_mb`.
+
+---
+
+## Large-document pagination
+
+Very large documents (a full textbook, a scanned book, a giant merged PDF) are
+slow to lay out all at once in the Qt view. **Opt-in pagination** renders only a
+window of the document at a time, so the first page paints almost immediately —
+on a ~500-page document first paint drops from several seconds to well under one
+(roughly 5× faster). Reading, word highlighting, Find, and Define-Word all stay
+correct across page boundaries.
+
+- **Off by default.** Enable it with `qt_paginate_large_docs`; a document then
+  paginates only once it exceeds `qt_paginate_threshold_words` (default 60 000
+  words), so ordinary documents keep the whole-document path.
+- **Tunable window.** `qt_paginate_words_per_page` (default 1 200) and
+  `qt_paginate_window_pages` (default 2) size the rendered window.
+- **Correctness first.** To keep highlight and difficult-word placement exact, a
+  document you have highlighted — or have the difficult-word overlay enabled on —
+  renders in full rather than paginating; highlighting a very large document turns
+  pagination off for that session (with a status note), the same way opening Find
+  does.
 
 ---
 
@@ -963,6 +1021,19 @@ The backend always produces a WAV first; non-WAV formats are converted via ffmpe
 neither is available. Audio export can also emit a synchronized SRT/VTT track —
 see [Subtitle export](#subtitle-export-srt--vtt).
 
+### Audiobook export (M4B)
+
+For listening on the go, star can export a whole document as a chaptered `.m4b`
+audiobook — the format audiobook players and Apple Books expect.
+
+- **Qt GUI:** **File ▸ Export ▸ Export Audiobook (M4B)…** (background thread).
+
+**Chapters come from the document's headings**, so an audiobook player can jump
+straight to a section. The document is synthesized with the active TTS backend
+(any engine) and muxed into an `.m4b` container with embedded chapter markers.
+Because the container is built with ffmpeg, **ffmpeg must be on PATH**; without
+it you get a clear message rather than a broken file.
+
 ---
 
 ## Speed presets, bookmarks & history
@@ -1168,13 +1239,17 @@ OS's light / dark / high-contrast preference to the matching built-in theme
 (via `QGuiApplication.styleHints().colorScheme()` on Qt 6.5+); detection is
 best-effort and falls back to your saved theme when the OS preference is unknown.
 
-### OpenDyslexic across the whole UI
+### Reading fonts across the whole UI
 
-The dyslexia-friendly font (OpenDyslexic, fetched on demand the first time it is
-enabled) is applied to the **entire interface** — not just the document, but the
+A **Reading Font** chooser (View ▸ Reading Aids ▸ Reading Font) offers three
+low-vision / dyslexia-friendly faces beyond the default: **OpenDyslexic**,
+**Atkinson Hyperlegible** (the Braille Institute's typeface, designed for low
+vision), and **Lexend**. Each OFL font is fetched on demand the first time it is
+picked and applied to the **entire interface** — not just the document, but the
 menus, toolbar, dialogs, and dock panels — so nothing is left in the default face.
-star snapshots the real default application font before overriding, so turning the
-dyslexia font back off restores the original chrome cleanly.
+star snapshots the real default application font before overriding, so switching
+back to **Default** restores the original chrome cleanly. (The classic
+`Ctrl+Alt+X` toggle still flips OpenDyslexic on and off for muscle memory.)
 
 ---
 
@@ -1247,12 +1322,24 @@ margin/border properties work, but CSS variables (`var()`) and `:root {}` do not
 
 **View → Reading Aids** collects accommodations for dyslexic and low-vision
 readers: **Text Spacing…** (line height / letter / word spacing — WCAG 1.4.12),
-**Karaoke Highlight…** (granularity, style, color, speed, lead/lag),
-**Dyslexia-Friendly Font** (prefers OpenDyslexic / Atkinson Hyperlegible / Lexend
-/ Comic Sans), **Bionic Reading**, **Current-Line Highlight**, and **RSVP Mode**
-(one word at a time at a chosen screen position — see
-[RSVP reading mode](#rsvp-reading-mode)). star applies high-DPI scaling by
-default (`qt_hidpi`), so the window renders crisp on 4K/HiDPI displays.
+**Karaoke Highlight…** (granularity, style, color, speed, lead/lag), the
+**Reading Font** chooser (**Default**, **OpenDyslexic**, **Atkinson Hyperlegible**,
+or **Lexend** — each OFL font fetched on demand the first time it is picked and
+applied app-wide; the classic `Ctrl+Alt+X` still toggles OpenDyslexic on/off for
+muscle memory), **Bionic Reading**, **Syllable Splitting**, **Current-Line
+Highlight**, the **Reading Ruler**, and **RSVP Mode** (one word at a time at a
+chosen screen position — see [RSVP reading mode](#rsvp-reading-mode)). star
+applies high-DPI scaling by default (`qt_hidpi`), so the window renders crisp on
+4K/HiDPI displays.
+
+- **Syllable splitting** shows words broken into syllables (`read·a·bil·i·ty`) as
+  an offline decoding aid. It is purely a *display* transform — the speech and
+  word-highlighting paths receive the unsplit text, so playback is unaffected —
+  and it works the moment it installs, no restart. Persists via
+  `qt_syllable_split`.
+- **Reading ruler** overlays a movable, translucent band (a typoscope) that
+  follows the caret line so your eye can keep its place; its height and opacity
+  are adjustable from **Reading Ruler…**. Persists via `qt_reading_ruler`.
 
 ---
 
@@ -1264,8 +1351,14 @@ the document being read. (Document *content* is handled separately by **Tools �
 Translate Document…**.)
 
 **Shipped languages:** English (source), **Español**, **Français**, **Deutsch**,
-**Português**. The non-English catalogs are kept complete by a CI gate, so no
-string is left untranslated.
+**Português**, and a first **العربية** (Arabic) catalog. The non-English catalogs
+are kept complete by a CI gate, so no string is left untranslated.
+
+**Right-to-left (RTL) support** — choosing a right-to-left interface language
+mirrors the whole app: the layout direction flips and the reading view renders
+with `dir="rtl"`. Arabic is the first RTL catalog; the machinery also covers
+Hebrew, Persian/Farsi, and Urdu (`star.i18n.is_rtl`) so a future RTL catalog
+needs no code changes.
 
 **First-run language picker** — the interface language is offered right at the
 top of the first-launch [Optional Features](#optional-features--one-click-install)

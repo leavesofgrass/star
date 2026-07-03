@@ -117,8 +117,9 @@ star --tui           # force the terminal UI
 ```
 
 Extras let you install exactly what you need: `[ocr]`, `[formats]`, `[markup]`,
-`[braille]`, `[audio]`, `[transcribe]`, `[watch]`, `[graph]` (knowledge-graph /
-Obsidian helpers), `[ner]` (spaCy/NLTK concept extraction), or `[all]`.
+`[braille]`, `[audio]`, `[syllables]` (syllable-splitting decoding aid),
+`[transcribe]`, `[watch]`, `[graph]` (knowledge-graph / Obsidian helpers),
+`[ner]` (spaCy/NLTK concept extraction), or `[all]`.
 
 > The wheel covers the **Python** side. The native engines below (ffmpeg,
 > Tesseract, liblouis, Pandoc, eSpeak-NG) are not Python packages; on
@@ -209,6 +210,12 @@ What the fat zipapp does and does not remove:
 | `deep-translator` | Document translation (**Tools ▸ Translate Document**) | `pip install deep-translator` |
 | `feedparser` | RSS / Atom feed reading (**File ▸ Open Feed**) | `pip install feedparser` |
 | `wordfreq` | Difficult-word overlay (**View ▸ Reading Aids ▸ Highlight Difficult Words**) | `pip install wordfreq` |
+| `pyphen` | Syllable splitting (**View ▸ Reading Aids ▸ Syllable Splitting**); pure-Python, offline | `pip install pyphen` |
+
+> **Two speech engines need no extra at all.** The `qtspeech` engine (your OS's
+> built-in system voices) rides on `PyQt6`, which is already in the base install;
+> the `elevenlabs` cloud engine uses only the standard library (paste a key to
+> enable). Neither has an optional-dependency group.
 
 ## External Binary Dependencies
 
@@ -332,7 +339,7 @@ pip install pytesseract pymupdf
 pip install windows-curses
 
 # Everything
-pip install PyQt6 pyttsx3 pdfminer.six pytesseract pymupdf python-docx python-pptx odfpy openpyxl pypandoc louis pydub windows-curses
+pip install PyQt6 pyttsx3 pdfminer.six pytesseract pymupdf python-docx python-pptx odfpy openpyxl pypandoc louis pydub pyphen windows-curses
 ```
 
 ---

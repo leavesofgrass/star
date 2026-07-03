@@ -197,16 +197,16 @@ class DocOpsMixin:
         without editing settings.json.  Switching to a backend with no
         available voice keeps the previous engine and explains why.
         """
-        engines = [
-            "auto",
-            "pyttsx3",
-            "espeak",
-            "festival",
-            "piper",
-            "coqui",
-            "dectalk",
-            "none",
-        ]
+        # Registry-driven so newly registered backends (e.g. qtspeech,
+        # elevenlabs) appear automatically instead of being missed by a
+        # hardcoded list.  "auto" leads; the always-present "silent" backend is
+        # offered to the user as "none".
+        try:
+            from ..plugins import PluginRegistry
+            reg_names = [c.name for c in PluginRegistry.get().backends]
+        except Exception:
+            reg_names = ["pyttsx3", "espeak", "festival", "piper", "coqui", "dectalk"]
+        engines = ["auto"] + [n for n in reg_names if n != "silent"] + ["none"]
         current = str(self.settings.get("tts_backend", "auto"))
         cur_idx = engines.index(current) if current in engines else 0
         chosen, ok = QInputDialog.getItem(
@@ -222,15 +222,18 @@ class DocOpsMixin:
         backend_name = "silent" if chosen == "none" else chosen
         self.tts_manager.change_backend(backend_name)
         active = self.tts_manager.backend_name
-        if chosen in ("piper", "coqui") and active != chosen:
-            hint = (
-                "Install the piper binary and a .onnx voice model, then set"
-                " 'piper_model' in settings.json."
-                if chosen == "piper"
-                else "Install Coqui TTS (pip install TTS)."
-            )
+        if chosen not in ("auto", "none") and active != chosen:
+            hints = {
+                "piper": "Install the piper binary and a .onnx voice model, then"
+                " set 'piper_model' in settings.json.",
+                "coqui": "Enable the Coqui voice from Tools ▸ Optional Features.",
+                "elevenlabs": "Paste your key into 'elevenlabs_api_key' in"
+                " settings to use the cloud voice.",
+                "qtspeech": "No system speech voices are available on this machine.",
+            }
+            hint = hints.get(chosen, "")
             self.statusBar().showMessage(
-                f"{chosen} unavailable — using {active}. {hint}"
+                f"{chosen} unavailable — using {active}. {hint}".strip()
             )
         else:
             self.statusBar().showMessage(f"TTS engine: {active}")

@@ -8,6 +8,67 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.21] 2026-07-03
+
+A voices-and-reading release delivered as three multi-agent waves, then hardened
+by an adversarial multi-agent review before shipping. New ways to hear a document,
+new decoding and low-vision aids, faster very-large documents, and a maintenance
+pass that splits the last big modules into packages. Every optional capability
+still installs itself in one click — students never see `pip`.
+
+### ✨ Added
+
+- **Qt-native system voices.** A new `qtspeech` engine speaks with your operating
+  system's built-in voices (SAPI on Windows, AVSpeech on macOS, speech-dispatcher
+  on Linux) — no API key, no download, and per-word highlighting.
+- **Cloud neural voices (opt-in).** An `elevenlabs` engine for premium neural
+  speech. Nothing ever leaves your machine unless you paste a key **and** choose
+  the cloud voice; on any failure star silently falls back to a local engine.
+- **Audiobook export (M4B).** Export a document as a chaptered `.m4b` audiobook —
+  chapters come from its headings — to listen on the go (needs ffmpeg).
+- **Reading Font chooser.** Pick **OpenDyslexic**, **Atkinson Hyperlegible**
+  (Braille Institute, for low vision), or **Lexend** from View ▸ Reading Aids;
+  the font is fetched on first use and applied everywhere.
+- **Syllable splitting.** A decoding aid that shows words split into syllables
+  (`read·a·bil·i·ty`); display-only, so speech and highlighting are unaffected.
+- **Reading ruler.** A movable, translucent band that follows the caret to help
+  keep your place (adjustable height and opacity).
+- **Faster very-large documents.** Opt-in pagination renders only a window of a
+  huge document at a time — a ~500-page document's first paint drops from several
+  seconds to well under one, with reading, highlighting, Find, and Define-Word
+  still correct across page boundaries. Off by default; see Configuration.
+- **Right-to-left groundwork.** Choosing a right-to-left interface language now
+  mirrors the whole app and reading view; Arabic is included as a first catalog.
+
+### 🔧 Changed
+
+- **Reading progress syncs without losing work.** When the same document is read
+  on two machines through a synced folder, star now *merges* the sidecars instead
+  of last-write-wins: reading position resolves by a policy you choose (newest,
+  furthest, or manual) and annotations union by id, so no edit is dropped.
+- **Internal maintainability.** The last large modules — `markup`, `ttstext`, the
+  TTS `manager`, and the GUI navigation mixin — were split into packages
+  (behaviour-identical, public API unchanged).
+
+### 🐛 Fixed
+
+- **Highlights & the difficult-word overlay stay put under pagination.** Saved
+  highlights no longer paint over the wrong text after the page window advances,
+  and highlights created while paginated are stored at correct absolute offsets.
+- **Corrupted synced sidecars can't erase progress.** A malformed sidecar value no
+  longer discards valid reading progress or crashes resume.
+- **Syllable splitting works the moment it installs** — no restart required, like
+  every other one-click feature.
+
+### 📝 Note
+
+- To keep highlight and difficult-word placement exact, a document you have
+  highlighted — or have the difficult-word overlay enabled on — renders in full
+  rather than paginating. Highlighting a very large document turns pagination off
+  for that session (with a status note), the same way opening Find does.
+
+---
+
 ## [0.1.20] 2026-07-02
 
 A large capability-and-polish release: ten roadmap areas delivered together, plus

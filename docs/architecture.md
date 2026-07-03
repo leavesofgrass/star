@@ -26,9 +26,12 @@ that ships in every distribution form.
 |---|---|
 | `star/_runtime.py` | Foundational shared state: stdlib imports, vendored-tool wiring, optional-dependency detection, app metadata (`__version__`) and config paths. Re-exported wholesale via `from ._runtime import *`. |
 | `star/settings.py` | Persistent settings store and defaults. |
-| `star/ttstext.py` | TTS text preprocessing (SSML/DECtalk markup, abbreviation/number/date normalization). |
-| `star/markup.py` | Lightweight markup → Markdown converters and the Pandoc bridge. |
-| `star/documents.py` | Document model and the multi-format loaders (PDF, EPUB, DOCX, …). |
+| `star/ttstext/` | TTS text preprocessing **package** (SSML/DECtalk markup, abbreviation/number/date/math normalization, table narration) — a behaviour-identical split of the former `ttstext.py`; the public API is unchanged. |
+| `star/markup/` | Lightweight markup → Markdown converters (AsciiDoc, Creole, MediaWiki, Org, reStructuredText, Textile, LaTeX) and the Pandoc bridge — a behaviour-identical split of the former `markup.py`; the public API is unchanged. |
+| `star/documents/` | Document model and the multi-format loaders (PDF, EPUB, DOCX, …), plus format dispatch and the entry-point `FormatHandler`s. |
+| `star/pagination.py` | Pure paging logic for windowing very large documents (no Qt, no I/O). |
+| `star/sync.py` | Sidecar (annotations/settings) conflict-merge for two-way sync. |
+| `star/syllables.py` | Pyphen-based hyphenation/syllable decoding aid (offline-safe, graceful fallback). |
 | `star/render.py` · `star/search.py` | Markdown → styled terminal lines; in-document search and the line editor. |
 | `star/braille.py` · `star/annotations.py` · `star/citations.py` · `star/transcribe.py` | Braille export, notes, citation management, Whisper transcription. |
 | `star/cache.py` · `star/stats.py` · `star/themes.py` | Document cache, reading statistics, color/CSS themes. |
@@ -39,11 +42,16 @@ that ships in every distribution form.
 | `star/mathrender.py` | Visual LaTeX-math → readable **Unicode** for the Qt document view (`x²`, `√2`, `½`, `α`). Pure string→string, no deps; independent of the speech path (TTS still gets raw LaTeX, normalized by `ttstext`). |
 | `star/update.py` | Best-effort PyPI version check (stdlib `urllib` against the PyPI JSON API). `check_for_update()` compares the newest `star-reader` release to the running one, caches the reply under `CACHE_DIR`, and **never raises** (offline → "no update known"). Injectable `fetcher=` keeps tests off the network. |
 | `star/fonts.py` | On-demand fetch & cache of the **OpenDyslexic** typeface (SIL OFL 1.1) into `CACHE_DIR/fonts` the first time the reader enables the dyslexia-friendly font. Not bundled; offline-safe (a failed fetch falls back to a system family). |
-| `star/tts.py` | TTS backends (pyttsx3, eSpeak-NG, DECtalk, Piper, Coqui, Apple `say`, …) and the manager. |
+| `star/tts/` | TTS **package**: one module per backend (pyttsx3, eSpeak-NG, Festival, DECtalk, Piper, Coqui, Apple `say`, `qtspeech`, the `silent` null backend, …), the audio/subtitle/exporter helpers, and the `manager/` sub-package. |
+| `star/tts/manager/` | The `TTSManager` **mixin package** (`_playback`, `_selection`, `_screader`, `_export`) — a behaviour-identical split of the former `manager.py`; the public API is unchanged. |
+| `star/tts/qtspeech.py` | `QtSpeechBackend` — a `QTextToSpeech`-driven backend using the platform speech engine when PyQt is present. |
+| `star/tts/cloud/` | Opt-in **cloud** TTS backends (e.g. `elevenlabs`) plus a shared base and a `mock` for tests; off by default, credential-gated, graceful when unconfigured. |
 | `star/tts/piper_models.py` | Piper voice **catalog** (`CATALOG` — curated name/language/quality rows) + on-demand download/cache of each voice's `.onnx` weights + `.onnx.json` config into `CACHE_DIR/piper` — the same dir `PiperBackend` scans, so a fetched voice is discovered automatically. Same "fetch when wanted" ergonomics as `star/fonts.py`; offline-safe, injectable `fetcher=`. |
+| `star/audiobook.py` | M4B audiobook assembly: chapter markers and the `ffmpeg` muxing logic behind the `m4b` exporter. |
 | `star/tui/` | The curses terminal UI **package** (see below). |
 | `star/gui/` | The Qt GUI **package** (see below). |
 | `star/app.py` | Command-line entry point (`star.app:main`). |
+| `star/plugins.py` · `star/formats.py` | The `PluginRegistry` and the plugin ABCs. Backends, format handlers, and exporters are discovered via `importlib.metadata.entry_points` — the built-ins register in [`pyproject.toml`](../pyproject.toml)'s `[project.entry-points]` groups (`star.backends`: pyttsx3, espeak, festival, piper, coqui, dectalk, applesay, **qtspeech**, **elevenlabs**, silent; `star.formats`: pdf, epub, docx, …; `star.exporters`: anki, markdown, html, epub, wav, mp4, **m4b**), and third-party packages add entry-points in the same groups. |
 | `star/diagnostics.py` | `OPTIONAL_DEPENDENCIES` registry powering `star --deps`. |
 | `star/autodeps.py` | On-demand optional-dependency installer: the `FEATURES` registry, `FEATURE_INFO`/`PRESETS`, and the best-effort `ensure()` engine behind the first-run chooser and `star --install-optional`. |
 | `star/__main__.py` · `run_star.py` | `python -m star`, and the source-tree entry script. |
@@ -62,7 +70,8 @@ subsequently lifted out of the closure and split into focused responsibility
 | `star/gui/runner.py` | `_run_qt_gui()` — `QApplication` setup, the crash-log excepthook, and launch. Lazily imports and shows `StarWindow`. |
 | `star/gui/main_window.py` | `StarWindow(QMainWindow)` — window **lifecycle/state**: `__init__`, `_setup_ui`, window assembly — plus the `_RSVPOverlay` widget. The large toolbar/menu-bar builders were split out into `ChromeMixin`. |
 | `star/gui/mixin_chrome.py` | **`ChromeMixin`** — the toolbar and menu-bar construction (`_build_toolbar`, `_build_menu`), extracted verbatim from `main_window.py`. Stateless; rebuilt on UI-language change so labels re-run through `tr()`. |
-| `star/gui/mixin_doctools.py` | **`DocToolsMixin`** — document tools & sources (reading statistics, summarize, define word, translate, open feed, folder-as-library / bookshelf), split out of `mixin_navigation.py` so `NavigationMixin` keeps just core keyboard navigation. |
+| `star/gui/mixin_navigation/` | **`NavigationMixin`** — core keyboard navigation, split into a behaviour-identical **package** (`_core`, `_editing`, `_position`, `_speechcursor`); the public API is unchanged. |
+| `star/gui/mixin_doctools.py` | **`DocToolsMixin`** — document tools & sources (reading statistics, summarize, define word, translate, open feed, folder-as-library / bookshelf), split out of `mixin_navigation/` so `NavigationMixin` keeps just core keyboard navigation. |
 | `star/gui/mixin_find.py` | **`FindMixin`** — the in-document Find bar (Ctrl+F): incremental substring matching, next/prev (F3), a live counter, case toggle, wrap-around, and highlight-all via `QTextEdit.ExtraSelection`. Reuses `star.search.SearchEngine`'s plain-text semantics. |
 | `star/gui/mixin_bookmarks_qt.py` | **`BookmarksQtMixin`** — named bookmarks (Ctrl+B) + back/forward navigation history (Alt+←/→), ported from the TUI `mixin_bookmarks.py` and sharing the same `settings['bookmarks']` schema so a mark set in one UI shows in the other. |
 | `star/gui/mixin_voices.py` | **`VoicesMixin`** — the rich **Voice Manager** dialog (Ctrl+Shift+F2): lists active-backend voices *and* the downloadable Piper catalog, filters live, previews, sets, keeps a favorites list, and offers one-click Piper download (via `star/tts/piper_models.py`). |

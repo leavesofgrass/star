@@ -66,12 +66,18 @@ spoken to your screen reader as it appears.
 ### Pick your language
 
 star's menus, toolbar, and messages are available in English, Spanish, French,
-German, and Portuguese (the terminal UI is translatable too).
+German, and Portuguese (the terminal UI is translatable too). Arabic is also
+included as a first right-to-left catalog.
 
 1. On first launch, the **Optional Features** window opens with an **Interface
    language** dropdown at the top — choose your language there. The whole
    interface switches immediately, with no restart.
 2. To change it later, use **View ▸ Interface Language** in the Qt GUI.
+
+**Right-to-left languages.** Selecting a right-to-left interface language (such
+as Arabic) mirrors the whole app — menus, toolbar, and panels flip to the right
+— and the reading view renders right-to-left as well. Switching back to a
+left-to-right language restores the normal layout live, with no restart.
 
 ### Add optional features (no `pip` needed)
 
@@ -191,6 +197,27 @@ languages) appear in the list marked with a ⬇ download tag.
 2. When it finishes, star switches to the Piper engine and selects the new
    voice automatically — it works right away, fully offline from then on.
 
+### Pick a speech engine (system and cloud voices)
+
+Beyond the built-in engines, star can also speak with your operating system's
+own voices or with a cloud service. Change engines from **Speech ▸ Choose TTS
+Engine…** (**Ctrl+Shift+G**), or `M-x tts-backend` in the terminal UI. The
+Voice Manager (**F4**) then lists that engine's voices for filtering and
+preview.
+
+- **`qtspeech` — your OS system voices (no setup).** Speaks with the voices
+  already installed on your computer (SAPI on Windows, AVSpeech on macOS,
+  speech-dispatcher on Linux). No API key and no download; per-word highlighting
+  works as usual.
+- **`elevenlabs` — cloud neural voices (opt-in).** Premium neural speech from
+  the ElevenLabs service. **Nothing is sent anywhere** until you both paste your
+  key and select a cloud voice: put your key in the **`elevenlabs_api_key`**
+  setting (edit `settings.json` via **`M-x settings`**, or set the
+  `ELEVENLABS_API_KEY` environment variable), then select the `elevenlabs`
+  engine and choose a voice. With no key the engine stays unavailable and star
+  keeps using a local engine; on any network error it silently falls back to a
+  local voice too. Cloud voices are never auto-selected.
+
 ### Study what you read (spaced repetition)
 
 Your highlights and notes can become a review deck that schedules each card for
@@ -260,6 +287,21 @@ live under **View ▸ Reading Aids** unless noted.
   whole interface — document, menus, toolbar, and panels. If no such font is
   installed, star fetches OpenDyslexic automatically in the background (no `pip`,
   nothing to install by hand) and falls back gracefully offline.
+- **Reading font chooser.** For more choices than the dyslexia toggle, open
+  **View ▸ Reading Aids ▸ Reading Font** and pick **Default**, **OpenDyslexic**,
+  **Atkinson Hyperlegible** (a Braille Institute face designed for low vision),
+  or **Lexend**. The chosen font applies everywhere; each is fetched on first use
+  in the background (no `pip`). Menu-only — no shortcut. (The `Ctrl+Alt+X`
+  toggle above is a quick shortcut for OpenDyslexic on/off.)
+- **Syllable splitting.** Toggle **View ▸ Reading Aids ▸ Syllable Splitting** to
+  show words broken into syllables (`read·a·bil·i·ty`) — a decoding aid. It is
+  display-only, so speech and highlighting are unaffected. Menu-only — no
+  shortcut. (Installs itself on first use, then works immediately with no
+  restart.)
+- **Reading ruler.** Toggle **View ▸ Reading Aids ▸ Reading Ruler** to show a
+  movable, translucent band (a typoscope) that follows the caret line to help
+  you keep your place. To adjust its height and opacity, open **View ▸ Reading
+  Aids ▸ Reading Ruler…**. Both are menu-only — no shortcut.
 - **RSVP one-word mode.** Turn on **View ▸ Reading Aids ▸ RSVP Mode**
   (**Ctrl+Alt+E**) to show one word at a time in a large panel synced to
   speech — an aid many dyslexic readers find easier to track. Choose where the
@@ -281,6 +323,28 @@ Syncthing, or iCloud — and every document inside it becomes your library.
    Bookshelf…** (**Ctrl+Shift+B**).
 3. Reading progress is saved per document and travels with the folder, so you
    can read on one machine and pick up where you left off on another.
+
+### Read very large documents smoothly
+
+For very large documents, star can render only a window of the document at a
+time (pagination) so the first page appears almost instantly instead of after a
+multi-second layout.
+
+1. Pagination is **opt-in**. Turn it on by setting **`qt_paginate_large_docs`**
+   to `true` in `settings.json` (open it with **`M-x settings`**, or **Tools**
+   in the TUI).
+2. Once enabled, it engages **automatically** only when a document is very large
+   (past roughly 60,000 words) — smaller documents render whole as before.
+3. It is **transparent to reading**: playback, highlighting, and Define Word
+   stay correct across page boundaries, and the status bar notes when a document
+   is paginated.
+
+Two things always render the **whole** document (so nothing is missed):
+
+- **Find** (`Ctrl+F`) searches the entire document, not just the visible window.
+- **Highlighting** a document — or turning on **Highlight Difficult Words** —
+  renders it in full so highlight placement stays exact. Highlighting a very
+  large document turns pagination off for that session (with a status note).
 
 ---
 
@@ -309,6 +373,7 @@ trigger it).
 | Export as Audio | File ▸ Export ▸ Export as Audio… | `Ctrl+Alt+A` | `M-x export-audio` |
 | Export subtitles (SRT/VTT) | File ▸ Export ▸ Export Subtitles… | `Ctrl+Alt+U` | `M-x export-subtitles` |
 | Export karaoke video (MP4) | File ▸ Export ▸ Video (MP4)… | `Ctrl+Alt+V` | `M-x export-video` |
+| Export audiobook (M4B) | File ▸ Export ▸ Export Audiobook (M4B)… | — (menu only) | — |
 | Export Anki flashcards | File ▸ Export ▸ Anki Flashcards… | `Ctrl+Alt+H` | — |
 | Quit | File ▸ Quit | `Ctrl+Q` | `M-x quit` (`q`) |
 | Play / pause | (Playback toolbar) | `Space` · tap `Ctrl` | `M-x play` / `pause` (`Space`) |
@@ -352,8 +417,12 @@ trigger it).
 | Text spacing | View ▸ Reading Aids ▸ Text Spacing… | `Ctrl+Alt+W` | — |
 | Karaoke highlight / granularity | View ▸ Reading Aids ▸ Karaoke Highlight… | `Ctrl+Alt+K` | `M-x highlight-granularity` |
 | Dyslexia-friendly font | View ▸ Reading Aids ▸ Dyslexia-Friendly Font | `Ctrl+Alt+X` | — |
+| Reading font (Default/OpenDyslexic/Atkinson/Lexend) | View ▸ Reading Aids ▸ Reading Font | — (menu only) | — |
 | Bionic reading | View ▸ Reading Aids ▸ Bionic Reading | `Ctrl+Alt+J` | — |
+| Syllable splitting | View ▸ Reading Aids ▸ Syllable Splitting | — (menu only) | — |
 | Current-line highlight | View ▸ Reading Aids ▸ Current-Line Highlight | `Ctrl+Alt+L` | — |
+| Reading ruler | View ▸ Reading Aids ▸ Reading Ruler | — (menu only) | — |
+| Reading ruler height / opacity | View ▸ Reading Aids ▸ Reading Ruler… | — (menu only) | — |
 | Highlight difficult words | View ▸ Reading Aids ▸ Highlight Difficult Words | `Ctrl+Alt+O` | — |
 | RSVP mode | View ▸ Reading Aids ▸ RSVP Mode | `Ctrl+Alt+E` | `M-x rsvp-mode` |
 | RSVP position | View ▸ Reading Aids ▸ RSVP Position… | — | `M-x rsvp-position` |
@@ -492,6 +561,7 @@ bracket keys as fallbacks.
 | Export as Audio | `Ctrl+Alt+A` | `M-x export-audio` |
 | Export Subtitles (SRT/VTT) | `Ctrl+Alt+U` | `M-x export-subtitles` |
 | Export karaoke video (MP4) | `Ctrl+Alt+V` | `M-x export-video` |
+| Export audiobook (M4B) | File ▸ Export ▸ Export Audiobook (M4B)… | — |
 | Reload document | — | `F9` |
 | Quit | `Ctrl+Q` | `Ctrl+Q`   `q` |
 
@@ -553,8 +623,11 @@ a bookmark set in one interface appears in the other.
 | Tune karaoke highlight | `Ctrl+Alt+K` | — |
 | Highlight granularity (word/sentence/both) | `Ctrl+Alt+K` (dialog) | `M-x highlight-granularity` |
 | Dyslexia-friendly font | `Ctrl+Alt+X` | — |
+| Reading font (Default/OpenDyslexic/Atkinson/Lexend) | View ▸ Reading Aids ▸ Reading Font | — |
 | Bionic reading | `Ctrl+Alt+J` | — |
+| Syllable splitting | View ▸ Reading Aids ▸ Syllable Splitting | — |
 | Current-line highlight | `Ctrl+Alt+L` | — |
+| Reading ruler (+ height/opacity dialog) | View ▸ Reading Aids ▸ Reading Ruler / Reading Ruler… | — |
 | RSVP mode | `Ctrl+Alt+E` | `M-x rsvp-mode` |
 | RSVP position picker | — | `M-x rsvp-position` |
 | Live HTML preview (edit mode) | `Ctrl+Shift+L` | — |
@@ -677,7 +750,7 @@ complete.
 | `rate-down` | Decrease reading rate by 20 wpm |
 | `volume-up` | Increase TTS volume |
 | `volume-down` | Decrease TTS volume |
-| `tts-backend` | Switch TTS engine at runtime (`pyttsx3`/`espeak`/`festival`/`piper`/`coqui`/`dectalk`/`none`) |
+| `tts-backend` | Switch TTS engine at runtime (`pyttsx3`/`espeak`/`festival`/`piper`/`coqui`/`dectalk`/`qtspeech`/`elevenlabs`/`none`) |
 | `highlight-granularity word\|sentence\|both` | Highlight the spoken word, the whole sentence, or both |
 | `tts-voice` | Switch TTS voice by ID |
 | `ssml-on` / `ssml-off` | Enable/disable SSML prosody markup |
@@ -809,8 +882,10 @@ visually without moving the cursor.
 
 **File menu** — Open…, Open URL…, Open Archive…, Open Feed…, Edit Document
 Metadata…, Library / Bookshelf…, Batch Convert, Watch Folder, Export ▸
-(Markdown / PDF / Braille (BRF) / Audio / Subtitles / Video (MP4) / Anki
-Flashcards), Quit.
+(Markdown / PDF / Braille (BRF) / Audio / Subtitles / Video (MP4) / **Export
+Audiobook (M4B)…** / Anki Flashcards), Quit. **Export Audiobook (M4B)…** writes
+a chaptered `.m4b` (chapters come from the document's headings) for listening on
+the go; it is menu-only and needs `ffmpeg` on your PATH.
 
 **Edit menu** — Find… (`Ctrl+F`, the incremental find bar), Copy, Toggle Edit
 Mode, Save, Check Spelling.
@@ -831,12 +906,17 @@ your notes and highlights) and Sync with Anki (AnkiConnect)….
 **View menu** — Toggle Contents Panel (`Ctrl+\`), Toggle Notes Panel
 (`Ctrl+Shift+N`), Next Theme (`F5`), Choose Theme…, Reload CSS Themes, Open
 Themes Folder, Change Font…, Reading Level (`Ctrl+L`), and **Reading Aids ▸**
-Text Spacing… / Karaoke Highlight… / Dyslexia-Friendly Font / Bionic Reading /
-Current-Line Highlight / Highlight Difficult Words / Live HTML Preview.
+Text Spacing… / Karaoke Highlight… / Reading Font (Default / OpenDyslexic /
+Atkinson Hyperlegible / Lexend) / Dyslexia-Friendly Font / Bionic Reading /
+Syllable Splitting / Current-Line Highlight / Reading Ruler (+ Reading Ruler…
+for height & opacity) / Highlight Difficult Words / Define Word… / Live HTML
+Preview.
 
-**Speech menu** — Play/Pause, Stop, speed, Choose TTS Engine…, Choose Voice…,
-**Voice Manager…** (`F4`, filter / preview / favorite / download voices), Speech
-Cursor Mode, and the Pronunciation Lexicon.
+**Speech menu** — Play/Pause, Stop, speed, Choose TTS Engine… (`Ctrl+Shift+G`;
+engines include `qtspeech` for your OS system voices and the opt-in `elevenlabs`
+cloud engine — see [Pick a speech engine](#pick-a-speech-engine-system-and-cloud-voices)),
+Choose Voice…, **Voice Manager…** (`F4`, filter / preview / favorite / download
+voices), Speech Cursor Mode, and the Pronunciation Lexicon.
 
 **Tools menu** — leads with **Install Optional Features…** (the download
 chooser), then Transcribe Audio File…, Dictate Note…, Summarize / Translate,

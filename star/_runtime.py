@@ -40,7 +40,7 @@ Copyright (C) 2026 Jon Pielaet
 License: GNU General Public License v3 (or later)
 """
 
-__version__ = "0.1.20"
+__version__ = "0.1.21"
 __author__ = "Jon Pielaet"
 __copyright__ = "Copyright (C) 2026 Jon Pielaet"
 __license__ = "GPL-3.0-or-later"
