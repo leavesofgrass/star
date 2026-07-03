@@ -36,7 +36,16 @@ LANGUAGES: List[Tuple[str, str]] = [
     ("Français", "fr"),
     ("Deutsch", "de"),
     ("Português", "pt"),
+    ("العربية", "ar"),
 ]
+
+# Right-to-left scripts.  When one of these is the active UI language the whole
+# app is mirrored (Qt.LayoutDirection.RightToLeft) and the reading pane's HTML is
+# rendered with ``dir="rtl"``.  ISO-639-1 codes: Arabic, Hebrew, Persian/Farsi,
+# Urdu — the four RTL languages a catalog is most likely to target.  Keeping this
+# a set (rather than tying it to the shipped catalogs) means direction is correct
+# the moment a community catalog for any of these is dropped in.
+_RTL_CODES: frozenset = frozenset({"ar", "he", "fa", "ur"})
 
 _LOCALE_DIR = Path(__file__).resolve().parent / "locale"
 
@@ -98,6 +107,18 @@ def set_language(code: str) -> str:
 def get_language() -> str:
     """Return the active language code."""
     return _active_code
+
+
+def is_rtl(code: Optional[str] = None) -> bool:
+    """Return ``True`` when *code* (default: the active language) is right-to-left.
+
+    RTL scripts (Arabic, Hebrew, Persian, Urdu — see :data:`_RTL_CODES`) require
+    the whole UI to be mirrored.  Callers use this to flip Qt's layout direction
+    and to set ``dir="rtl"`` on the rendered document; an unknown or LTR code
+    (including ``"en"``) returns ``False`` so left-to-right locales are untouched.
+    """
+    lang = (code if code is not None else _active_code) or ""
+    return lang.strip().lower() in _RTL_CODES
 
 
 def tr(text: str) -> str:

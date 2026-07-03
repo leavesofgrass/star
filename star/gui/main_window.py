@@ -14,7 +14,7 @@ is absent (the graceful-degradation invariant).
 """
 from .._runtime import *  # noqa: F401,F403
 from ..documents import Document
-from ..i18n import set_language, tr
+from ..i18n import is_rtl, set_language, tr
 from ..settings import Settings
 from ..stats import (
     ReadingStats,
@@ -395,6 +395,11 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         # Activate the saved UI-chrome language before any widgets (and their
         # tr()-wrapped labels) are built.  Unknown codes fall back to English.
         set_language(str(settings.get("ui_language", "en")))
+        # Mirror the whole application (toolbar, menus, docks, reading view) when
+        # the active UI language is right-to-left, and keep it left-to-right
+        # otherwise.  Done before widgets are built so the very first layout is
+        # already in the correct direction; re-applied live on a language switch.
+        self._apply_layout_direction()
         self.doc: Optional[Document] = None
         self.tts_manager = TTSManager(settings)
         # Active hot-folder watcher (File ▸ Watch Folder), or None.
@@ -888,6 +893,29 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         self.statusBar().showMessage(APP_TITLE)
 
 
+    def _apply_layout_direction(self) -> None:
+        """Mirror the app for RTL locales; keep LTR locales left-to-right.
+
+        Sets the application-wide layout direction from the active UI language
+        (``is_rtl``): ``RightToLeft`` for Arabic/Hebrew/Persian/Urdu, else the
+        explicit ``LeftToRight`` (so switching *back* from an RTL language
+        restores normal direction rather than leaving the app mirrored).
+        ``QApplication.setLayoutDirection`` cascades to every existing and
+        future widget — toolbar, menus, docks, and the reading view — so no
+        per-widget wiring is needed.  A no-op (LTR) for the default English UI,
+        keeping left-to-right locales visually identical to before.
+        """
+        app = QApplication.instance()
+        if app is None:
+            return
+        try:
+            ltr = Qt.LayoutDirection.LeftToRight
+            rtl = Qt.LayoutDirection.RightToLeft
+        except AttributeError:  # PyQt5 enum style
+            ltr = Qt.LeftToRight  # type: ignore[attr-defined]
+            rtl = Qt.RightToLeft  # type: ignore[attr-defined]
+        app.setLayoutDirection(rtl if is_rtl() else ltr)
+
     def _set_ui_language(self, code: str) -> None:
         """Switch the UI-chrome language and rebuild the menus/toolbar live.
 
@@ -895,10 +923,15 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         surface that routes its labels through tr(): the toolbar and the menu
         bar are recreated in place, and the dock titles/placeholder we keep
         references to are retranslated.  (The annotation panel's buttons are
-        built locally in _setup_ui and refresh on the next launch.)
+        built locally in _setup_ui and refresh on the next launch.)  The
+        application layout direction is re-applied first so switching to (or
+        away from) an RTL language mirrors (or un-mirrors) the whole UI live.
         """
         applied = set_language(code)
         self.settings.set("ui_language", applied)
+        # Flip/restore RTL mirroring before rebuilding the chrome so the
+        # freshly-built toolbar and menus lay out in the right direction.
+        self._apply_layout_direction()
         self._build_toolbar()
         self._build_menu_bar()
         if getattr(self, "_toc_dock", None) is not None:
@@ -909,6 +942,16 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
             self._annot_filter.setPlaceholderText(
                 tr("Filter notes — text or #tag…")
             )
+        # Re-render the reading view so the document's ``dir`` attribute tracks
+        # the new locale's direction (RTL adds ``dir="rtl"``; switching back to
+        # an LTR language drops it).  Skip in edit mode, where the editor holds
+        # raw Markdown the user is editing — matching the theme-change path.
+        if not getattr(self, "_qt_edit_mode", False) and getattr(self, "editor", None) is not None:
+            if self.doc is not None:
+                self.editor.setHtml(self._md_to_html(self.doc.markdown or ""))
+            else:
+                self.editor.setHtml(self._welcome_html())
+            self._apply_block_spacing()
         self.statusBar().showMessage(tr("Interface language updated"))
 
     def _welcome_html(self) -> str:

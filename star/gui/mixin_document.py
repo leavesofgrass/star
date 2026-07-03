@@ -7,7 +7,7 @@ lazily by main_window.py (itself imported by runner.py after the _QT guard).
 """
 from .._runtime import *  # noqa: F401,F403
 from ..documents import Document, _build_word_map, load_document
-from ..i18n import tr
+from ..i18n import is_rtl, tr
 from ..mathrender import has_math, render_math_to_unicode
 from ..pagination import Paginator, paginate
 from ..stats import _record_library
@@ -1015,9 +1015,14 @@ class DocumentMixin:
                 f"th{{color:{pal['h2']};background:{code_bg};font-weight:bold;}}"
                 + self._fidelity_css(pal)
             )
+        # Mirror the reading pane for right-to-left UI locales: an ``dir="rtl"``
+        # on <html>/<body> flips text alignment and block direction so Arabic /
+        # Hebrew / Persian / Urdu render naturally.  LTR locales (the default)
+        # emit no ``dir`` attribute, so their HTML is byte-for-byte unchanged.
+        dir_attr = ' dir="rtl"' if is_rtl() else ""
         return (
-            "<html><head><style>" + style + "</style></head>"
-            f"<body>{body}</body></html>"
+            f"<html{dir_attr}><head><style>" + style + "</style></head>"
+            f"<body{dir_attr}>{body}</body></html>"
         )
 
     def _fidelity_css(self, pal: Dict[str, Any]) -> str:

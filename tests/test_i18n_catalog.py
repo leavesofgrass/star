@@ -17,7 +17,43 @@ import pytest
 
 _STAR_DIR = Path(__file__).resolve().parent.parent / "star"
 _LOCALE_DIR = _STAR_DIR / "locale"
+
+# The strictly-enforced catalogs: every one of these MUST translate every
+# static tr() key and share an identical key set (the parity guard).  These are
+# star's four production, community-completed UI languages and are held to full
+# parity — never add a lagging catalog here.
 _LANGS = ("es", "fr", "de", "pt")
+
+# Proof / groundwork catalogs are exempt from *strict all-keys parity* only.
+# star ships an Arabic (``ar``) catalog as the proof of its right-to-left
+# internationalization groundwork (Area 8): it establishes RTL layout mirroring
+# and translates star's core chrome, but a complete 400-plus-key translation is
+# a separate community effort.  Rather than block that groundwork on a full
+# translation — or, worse, weaken the parity guard for the production catalogs —
+# these catalogs are validated more loosely: valid JSON, no empty values, and a
+# *meaningful core* of required chrome translated (see test_proof_catalog_*).
+# The exemption is deliberately narrow: it lifts ONLY the all-keys parity /
+# every-static-key checks, and ONLY for the catalogs named here.
+_PROOF_CATALOGS = ("ar",)
+
+# A small, must-translate core every proof/RTL catalog has to cover so the
+# exemption can never degrade into an essentially-untranslated stub.  Chosen to
+# span the menu bar, the toolbar, and the language picker — the surfaces a user
+# switching into the language first sees.
+_PROOF_CORE_KEYS = (
+    "File",
+    "View",
+    "Tools",
+    "Help",
+    "Open",
+    "Play / Pause",
+    "Stop",
+    "Voice",
+    "Interface Language",
+    "star — Optional Features",
+    "Install selected",
+    "Not now",
+)
 
 # The runtime value of the "Toggle Contents panel" tooltip contains two literal
 # backslashes (the source writes ``Ctrl+\\\\`` which Python collapses to two).
@@ -213,3 +249,61 @@ def test_placeholder_preserved(lang: str) -> None:
     key = "Installing {n} optional package(s) in the background…"
     val = _load(lang)[key]
     assert "{n}" in val, f"{lang}.json dropped the {{n}} placeholder: {val!r}"
+
+
+# ── Proof / RTL groundwork catalogs (Area 8) ──────────────────────────────
+# These validate the *exempt* catalogs — ``ar`` today.  They deliberately do NOT
+# require all-keys parity (that is the whole point of the exemption); instead
+# they keep the exemption honest: a proof catalog must still be valid, non-empty,
+# preserve placeholders, and translate a meaningful core.  Crucially, the strict
+# tests above still run over ``_LANGS`` only, so es/fr/de/pt stay fully enforced.
+
+
+@pytest.mark.parametrize("lang", _PROOF_CATALOGS)
+def test_proof_catalog_loads_and_is_nonempty(lang: str) -> None:
+    """Each proof/RTL catalog must be valid JSON with real translations."""
+    assert _keys(lang), f"{lang}.json has no translatable keys"
+
+
+@pytest.mark.parametrize("lang", _PROOF_CATALOGS)
+def test_proof_catalog_translates_core(lang: str) -> None:
+    """A proof/RTL catalog must translate a meaningful core of the chrome.
+
+    This is the floor the parity exemption cannot fall below: the menu bar,
+    toolbar, and language-picker essentials must be present so switching into
+    the language is genuinely usable, not an English stub with an RTL flag.
+    """
+    have = _keys(lang)
+    missing = [k for k in _PROOF_CORE_KEYS if k not in have]
+    assert not missing, f"{lang}.json (proof/RTL) is missing core keys: {missing}"
+
+
+@pytest.mark.parametrize("lang", _PROOF_CATALOGS)
+def test_proof_catalog_no_empty_translations(lang: str) -> None:
+    """A proof/RTL catalog's values must all be non-empty strings."""
+    cat = _load(lang)
+    empties = [
+        k for k, v in cat.items()
+        if k != "@meta" and (not isinstance(v, str) or not v.strip())
+    ]
+    assert not empties, f"{lang}.json has empty translations: {empties}"
+
+
+@pytest.mark.parametrize("lang", _PROOF_CATALOGS)
+def test_proof_catalog_keys_are_known_source_strings(lang: str) -> None:
+    """Every key in a proof/RTL catalog must be a real source string.
+
+    A proof catalog is exempt from *completeness*, not from *correctness*: each
+    key it does translate must correspond to an actual ``tr()`` source string
+    (either a static one found in the code, or one already translated by the
+    strictly-parity catalogs).  This catches typo'd / stale keys that would
+    silently never match at runtime.
+    """
+    known = set(_code_tr_keys())
+    for base in _LANGS:
+        known |= _keys(base)
+    unknown = sorted(k for k in _keys(lang) if k not in known)
+    assert not unknown, (
+        f"{lang}.json (proof/RTL) has keys that match no known source string "
+        f"(typo or stale?): {unknown}"
+    )
