@@ -114,6 +114,15 @@ def test_cloud_priority_is_high_enough_to_never_auto_select():
     assert MockCloudBackend.priority >= 95
 
 
+def test_elevenlabs_inherits_cloud_priority_last():
+    """ElevenLabs must not override the base cloud priority: it inherits
+    CLOUD_PRIORITY (900) so it sorts *last*, honouring the documented
+    "cloud auto-selects never" invariant (no stray low override)."""
+    from star.tts.cloud.base import CLOUD_PRIORITY
+
+    assert ElevenLabsBackend.priority == CLOUD_PRIORITY == 900
+
+
 # ============================================================================
 # request construction
 # ============================================================================

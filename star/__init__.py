@@ -10,6 +10,7 @@ from .feeds import fetch_feed
 from .flashcards import export_anki_deck
 from .spellcheck import misspelled_words
 from .summarize import summarize_document
+from . import syllables  # noqa: F401  (register in sys.modules so refresh_feature works)
 from .translate import translate_text
 from .vocab import find_difficult_words
 

@@ -341,6 +341,25 @@ class DocumentMixin:
         scratch.setHtml(self._md_to_html(md))
         return scratch.toPlainText()
 
+    def _page_highlighting_active(self, doc: Any) -> bool:
+        """True when per-char rendered-offset highlighting is in play for *doc*.
+
+        Pagination and rendered-char-offset highlighting are incompatible: user
+        highlights and the difficult-word (vocab) overlay both store/paint
+        *absolute* character offsets into the whole-document render, but pagination
+        only ever renders a window, so those offsets would land on the wrong text
+        (BUG 1 / BUG 2).  When either is active for this document we render the
+        whole document instead of paginating.  The guard checks:
+
+        * a stored ``user_highlights`` list for the document's path, and
+        * the ``qt_vocab_highlight`` overlay toggle.
+        """
+        if bool(self.settings.get("qt_vocab_highlight", False)):
+            return True
+        path_key = (getattr(doc, "path", None) or "__no_path__") if doc else "__no_path__"
+        hl = self.settings.get("user_highlights", {}).get(path_key, [])
+        return bool(hl)
+
     def _page_provisional_render(self, doc: Any) -> bool:
         """Render a cheap leading window if *doc* is a pagination candidate.
 
@@ -353,6 +372,11 @@ class DocumentMixin:
         False otherwise (normal whole-document path, completely unchanged).
         """
         if not bool(self.settings.get("qt_paginate_large_docs", False)):
+            return False
+        # Never show a windowed provisional render when per-char highlighting is
+        # active — a leading window would paint highlights at window-relative
+        # offsets (BUG 1/2).  Render the whole document instead.
+        if self._page_highlighting_active(doc):
             return False
         plain = doc.plain_text or ""
         # Cheap upper-bound word estimate — a split is far faster than tokenizing.
@@ -467,6 +491,11 @@ class DocumentMixin:
         pure Python, no Qt calls, so it is thread-safe.
         """
         if not bool(self.settings.get("qt_paginate_large_docs", False)):
+            return False
+        # Do not paginate a document that has stored user highlights or the vocab
+        # overlay on: both rely on absolute rendered-char offsets that a windowed
+        # render would misplace (BUG 1/2).  Render whole instead.
+        if self._page_highlighting_active(doc):
             return False
         wm = getattr(doc, "word_map", None) or []
         threshold = int(self.settings.get("qt_paginate_threshold_words", 60000))

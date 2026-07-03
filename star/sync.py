@@ -320,8 +320,20 @@ def merge_progress(
 
 
 def _is_annotation_list(local: Any, remote: Any) -> bool:
-    """True when either side's value is a list (so it should merge by id, not by
-    policy).  Progress entries are always dicts, so a list value unambiguously
-    signals an annotation/highlight collection even under an unconventional key.
+    """True when this key should merge by id (an annotation/highlight list) rather
+    than by policy.
+
+    Progress entries are always dicts, so a list value signals an annotation
+    collection — *unless the other side is a dict*.  A list-vs-dict pairing is not
+    two views of the same annotation collection; it is corruption (one sidecar was
+    half-written or hand-mangled).  Routing that to :func:`merge_annotations` would
+    coerce the dict to ``[]`` and return the corrupt list, silently dropping a
+    valid progress entry.  Returning False here instead sends it to
+    :func:`_merge_entry`, whose "non-dict side is empty, keep the other verbatim"
+    contract preserves the valid dict.  Genuine annotation keys still route by
+    ``key in _ANNOTATION_KEYS`` at the call site; list-vs-list and list-vs-None
+    still merge by id here.
     """
+    if isinstance(local, dict) or isinstance(remote, dict):
+        return False
     return isinstance(local, list) or isinstance(remote, list)

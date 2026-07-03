@@ -36,7 +36,8 @@ class ElevenLabsBackend(CloudBackend):
     """
 
     name = "elevenlabs"
-    priority = 95  # opt-in cloud voice; never auto-selected (see CloudBackend)
+    # Inherits CloudBackend.priority (CLOUD_PRIORITY = 900) so it sorts *last*,
+    # after every local engine — the documented "cloud auto-selects never" rule.
     api_key_setting = "elevenlabs_api_key"
 
     _API_ROOT = "https://api.elevenlabs.io"

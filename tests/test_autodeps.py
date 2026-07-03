@@ -2,6 +2,8 @@
 
 Never runs real pip: the install function and marker directory are injected.
 """
+import importlib.util
+
 import pytest
 
 from star import autodeps
@@ -141,3 +143,25 @@ def test_refresh_feature_flips_stale_availability_flag():
     # A feature not in the in-session-refreshable set needs a restart.
     assert autodeps.refresh_feature("transcribe") is False
     assert autodeps.refresh_feature("nope") is False
+
+
+def test_syllables_registered_at_import_so_refresh_works():
+    """BUG 4: star.__init__ must import syllables so it is in sys.modules at
+    startup; otherwise refresh_feature('syllables') can never flip the stale flag
+    and the user is wrongly told to restart after a runtime install."""
+    import sys
+
+    import star  # noqa: F401  (importing star must register star.syllables)
+
+    assert "star.syllables" in sys.modules
+    # With pyphen importable the refresh flips the flag and returns True in-session.
+    if importlib.util.find_spec("pyphen") is not None:
+        import star.syllables as syl
+
+        orig = syl._PYPHEN
+        try:
+            syl._PYPHEN = False  # as if pyphen was installed after star started
+            assert autodeps.refresh_feature("syllables") is True
+            assert syl._PYPHEN is True
+        finally:
+            syl._PYPHEN = orig

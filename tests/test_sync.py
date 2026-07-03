@@ -375,6 +375,33 @@ def test_corrupt_meta_value_does_not_crash():
     assert merged["_meta"]["a.md"]["seconds"] == 3
 
 
+def test_valid_progress_dict_survives_a_corrupt_list_on_the_other_side():
+    """BUG 3: a valid progress *dict* opposed by a corrupt *list* must keep the
+    dict, not route to merge_annotations (which would coerce the dict to [] and
+    return the garbage list, silently dropping reading progress)."""
+    valid = {"offset": 4321, "pct": 55, "ts": "2026-06-30T09:00:00"}
+    # local side has the real reading progress; remote side is a corrupt list.
+    merged, _ = merge_progress({"a": dict(valid)}, {"a": ["garbage"]}, "newest",
+                               prefer="local")
+    assert merged["a"] == valid, "valid progress dict must not be discarded"
+    # Symmetric: corrupt list on the local side, valid dict on the remote side.
+    merged, _ = merge_progress({"a": ["garbage"]}, {"a": dict(valid)}, "newest")
+    assert merged["a"] == valid
+
+
+def test_dict_vs_list_never_routes_to_annotation_merge():
+    """The list-vs-dict mismatch is corruption, not an annotation collection:
+    _is_annotation_list returns False so the dict survives via _merge_entry."""
+    from star.sync import _is_annotation_list
+
+    assert _is_annotation_list({"offset": 1}, ["x"]) is False
+    assert _is_annotation_list(["x"], {"offset": 1}) is False
+    # Genuine annotation shapes (list-vs-list, list-vs-None) still merge by id.
+    assert _is_annotation_list([{"id": "a"}], [{"id": "b"}]) is True
+    assert _is_annotation_list([{"id": "a"}], None) is True
+    assert _is_annotation_list(None, [{"id": "a"}]) is True
+
+
 def test_boolean_offset_not_mistaken_for_number():
     # bool is a subclass of int; ensure a stray True/False isn't treated as a
     # reading position under highest_progress.

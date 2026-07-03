@@ -61,7 +61,12 @@ class ReadingPositionMixin:
         # sidecar (e.g. read further on another machine) — prefer whichever is
         # most recent by timestamp.
         side = progress_for(self.settings, self.doc.path)
-        if side and (not saved or str(side.get("ts", "")) > str(saved.get("ts", ""))):
+        # A corrupt sidecar can hand back a non-dict (e.g. a stray list); guard so
+        # a bad value can never crash resume (AttributeError on .get) — just ignore
+        # it and fall back to the locally-saved position.
+        if isinstance(side, dict) and (
+            not saved or str(side.get("ts", "")) > str(saved.get("ts", ""))
+        ):
             saved = side
         if not saved:
             return
