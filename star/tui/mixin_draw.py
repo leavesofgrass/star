@@ -7,6 +7,7 @@ from .._runtime import *  # noqa: F401,F403
 from ..i18n import tr
 from ._screen import _addstr, _fillrow
 from ..themes import _WELCOME_TEXT
+from .mixin_caret import _CARET_GRACE_S
 
 
 class DrawMixin:
@@ -110,8 +111,8 @@ class DrawMixin:
 
         # A deliberate caret move gets a short grace window during which the
         # speech auto-scroll yields, so exploring the document mid-read does
-        # not fight the viewport (mixin_caret._CARET_GRACE_S mirrors this).
-        if time.monotonic() - getattr(self, "_caret_manual_ts", 0.0) < 3.0:
+        # not fight the viewport.
+        if time.monotonic() - self._caret_manual_ts < _CARET_GRACE_S:
             _scroll_line = -1
 
         if _scroll_line >= 0:

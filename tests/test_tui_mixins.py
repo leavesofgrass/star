@@ -73,6 +73,16 @@ class _FakeTTS:
         self.word_map = wm
 
 
+class _Settings(dict):
+    """Dict with the .set() method the persistence helpers call.
+
+    The single fake-settings shape for this module — mixing plain dicts and
+    this class was a trap for tests that hit a ``settings.set(...)`` path."""
+
+    def set(self, key, value):
+        self[key] = value
+
+
 class _FakeApp(DocumentMixin, NavigationMixin):
     """A StarApp stand-in composed from the real navigation/document mixins."""
 
@@ -82,7 +92,7 @@ class _FakeApp(DocumentMixin, NavigationMixin):
         self.doc = doc
         self.scroll = scroll
         self.tts = _FakeTTS(speaking=speaking)
-        self.settings = {}
+        self.settings = _Settings()
         self._sentence_starts = [0]
         self._tts_paused_at_word = -1
         self._highlight_line = -1
@@ -366,13 +376,6 @@ def test_search_regex_and_bad_pattern_falls_back():
 
 
 # ── Welcome-as-document (0.1.22): _is_welcome gates + startup load ───────────
-
-
-class _Settings(dict):
-    """Dict with the .set() method the persistence helpers call."""
-
-    def set(self, key, value):
-        self[key] = value
 
 
 class _WelcomeAwareApp(_FakeApp):

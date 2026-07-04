@@ -248,12 +248,13 @@ if _ESPEAK_NG_DLL.is_file():
 # pdfminer, etc. off the startup path entirely.
 
 # --- PDF: pdfminer.six -------------------------------------------------------
-if _module_available("pdfminer.layout"):
-    _PDF = "layout"
-elif _module_available("pdfminer.high_level"):
-    _PDF = "simple"
-else:
-    _PDF = ""
+# Probe the TOP-LEVEL package only: find_spec on a dotted name (the old
+# "pdfminer.layout" probe) imports the parent package to resolve it — ~22 ms
+# of exactly the startup cost this probe exists to avoid.  pdfminer.six
+# always ships layout + high_level together, so package presence implies the
+# "layout" strategy; the legacy "simple" fallback in documents/pdf.py remains
+# for exotic installs but is no longer probed for at startup.
+_PDF = "layout" if _module_available("pdfminer") else ""
 
 
 def _load_pdf_text():

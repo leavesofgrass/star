@@ -5,6 +5,7 @@ Mixed into StarApp in app.py; calls other groups via ``self``.
 """
 from .._runtime import *  # noqa: F401,F403
 from ..ttstext import _preprocess_tts_text, _text_to_ssml
+from .mixin_caret import _CARET_GRACE_S
 
 
 class PlaybackMixin:
@@ -24,11 +25,11 @@ class PlaybackMixin:
             self._highlight_col_end = wp.disp_col + wp.tts_len
             # Caret follows the spoken word (so Enter always resumes "from
             # here") — unless the user just moved it deliberately, which gets
-            # a grace window (mixin_caret._CARET_GRACE_S).  Plain attribute
-            # write from the TTS thread, same convention as the fields above.
+            # a grace window.  Plain attribute write from the TTS thread,
+            # same convention as the fields above.
             if (
                 self.settings.get("tui_caret_follow_speech", True)
-                and time.monotonic() - self._caret_manual_ts > 3.0
+                and time.monotonic() - self._caret_manual_ts > _CARET_GRACE_S
             ):
                 self._caret_word = word_idx
             # Sentence-level highlight: resolve the span of the sentence that

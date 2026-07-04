@@ -27,6 +27,9 @@ from ._qtcompat import (
     _RIGHT_DOCK,
     _WA_STYLED_BG,
 )
+from .._bundled import bundled_path as _bundled_path
+from .._bundled import is_welcome_doc as _is_welcome_doc
+from .._bundled import welcome_path as _welcome_path
 from .a11y import announce
 from .mixin_aiddialogs import AidDialogsMixin
 from .mixin_chrome import ChromeMixin
@@ -635,31 +638,17 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         announce(self, msg)
 
     # ── Bundled documentation (README, welcome) ───────────────────────
+    # Thin delegates to star/_bundled.py — shared with the TUI so both UIs
+    # agree on what counts as "the welcome page" (recents/library gating).
     def _bundled_path(self, name: str) -> "Optional[Path]":
-        """Resolve a bundled doc by filename, wherever star is installed.
-
-        Searches the package root (wheel / pyz install), then the repo root
-        (running from source), then this gui/ dir (legacy)."""
-        here = Path(__file__).resolve().parent           # star/gui/
-        for cand in (here.parent / name, here.parent.parent / name, here / name):
-            if cand.is_file():
-                return cand
-        return None
+        return _bundled_path(name)
 
     @property
     def _welcome_path(self) -> "Optional[Path]":
-        return self._bundled_path("welcome.md")
+        return _welcome_path()
 
     def _is_welcome(self, doc: Any) -> bool:
-        """True if *doc* is the bundled welcome page (kept out of the library)."""
-        wp = self._welcome_path
-        path = getattr(doc, "path", "") or ""
-        if not wp or not path:
-            return False
-        try:
-            return Path(path).resolve() == wp.resolve()
-        except OSError:
-            return False
+        return _is_welcome_doc(doc)
 
     def _open_documentation(self) -> None:
         """Open the bundled documentation (Help ▸ Open Documentation).

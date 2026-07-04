@@ -2,6 +2,9 @@
 import logging as _logging
 
 from .._runtime import *  # noqa: F401,F403
+from .._bundled import bundled_path as _bundled_path
+from .._bundled import is_welcome_doc as _is_welcome_doc
+from .._bundled import welcome_path as _welcome_path
 from ..i18n import set_language
 from .theming import _setup_colors
 from ..documents import Document
@@ -183,32 +186,17 @@ class StarApp(
                 self._open_async(str(welcome))
 
     # ── Bundled documentation (welcome page) ──────────────────────────
+    # Thin delegates to star/_bundled.py — shared with the GUI so both UIs
+    # agree on what counts as "the welcome page" (recents/library gating).
     def _bundled_path(self, name: str) -> Optional[Path]:
-        """Resolve a bundled doc by filename, wherever star is installed.
-
-        Searches the package root (wheel / pyz install), then the repo root
-        (running from source), then this tui/ dir (defensive)."""
-        here = Path(__file__).resolve().parent           # star/tui/
-        for cand in (here.parent / name, here.parent.parent / name, here / name):
-            if cand.is_file():
-                return cand
-        return None
+        return _bundled_path(name)
 
     @property
     def _welcome_path(self) -> Optional[Path]:
-        return self._bundled_path("welcome.md")
+        return _welcome_path()
 
     def _is_welcome(self, doc: Any) -> bool:
-        """True if *doc* is the bundled welcome page (kept out of recents,
-        the library, and reading positions)."""
-        wp = self._welcome_path
-        path = getattr(doc, "path", "") or ""
-        if not wp or not path:
-            return False
-        try:
-            return Path(path).resolve() == wp.resolve()
-        except OSError:
-            return False
+        return _is_welcome_doc(doc)
 
     def _init_colors(self) -> None:
         self.attrs = _setup_colors(self.theme_name)
