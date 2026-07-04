@@ -52,6 +52,8 @@ Version """
   **Open a file:**   Ctrl+O  (or pass a filename on the command line)
   **Open a URL:**    F2, then type  open-url
   **Read aloud:**    Space   (plays from the current position)
+  **Move caret:**    Arrow keys  (word by word / line by line)
+  **Read here:**     Enter   (reads aloud from the caret)
   **Stop:**          Esc
   **Help:**          F1
   **Commands:**      F2

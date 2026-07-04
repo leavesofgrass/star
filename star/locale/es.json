@@ -492,5 +492,6 @@
   "Word highlight color": "Color de resaltado de palabra",
   "Spoken-word highlight:": "Resaltado de la palabra hablada:",
   "Highlight the word being spoken": "Resaltar la palabra que se está leyendo",
-  "Change display font (Ctrl+Alt+F)": "Cambiar la fuente de visualización (Ctrl+Alt+F)"
+  "Change display font (Ctrl+Alt+F)": "Cambiar la fuente de visualización (Ctrl+Alt+F)",
+  "  Space:play/pause  Enter:read-here  Tab:speech-cursor  Ctrl+T:voice  Ctrl+X:stop  ,/.:sent  [/]:para  {/}:head-scroll  </>:read-head  ;:replay-sent  r:replay-para  Ctrl-F:search  +/-:speed  F2:commands  F1:help  Ctrl-Q:quit": "  Space:reproducir/pausar  Enter:leer-aquí  Tab:cursor-de-lectura  Ctrl+T:voz  Ctrl+X:detener  ,/.:frase  [/]:párr.  {/}:ir-a-encab.  </>:leer-encab.  ;:repetir-frase  r:repetir-párr.  Ctrl-F:buscar  +/-:velocidad  F2:comandos  F1:ayuda  Ctrl-Q:salir"
 }

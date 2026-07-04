@@ -27,6 +27,7 @@ import pytest
 from star.documents import Document, _build_word_map
 from star.render import render_markdown
 from star.search import SearchEngine
+from star.tui.mixin_caret import CaretMixin
 from star.tui.mixin_document import DocumentMixin
 from star.tui.mixin_navigation import NavigationMixin
 
@@ -87,6 +88,10 @@ class _FakeApp(DocumentMixin, NavigationMixin):
         self._highlight_line = -1
         self._highlight_col_start = -1
         self._highlight_col_end = -1
+        # Caret-browsing state (read by _current_word_for_nav / CaretMixin).
+        self._caret_word = -1
+        self._caret_goal_col = -1
+        self._caret_manual_ts = 0.0
         self.messages = []
         # Track the play calls the navigation methods make.
         self.play_calls = []
@@ -509,3 +514,83 @@ def test_dark_theme_chrome_is_orange():
             ORANGE not in (fg, bg)
             for fg, bg, *_f in THEMES[other].values()
         ), f"{other} theme unexpectedly gained orange"
+
+
+# ── Caret browsing (0.1.22): CaretMixin + nav-priority integration ───────────
+
+
+class _CaretApp(CaretMixin, _FakeApp):
+    """_FakeApp with the real CaretMixin on top."""
+
+
+def _caret_app():
+    doc, rendered = _doc_from_md()
+    return _CaretApp(rendered=rendered, doc=doc, scroll=0), doc
+
+
+def test_caret_sync_places_at_reading_word():
+    app, doc = _caret_app()
+    assert app._caret_word == -1
+    assert app._caret_sync() is True
+    assert 0 <= app._caret_word < len(doc.word_map)
+
+
+def test_caret_word_movement_clamps_at_both_ends():
+    app, doc = _caret_app()
+    app._caret_sync()
+    app._caret_word = 0
+    app._caret_move_word(1)
+    assert app._caret_word == 1
+    app._caret_move_word(-5)
+    assert app._caret_word == 0  # clamped low
+    app._caret_end()
+    assert app._caret_word == len(doc.word_map) - 1
+    app._caret_move_word(3)
+    assert app._caret_word == len(doc.word_map) - 1  # clamped high
+    app._caret_home()
+    assert app._caret_word == 0
+
+
+def test_caret_line_movement_walks_display_lines():
+    app, doc = _caret_app()
+    app._caret_home()
+    l0 = doc.word_map[app._caret_word].disp_line
+    app._caret_move_line(1)
+    l1 = doc.word_map[app._caret_word].disp_line
+    assert l1 > l0  # moved to a later display line
+    app._caret_move_line(-1)
+    assert doc.word_map[app._caret_word].disp_line < l1  # and back up
+
+
+def test_caret_play_stops_then_reads_from_caret():
+    app, doc = _caret_app()
+    app._caret_sync()
+    app._caret_word = 3
+    app._caret_play()
+    assert app.tts.stopped >= 1  # prior speech stopped first
+    assert app.play_from_calls == [3]  # reads from the caret word
+    assert any("caret" in m.lower() for m, _ in app.messages)
+
+
+def test_current_word_for_nav_caret_priority():
+    """speaking > paused > caret > viewport fallback."""
+    app, doc = _caret_app()
+    assert app._current_word_for_nav() == 0  # viewport fallback (caret unplaced)
+    app._caret_word = 5
+    assert app._current_word_for_nav() == 5  # caret wins while idle
+    app._tts_paused_at_word = 2
+    assert app._current_word_for_nav() == 2  # explicit pause beats caret
+    app.tts.speaking = True
+    app.tts.last_cb_word_idx = 7
+    assert app._current_word_for_nav() == 7  # live speech beats everything
+
+
+def test_caret_movers_fall_back_without_word_map():
+    """Before a word map exists the arrows keep the classic scroll feel."""
+    _, rendered = _doc_from_md()
+    app = _CaretApp(rendered=rendered, doc=None, scroll=5)
+    app._caret_move_line(1)
+    assert app.scroll == 6  # plain scroll
+    app._caret_home()
+    assert app.scroll == 0  # classic goto-top
+    assert app._caret_word == -1  # caret stays unplaced

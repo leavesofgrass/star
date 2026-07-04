@@ -158,7 +158,7 @@ _SHORTCUTS: List[Tuple[str, List[Tuple[str, str, str]]]] = [
             ("Play / pause", "Space  (or tap Ctrl)", "Space"),
             ("Stop", "Esc", "Esc / M-x stop"),
             ("Speed up / slow down", "Ctrl+= / Ctrl+-", "+ / -"),
-            ("Play from cursor", "Ctrl+Return", "—"),
+            ("Play from cursor / caret", "Ctrl+Space", "Enter / Ctrl+Space"),
             ("Choose TTS engine", "Ctrl+Shift+G", "M-x tts-backend"),
             ("Choose voice", "Ctrl+Shift+V", "M-x voice-picker"),
             ("Speech-cursor mode", "Tab", "Tab"),
@@ -175,6 +175,8 @@ _SHORTCUTS: List[Tuple[str, List[Tuple[str, str, str]]]] = [
             ("Replay sentence", "Alt+;", ";"),
             ("Replay paragraph", "Ctrl+R", "r"),
             ("Next / prev table", "Ctrl+T / Ctrl+Shift+T", "M-x next-table"),
+            ("Caret: word left / right", "← / →", "← / →"),
+            ("Caret: line up / down", "↑ / ↓", "↑ / ↓  (j/k scroll)"),
         ],
     ),
     (
@@ -334,23 +336,31 @@ students with print disabilities.
 
 Open a file:          `Ctrl+O`  or  `star document.pdf`
 Start / pause:        `Space`
+Read from caret:      `Enter`   (arrow keys move the caret)
 Stop reading:         `Esc`
-Scroll up / down:     Arrow keys or Page Up / Page Down
 Search:               `Ctrl+F`    then `F3` / `Shift+F3` to step through hits
 Commands:             `F2`
 Quit:                 `Ctrl+Q`  or  `q`
 
 ---
 
-## Navigation
+## Navigation (caret browsing)
+
+The arrow keys move a free reading caret through the words of the document —
+the view follows it, and `Enter` reads aloud from wherever it stands.
 
 | Key | Action |
 |---|---|
-| `↑` / `↓` | Scroll one line |
-| `Page Down` | Next page |
-| `Page Up` | Previous page |
-| `Home` | Beginning of document |
-| `End` | End of document |
+| `↑` / `↓` | Move the caret one line (view follows) |
+| `←` / `→` | Move the caret one word |
+| `Page Down` / `Page Up` | Move the caret one screen |
+| `Home` / `End` | Caret to beginning / end of document |
+| `Enter` (or `Ctrl+Space`) | Read aloud from the caret |
+| `j` / `k` | Plain scroll (caret-free, classic behavior) |
+
+While reading aloud, the caret follows the spoken word (setting
+`tui_caret_follow_speech`), so `Enter` always resumes "from here"; move it
+mid-read and the view yields to you for a few seconds.
 
 ---
 
@@ -405,7 +415,8 @@ shows `● SC CURSOR` when the mode is active.
 
 ## Instant Speech Stop
 
-`Ctrl+X` (or `Ctrl+Space`) stops all TTS output immediately from any mode.
+`Ctrl+X` (or `Esc`) stops all TTS output immediately from any mode.
+`Ctrl+Space` reads from the caret, matching the GUI binding.
 
 Note: If you are more than 3 words into the current sentence, `,` replays
 the current sentence first; press it again to go to the previous one.
@@ -425,6 +436,7 @@ All commands are also available in the command palette (`F2`):
 | Key | Action |
 |---|---|
 | `Space` | Play / pause from the current position |
+| `Enter` | Read aloud from the caret |
 | `Esc` | Stop speech and clear search |
 | `+` or `=` | Speed up (+20 wpm) |
 | `-` | Slow down (−20 wpm) |

@@ -23,12 +23,13 @@ from .mixin_help import HelpMixin
 from .mixin_docops import DocOpsMixin
 from .mixin_rsvp import RsvpMixin
 from .mixin_annotations import AnnotationsMixin
+from .mixin_caret import CaretMixin
 from .mixin_keys import KeysMixin
 from .mixin_draw import DrawMixin
 
 
 class StarApp(
-    DocumentMixin, PlaybackMixin, NavigationMixin, SpeechCursorMixin, BookmarksMixin, SearchMixin, VoiceMixin, ExportMixin, DisplayMixin, CommandsMixin, GraphMixin, HelpMixin, DocOpsMixin, RsvpMixin, AnnotationsMixin, KeysMixin, DrawMixin,
+    DocumentMixin, PlaybackMixin, NavigationMixin, SpeechCursorMixin, BookmarksMixin, SearchMixin, VoiceMixin, ExportMixin, DisplayMixin, CommandsMixin, GraphMixin, HelpMixin, DocOpsMixin, RsvpMixin, AnnotationsMixin, CaretMixin, KeysMixin, DrawMixin,
 ):
     """Main curses application for star — Speaking Terminal Access Reader."""
 
@@ -92,6 +93,18 @@ class StarApp(
         # Speech Cursor mode state
         self._sc_line: int = 0  # display-line index of the reading cursor
         self._sc_reader: Optional[_SCReader] = None  # persistent line reader
+
+        # Caret browsing (normal mode) — a freely movable word-granularity
+        # caret (see mixin_caret.py).  _caret_word is a word-map index; -1 =
+        # unplaced (movers place it lazily, other code falls back to the old
+        # viewport heuristics).  _caret_goal_col is the sticky column for
+        # vertical movement; _caret_manual_ts timestamps the last deliberate
+        # move so follow-speech / auto-scroll briefly yield to the user.
+        # Written from the TTS thread too (_on_highlight) — plain attribute
+        # writes only, safe without a lock in CPython.
+        self._caret_word: int = -1
+        self._caret_goal_col: int = -1
+        self._caret_manual_ts: float = 0.0
 
         # Word index saved when the user pauses speech (Space).  -1 means no
         # saved position.  Used by _tts_toggle to resume from the exact word

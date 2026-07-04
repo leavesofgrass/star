@@ -22,6 +22,15 @@ class PlaybackMixin:
             self._highlight_line = wp.disp_line
             self._highlight_col_start = wp.disp_col
             self._highlight_col_end = wp.disp_col + wp.tts_len
+            # Caret follows the spoken word (so Enter always resumes "from
+            # here") — unless the user just moved it deliberately, which gets
+            # a grace window (mixin_caret._CARET_GRACE_S).  Plain attribute
+            # write from the TTS thread, same convention as the fields above.
+            if (
+                self.settings.get("tui_caret_follow_speech", True)
+                and time.monotonic() - self._caret_manual_ts > 3.0
+            ):
+                self._caret_word = word_idx
             # Sentence-level highlight: resolve the span of the sentence that
             # contains this word so the draw loop can band-highlight it.
             gran = str(self.settings.get("highlight_granularity", "word"))
@@ -52,18 +61,19 @@ class PlaybackMixin:
     # ── TTS controls ──────────────────────────────────────────────────
 
     def _tts_play(self) -> None:
-        """Start speaking from the current scroll position.
-        Slices plain_text at the first word on-screen so the engine never
-        re-reads content that is already above the viewport."""
+        """Start speaking from the current reading position.
+
+        Uses _current_word_for_nav, so a placed caret wins (caret browsing),
+        falling back to the first word on-screen — the engine never re-reads
+        content that is already above the viewport."""
         if not self.doc:
             self.notify("No document loaded.", error=True)
             return
         start_word = 0
         if self.doc.word_map:
-            for i, wp in enumerate(self.doc.word_map):
-                if wp.disp_line >= self.scroll:
-                    start_word = i
-                    break
+            start_word = max(
+                0, min(self._current_word_for_nav(), len(self.doc.word_map) - 1)
+            )
         self._tts_play_from_word(start_word)
         self.notify(
             f"Reading at {self.settings['tts_rate']} wpm via {self.tts.backend_name}"

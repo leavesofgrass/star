@@ -73,19 +73,26 @@ class KeysMixin:
             self._render_doc()
             return
 
-        # ── Navigation ─────────────────────────────────────────────────────
+        # ── Navigation (caret browsing) ─────────────────────────────────────
+        # Arrows move a free word-granularity caret (mixin_caret.py) that
+        # drags the viewport with it; Enter reads from the caret.  j / k keep
+        # the classic caret-free scrolling for terminal muscle memory.
         if ch == curses.KEY_DOWN:
-            self._scroll_by(1)
+            self._caret_move_line(1)
         elif ch == curses.KEY_UP:
-            self._scroll_by(-1)
+            self._caret_move_line(-1)
+        elif ch == curses.KEY_LEFT:
+            self._caret_move_word(-1)
+        elif ch == curses.KEY_RIGHT:
+            self._caret_move_word(1)
         elif ch == curses.KEY_NPAGE:
-            self._page_down()
+            self._caret_move_page(1)
         elif ch == curses.KEY_PPAGE:
-            self._page_up()
+            self._caret_move_page(-1)
         elif ch == curses.KEY_HOME:
-            self._goto_top()
+            self._caret_home()
         elif ch == curses.KEY_END:
-            self._goto_bottom()
+            self._caret_end()
         # j / k kept as silent shortcuts familiar to terminal users
         elif ch == ord("j"):
             self._scroll_by(1)
@@ -95,6 +102,8 @@ class KeysMixin:
         # ── Speech ─────────────────────────────────────────────────────────
         elif ch == ord(" "):
             self._tts_toggle()
+        elif ch in (curses.KEY_ENTER, 10, 13):  # Enter — read from the caret
+            self._caret_play()
         elif ch in (ord("+"), ord("=")):  # speed up
             self._rate_change(+20)
         elif ch == ord("-"):  # slow down
@@ -192,8 +201,13 @@ class KeysMixin:
         elif ch == 20:  # Ctrl+T — T for TTS voice
             self._voice_picker()
 
-        # ── Immediate speech stop (Ctrl+X or Ctrl+Space) ─────────────────
-        elif ch in (0, 24):  # Ctrl+Space / Ctrl+X
+        # ── Ctrl+Space — read from the caret (GUI parity; NUL byte where the
+        # terminal delivers it — Enter is the always-works primary binding).
+        elif ch == 0:
+            self._caret_play()
+
+        # ── Immediate speech stop (Ctrl+X; Esc also stops) ───────────────
+        elif ch == 24:  # Ctrl+X
             self._tts_stop()
             self.notify("Speech stopped")
 

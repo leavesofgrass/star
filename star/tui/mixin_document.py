@@ -159,6 +159,14 @@ class DocumentMixin:
                 return idx
         if self._tts_paused_at_word >= 0:
             return self._tts_paused_at_word
+        # Caret browsing: a placed caret IS the reading position, so replay /
+        # sentence-jump / annotate / define-word all operate at the caret.
+        if (
+            self.doc
+            and self.doc.word_map
+            and 0 <= self._caret_word < len(self.doc.word_map)
+        ):
+            return self._caret_word
         if self.doc and self.doc.word_map:
             for i, wp in enumerate(self.doc.word_map):
                 if wp.disp_line >= self.scroll:

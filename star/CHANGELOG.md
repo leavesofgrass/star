@@ -29,6 +29,16 @@ that existed only on paper.
   entirely while keeping auto-scroll, the status line, and RSVP alive.
 - **Menu tooltips.** Hovering a menu item now shows its description — the
   explanatory tips existed but Qt never displayed them.
+- **Terminal caret browsing.** The TUI now has a true, freely movable reading
+  caret: arrow keys move it word-by-word / line-by-line (PgUp/PgDn by screen,
+  Home/End to the ends), the view follows it, and **Enter** (or Ctrl+Space)
+  reads aloud from wherever it stands. While reading, the caret tracks the
+  spoken word so Enter always resumes "from here"; sentence replay, notes,
+  and Define Word all operate at the caret. `j`/`k` keep classic scrolling.
+- **The terminal welcome page reads aloud.** Launching the TUI with no file
+  now opens the bundled welcome page as a real document — Space, navigation,
+  and Define Word work on the very first screen (it stays out of recents and
+  the library, like the GUI).
 
 ### 🔧 Changed
 
@@ -58,6 +68,13 @@ that existed only on paper.
   two could disagree). Both now resolve through one chain.
 - **Live overlays follow Preferences.** Applying ruler height/opacity/color
   and RSVP position/size/context updates a visible overlay immediately.
+- **The terminal UI is no longer red on Windows.** The TUI hardcoded colors
+  in Linux (ncurses) order, but Windows terminals number them differently —
+  so every intended blue (title bar, status bar, headings) rendered red, a
+  poor default for colorblind readers. Colors now use the portable named
+  constants, and the default dark theme gains a proper **orange** accent for
+  the chrome and the spoken-word highlight (256-color terminals; yellow on
+  basic ones). A regression test keeps red out of every theme.
 
 ### 🧪 Quality
 

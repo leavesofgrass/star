@@ -231,6 +231,11 @@ DEFAULTS: Dict[str, Any] = {
     "qt_rsvp_context": True,        # show the prev/next word above/below
     "tui_rsvp_mode": False,         # TUI mirror of the toggle
     "tui_rsvp_position": "top-center",  # same 9-key set, TUI placement
+    # ── TUI caret browsing ─────────────────────────────────
+    # While reading aloud, the free caret (arrow keys) tracks the spoken word
+    # so Enter always resumes "from here".  Set False to keep the caret fully
+    # manual during speech.
+    "tui_caret_follow_speech": True,
     # ── Karaoke word-highlight tuning — Qt GUI (highlight_speed is shared) ─
     "highlight_style": "background",  # background|underline|box|bold|color
     "highlight_lead_words": 1,  # advance the visual highlight N words (lead/lag)

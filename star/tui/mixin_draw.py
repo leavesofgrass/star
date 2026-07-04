@@ -36,12 +36,24 @@ class DrawMixin:
             if self.mode not in ("mx", "search", "goto"):
                 view_top = 1  # row 0 is the title bar
                 view_h = max(1, h - 3 - view_top)
+                cur_col = 0
+                caret_wp = self._caret_wp() if self.mode != "sc" else None
                 if (
                     self.mode == "sc"
                     and self.scroll <= self._sc_line < self.scroll + view_h
                 ):
                     # In SC mode the cursor sits on the reading-cursor line.
                     cur_row = view_top + (self._sc_line - self.scroll)
+                elif (
+                    caret_wp is not None
+                    and self.scroll <= caret_wp.disp_line < self.scroll + view_h
+                ):
+                    # Caret browsing: the cursor sits ON the caret word (row
+                    # AND column) so terminal screen readers track it exactly.
+                    # While speech runs with follow-speech on, the caret is
+                    # the spoken word, so this and the branch below agree.
+                    cur_row = view_top + (caret_wp.disp_line - self.scroll)
+                    cur_col = min(caret_wp.disp_col, w - 1)
                 elif (
                     self._highlight_line >= 0
                     and self.scroll <= self._highlight_line < self.scroll + view_h
@@ -51,7 +63,7 @@ class DrawMixin:
                 else:
                     # Idle / paused: sit on the first visible document line.
                     cur_row = view_top
-                self.scr.move(cur_row, 0)
+                self.scr.move(cur_row, cur_col)
         except curses.error:
             pass
         self.scr.refresh()
@@ -94,6 +106,12 @@ class DrawMixin:
         elif self._highlight_line >= 0:
             _scroll_line = self._highlight_line
         else:
+            _scroll_line = -1
+
+        # A deliberate caret move gets a short grace window during which the
+        # speech auto-scroll yields, so exploring the document mid-read does
+        # not fight the viewport (mixin_caret._CARET_GRACE_S mirrors this).
+        if time.monotonic() - getattr(self, "_caret_manual_ts", 0.0) < 3.0:
             _scroll_line = -1
 
         if _scroll_line >= 0:
@@ -237,6 +255,25 @@ class DrawMixin:
             except curses.error:
                 pass
 
+        # ── Caret (normal mode) ───────────────────────────────────────────────
+        # Reverse-video the caret word while speech is stopped/paused, so the
+        # caret is unmistakable even in terminals that hide the hardware
+        # cursor.  While speaking, the orange spoken-word highlight already
+        # marks the position (the caret follows it unless moved), so the
+        # painted caret stays out of the way.
+        if self.mode != "sc" and not self.tts.speaking:
+            cwp = self._caret_wp()
+            if cwp is not None and self.scroll <= cwp.disp_line < self.scroll + view_h:
+                try:
+                    self.scr.chgat(
+                        view_top + (cwp.disp_line - self.scroll),
+                        min(cwp.disp_col, w - 2),
+                        max(1, min(cwp.tts_len, w - 1 - cwp.disp_col)),
+                        curses.A_REVERSE,
+                    )
+                except curses.error:
+                    pass
+
     def _draw_highlighted_text(
         self,
         row: int,
@@ -294,7 +331,7 @@ class DrawMixin:
         # are fixed bindings) intact — mirroring how the Qt catalogs treat
         # tooltip shortcut hints.
         hints = tr(
-            "  Space:play/pause  Tab:speech-cursor  Ctrl+T:voice  Ctrl+X:stop  "
+            "  Space:play/pause  Enter:read-here  Tab:speech-cursor  Ctrl+T:voice  Ctrl+X:stop  "
             ",/.:sent  [/]:para  {/}:head-scroll  </>:read-head  "
             ";:replay-sent  r:replay-para  "
             "Ctrl-F:search  +/-:speed  F2:commands  F1:help  Ctrl-Q:quit"

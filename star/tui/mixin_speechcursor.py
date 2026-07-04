@@ -131,7 +131,10 @@ class SpeechCursorMixin:
         if ch == ord(" "):
             self._tts_toggle()
             return
-        if ch in (0, 24):  # Ctrl+Space / Ctrl+X — full stop
+        if ch == 0:  # Ctrl+Space — read on from the cursor (like Enter)
+            self._sc_exit(start_reading=True)
+            return
+        if ch == 24:  # Ctrl+X — full stop (Esc also stops)
             self._tts_stop()
             return
 
