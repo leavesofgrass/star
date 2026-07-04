@@ -92,7 +92,12 @@ class DisplayMixin:
         both the QTextEdit stylesheet and the HTML body styling.
         """
         pal = self._effective_palette(theme_name)
-        font_size = int(self.settings.get("font_size", 0)) or 14
+        # Same fallback chain as _make_editor_font (legacy font_size overrides,
+        # then the documented Qt knob) so the stylesheet's font-size and the
+        # editor's QFont can never disagree.
+        font_size = int(self.settings.get("font_size", 0)) or int(
+            self.settings.get("qt_font_size", 14)
+        )
         sheet = (
             "QTextEdit, QTextBrowser {"
             f"  background-color: {pal['bg']};"

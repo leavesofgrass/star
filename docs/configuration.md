@@ -48,7 +48,7 @@ Open it from the TUI with `M-x settings`.
 | `show_line_numbers` | `false` | Show line numbers in the left margin |
 | `syntax_highlight` | `true` | Syntax-highlight code blocks |
 | `scroll_margin` | `3` | Lines of context above/below current position |
-| `font_size` | `0` | Display font size in pt; `0` = default; meaningful in Qt GUI |
+| `font_size` | `0` | Legacy Qt font-size override; `0` = defer to `qt_font_size` (the canonical knob). A non-zero value wins, for old settings files and manual edits; GUI font changes keep both in sync |
 | `ocr_lang` | `"eng"` | Tesseract language code(s) |
 | `braille_table` | `"en-ueb-g2.ctb"` | liblouis translation table (only used when `braille_grade2` is true) |
 | `braille_grade2` | `false` | Opt in to contracted Grade 2 via liblouis; otherwise the built-in Grade 1 translator is used |
@@ -70,7 +70,7 @@ Open it from the TUI with `M-x settings`.
 | `gui_width` | `1000` | Qt window width in pixels |
 | `gui_height` | `700` | Qt window height in pixels |
 | `qt_font_family` | platform sans-serif | Qt display font family (`Helvetica Neue` / `Segoe UI` / `DejaVu Sans`); serif faces are discouraged for accessibility |
-| `qt_font_size` | `14` | Qt display font size in pt |
+| `qt_font_size` | `14` | Qt display font size in pt (canonical; see the legacy `font_size` override above) |
 | `qt_hidpi` | `true` | Enable high-DPI scaling in the Qt GUI |
 | `qt_ctrl_pause` | `true` | Tap the `Ctrl` key alone to play/pause speech (JAWS habit); chords like `Ctrl+O` never trigger it |
 | `qt_edit_preview` | `false` | Show a live-rendered HTML preview beside the editor in edit mode (toggle with `Ctrl+Shift+L`) |

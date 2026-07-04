@@ -61,7 +61,10 @@ DEFAULTS: Dict[str, Any] = {
     "show_line_numbers": False,
     "syntax_highlight": True,
     "scroll_margin": 3,
-    "font_size": 0,  # 0 = terminal default; meaningful in Qt GUI only
+    # Legacy Qt font-size override.  0 = defer to qt_font_size (the canonical
+    # knob below); a non-zero value wins for back-compat with old settings
+    # files and manual edits.  _set_font keeps it in sync on GUI font changes.
+    "font_size": 0,
     "ocr_lang": "eng",  # Tesseract language(s), e.g. "eng+spa"
     "braille_table": "en-ueb-g2.ctb",
     "braille_grade2": False,  # opt-in liblouis Grade 2; built-in Grade 1 is default

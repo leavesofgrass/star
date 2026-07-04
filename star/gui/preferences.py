@@ -603,6 +603,17 @@ class PreferencesDialog(QDialog):
             except Exception:
                 pass
 
+        # Display font BEFORE theme: _set_font persists family/size and ends by
+        # re-applying the theme itself, so this order avoids one transient
+        # render at the stale size.
+        try:
+            win._set_font(
+                family=str(self.settings.get("qt_font_family", "")),
+                size=int(self.settings.get("qt_font_size", 14)),
+            )
+        except Exception:
+            pass
+
         # Theme — mirror the toolbar/menu pickers: a deliberate theme change here
         # marks the choice "explicit" (qt_theme_explicit) so OS-follow won't
         # override it on the next launch.  Conversely, ticking "Follow OS theme"
@@ -614,16 +625,6 @@ class PreferencesDialog(QDialog):
             self.settings._data["qt_theme_explicit"] = False
         try:
             win._apply_qt_theme(new_theme)
-        except Exception:
-            pass
-
-        # Display font — only re-apply when it actually changed (mirrors _set_font
-        # which persists + re-renders).
-        try:
-            win._set_font(
-                family=str(self.settings.get("qt_font_family", "")),
-                size=int(self.settings.get("qt_font_size", 14)),
-            )
         except Exception:
             pass
 
