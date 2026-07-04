@@ -43,8 +43,28 @@ _ROLES = [
 ]
 CP: Dict[str, int] = {r: i + 1 for i, r in enumerate(_ROLES)}
 
+# curses color constants — NEVER raw ints in the theme tables.  ncurses uses
+# RGB bit-order (COLOR_BLUE == 4) but windows-curses/PDCurses uses BGR
+# (COLOR_BLUE == 1, COLOR_RED == 4), so a raw 4 renders blue on Linux and RED
+# on Windows.  That single mismatch painted the whole Windows TUI chrome red
+# for releases — always go through the named constants, which are correct on
+# both platforms.
+_BLACK = curses.COLOR_BLACK
+_GREEN = curses.COLOR_GREEN
+_BLUE = curses.COLOR_BLUE
+_MAGENTA = curses.COLOR_MAGENTA
+_CYAN = curses.COLOR_CYAN
+_WHITE = curses.COLOR_WHITE
+_DEF = -1  # terminal default (use_default_colors)
+
+# Orange sentinel for theme tables, resolved by _resolve_color at init_pair
+# time: xterm-256 DarkOrange (#ff8700, index 208) on a 256-color terminal,
+# else the nearest base-8 color (yellow).  The base-8 palette has no orange.
+ORANGE = -2
+_ORANGE_256 = 208
+
 # (fg, bg, bold, italic, underline, dim)
-_N = (7, -1, False, False, False, False)
+_N = (_WHITE, _DEF, False, False, False, False)
 
 
 def _t(**kw: tuple) -> Dict[str, tuple]:
@@ -53,146 +73,147 @@ def _t(**kw: tuple) -> Dict[str, tuple]:
     return d
 
 
-# Dark modern theme (default) — colorblind-friendly (no red/green adjacency)
-# Accent palette: cyan, blue, magenta, white.  No yellow, no green/red pairing.
+# Dark modern theme (default) — colorblind-friendly (no red or green anywhere;
+# deuteranopia/protanopia-safe).  Chrome + spoken-word accent: ORANGE (yellow
+# on 8-color terminals); content accents: cyan, blue, magenta, white.
 THEMES: Dict[str, Dict] = {
     "dark": _t(
-        normal=(7, -1, False, False, False, False),
-        h1=(6, -1, True, False, False, False),  # cyan bold
-        h2=(4, -1, True, False, False, False),  # blue bold
-        h3=(5, -1, True, False, False, False),  # magenta bold
-        h4=(7, -1, True, False, True, False),  # white bold underline
-        bold=(7, -1, True, False, False, False),
-        italic=(7, -1, False, True, False, False),
-        bolditalic=(7, -1, True, True, False, False),
-        code=(6, -1, False, False, False, False),  # cyan
-        code_normal=(6, -1, False, False, False, False),
-        codeblock=(6, -1, False, False, False, True),  # dim cyan
-        keyword=(5, -1, True, False, False, False),  # magenta bold
-        string=(6, -1, False, False, False, False),  # cyan
-        comment=(4, -1, False, True, False, True),  # blue italic dim
-        number=(5, -1, False, False, False, False),  # magenta
-        link=(6, -1, False, False, True, False),  # cyan underline
-        image=(5, -1, False, False, True, False),
-        quote=(5, -1, False, True, False, False),  # magenta italic
-        bullet=(6, -1, True, False, False, False),  # cyan bold
-        ordinal=(6, -1, False, False, False, False),
-        table=(6, -1, False, False, False, False),
-        hr=(4, -1, False, False, False, True),  # blue dim
-        current_word=(0, 6, True, False, False, False),  # black on cyan
-        search_match=(0, 4, False, False, False, False),  # black on blue
-        search_current=(0, 5, True, False, False, False),  # black on magenta
-        status=(7, 4, True, False, False, False),  # white on blue
-        status_hi=(6, 4, True, False, False, False),  # cyan on blue
-        minibuf=(7, -1, False, False, False, False),
-        error=(5, -1, True, False, False, False),  # magenta bold (no red)
-        dim=(7, -1, False, False, False, True),
-        progress=(6, 4, True, False, False, False),
-        title_bar=(7, 4, True, False, False, False),
+        normal=(_WHITE, _DEF, False, False, False, False),
+        h1=(_CYAN, _DEF, True, False, False, False),  # cyan bold
+        h2=(_BLUE, _DEF, True, False, False, False),  # blue bold
+        h3=(_MAGENTA, _DEF, True, False, False, False),  # magenta bold
+        h4=(_WHITE, _DEF, True, False, True, False),  # white bold underline
+        bold=(_WHITE, _DEF, True, False, False, False),
+        italic=(_WHITE, _DEF, False, True, False, False),
+        bolditalic=(_WHITE, _DEF, True, True, False, False),
+        code=(_CYAN, _DEF, False, False, False, False),  # cyan
+        code_normal=(_CYAN, _DEF, False, False, False, False),
+        codeblock=(_CYAN, _DEF, False, False, False, True),  # dim cyan
+        keyword=(_MAGENTA, _DEF, True, False, False, False),  # magenta bold
+        string=(_CYAN, _DEF, False, False, False, False),  # cyan
+        comment=(_BLUE, _DEF, False, True, False, True),  # blue italic dim
+        number=(_MAGENTA, _DEF, False, False, False, False),  # magenta
+        link=(_CYAN, _DEF, False, False, True, False),  # cyan underline
+        image=(_MAGENTA, _DEF, False, False, True, False),
+        quote=(_MAGENTA, _DEF, False, True, False, False),  # magenta italic
+        bullet=(_CYAN, _DEF, True, False, False, False),  # cyan bold
+        ordinal=(_CYAN, _DEF, False, False, False, False),
+        table=(_CYAN, _DEF, False, False, False, False),
+        hr=(_BLUE, _DEF, False, False, False, True),  # blue dim
+        current_word=(_BLACK, ORANGE, True, False, False, False),  # black on orange
+        search_match=(_BLACK, _BLUE, False, False, False, False),  # black on blue
+        search_current=(_BLACK, _MAGENTA, True, False, False, False),
+        status=(_BLACK, ORANGE, True, False, False, False),  # black on orange
+        status_hi=(_BLACK, ORANGE, True, False, True, False),  # + underline
+        minibuf=(_WHITE, _DEF, False, False, False, False),
+        error=(_MAGENTA, _DEF, True, False, False, False),  # magenta bold (no red)
+        dim=(_WHITE, _DEF, False, False, False, True),
+        progress=(_BLACK, ORANGE, True, False, False, False),
+        title_bar=(_BLACK, ORANGE, True, False, False, False),
     ),
     "light": _t(
-        normal=(0, 7, False, False, False, False),
-        h1=(4, 7, True, False, False, False),  # blue bold
-        h2=(5, 7, True, False, False, False),  # magenta bold
-        h3=(4, 7, False, False, False, False),  # blue
-        h4=(0, 7, True, False, True, False),
-        bold=(0, 7, True, False, False, False),
-        italic=(0, 7, False, True, False, False),
-        bolditalic=(0, 7, True, True, False, False),
-        code=(4, 7, False, False, False, False),
-        code_normal=(4, 7, False, False, False, False),
-        codeblock=(4, 7, False, False, False, True),
-        keyword=(5, 7, True, False, False, False),
-        string=(4, 7, False, False, False, False),
-        comment=(5, 7, False, True, False, True),
-        number=(5, 7, False, False, False, False),
-        link=(4, 7, False, False, True, False),
-        image=(5, 7, False, False, True, False),
-        quote=(5, 7, False, True, False, False),
-        bullet=(4, 7, True, False, False, False),
-        ordinal=(4, 7, False, False, False, False),
-        table=(4, 7, False, False, False, False),
-        hr=(5, 7, False, False, False, True),
-        current_word=(7, 4, True, False, False, False),  # white on blue
-        search_match=(7, 5, False, False, False, False),  # white on magenta
-        search_current=(7, 4, True, False, False, False),
-        status=(7, 4, True, False, False, False),
-        status_hi=(7, 5, True, False, False, False),
-        minibuf=(0, 7, False, False, False, False),
-        error=(5, 7, True, False, False, False),
-        dim=(0, 7, False, False, False, True),
-        progress=(7, 4, False, False, False, False),
-        title_bar=(7, 4, True, False, False, False),
+        normal=(_BLACK, _WHITE, False, False, False, False),
+        h1=(_BLUE, _WHITE, True, False, False, False),  # blue bold
+        h2=(_MAGENTA, _WHITE, True, False, False, False),  # magenta bold
+        h3=(_BLUE, _WHITE, False, False, False, False),  # blue
+        h4=(_BLACK, _WHITE, True, False, True, False),
+        bold=(_BLACK, _WHITE, True, False, False, False),
+        italic=(_BLACK, _WHITE, False, True, False, False),
+        bolditalic=(_BLACK, _WHITE, True, True, False, False),
+        code=(_BLUE, _WHITE, False, False, False, False),
+        code_normal=(_BLUE, _WHITE, False, False, False, False),
+        codeblock=(_BLUE, _WHITE, False, False, False, True),
+        keyword=(_MAGENTA, _WHITE, True, False, False, False),
+        string=(_BLUE, _WHITE, False, False, False, False),
+        comment=(_MAGENTA, _WHITE, False, True, False, True),
+        number=(_MAGENTA, _WHITE, False, False, False, False),
+        link=(_BLUE, _WHITE, False, False, True, False),
+        image=(_MAGENTA, _WHITE, False, False, True, False),
+        quote=(_MAGENTA, _WHITE, False, True, False, False),
+        bullet=(_BLUE, _WHITE, True, False, False, False),
+        ordinal=(_BLUE, _WHITE, False, False, False, False),
+        table=(_BLUE, _WHITE, False, False, False, False),
+        hr=(_MAGENTA, _WHITE, False, False, False, True),
+        current_word=(_WHITE, _BLUE, True, False, False, False),  # white on blue
+        search_match=(_WHITE, _MAGENTA, False, False, False, False),
+        search_current=(_WHITE, _BLUE, True, False, False, False),
+        status=(_WHITE, _BLUE, True, False, False, False),
+        status_hi=(_WHITE, _MAGENTA, True, False, False, False),
+        minibuf=(_BLACK, _WHITE, False, False, False, False),
+        error=(_MAGENTA, _WHITE, True, False, False, False),
+        dim=(_BLACK, _WHITE, False, False, False, True),
+        progress=(_WHITE, _BLUE, False, False, False, False),
+        title_bar=(_WHITE, _BLUE, True, False, False, False),
     ),
     "contrast": _t(
         # High contrast: bold white on black, cyan & magenta accents
-        normal=(7, 0, False, False, False, False),
-        h1=(6, 0, True, False, False, False),
-        h2=(7, 0, True, False, False, False),
-        h3=(5, 0, True, False, False, False),
-        h4=(7, 0, True, False, True, False),
-        bold=(7, 0, True, False, False, False),
-        italic=(7, 0, False, True, False, False),
-        bolditalic=(7, 0, True, True, False, False),
-        code=(6, 0, True, False, False, False),
-        code_normal=(6, 0, True, False, False, False),
-        codeblock=(6, 0, False, False, False, False),
-        keyword=(5, 0, True, False, False, False),
-        string=(6, 0, False, False, False, False),
-        comment=(7, 0, False, False, False, False),
-        number=(5, 0, False, False, False, False),
-        link=(6, 0, False, False, True, False),
-        image=(5, 0, False, False, True, False),
-        quote=(7, 0, False, False, False, False),
-        bullet=(6, 0, True, False, False, False),
-        ordinal=(6, 0, False, False, False, False),
-        table=(7, 0, False, False, False, False),
-        hr=(7, 0, False, False, False, False),
-        current_word=(0, 6, True, False, False, False),
-        search_match=(0, 7, False, False, False, False),
-        search_current=(0, 5, True, False, False, False),
-        status=(0, 7, True, False, False, False),
-        status_hi=(0, 6, True, False, False, False),
-        minibuf=(7, 0, True, False, False, False),
-        error=(5, 0, True, False, False, False),
-        dim=(7, 0, False, False, False, False),
-        progress=(0, 6, False, False, False, False),
-        title_bar=(0, 7, True, False, False, False),
+        normal=(_WHITE, _BLACK, False, False, False, False),
+        h1=(_CYAN, _BLACK, True, False, False, False),
+        h2=(_WHITE, _BLACK, True, False, False, False),
+        h3=(_MAGENTA, _BLACK, True, False, False, False),
+        h4=(_WHITE, _BLACK, True, False, True, False),
+        bold=(_WHITE, _BLACK, True, False, False, False),
+        italic=(_WHITE, _BLACK, False, True, False, False),
+        bolditalic=(_WHITE, _BLACK, True, True, False, False),
+        code=(_CYAN, _BLACK, True, False, False, False),
+        code_normal=(_CYAN, _BLACK, True, False, False, False),
+        codeblock=(_CYAN, _BLACK, False, False, False, False),
+        keyword=(_MAGENTA, _BLACK, True, False, False, False),
+        string=(_CYAN, _BLACK, False, False, False, False),
+        comment=(_WHITE, _BLACK, False, False, False, False),
+        number=(_MAGENTA, _BLACK, False, False, False, False),
+        link=(_CYAN, _BLACK, False, False, True, False),
+        image=(_MAGENTA, _BLACK, False, False, True, False),
+        quote=(_WHITE, _BLACK, False, False, False, False),
+        bullet=(_CYAN, _BLACK, True, False, False, False),
+        ordinal=(_CYAN, _BLACK, False, False, False, False),
+        table=(_WHITE, _BLACK, False, False, False, False),
+        hr=(_WHITE, _BLACK, False, False, False, False),
+        current_word=(_BLACK, _CYAN, True, False, False, False),
+        search_match=(_BLACK, _WHITE, False, False, False, False),
+        search_current=(_BLACK, _MAGENTA, True, False, False, False),
+        status=(_BLACK, _WHITE, True, False, False, False),
+        status_hi=(_BLACK, _CYAN, True, False, False, False),
+        minibuf=(_WHITE, _BLACK, True, False, False, False),
+        error=(_MAGENTA, _BLACK, True, False, False, False),
+        dim=(_WHITE, _BLACK, False, False, False, False),
+        progress=(_BLACK, _CYAN, False, False, False, False),
+        title_bar=(_BLACK, _WHITE, True, False, False, False),
     ),
     "phosphor": _t(
         # Classic green phosphor monochrome
-        normal=(2, -1, False, False, False, False),
-        h1=(2, -1, True, False, False, False),
-        h2=(2, -1, True, False, True, False),
-        h3=(2, -1, False, False, True, False),
-        h4=(2, -1, True, False, False, False),
-        bold=(2, -1, True, False, False, False),
-        italic=(2, -1, False, True, False, False),
-        bolditalic=(2, -1, True, True, False, False),
-        code=(2, -1, True, False, False, False),
-        code_normal=(2, -1, False, False, False, False),
-        codeblock=(2, -1, False, False, False, True),
-        keyword=(2, -1, True, False, False, False),
-        string=(2, -1, False, False, False, False),
-        comment=(2, -1, False, True, False, True),
-        number=(2, -1, False, False, False, False),
-        link=(2, -1, False, False, True, False),
-        image=(2, -1, False, False, True, False),
-        quote=(2, -1, False, True, False, False),
-        bullet=(2, -1, True, False, False, False),
-        ordinal=(2, -1, False, False, False, False),
-        table=(2, -1, False, False, False, False),
-        hr=(2, -1, False, False, False, True),
-        current_word=(0, 2, True, False, False, False),
-        search_match=(0, 2, False, False, False, False),
-        search_current=(2, 0, True, False, False, False),
-        status=(0, 2, True, False, False, False),
-        status_hi=(0, 2, False, False, False, False),
-        minibuf=(2, -1, False, False, False, False),
-        error=(2, -1, True, False, False, False),
-        dim=(2, -1, False, False, False, True),
-        progress=(0, 2, False, False, False, False),
-        title_bar=(0, 2, True, False, False, False),
+        normal=(_GREEN, _DEF, False, False, False, False),
+        h1=(_GREEN, _DEF, True, False, False, False),
+        h2=(_GREEN, _DEF, True, False, True, False),
+        h3=(_GREEN, _DEF, False, False, True, False),
+        h4=(_GREEN, _DEF, True, False, False, False),
+        bold=(_GREEN, _DEF, True, False, False, False),
+        italic=(_GREEN, _DEF, False, True, False, False),
+        bolditalic=(_GREEN, _DEF, True, True, False, False),
+        code=(_GREEN, _DEF, True, False, False, False),
+        code_normal=(_GREEN, _DEF, False, False, False, False),
+        codeblock=(_GREEN, _DEF, False, False, False, True),
+        keyword=(_GREEN, _DEF, True, False, False, False),
+        string=(_GREEN, _DEF, False, False, False, False),
+        comment=(_GREEN, _DEF, False, True, False, True),
+        number=(_GREEN, _DEF, False, False, False, False),
+        link=(_GREEN, _DEF, False, False, True, False),
+        image=(_GREEN, _DEF, False, False, True, False),
+        quote=(_GREEN, _DEF, False, True, False, False),
+        bullet=(_GREEN, _DEF, True, False, False, False),
+        ordinal=(_GREEN, _DEF, False, False, False, False),
+        table=(_GREEN, _DEF, False, False, False, False),
+        hr=(_GREEN, _DEF, False, False, False, True),
+        current_word=(_BLACK, _GREEN, True, False, False, False),
+        search_match=(_BLACK, _GREEN, False, False, False, False),
+        search_current=(_GREEN, _BLACK, True, False, False, False),
+        status=(_BLACK, _GREEN, True, False, False, False),
+        status_hi=(_BLACK, _GREEN, False, False, False, False),
+        minibuf=(_GREEN, _DEF, False, False, False, False),
+        error=(_GREEN, _DEF, True, False, False, False),
+        dim=(_GREEN, _DEF, False, False, False, True),
+        progress=(_BLACK, _GREEN, False, False, False, False),
+        title_bar=(_BLACK, _GREEN, True, False, False, False),
     ),
 }
 
@@ -205,6 +226,17 @@ _HEADING_ROLES = frozenset({"h1", "h2", "h3", "h4"})
 _TABLE_ROLES = frozenset({"table"})
 
 
+def _resolve_color(c: int, colors_available: int) -> int:
+    """Map the ORANGE sentinel to a real terminal color.
+
+    xterm-256 DarkOrange (208, #ff8700) when the terminal offers 256+ colors,
+    else the nearest base-8 color (yellow — via the constant, since PDCurses
+    and ncurses number it differently).  Every other value passes through."""
+    if c == ORANGE:
+        return _ORANGE_256 if colors_available >= 256 else curses.COLOR_YELLOW
+    return c
+
+
 def _setup_colors(theme_name: str) -> Dict[str, int]:
     """Initialize curses color pairs from a theme dict.
     Returns a mapping role → combined curses attribute integer."""
@@ -215,6 +247,9 @@ def _setup_colors(theme_name: str) -> Dict[str, int]:
         curses.use_default_colors()
     except curses.error:
         pass
+    # curses.COLORS is only meaningful after start_color(); default to the
+    # base palette when absent so the ORANGE fallback stays safe.
+    colors_available = getattr(curses, "COLORS", 8) or 8
 
     theme = THEMES.get(theme_name, THEMES["dark"])
     _ATTR = {
@@ -226,6 +261,14 @@ def _setup_colors(theme_name: str) -> Dict[str, int]:
     result: Dict[str, int] = {}
     for role in _ROLES:
         fg, bg, b, it, ul, dim = theme[role]
+        fg = _resolve_color(fg, colors_available)
+        bg = _resolve_color(bg, colors_available)
+        # Range-guard: an out-of-range color would hit the silent except
+        # below and leave the pair uninitialized (default white-on-black).
+        if fg >= colors_available:
+            fg = curses.COLOR_WHITE
+        if bg >= colors_available:
+            bg = -1
         cp = CP[role]
         try:
             curses.init_pair(cp, fg, bg)

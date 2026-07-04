@@ -459,3 +459,53 @@ def test_reading_position_save_restore_gated_for_welcome():
     app.welcome = False
     assert app._restore_reading_position() is True
     assert any("Resumed" in m for m, _ in app.messages)
+
+
+# ── Theming (0.1.22): platform-safe constants + orange accent ────────────────
+
+
+def test_resolve_color_orange_and_passthrough():
+    import curses
+
+    from star.tui.theming import ORANGE, _ORANGE_256, _resolve_color
+
+    assert _resolve_color(ORANGE, 256) == _ORANGE_256
+    assert _resolve_color(ORANGE, 768) == _ORANGE_256  # windows-curses reports 768
+    assert _resolve_color(ORANGE, 8) == curses.COLOR_YELLOW  # base-8 fallback
+    assert _resolve_color(curses.COLOR_BLUE, 8) == curses.COLOR_BLUE  # passthrough
+    assert _resolve_color(-1, 8) == -1  # terminal default untouched
+
+
+def test_no_theme_uses_red():
+    """Colorblind guard: no fg/bg in any TUI theme may be COLOR_RED.
+
+    This is platform-sensitive on purpose — the old tables hardcoded
+    ncurses-order ints, and on windows-curses (BGR) every intended blue (4)
+    was actually COLOR_RED, painting the whole chrome red.  Named constants +
+    this invariant keep that from regressing on either platform."""
+    import curses
+
+    from star.tui.theming import THEMES
+
+    offenders = [
+        (theme, role)
+        for theme, table in THEMES.items()
+        for role, (fg, bg, *_flags) in table.items()
+        if curses.COLOR_RED in (fg, bg)
+    ]
+    assert not offenders, f"red found in themes: {offenders}"
+
+
+def test_dark_theme_chrome_is_orange():
+    """The default (dark) theme's chrome + spoken-word highlight carry the
+    ORANGE sentinel; other themes keep their designed look (no orange)."""
+    from star.tui.theming import ORANGE, THEMES
+
+    dark = THEMES["dark"]
+    for role in ("status", "title_bar", "progress", "current_word", "status_hi"):
+        assert dark[role][1] is ORANGE, f"dark[{role}] lost the orange accent"
+    for other in ("light", "contrast", "phosphor"):
+        assert all(
+            ORANGE not in (fg, bg)
+            for fg, bg, *_f in THEMES[other].values()
+        ), f"{other} theme unexpectedly gained orange"
