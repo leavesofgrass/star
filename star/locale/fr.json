@@ -493,5 +493,6 @@
   "Spoken-word highlight:": "Surlignage du mot prononcé :",
   "Highlight the word being spoken": "Surligner le mot en cours de lecture",
   "Change display font (Ctrl+Alt+F)": "Changer la police d'affichage (Ctrl+Alt+F)",
-  "  Space:play/pause  Enter:read-here  Tab:speech-cursor  Ctrl+T:voice  Ctrl+X:stop  ,/.:sent  [/]:para  {/}:head-scroll  </>:read-head  ;:replay-sent  r:replay-para  Ctrl-F:search  +/-:speed  F2:commands  F1:help  Ctrl-Q:quit": "  Space:lecture/pause  Entrée:lire-ici  Tab:curseur-vocal  Ctrl+T:voix  Ctrl+X:arrêter  ,/.:phrase  [/]:parag.  {/}:aller-titre  </>:lire-titre  ;:rejouer-phrase  r:rejouer-parag.  Ctrl-F:rechercher  +/-:vitesse  F2:commandes  F1:aide  Ctrl-Q:quitter"
+  "  Space:play/pause  Enter:read-here  Tab:speech-cursor  Ctrl+T:voice  Ctrl+X:stop  ,/.:sent  [/]:para  {/}:head-scroll  </>:read-head  ;:replay-sent  r:replay-para  Ctrl-F:search  +/-:speed  F2:commands  F1:help  Ctrl-Q:quit": "  Space:lecture/pause  Entrée:lire-ici  Tab:curseur-vocal  Ctrl+T:voix  Ctrl+X:arrêter  ,/.:phrase  [/]:parag.  {/}:aller-titre  </>:lire-titre  ;:rejouer-phrase  r:rejouer-parag.  Ctrl-F:rechercher  +/-:vitesse  F2:commandes  F1:aide  Ctrl-Q:quitter",
+  "Switch the menus, toolbar, and messages to {language}": "Basculer les menus, la barre d'outils et les messages en {language}"
 }

@@ -312,7 +312,10 @@ class ChromeMixin:
         file_menu.addAction(self._watch_action)
 
         file_menu.addSeparator()
-        file_menu.addAction(_mi("Quit", "Ctrl+Q", self.close))
+        file_menu.addAction(
+            _mi("Quit", "Ctrl+Q", self.close,
+                tip="Close star (reading position and settings are saved)")
+        )
 
         # Highlight menu (Ctrl+Shift+digit picks a color)
         hl_menu: QMenu = mb.addMenu(tr("Highlight"))
@@ -329,6 +332,8 @@ class ChromeMixin:
                     f"Highlight {_name}",
                     _sc,
                     lambda c=_color: self._qt_highlight(c),
+                    tip=f"Highlight the selection in {_name.lower()} "
+                        "(persists with the document)",
                 )
             )
         hl_menu.addSeparator()
@@ -337,6 +342,7 @@ class ChromeMixin:
                 "Clear All Highlights",
                 "Ctrl+Shift+0",
                 self._qt_highlight_clear,
+                tip="Remove every stored highlight from this document",
             )
         )
 
@@ -353,12 +359,14 @@ class ChromeMixin:
                 "Delete Selected Note",
                 "Ctrl+Shift+D",
                 self._qt_delete_annotation,
+                tip="Delete the note selected in the Notes panel",
             )
         )
         notes_menu.addSeparator()
         # Shared with the View menu so both show the same Ctrl+Shift+N binding.
         toggle_notes_act = _mi(
-            "Toggle Notes Panel", "Ctrl+Shift+N", self._qt_toggle_annotations
+            "Toggle Notes Panel", "Ctrl+Shift+N", self._qt_toggle_annotations,
+            tip="Show or hide the notes dock",
         )
         notes_menu.addAction(toggle_notes_act)
         notes_menu.addAction(
@@ -383,17 +391,22 @@ class ChromeMixin:
         _menu(
             "Speech",
             [
-                ("Play / Pause", self._tts_toggle, "Space"),
-                ("Stop", self._tts_stop, "Escape"),
+                ("Play / Pause", self._tts_toggle, "Space",
+                 "Start reading aloud, or pause and resume at the same word"),
+                ("Stop", self._tts_stop, "Escape",
+                 "Stop speech entirely (also clears the paused position)"),
                 ("Play from Cursor", self._qt_play_from_cursor, "Ctrl+Space",
                  "Start reading aloud from the caret position"),
                 None,
-                ("Faster (+20 wpm)", lambda: self._rate_change(+20), "Ctrl+="),
-                ("Slower (−20 wpm)", lambda: self._rate_change(-20), "Ctrl+-"),
+                ("Faster (+20 wpm)", lambda: self._rate_change(+20), "Ctrl+=",
+                 "Raise the speaking rate by 20 words per minute"),
+                ("Slower (−20 wpm)", lambda: self._rate_change(-20), "Ctrl+-",
+                 "Lower the speaking rate by 20 words per minute"),
                 None,
                 ("Choose TTS Engine…", self._qt_pick_backend, "Ctrl+Shift+G",
                  "Switch between the installed speech engines"),
-                ("Choose Voice…", self._voice_picker_qt, "Ctrl+Shift+V"),
+                ("Choose Voice…", self._voice_picker_qt, "Ctrl+Shift+V",
+                 "Pick a voice from the active engine by name"),
                 ("Voice Manager…", self._qt_voice_manager, "F4",
                  "Preview, star, and install voices for the active engine"),
                 (
@@ -404,6 +417,7 @@ class ChromeMixin:
                         else self._qt_sc_enter()
                     ),
                     "Tab",
+                    "Line-by-line reading: arrows move and speak one line at a time",
                 ),
                 None,
                 (
@@ -418,11 +432,15 @@ class ChromeMixin:
                         ),
                     ),
                     "Ctrl+Alt+Y",
+                    "Richer sentence/clause pausing — may loosen word-highlight "
+                    "accuracy (see the docs)",
                 ),
                 (
                     "Pronunciation Lexicon…",
                     self._qt_pronunciations,
                     "Ctrl+Shift+I",
+                    "Teach the reader how to say specific terms (drug names, "
+                    "acronyms, …)",
                 ),
             ],
         )
@@ -431,26 +449,38 @@ class ChromeMixin:
         _menu(
             "Navigate",
             [
-                ("Next Sentence", self._qt_skip_next_sentence, "Alt+."),
-                ("Previous Sentence", self._qt_skip_prev_sentence, "Alt+,"),
-                ("Replay Sentence", self._qt_replay_sentence, "Alt+;"),
+                ("Next Sentence", self._qt_skip_next_sentence, "Alt+.",
+                 "Jump a sentence forward (speech follows if playing)"),
+                ("Previous Sentence", self._qt_skip_prev_sentence, "Alt+,",
+                 "Jump a sentence back (speech follows if playing)"),
+                ("Replay Sentence", self._qt_replay_sentence, "Alt+;",
+                 "Hear the current sentence again"),
                 None,
-                ("Next Paragraph", self._qt_skip_next_paragraph, "Ctrl+P"),
+                ("Next Paragraph", self._qt_skip_next_paragraph, "Ctrl+P",
+                 "Jump a paragraph forward"),
                 (
                     "Previous Paragraph",
                     self._qt_skip_prev_paragraph,
                     "Ctrl+Shift+P",
+                    "Jump a paragraph back",
                 ),
-                ("Replay Paragraph", self._qt_replay_paragraph, "Ctrl+R"),
+                ("Replay Paragraph", self._qt_replay_paragraph, "Ctrl+R",
+                 "Hear the current paragraph again"),
                 None,
-                ("Next Heading", self._qt_read_next_heading, "Ctrl+H"),
-                ("Previous Heading", self._qt_read_prev_heading, "Ctrl+Shift+H"),
+                ("Next Heading", self._qt_read_next_heading, "Ctrl+H",
+                 "Jump to the next heading and read it aloud"),
+                ("Previous Heading", self._qt_read_prev_heading, "Ctrl+Shift+H",
+                 "Jump to the previous heading and read it aloud"),
                 None,
-                ("Next Table", self._qt_skip_next_table, "Ctrl+T"),
-                ("Previous Table", self._qt_skip_prev_table, "Ctrl+Shift+T"),
+                ("Next Table", self._qt_skip_next_table, "Ctrl+T",
+                 "Jump to the next table"),
+                ("Previous Table", self._qt_skip_prev_table, "Ctrl+Shift+T",
+                 "Jump to the previous table"),
                 None,
-                ("Back", self._qt_history_back, "Alt+Left"),
-                ("Forward", self._qt_history_forward, "Alt+Right"),
+                ("Back", self._qt_history_back, "Alt+Left",
+                 "Return to the previous reading position (history)"),
+                ("Forward", self._qt_history_forward, "Alt+Right",
+                 "Go forward again in the position history"),
             ],
         )
 
@@ -461,9 +491,12 @@ class ChromeMixin:
         _menu(
             "Bookmarks",
             [
-                ("Add Bookmark", self._qt_bookmark_add, "Ctrl+B"),
-                ("Add Named Bookmark…", self._qt_bookmark_add_named, ""),
-                ("Bookmarks…", self._qt_bookmarks_dialog, ""),
+                ("Add Bookmark", self._qt_bookmark_add, "Ctrl+B",
+                 "Mark the current position in this document"),
+                ("Add Named Bookmark…", self._qt_bookmark_add_named, "",
+                 "Bookmark the current position under a name you choose"),
+                ("Bookmarks…", self._qt_bookmarks_dialog, "",
+                 "Jump to any saved bookmark"),
             ],
         )
 
@@ -473,10 +506,14 @@ class ChromeMixin:
             [
                 ("Find…", self._find_show, "Ctrl+F",
                  "Find in the document — Enter jumps, Ctrl+Enter reads aloud"),
-                ("Copy", self._qt_copy, "Ctrl+C"),
+                ("Copy", self._qt_copy, "Ctrl+C",
+                 "Copy the selection — or the current paragraph when nothing "
+                 "is selected"),
                 None,
-                ("Toggle Edit Mode", self._qt_edit_mode_toggle, "Ctrl+E"),
-                ("Save", self._qt_save, "Ctrl+S"),
+                ("Toggle Edit Mode", self._qt_edit_mode_toggle, "Ctrl+E",
+                 "Edit the document as Markdown; press again to return to reading"),
+                ("Save", self._qt_save, "Ctrl+S",
+                 "Save your edits back to the file"),
                 # Menu-only: F7 is View ▸ Caret Browsing (an ambiguous shortcut
                 # would fire neither).
                 ("Check Spelling", self._qt_check_spelling, "",
@@ -499,18 +536,24 @@ class ChromeMixin:
         _menu(
             "Citations",
             [
-                ("Import…", self._qt_import_citations, "Ctrl+Alt+I"),
+                ("Import…", self._qt_import_citations, "Ctrl+Alt+I",
+                 "Import references from a BibTeX / RIS / CSL-JSON file"),
                 # Menu-only: Ctrl+Alt+E is View ▸ Reading Aids ▸ RSVP Mode.
-                ("Export…", self._qt_export_citations),
+                ("Export…", self._qt_export_citations, "",
+                 "Export the citation library to BibTeX / RIS / CSL-JSON"),
                 None,
-                ("Add Citation…", self._qt_add_citation, "Ctrl+Alt+C"),
-                ("Add by DOI…", self._qt_add_citation_by_doi, "Ctrl+Alt+D"),
+                ("Add Citation…", self._qt_add_citation, "Ctrl+Alt+C",
+                 "Add a reference by filling in its fields"),
+                ("Add by DOI…", self._qt_add_citation_by_doi, "Ctrl+Alt+D",
+                 "Fetch a reference's details automatically from its DOI"),
                 (
                     "Insert Citation at Cursor…",
                     self._qt_insert_citation,
                     "Ctrl+Alt+R",
+                    "Insert a formatted citation into the document at the caret",
                 ),
-                ("Manage / Browse…", self._qt_manage_citations, "Ctrl+Alt+G"),
+                ("Manage / Browse…", self._qt_manage_citations, "Ctrl+Alt+G",
+                 "Browse, edit, and delete the saved references"),
             ],
         )
 
@@ -527,7 +570,10 @@ class ChromeMixin:
                 tip="Toggle the knowledge-graph dock",
             )
         )
-        graph_menu.addAction(_mi("Rebuild Graph", "", self._graph_rebuild))
+        graph_menu.addAction(
+            _mi("Rebuild Graph", "", self._graph_rebuild,
+                tip="Recompute the knowledge graph from the current notes")
+        )
         graph_menu.addSeparator()
         graph_menu.addAction(
             _mi(
@@ -574,12 +620,16 @@ class ChromeMixin:
         # View menu
         view_menu: QMenu = mb.addMenu(tr("View"))
         view_menu.addAction(
-            _mi("Toggle Contents Panel", "Ctrl+\\", self._qt_toggle_toc)
+            _mi("Toggle Contents Panel", "Ctrl+\\", self._qt_toggle_toc,
+                tip="Show or hide the table-of-contents dock")
         )
         # Shared QAction from the Notes menu (same Ctrl+Shift+N binding).
         view_menu.addAction(toggle_notes_act)
         view_menu.addSeparator()
-        view_menu.addAction(_mi("Next Theme", "F5", self._next_theme))
+        view_menu.addAction(
+            _mi("Next Theme", "F5", self._next_theme,
+                tip="Cycle to the next color theme")
+        )
         view_menu.addAction(_mi("Choose Theme…", "Ctrl+Alt+T", self._qt_pick_theme))
         view_menu.addAction(
             _mi(
@@ -590,7 +640,8 @@ class ChromeMixin:
             )
         )
         view_menu.addAction(
-            _mi("Open Themes Folder", "Ctrl+Shift+F", self._qt_open_themes_folder)
+            _mi("Open Themes Folder", "Ctrl+Shift+F", self._qt_open_themes_folder,
+                tip="Open the custom CSS themes folder in your file manager")
         )
         view_menu.addSeparator()
         view_menu.addAction(
@@ -613,7 +664,10 @@ class ChromeMixin:
             )
         )
         # Reading Level is shared with the Tools menu (one Ctrl+L owner).
-        level_act = _mi("Reading Level", "Ctrl+L", self._qt_reading_level)
+        level_act = _mi(
+            "Reading Level", "Ctrl+L", self._qt_reading_level,
+            tip="Show the document's Flesch-Kincaid reading level",
+        )
         view_menu.addAction(level_act)
         # Live HTML preview while editing (checkable).  Ctrl+Shift+Z — Ctrl+Shift+L
         # is owned by File ▸ Open Folder as Library (avoids an ambiguous shortcut
@@ -653,10 +707,20 @@ class ChromeMixin:
         _cur_font = str(self.settings.get("qt_reading_font", "default"))
         if _cur_font == "default" and self.settings.get("qt_dyslexia_font", False):
             _cur_font = "opendyslexic"
+        _FONT_TIPS = {
+            "default": "Use the regular display font",
+            "opendyslexic": "Weighted letterforms that reduce letter flipping "
+                            "(fetched on first use)",
+            "atkinson": "Braille Institute font designed for low vision "
+                        "(fetched on first use)",
+            "lexend": "Spacing-tuned family shown to improve reading "
+                      "fluency (fetched on first use)",
+        }
         for _label, _key in self._READING_FONT_CHOICES:
             _act = QAction(tr(_label), self)
             _act.setCheckable(True)
             _act.setChecked(_key == _cur_font)
+            _act.setToolTip(tr(_FONT_TIPS.get(_key, "")))
             _act.triggered.connect(lambda _c=False, k=_key: self._qt_set_reading_font(k))
             self._reading_font_group.addAction(_act)
             font_menu.addAction(_act)
@@ -748,6 +812,12 @@ class ChromeMixin:
             _lang_act = QAction(_disp, self)
             _lang_act.setCheckable(True)
             _lang_act.setChecked(_code == _current_lang)
+            # The label is the language's own name; the tip explains the effect.
+            _lang_act.setToolTip(
+                tr("Switch the menus, toolbar, and messages to {language}").format(
+                    language=_disp
+                )
+            )
             _lang_act.triggered.connect(
                 lambda _checked=False, c=_code: self._set_ui_language(c)
             )
@@ -793,6 +863,7 @@ class ChromeMixin:
                         )
                     ),
                 ),
+                tip="Prefix transcribed audio with [hh:mm:ss] segment times",
             )
         )
         tools_menu.addSeparator()
@@ -832,6 +903,8 @@ class ChromeMixin:
                     shutil.rmtree(CACHE_DIR, ignore_errors=True),
                     self.statusBar().showMessage("Document cache cleared"),
                 ),
+                tip="Delete the parsed-document cache (documents reload from "
+                    "the originals)",
             )
         )
 
@@ -866,9 +939,13 @@ class ChromeMixin:
                     "Save Current Settings as Profile…",
                     self._qt_save_profile,
                     "Ctrl+Shift+K",
+                    "Bundle the current voice, theme, font, and highlight "
+                    "settings under a name",
                 ),
-                ("Load Profile…", self._qt_load_profile, "Ctrl+Shift+J"),
-                ("Delete Profile…", self._qt_delete_profile, "Ctrl+Shift+Y"),
+                ("Load Profile…", self._qt_load_profile, "Ctrl+Shift+J",
+                 "Apply a saved settings profile in one step"),
+                ("Delete Profile…", self._qt_delete_profile, "Ctrl+Shift+Y",
+                 "Remove a saved settings profile"),
             ],
         )
 
@@ -876,21 +953,29 @@ class ChromeMixin:
         _menu(
             "Help",
             [
-                ("Command Palette…", self._qt_command_palette, "F2"),
-                ("Keyboard Shortcuts…", self._qt_show_shortcuts, "F3"),
+                ("Command Palette…", self._qt_command_palette, "F2",
+                 "Search and run any command by name"),
+                ("Keyboard Shortcuts…", self._qt_show_shortcuts, "F3",
+                 "Show the keyboard cheat sheet"),
                 (
                     "Customize Shortcuts…",
                     self._qt_customize_shortcuts,
                     "Ctrl+Alt+Q",
+                    "Remap any menu shortcut to keys you prefer",
                 ),
                 None,
-                ("Guided Tour", self._start_tour, "Shift+F1"),
-                ("Open README (Help)", self._show_about, "F1"),
-                ("Open Documentation", self._open_documentation, ""),
+                ("Guided Tour", self._start_tour, "Shift+F1",
+                 "Step through the main controls with popover hints"),
+                ("Open README (Help)", self._show_about, "F1",
+                 "Open the full README as a readable document"),
+                ("Open Documentation", self._open_documentation, "",
+                 "Browse the bundled guides (usage, configuration, features)"),
                 None,
-                ("Check for Updates…", self._qt_check_for_updates, ""),
+                ("Check for Updates…", self._qt_check_for_updates, "",
+                 "Check PyPI for a newer star release (manual, one-off)"),
                 None,
-                ("About star", self._qt_about, "Ctrl+F1"),
+                ("About star", self._qt_about, "Ctrl+F1",
+                 "What star is, the version, and the project link"),
             ],
         )
 
