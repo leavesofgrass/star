@@ -594,3 +594,38 @@ def test_caret_movers_fall_back_without_word_map():
     app._caret_home()
     assert app.scroll == 0  # classic goto-top
     assert app._caret_word == -1  # caret stays unplaced
+
+
+# ── Polish-2 (0.1.22): caret reset on doc switch + error-doc handling ────────
+
+
+def test_caret_resets_on_document_switch():
+    """A caret placed in doc A must not survive into doc B — a stale index
+    would make Enter/define/annotate act at an arbitrary word."""
+    doc_a = Document(path="/tmp/a.md", title="a", markdown="hi", plain_text="hi")
+    app = _WelcomeAwareApp()
+    app._caret_word = 7
+    app._caret_goal_col = 3
+    app._load_queue.put(doc_a)
+    app._poll_load_queue()
+    assert app._caret_word == -1
+    assert app._caret_goal_col == -1
+
+
+def test_error_doc_never_reported_as_success():
+    """A failed load must not toast 'Opened:', enter recents/last_path, or
+    auto-play (which would read the exception text aloud)."""
+    err = Document(
+        path="/tmp/broken.pdf", title="Error — broken.pdf",
+        markdown="# Could not open", plain_text="boom", format="error",
+    )
+    app = _WelcomeAwareApp()  # settings has tts_auto_play=True
+    app._load_queue.put(err)
+    app._poll_load_queue()
+    assert app.settings["recent_files"] == []
+    assert "last_path" not in app.settings
+    assert app.play_calls == []  # auto-play suppressed
+    msgs = [m for m, _err in app.messages]
+    assert not any(m.startswith("Opened") for m in msgs)
+    assert any("Could not open" in m for m in msgs)
+    assert any(is_err for _m, is_err in app.messages)  # toast flagged as error

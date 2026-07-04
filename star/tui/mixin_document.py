@@ -26,9 +26,13 @@ class DocumentMixin:
             except Exception as e:
                 err_doc = Document(
                     path=path,
-                    title="Error",
+                    title=f"Error — {Path(path).name}",
                     format="error",
-                    markdown=f"# Load Error\n\n```\n{e}\n```\n",
+                    markdown=(
+                        f"# Could not open {Path(path).name}\n\n"
+                        f"```\n{e}\n```\n\n"
+                        "Check that the file exists and is not locked.\n"
+                    ),
                 )
                 err_doc.plain_text = str(e)
                 self._load_queue.put(err_doc)
@@ -48,10 +52,27 @@ class DocumentMixin:
         self._render_doc()
         self.scroll = 0
         self._tts_stop()  # also clears any saved pause position for old doc
-        # The bundled welcome page is a real document (speech/nav work) but
-        # must not pollute recents, last_path, the library, or auto-play on
-        # every launch (GUI parity — see StarApp._is_welcome).
-        if not self._is_welcome(doc):
+        # Reset the caret: a word index from the OLD document's word map would
+        # otherwise point at an arbitrary word in the new one, so Enter/define/
+        # annotate (and the screen-reader cursor) would act at a random spot.
+        self._caret_word = -1
+        self._caret_goal_col = -1
+        self._caret_manual_ts = 0.0
+        if getattr(doc, "format", "") == "error":
+            # A failed load must never be announced as a success, pollute
+            # recents/last_path (the next launch would re-open the broken
+            # file), or auto-play — which would read the traceback aloud.
+            # The error page itself is on screen with the actionable hint.
+            self.notify(
+                f"Could not open {Path(doc.path).name if doc.path else 'file'}"
+                f": {doc.plain_text[:60]}",
+                dur=8.0,
+                error=True,
+            )
+        elif not self._is_welcome(doc):
+            # The bundled welcome page is a real document (speech/nav work)
+            # but must not pollute recents, last_path, the library, or
+            # auto-play on every launch (GUI parity — StarApp._is_welcome).
             self.notify(f"Opened: {doc.title}")
             recents: List[str] = self.settings["recent_files"]
             if doc.path and doc.path not in recents:

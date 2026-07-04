@@ -216,6 +216,16 @@ class DocumentMixin:
                 pass  # word map is best-effort; TTS works without it
 
         threading.Thread(target=_build, daemon=True).start()
+        if getattr(doc, "format", "") == "error":
+            # A failed load must not read as a success ("Opened: Error — x").
+            # _record_library skips error docs internally, so only the message
+            # and the announcement need the branch.
+            self.statusBar().showMessage(f"Could not open: {doc.title}")
+            announce(
+                self.editor,
+                tr("Could not open {title}").format(title=doc.title),
+            )
+            return
         # Record this document in the library / bookshelf — but not the bundled
         # welcome page, which auto-loads at startup and would otherwise clutter
         # the library and recents on every launch.
