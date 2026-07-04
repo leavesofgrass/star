@@ -53,7 +53,7 @@ Open it from the TUI with `M-x settings`.
 | `braille_table` | `"en-ueb-g2.ctb"` | liblouis translation table (only used when `braille_grade2` is true) |
 | `braille_grade2` | `false` | Opt in to contracted Grade 2 via liblouis; otherwise the built-in Grade 1 translator is used |
 | `audio_export_format` | `"wav"` | Default audio export container (WAV needs no external tools) |
-| `audiobook_bitrate` | `"64k"` | AAC bitrate for M4B audiobook export (**File ▸ Export ▸ Audiobook**; needs ffmpeg) |
+| `audiobook_bitrate` | `"128k"` | AAC bitrate for M4B audiobook export (**File ▸ Export ▸ Audiobook**; needs ffmpeg) |
 | `subtitle_format` | `"srt"` | Caption format for subtitle export: `srt` or `vtt` |
 | `subtitle_word_level` | `false` | Emit one subtitle cue per word instead of sentence-grouped cues |
 | `export_subtitles_with_audio` | `false` | Also write an SRT/VTT caption track next to every audio export |
@@ -61,7 +61,7 @@ Open it from the TUI with `M-x settings`.
 | `highlight_color` | `"cyan"` | TTS word highlight color (any Qt/CSS color name or `#rrggbb`) |
 | `sentence_highlight_color` | `""` | Sentence-band color in the `both` highlight granularity; empty = follow the theme's selection color (pickable in **View ▸ Reading Aids ▸ Karaoke Highlight…**) |
 | `highlight_style` | `"background"` | Qt karaoke highlight style: `background` (filled), `underline`, `box` (wavy underline), `bold`, `color` (colored text) |
-| `highlight_lead_words` | `0` | Qt only: words the visual highlight leads (`+`) or lags (`-`) the audio |
+| `highlight_lead_words` | `1` | Qt only: words the visual highlight leads (`+`) or lags (`-`) the audio |
 | `highlight_granularity` | `"word"` | Highlight by `word`, whole `sentence` (less flicker), or `both` (sentence band + word) |
 | `highlight_speed` | `1.0` | Highlight timer speed as a fraction of `tts_rate`; `1.0` = match speech exactly. The pacing guard caps how far the timer can lead confirmed audio, so values above `1.0` do not cause runaway drift. |
 | `recent_files` | `[]` | Recently opened files (populated automatically) |

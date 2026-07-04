@@ -62,7 +62,7 @@ DEFAULTS: Dict[str, Any] = {
     "braille_table": "en-ueb-g2.ctb",
     "braille_grade2": False,  # opt-in liblouis Grade 2; built-in Grade 1 is default
     "audio_export_format": "wav",  # default audio export container (no ffmpeg needed)
-    "audiobook_bitrate": "64k",  # AAC bitrate for M4B audiobook export (needs ffmpeg)
+    "audiobook_bitrate": "128k",  # AAC bitrate for M4B audiobook export (needs ffmpeg)
     "last_path": "",
     "recent_files": [],  # list of recently opened paths/URLs
     # Reading statistics & progress: per-document time read, furthest word
@@ -223,7 +223,7 @@ DEFAULTS: Dict[str, Any] = {
     "tui_rsvp_position": "top-center",  # same 9-key set, TUI placement
     # ── Karaoke word-highlight tuning — Qt GUI (highlight_speed is shared) ─
     "highlight_style": "background",  # background|underline|box|bold|color
-    "highlight_lead_words": 0,  # advance the visual highlight N words (lead/lag)
+    "highlight_lead_words": 1,  # advance the visual highlight N words (lead/lag)
     # ── Highlight granularity — TUI + Qt GUI ─────────────
     # "word"     — highlight the single word being spoken (default).
     # "sentence" — highlight the whole sentence being spoken (less flicker).
