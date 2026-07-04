@@ -158,6 +158,12 @@ class CommandsMixin:
             ("Export Subtitles (SRT / VTT)…", self._qt_export_subtitles),
             ("Export as Anki Flashcards…", self._qt_export_anki),
             ("Tune Karaoke Highlight…", self._qt_karaoke_dialog),
+            # The Reading Ruler / RSVP Position tuning dialogs left the menu bar
+            # when Preferences… centralized their settings; the palette keeps
+            # their richer live-preview UX reachable (ruler follows the sliders,
+            # RSVP offers a spatial 3×3 grid).
+            ("Tune Reading Ruler…", self._qt_reading_ruler_dialog),
+            ("Tune RSVP Position…", self._qt_rsvp_position_dialog),
             ("Highlight Difficult Words", self._qt_toggle_vocab_highlight),
             ("Define Word", self._qt_define_word),
             ("Reading Level", self._qt_reading_level),

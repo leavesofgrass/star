@@ -167,7 +167,7 @@ class PreferencesDialog(QDialog):
 
         self.lead_spin = QSpinBox()
         self.lead_spin.setRange(-5, 5)
-        self.lead_spin.setValue(int(self.settings.get("highlight_lead_words", 0) or 0))
+        self.lead_spin.setValue(int(self.settings.get("highlight_lead_words", 1)))
         form.addRow("Lead / lag (words):", self.lead_spin)
 
         self.gran_box = QComboBox()
@@ -296,9 +296,9 @@ class PreferencesDialog(QDialog):
 
         self.bitrate_box = QComboBox()
         self.bitrate_box.addItems(_AUDIOBOOK_BITRATES)
-        curb = str(self.settings.get("audiobook_bitrate", "64k"))
+        curb = str(self.settings.get("audiobook_bitrate", "128k"))
         self.bitrate_box.setCurrentIndex(
-            _AUDIOBOOK_BITRATES.index(curb) if curb in _AUDIOBOOK_BITRATES else 2
+            _AUDIOBOOK_BITRATES.index(curb) if curb in _AUDIOBOOK_BITRATES else 4
         )
         form.addRow("Audiobook bitrate:", self.bitrate_box)
 
@@ -313,6 +313,7 @@ class PreferencesDialog(QDialog):
         self.reading_font = QComboBox()
         self.reading_font.addItems(_READING_FONTS)
         curf = str(self.settings.get("qt_reading_font", "default"))
+        self._orig_reading_font = curf  # to detect a change on apply
         self.reading_font.setCurrentIndex(
             _READING_FONTS.index(curf) if curf in _READING_FONTS else 0
         )
@@ -480,6 +481,17 @@ class PreferencesDialog(QDialog):
             except Exception:
                 pass
 
+        # RSVP overlay — the overlay caches position/size/context on itself, so a
+        # live overlay needs the new values pushed (mirrors the old dialog's flow).
+        rsvp = getattr(win, "_rsvp_overlay", None)
+        if rsvp is not None:
+            try:
+                rsvp.set_position(str(self.settings.get("qt_rsvp_position", "top-center")))
+                rsvp.set_font_size(int(self.settings.get("qt_rsvp_font_size", 48)))
+                rsvp.set_show_context(bool(self.settings.get("qt_rsvp_context", True)))
+            except Exception:
+                pass
+
         # Theme — mirror the toolbar/menu pickers: a deliberate theme change here
         # marks the choice "explicit" (qt_theme_explicit) so OS-follow won't
         # override it on the next launch.  Conversely, ticking "Follow OS theme"
@@ -501,6 +513,18 @@ class PreferencesDialog(QDialog):
                 family=str(self.settings.get("qt_font_family", "")),
                 size=int(self.settings.get("qt_font_size", 14)),
             )
+        except Exception:
+            pass
+
+        # Reading font — route a *change* through the same helper as the
+        # View ▸ Reading Aids ▸ Reading Font radios so the on-demand OFL fetch,
+        # the legacy qt_dyslexia_font sync, and the menu radio all happen.
+        # Writing qt_reading_font alone would change nothing on screen.
+        try:
+            new_rf = str(self.settings.get("qt_reading_font", "default"))
+            if new_rf != self._orig_reading_font:
+                win._qt_set_reading_font(new_rf)
+                self._orig_reading_font = new_rf  # Apply twice ≠ fetch twice
         except Exception:
             pass
 

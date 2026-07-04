@@ -103,7 +103,7 @@ class M4BExporter(Exporter):
                 voice=str(settings.get("tts_voice", "")) if settings else "",
             )
 
-        bitrate = str(settings.get("audiobook_bitrate", "64k")) if settings else "64k"
+        bitrate = str(settings.get("audiobook_bitrate", "128k")) if settings else "128k"
         progress = kwargs.get("progress")
         cancel = kwargs.get("cancel")
 

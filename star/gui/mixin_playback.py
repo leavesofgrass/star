@@ -207,9 +207,9 @@ class PlaybackMixin:
         # behind) the spoken word so the cursor can be made to anticipate
         # the audio for users who track best slightly ahead.
         try:
-            lead = int(self.settings.get("highlight_lead_words", 0))
+            lead = int(self.settings.get("highlight_lead_words", 1))
         except (TypeError, ValueError):
-            lead = 0
+            lead = 1
         vis_idx = word_idx + lead
         vis_idx = max(0, min(vis_idx, len(self._qt_word_map) - 1))
 
@@ -349,7 +349,7 @@ class PlaybackMixin:
         ):
             wm = self.doc.word_map
             vis_idx = min(
-                max(0, word_idx + int(self.settings.get('highlight_lead_words', 0))),
+                max(0, word_idx + int(self.settings.get('highlight_lead_words', 1))),
                 len(wm) - 1,
             )
             prev_word = wm[vis_idx - 1].word if vis_idx > 0 else ''
