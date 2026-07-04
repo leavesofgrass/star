@@ -158,6 +158,114 @@ def test_palette_registers_tuning_dialogs(window):
         assert want in labels, f"palette lost {want!r}"
 
 
+def test_apply_fires_live_hooks_with_picked_values(window):
+    """_apply() must actually invoke every live-effect hook with the staged
+    values — the hooks are try/except-guarded, so without these spies a hook
+    that regresses to raising would leave the UI dead while CI stayed green."""
+    from types import SimpleNamespace
+
+    from PyQt6.QtGui import QColor
+
+    calls = {}
+    window._rebuild_hl_fmt = lambda: calls.setdefault("hl", True)
+    window._apply_qt_theme = lambda name: calls.__setitem__("theme", name)
+    window._set_font = lambda family, size: calls.__setitem__("font", (family, size))
+    window._qt_refresh_vocab_highlight = lambda: calls.setdefault("vocab", True)
+    window.tts_manager = SimpleNamespace(
+        set_rate=lambda r: calls.__setitem__("rate", r),
+        set_volume=lambda v: calls.__setitem__("volume", v),
+        change_backend=lambda name: calls.__setitem__("backend", name),
+        backend_name="pyttsx3",
+        speaking=False,          # read by the window's close/teardown path
+        stop=lambda: None,
+    )
+    ruler_calls = {}
+    window._reading_ruler = SimpleNamespace(
+        set_height=lambda h: ruler_calls.__setitem__("h", h),
+        set_opacity=lambda o: ruler_calls.__setitem__("o", o),
+        set_color=lambda c: ruler_calls.__setitem__("c", c.name()),
+    )
+    rsvp_calls = {}
+    window._rsvp_overlay = SimpleNamespace(
+        set_position=lambda k: rsvp_calls.__setitem__("pos", k),
+        set_font_size=lambda s: rsvp_calls.__setitem__("size", s),
+        set_show_context=lambda b: rsvp_calls.__setitem__("ctx", b),
+    )
+
+    dlg = _dialog(window)
+    dlg.rate_spin.setValue(200)
+    dlg.volume_spin.setValue(70)
+    dlg.ruler_height.setValue(60)
+    dlg.ruler_opacity.setValue(33)
+    dlg._hl_color["v"] = "#ff8800"
+    dlg._ruler_color["v"] = ""  # exercise the empty → highlight-color fallback
+    dlg.rsvp_pos.setCurrentText("center")
+    dlg.rsvp_font.setValue(72)
+    dlg.rsvp_ctx.setChecked(False)
+    dlg._apply()
+
+    assert calls.get("hl") and calls.get("vocab")
+    assert calls["rate"] == 200
+    assert abs(calls["volume"] - 0.7) < 1e-9
+    assert calls["theme"] == window.settings.get("theme")
+    assert calls["font"] == (
+        window.settings.get("qt_font_family"),
+        window.settings.get("qt_font_size"),
+    )
+    assert ruler_calls == {"h": 60, "o": 33, "c": QColor("#ff8800").name()}
+    assert rsvp_calls == {"pos": "center", "size": 72, "ctx": False}
+
+
+def test_apply_changes_backend_once_and_skips_auto(window):
+    """The engine hook fires exactly once for a real change — never for
+    'auto', never when the manager already runs the chosen backend."""
+    from types import SimpleNamespace
+
+    calls = []
+    window.tts_manager = SimpleNamespace(
+        set_rate=lambda r: None,
+        set_volume=lambda v: None,
+        change_backend=lambda name: calls.append(name),
+        backend_name="pyttsx3",
+        speaking=False,          # read by the window's close/teardown path
+        stop=lambda: None,
+    )
+    dlg = _dialog(window)
+
+    dlg.engine_box.setCurrentText("auto")
+    dlg._apply()
+    assert calls == []  # auto never forces a backend
+
+    target = next(
+        dlg.engine_box.itemText(i)
+        for i in range(dlg.engine_box.count())
+        if dlg.engine_box.itemText(i) not in ("auto", "none", "pyttsx3")
+    )
+    dlg.engine_box.setCurrentText(target)
+    dlg._apply()
+    assert calls == [target]  # real change fires once
+
+    window.tts_manager.backend_name = target
+    dlg._apply()
+    assert calls == [target]  # already active → no second call
+
+
+def test_apply_survives_raising_hook_and_still_saves(window):
+    """A hook that raises must not abort the rest of _apply() — later writes
+    still land and settings.save() still runs (the guarded-hook contract)."""
+    def _boom() -> None:
+        raise RuntimeError("boom")
+
+    window._rebuild_hl_fmt = _boom
+    saved = {}
+    window.settings.save = lambda: saved.setdefault("saved", True)
+    dlg = _dialog(window)
+    dlg.rate_spin.setValue(222)
+    dlg._apply()  # must not raise
+    assert saved.get("saved"), "settings.save() skipped after a raising hook"
+    assert window.settings.get("tts_rate") == 222
+
+
 def test_theme_change_marks_explicit(window):
     """Deliberately changing the theme sets qt_theme_explicit so OS-follow
     won't silently override it on the next launch (mirrors the menu pickers)."""
