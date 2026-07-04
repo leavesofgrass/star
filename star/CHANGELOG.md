@@ -51,6 +51,9 @@ still installs itself in one click — students never see `pip`.
   above and text ahead below) instead of nudging it to the bottom edge — so it's
   easy to keep your place while listening. Set `qt_autoscroll` to `false` to
   scroll manually.
+- **Crisp toolbar icons on high-resolution displays.** The monochrome toolbar
+  glyphs now render at the display's device-pixel ratio instead of upscaling a
+  small bitmap, so they stay sharp and legible on hi-DPI screens.
 - **Reading progress syncs without losing work.** When the same document is read
   on two machines through a synced folder, star now *merges* the sidecars instead
   of last-write-wins: reading position resolves by a policy you choose (newest,

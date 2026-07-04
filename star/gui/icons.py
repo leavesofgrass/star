@@ -266,14 +266,44 @@ _GLYPHS = {
 }
 
 
+def _screen_dpr() -> float:
+    """Device-pixel-ratio of the primary screen (>= 1.0).
+
+    On a high-resolution display this is 2 (or more); rendering the icon pixmap
+    at that ratio and tagging it is what keeps the glyphs sharp instead of a
+    small bitmap being upscaled and blurred.
+    """
+    app = QApplication.instance()
+    if app is None:
+        return 1.0
+    scr = app.primaryScreen()
+    try:
+        r = float(scr.devicePixelRatio()) if scr is not None else 1.0
+    except Exception:
+        r = 1.0
+    return r if r >= 1.0 else 1.0
+
+
 def make_icon(name: str, size: int = _SIZE) -> QIcon:
+    """Return a crisp monochrome ``QIcon`` for *name*.
+
+    The pixmap is allocated at ``size * devicePixelRatio`` physical pixels and
+    tagged via ``setDevicePixelRatio`` **before** the painter is created, so the
+    painter draws in logical (``size``-px) coordinates while the glyph is
+    rasterised at full physical resolution.  On a high-DPI screen this is the
+    difference between a sharp icon and a blurry upscaled 22-px bitmap — every
+    glyph function is unchanged.
+    """
     color = _icon_color()
-    pm = QPixmap(size, size)
+    dpr = _screen_dpr()
+    px = max(1, int(round(size * dpr)))
+    pm = QPixmap(px, px)
+    pm.setDevicePixelRatio(dpr)
     pm.fill(_TRANSPARENT)
     p = QPainter(pm)
     p.setRenderHint(_AA, True)
     pen = QPen(color)
-    pen.setWidthF(1.6)
+    pen.setWidthF(1.8)
     pen.setJoinStyle(_ROUND_JOIN)
     pen.setCapStyle(_ROUND_CAP)
     p.setPen(pen)
