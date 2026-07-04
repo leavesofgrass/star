@@ -297,11 +297,13 @@ live under **View ▸ Reading Aids** unless noted.
 - **Reading ruler.** Toggle **View ▸ Reading Aids ▸ Reading Ruler** to show a
   movable, translucent band (a typoscope) that follows the caret line to help
   you keep your place. To adjust its height, opacity, and band color, open
-  **View ▸ Reading Aids ▸ Reading Ruler…**; the color picker there includes a
-  **Use highlight color** button to match the reading highlight. Both are
+  **Edit ▸ Preferences… (Ctrl+,)** — or **Tune Reading Ruler…** in the
+  **Command Palette (F2)** for live tuning; the color picker there includes a
+  **Use highlight color** button to match the reading highlight. The toggle is
   menu-only — no shortcut.
-- **Highlight colors.** Open **View ▸ Reading Aids ▸ Karaoke Highlight…**
-  (**Ctrl+Alt+K**) to pick the spoken-**Word color** and, for **Both**
+- **Highlight colors.** Open **Edit ▸ Preferences… (Ctrl+,)** — or **Tune
+  Karaoke Highlight…** in the **Command Palette (F2)** — to pick the
+  spoken-**Word color** and, for **Both**
   granularity, the **Sentence color** band — the band can **follow the theme**
   (a **Use theme** button) or use a color you choose, so the word and the band
   stand apart.
@@ -311,7 +313,8 @@ live under **View ▸ Reading Aids** unless noted.
 - **RSVP one-word mode.** Turn on **View ▸ Reading Aids ▸ RSVP Mode**
   (**Ctrl+Alt+E**) to show one word at a time in a large panel synced to
   speech — an aid many dyslexic readers find easier to track. Choose where the
-  panel sits with **View ▸ Reading Aids ▸ RSVP Position…**.
+  panel sits in **Edit ▸ Preferences… (Ctrl+,)**, or with **Tune RSVP
+  Position…** in the **Command Palette (F2)**.
 - **Clickable footnotes.** In documents with footnotes, click a footnote marker
   to jump to the note; a ↩ backlink jumps you back to where you were reading.
 - **Math rendering.** Inline LaTeX math is rendered as readable Unicode, so
@@ -410,6 +413,7 @@ trigger it).
 | Save document | (Save toolbar button) | `Ctrl+S` | — |
 | Live HTML preview | View ▸ Live HTML Preview | `Ctrl+Shift+L` | — |
 | Check spelling | Edit ▸ Check Spelling | `F7` | — |
+| Preferences (Reading / Voice / Display / General) | Edit ▸ Preferences… | `Ctrl+,` | — |
 | Find in document (find bar) | Edit ▸ Find… | `Ctrl+F` | `M-x search` (`/`) |
 | Find next / previous match | (find bar Next / Previous) | `Enter`/`F3` · `Shift+Enter`/`Shift+F3` | `n` / `N` |
 | Search backward (TUI) | — | — | `M-x search-backward` (`?`) |
@@ -421,17 +425,17 @@ trigger it).
 | Toggle Notes panel | View ▸ Toggle Notes Panel | `Ctrl+Shift+N` | `M-x annotations-list` |
 | Change font | View ▸ Change Font… | `Ctrl+Alt+F` | `M-x font <family>` |
 | Text spacing | View ▸ Reading Aids ▸ Text Spacing… | `Ctrl+Alt+W` | — |
-| Karaoke highlight / granularity / colors | View ▸ Reading Aids ▸ Karaoke Highlight… | `Ctrl+Alt+K` | `M-x highlight-granularity` |
+| Karaoke highlight / granularity / colors | Edit ▸ Preferences… (or Command Palette: Tune Karaoke Highlight…) | `Ctrl+,` | `M-x highlight-granularity` |
 | Dyslexia-friendly font | View ▸ Reading Aids ▸ Dyslexia-Friendly Font | `Ctrl+Alt+X` | — |
 | Reading font (Default/OpenDyslexic/Atkinson/Lexend) | View ▸ Reading Aids ▸ Reading Font | — (menu only) | — |
 | Bionic reading | View ▸ Reading Aids ▸ Bionic Reading | `Ctrl+Alt+J` | — |
 | Syllable splitting | View ▸ Reading Aids ▸ Syllable Splitting | — (menu only) | — |
 | Current-line highlight | View ▸ Reading Aids ▸ Current-Line Highlight | `Ctrl+Alt+L` | — |
 | Reading ruler | View ▸ Reading Aids ▸ Reading Ruler | — (menu only) | — |
-| Reading ruler height / opacity / color | View ▸ Reading Aids ▸ Reading Ruler… | — (menu only) | — |
+| Reading ruler height / opacity / color | Edit ▸ Preferences… (or Command Palette: Tune Reading Ruler…) | `Ctrl+,` | — |
 | Highlight difficult words | View ▸ Reading Aids ▸ Highlight Difficult Words | `Ctrl+Alt+O` | — |
 | RSVP mode | View ▸ Reading Aids ▸ RSVP Mode | `Ctrl+Alt+E` | `M-x rsvp-mode` |
-| RSVP position | View ▸ Reading Aids ▸ RSVP Position… | — | `M-x rsvp-position` |
+| RSVP position | Edit ▸ Preferences… (or Command Palette: Tune RSVP Position…) | `Ctrl+,` | `M-x rsvp-position` |
 | Show reading level | View ▸ Reading Level | `Ctrl+L` | `M-x reading-level` |
 | Interface language | View ▸ Interface Language | — | — |
 | Highlight selection (5 colors) | Highlight ▸ Yellow … Orange | `Ctrl+Shift+1` … `Ctrl+Shift+5` | — |
@@ -626,16 +630,16 @@ a bookmark set in one interface appears in the other.
 | Toggle Notes panel | `Ctrl+Shift+N` | `M-x annotations-list` |
 | Change font | `Ctrl+Alt+F` | — |
 | Text spacing | `Ctrl+Alt+W` | — |
-| Tune karaoke highlight (style / colors / speed) | `Ctrl+Alt+K` | — |
-| Highlight granularity (word/sentence/both) | `Ctrl+Alt+K` (dialog) | `M-x highlight-granularity` |
+| Tune karaoke highlight (style / colors / speed) | `Ctrl+,` (Preferences) / Command Palette (F2) | — |
+| Highlight granularity (word/sentence/both) | `Ctrl+,` (Preferences) | `M-x highlight-granularity` |
 | Dyslexia-friendly font | `Ctrl+Alt+X` | — |
 | Reading font (Default/OpenDyslexic/Atkinson/Lexend) | View ▸ Reading Aids ▸ Reading Font | — |
 | Bionic reading | `Ctrl+Alt+J` | — |
 | Syllable splitting | View ▸ Reading Aids ▸ Syllable Splitting | — |
 | Current-line highlight | `Ctrl+Alt+L` | — |
-| Reading ruler (+ height/opacity/color dialog) | View ▸ Reading Aids ▸ Reading Ruler / Reading Ruler… | — |
+| Reading ruler (+ height/opacity/color in Preferences) | View ▸ Reading Aids ▸ Reading Ruler / `Ctrl+,` | — |
 | RSVP mode | `Ctrl+Alt+E` | `M-x rsvp-mode` |
-| RSVP position picker | — | `M-x rsvp-position` |
+| RSVP position picker | `Ctrl+,` (Preferences) / Command Palette (F2) | `M-x rsvp-position` |
 | Live HTML preview (edit mode) | `Ctrl+Shift+L` | — |
 | Show reading level | `Ctrl+L` | `M-x reading-level` |
 | Toggle line numbers | — | `F6` |
@@ -894,7 +898,8 @@ a chaptered `.m4b` (chapters come from the document's headings) for listening on
 the go; it is menu-only and needs `ffmpeg` on your PATH.
 
 **Edit menu** — Find… (`Ctrl+F`, the incremental find bar), Copy, Toggle Edit
-Mode, Save, Check Spelling.
+Mode, Save, Check Spelling, and **Preferences…** (`Ctrl+,`) — all reader
+settings in one tabbed dialog (Reading / Voice / Display / General).
 
 **Highlight menu** — Highlight Yellow / Green / Cyan / Pink / Orange, Clear All
 Highlights. (`Ctrl+H` is the **Next Heading** shortcut, matching NVDA/JAWS
@@ -912,11 +917,15 @@ your notes and highlights) and Sync with Anki (AnkiConnect)….
 **View menu** — Toggle Contents Panel (`Ctrl+\`), Toggle Notes Panel
 (`Ctrl+Shift+N`), Next Theme (`F5`), Choose Theme…, Reload CSS Themes, Open
 Themes Folder, Change Font…, Reading Level (`Ctrl+L`), and **Reading Aids ▸**
-Text Spacing… / Karaoke Highlight… (granularity, style, and the word/sentence-band
-colors) / Reading Font (Default / OpenDyslexic / Atkinson Hyperlegible / Lexend) /
+Text Spacing… /
+Reading Font (Default / OpenDyslexic / Atkinson Hyperlegible / Lexend) /
 Dyslexia-Friendly Font / Bionic Reading / Syllable Splitting / Current-Line
-Highlight / Reading Ruler (+ Reading Ruler… for height, opacity & band color) /
-Highlight Difficult Words / Define Word… / Live HTML Preview.
+Highlight / Reading Ruler /
+Highlight Difficult Words / Define Word… / RSVP Mode / Live HTML Preview.
+(Karaoke-highlight, reading-ruler, and RSVP-position settings live in
+**Edit ▸ Preferences…** (`Ctrl+,`); the live-tuning dialogs are in the
+**Command Palette (F2)** as Tune Karaoke Highlight… / Tune Reading Ruler… /
+Tune RSVP Position….)
 
 **Speech menu** — Play/Pause, Stop, speed, Choose TTS Engine… (`Ctrl+Shift+G`;
 engines include the opt-in `elevenlabs` cloud engine — see [Pick a speech engine](#pick-a-speech-engine-system-and-cloud-voices)),

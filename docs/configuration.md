@@ -59,7 +59,7 @@ Open it from the TUI with `M-x settings`.
 | `export_subtitles_with_audio` | `false` | Also write an SRT/VTT caption track next to every audio export |
 | `highlight_current_word` | `true` | Highlight the spoken word during TTS |
 | `highlight_color` | `"cyan"` | TTS word highlight color (any Qt/CSS color name or `#rrggbb`) |
-| `sentence_highlight_color` | `""` | Sentence-band color in the `both` highlight granularity; empty = follow the theme's selection color (pickable in **View ▸ Reading Aids ▸ Karaoke Highlight…**) |
+| `sentence_highlight_color` | `""` | Sentence-band color in the `both` highlight granularity; empty = follow the theme's selection color (pickable in **Edit ▸ Preferences… (Ctrl+,)**, or live via the Command Palette (F2) **Tune Karaoke Highlight…**) |
 | `highlight_style` | `"background"` | Qt karaoke highlight style: `background` (filled), `underline`, `box` (wavy underline), `bold`, `color` (colored text) |
 | `highlight_lead_words` | `1` | Qt only: words the visual highlight leads (`+`) or lags (`-`) the audio |
 | `highlight_granularity` | `"word"` | Highlight by `word`, whole `sentence` (less flicker), or `both` (sentence band + word) |
@@ -98,7 +98,7 @@ Open it from the TUI with `M-x settings`.
 | `qt_reading_ruler` | `false` | Show a movable, translucent band (typoscope) that follows the caret to help keep your place |
 | `qt_ruler_height` | `40` | Reading-ruler band height in pixels (16–160) |
 | `qt_ruler_opacity` | `22` | Reading-ruler band opacity, `0`–`100` (percent) |
-| `qt_ruler_color` | `""` | Reading-ruler band color; empty = match `highlight_color` (pickable in the Reading Ruler… dialog) |
+| `qt_ruler_color` | `""` | Reading-ruler band color; empty = match `highlight_color` (pickable in **Edit ▸ Preferences… (Ctrl+,)**, or live via the Command Palette (F2) **Tune Reading Ruler…**) |
 | `qt_vocab_highlight` | `false` | Highlight uncommon / academic vocabulary (difficult-word overlay; needs `wordfreq`) |
 | `qt_rsvp_mode` | `false` | Qt GUI: show the RSVP (Rapid Serial Visual Presentation) overlay — one word at a time at a fixed point |
 | `qt_rsvp_position` | `"top-center"` | Qt RSVP overlay placement: `top-left`/`center`/`right`, `center-left`/`right`, `center`, `bottom-left`/`center`/`right` |

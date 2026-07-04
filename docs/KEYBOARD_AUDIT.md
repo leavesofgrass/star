@@ -89,6 +89,7 @@ survive a UI-language switch. Source: `star/gui/mixin_chrome.py`.
 | `Ctrl+E` | Toggle Edit Mode |
 | `Ctrl+S` | Save |
 | `F7` | Check Spelling |
+| `Ctrl+,` | Preferences… (tabbed settings: Reading / Voice / Display / General) |
 
 ### Highlight / Notes / Bookmarks
 
@@ -134,14 +135,19 @@ survive a UI-language switch. Source: `star/gui/mixin_chrome.py`.
 | Shortcut | Command |
 |---|---|
 | `Ctrl+Alt+W` | Text Spacing… (WCAG 1.4.12) |
-| `Ctrl+Alt+K` | Karaoke Highlight… |
 | `Ctrl+Alt+X` | Dyslexia-Friendly Font (checkable) |
 | `Ctrl+Alt+J` | Bionic Reading (checkable) |
 | `Ctrl+Alt+L` | Current-Line Highlight (checkable) |
 | `Ctrl+Alt+O` | Highlight Difficult Words (checkable) |
 | `Ctrl+D` | Define Word… |
 | `Ctrl+Alt+E` | RSVP Mode (checkable) |
-| *(no shortcut)* | RSVP Position… |
+
+The Karaoke Highlight…, Reading Ruler…, and RSVP Position… settings dialogs
+left this menu when their settings were centralized in **Edit ▸ Preferences…
+(Ctrl+,)**; the live-tuning dialogs remain reachable from the Command Palette
+(F2) as **Tune Karaoke Highlight… / Tune Reading Ruler… / Tune RSVP
+Position…**. `Ctrl+Alt+K` is now unbound in the Qt GUI (the TUI keeps its own
+`Ctrl+Alt+K` karaoke binding).
 
 ### Tools / Profiles / Help
 

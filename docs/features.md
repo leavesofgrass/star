@@ -308,10 +308,12 @@ it scrolled into view.
 
 **Granularity (word / sentence / both):** by default the single spoken word is
 highlighted. Switch to **sentence** highlighting (the whole current sentence is
-banded) or **both** (a soft sentence band with the current word on top) in **View
-→ Reading Aids → Karaoke Highlight…** or with `M-x highlight-granularity`.
+banded) or **both** (a soft sentence band with the current word on top) in
+**Edit ▸ Preferences… (Ctrl+,)** — or the live-tuning **Tune Karaoke
+Highlight…** dialog in the Command Palette (F2) — or with
+`M-x highlight-granularity`.
 
-**Highlight colors:** the same **Karaoke Highlight…** dialog has two color
+**Highlight colors:** the same **Tune Karaoke Highlight…** dialog has two color
 pickers. **Word color** sets the spoken-word highlight (opens a system color
 dialog); **Sentence color** sets the sentence band shown in **Both** granularity,
 and can either **follow the theme** (a "Use theme" button matches the theme's
@@ -981,8 +983,9 @@ falls within your comfortable field of view:
 | **Middle** | `center-left` | `center` | `center-right` |
 | **Bottom** | `bottom-left` | `bottom-center` | `bottom-right` |
 
-- **Qt GUI:** **View ▸ Reading Aids ▸ RSVP Position…** opens a 3×3 button grid;
-  click any cell to move the panel instantly.
+- **Qt GUI:** pick the position in **Edit ▸ Preferences… (Ctrl+,)**, or run
+  **Tune RSVP Position…** from the Command Palette (F2) to open a 3×3 button
+  grid; click any cell to move the panel instantly.
 - **TUI:** `M-x rsvp-position` cycles through or lets you select a position.
 
 **Display** — the Qt overlay shows the current word in large type (default 48 pt)
@@ -1326,14 +1329,15 @@ margin/border properties work, but CSS variables (`var()`) and `:root {}` do not
 ### Reading aids & High-DPI
 
 **View → Reading Aids** collects accommodations for dyslexic and low-vision
-readers: **Text Spacing…** (line height / letter / word spacing — WCAG 1.4.12),
-**Karaoke Highlight…** (granularity, style, color, speed, lead/lag), the
+readers: **Text Spacing…** (line height / letter / word spacing — WCAG 1.4.12), the
 **Reading Font** chooser (**Default**, **OpenDyslexic**, **Atkinson Hyperlegible**,
 or **Lexend** — each OFL font fetched on demand the first time it is picked and
 applied app-wide; the classic `Ctrl+Alt+X` still toggles OpenDyslexic on/off for
 muscle memory), **Bionic Reading**, **Syllable Splitting**, **Current-Line
 Highlight**, the **Reading Ruler**, and **RSVP Mode** (one word at a time at a
-chosen screen position — see [RSVP reading mode](#rsvp-reading-mode)). star
+chosen screen position — see [RSVP reading mode](#rsvp-reading-mode)). Karaoke
+highlight, ruler, and RSVP settings are centralized in **Edit ▸ Preferences…
+(Ctrl+,)**, with live-tuning dialogs in the Command Palette (F2). star
 applies high-DPI scaling by default (`qt_hidpi`), so the window renders crisp on
 4K/HiDPI displays.
 
@@ -1344,7 +1348,8 @@ applies high-DPI scaling by default (`qt_hidpi`), so the window renders crisp on
   `qt_syllable_split`.
 - **Reading ruler** overlays a movable, translucent band (a typoscope) that
   follows the caret line so your eye can keep its place; its height and opacity
-  are adjustable from **Reading Ruler…**. Persists via `qt_reading_ruler`.
+  are adjustable from **Edit ▸ Preferences… (Ctrl+,)** or the Command Palette
+  (F2) **Tune Reading Ruler…**. Persists via `qt_reading_ruler`.
 
 ---
 
