@@ -224,7 +224,7 @@ every call — in `render_markdown`'s per-source-line loop, the Python/R code
 lexers, and the per-line markup converters (Org, RST, MediaWiki, AsciiDoc,
 Textile, Creole). They are now compiled **once at module import** in
 [`star/render.py`](../star/render.py) and
-[`star/markup.py`](../star/markup.py), removing the repeated pattern lookup from
+[`star/markup/_regexes.py`](../star/markup/_regexes.py), removing the repeated pattern lookup from
 the loops. The single-pass `_latex_to_md` applies each of its patterns once per
 document, so those are intentionally left inline for readability.
 
