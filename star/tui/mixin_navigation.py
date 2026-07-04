@@ -134,6 +134,8 @@ class NavigationMixin:
         """Persist the current reading offset for the open document."""
         if not self.doc or not self.doc.path or not self.doc.word_map:
             return
+        if self._is_welcome(self.doc):
+            return  # the welcome page never accumulates a reading position
         cur = self._current_word_for_nav()
         if cur < 0 or cur >= len(self.doc.word_map):
             return
@@ -157,6 +159,8 @@ class NavigationMixin:
         Safe to call from a background thread (only writes plain attributes)."""
         if not self.doc or not self.doc.path or not self.doc.word_map:
             return False
+        if self._is_welcome(self.doc):
+            return False  # no mid-page "Resumed at N%" on a fresh launch
         if not force and not self.settings.get("tts_auto_resume", True):
             return False
         saved = self.settings.get("reading_positions", {}).get(self.doc.path)

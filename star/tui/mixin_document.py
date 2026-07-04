@@ -48,15 +48,19 @@ class DocumentMixin:
         self._render_doc()
         self.scroll = 0
         self._tts_stop()  # also clears any saved pause position for old doc
-        self.notify(f"Opened: {doc.title}")
-        recents: List[str] = self.settings["recent_files"]
-        if doc.path and doc.path not in recents:
-            recents.insert(0, doc.path)
-            self.settings["recent_files"] = recents[:20]
-        self.settings["last_path"] = doc.path
-        _record_library(self.settings, doc)  # library / bookshelf
-        if self.settings["tts_auto_play"]:
-            self._tts_play()
+        # The bundled welcome page is a real document (speech/nav work) but
+        # must not pollute recents, last_path, the library, or auto-play on
+        # every launch (GUI parity — see StarApp._is_welcome).
+        if not self._is_welcome(doc):
+            self.notify(f"Opened: {doc.title}")
+            recents: List[str] = self.settings["recent_files"]
+            if doc.path and doc.path not in recents:
+                recents.insert(0, doc.path)
+                self.settings["recent_files"] = recents[:20]
+            self.settings["last_path"] = doc.path
+            _record_library(self.settings, doc)  # library / bookshelf
+            if self.settings["tts_auto_play"]:
+                self._tts_play()
 
     def _render_doc(self) -> None:
         if not self.doc:

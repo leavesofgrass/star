@@ -358,3 +358,104 @@ def test_search_regex_and_bad_pattern_falls_back():
     # An invalid regex degrades to a literal plain search, never raising.
     eng2 = SearchEngine()
     assert eng2.search_regex("c[t", rendered) is False  # no literal "c[t"
+
+
+# ── Welcome-as-document (0.1.22): _is_welcome gates + startup load ───────────
+
+
+class _Settings(dict):
+    """Dict with the .set() method the persistence helpers call."""
+
+    def set(self, key, value):
+        self[key] = value
+
+
+class _WelcomeAwareApp(_FakeApp):
+    """_FakeApp that treats the sentinel path "WELCOME" as the welcome doc and
+    stubs the load-side collaborators _poll_load_queue touches."""
+
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        import queue as _q
+
+        self._load_queue = _q.Queue()
+        self.loading = True
+        self.render_calls = 0
+        self.settings = _Settings(recent_files=[], tts_auto_play=True)
+
+    def _render_doc(self):  # rendering exercised by its own tests
+        self.render_calls += 1
+
+    def _save_reading_position(self):  # exercised separately below
+        pass
+
+    def _is_welcome(self, doc):
+        return getattr(doc, "path", "") == "WELCOME"
+
+
+def test_welcome_path_resolves_and_is_welcome_truth_table():
+    """StarApp's welcome trio works without curses init (no instance state)."""
+    from types import SimpleNamespace
+
+    from star.tui.app import StarApp
+
+    app = StarApp.__new__(StarApp)  # methods below use no __init__ state
+    wp = app._welcome_path
+    assert wp is not None and wp.name == "welcome.md", "bundled welcome.md missing"
+    assert app._is_welcome(SimpleNamespace(path=str(wp))) is True
+    assert app._is_welcome(SimpleNamespace(path="C:/elsewhere/other.md")) is False
+    assert app._is_welcome(SimpleNamespace(path="")) is False
+
+
+def test_poll_load_queue_gates_welcome_side_effects():
+    """The welcome doc loads fully but writes no recents/last_path/library and
+    never auto-plays; a normal doc still records everything."""
+    welcome = Document(path="WELCOME", title="Welcome", markdown="hi", plain_text="hi")
+    app = _WelcomeAwareApp()
+    app._load_queue.put(welcome)
+    app._poll_load_queue()
+    assert app.doc is welcome and app.render_calls == 1  # real pipeline ran
+    assert app.settings["recent_files"] == []
+    assert "last_path" not in app.settings
+    assert "library" not in app.settings
+    assert app.play_calls == []  # tts_auto_play suppressed for welcome
+    assert app.messages == []  # no "Opened:" toast
+
+    normal = Document(path="/tmp/y.md", title="y", markdown="hi", plain_text="hi")
+    app._load_queue.put(normal)
+    app._poll_load_queue()
+    assert app.settings["recent_files"] == ["/tmp/y.md"]
+    assert app.settings["last_path"] == "/tmp/y.md"
+    assert "/tmp/y.md" in app.settings["library"]
+    assert app.play_calls == [True]  # auto-play honored for a real doc
+    assert any("Opened" in m for m, _ in app.messages)
+
+
+class _PosApp(_FakeApp):
+    """_FakeApp whose welcome-ness is a switch, for the position gates."""
+
+    welcome = False
+
+    def _is_welcome(self, doc):
+        return self.welcome
+
+
+def test_reading_position_save_restore_gated_for_welcome():
+    doc, rendered = _doc_from_md()
+    app = _PosApp(rendered=rendered, doc=doc, scroll=0)
+    app.settings = _Settings(tts_auto_resume=True)
+
+    app.welcome = True
+    app._save_reading_position()
+    assert "reading_positions" not in app.settings  # welcome never saves
+
+    app.welcome = False
+    app._save_reading_position()
+    assert doc.path in app.settings["reading_positions"]  # real doc saves
+
+    # Restore: blocked for welcome, works for a real doc.
+    app.welcome = True
+    assert app._restore_reading_position() is False
+    app.welcome = False
+    assert app._restore_reading_position() is True
+    assert any("Resumed" in m for m, _ in app.messages)

@@ -125,6 +125,42 @@ class StarApp(
 
         if initial_path:
             self._open_async(initial_path)
+        else:
+            # Load the bundled welcome page as a *real document* so speech,
+            # sentence navigation, and define-word all work on the very first
+            # screen (GUI parity — see star/gui/main_window.py).  Falls back to
+            # the static _WELCOME_TEXT splash if welcome.md is missing.
+            welcome = self._welcome_path
+            if welcome is not None:
+                self._open_async(str(welcome))
+
+    # ── Bundled documentation (welcome page) ──────────────────────────
+    def _bundled_path(self, name: str) -> Optional[Path]:
+        """Resolve a bundled doc by filename, wherever star is installed.
+
+        Searches the package root (wheel / pyz install), then the repo root
+        (running from source), then this tui/ dir (defensive)."""
+        here = Path(__file__).resolve().parent           # star/tui/
+        for cand in (here.parent / name, here.parent.parent / name, here / name):
+            if cand.is_file():
+                return cand
+        return None
+
+    @property
+    def _welcome_path(self) -> Optional[Path]:
+        return self._bundled_path("welcome.md")
+
+    def _is_welcome(self, doc: Any) -> bool:
+        """True if *doc* is the bundled welcome page (kept out of recents,
+        the library, and reading positions)."""
+        wp = self._welcome_path
+        path = getattr(doc, "path", "") or ""
+        if not wp or not path:
+            return False
+        try:
+            return Path(path).resolve() == wp.resolve()
+        except OSError:
+            return False
 
     def _init_colors(self) -> None:
         self.attrs = _setup_colors(self.theme_name)
