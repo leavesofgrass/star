@@ -21,6 +21,7 @@ try:  # QTabWidget is not re-exported by _runtime; import it directly.
 except ImportError:  # PyQt5 fallback
     from PyQt5.QtWidgets import QTabWidget  # type: ignore[no-redef]
 
+from ..i18n import tr
 from ..settings import DEFAULTS
 from ..themes import BUILT_IN_THEME_NAMES
 
@@ -54,7 +55,7 @@ class PreferencesDialog(QDialog):
         super().__init__(win)
         self.win = win
         self.settings = win.settings
-        self.setWindowTitle("Preferences")
+        self.setWindowTitle(tr("Preferences"))
         self.resize(560, 560)
 
         outer = QVBoxLayout(self)
@@ -88,15 +89,17 @@ class PreferencesDialog(QDialog):
         if restore_btn is not None:
             restore_btn.clicked.connect(self._restore_defaults)
             restore_btn.setToolTip(
-                "Reset every field on all tabs to the shipped defaults "
-                "(nothing is saved until OK or Apply)"
+                tr(
+                    "Reset every field on all tabs to the shipped defaults "
+                    "(nothing is saved until OK or Apply)"
+                )
             )
         outer.addWidget(buttons)
 
     # ── colour swatch helper (shared with the karaoke dialog pattern) ────────
 
     def _make_swatch(self, state: dict, allow_theme: bool, theme_label: str = "",
-                     empty_text: str = "Theme default", name: str = ""):
+                     empty_text: str = "", name: str = ""):
         """Build a swatch QPushButton (opens QColorDialog); optionally wrap it
         with a second button that clears the colour to *empty* (theme/highlight).
 
@@ -106,6 +109,10 @@ class PreferencesDialog(QDialog):
         string, useless to a screen reader without it.  Returns the widget to
         place in the form (the button itself, or a wrapper with the extra
         button)."""
+        # Defaults resolved at call time (not def time) so the active UI
+        # language is honored — the dialog is rebuilt on every open.
+        theme_label = theme_label or tr("Use theme")
+        empty_text = empty_text or tr("Theme default")
         btn = QPushButton()
         if name:
             btn.setAccessibleName(name)
@@ -130,7 +137,7 @@ class PreferencesDialog(QDialog):
                 if state["v"] and QColor(state["v"]).isValid()
                 else QColor("#888888")
             )
-            chosen = QColorDialog.getColor(start, self, "Choose color")
+            chosen = QColorDialog.getColor(start, self, tr("Choose color"))
             if chosen.isValid():
                 state["v"] = chosen.name()
                 _paint()
@@ -144,9 +151,9 @@ class PreferencesDialog(QDialog):
         hb = QHBoxLayout(wrap)
         hb.setContentsMargins(0, 0, 0, 0)
         hb.addWidget(btn, 1)
-        clear_btn = QPushButton(theme_label or "Use theme")
+        clear_btn = QPushButton(theme_label)
         if name:
-            clear_btn.setAccessibleName(f"{name} — {theme_label or 'Use theme'}")
+            clear_btn.setAccessibleName(f"{name} — {theme_label}")
 
         def _clear() -> None:
             state["v"] = ""
@@ -170,17 +177,19 @@ class PreferencesDialog(QDialog):
         self.style_box.setCurrentIndex(
             _HIGHLIGHT_STYLES.index(cur) if cur in _HIGHLIGHT_STYLES else 0
         )
-        form.addRow("Highlight style:", self.style_box)
+        form.addRow(tr("Highlight style:"), self.style_box)
 
         form.addRow(
-            "Word color:",
-            self._make_swatch(self._hl_color, False, name="Word highlight color"),
+            tr("Word color:"),
+            self._make_swatch(
+                self._hl_color, False, name=tr("Word highlight color")
+            ),
         )
         form.addRow(
-            "Sentence color:",
+            tr("Sentence color:"),
             self._make_swatch(
-                self._sent_color, True, theme_label="Use theme",
-                name="Sentence highlight color",
+                self._sent_color, True,
+                name=tr("Sentence highlight color"),
             ),
         )
 
@@ -189,12 +198,12 @@ class PreferencesDialog(QDialog):
         self.speed_spin.setSingleStep(0.05)
         self.speed_spin.setDecimals(2)
         self.speed_spin.setValue(float(self.settings.get("highlight_speed", 1.0) or 1.0))
-        form.addRow("Highlight speed (× WPM):", self.speed_spin)
+        form.addRow(tr("Highlight speed (× WPM):"), self.speed_spin)
 
         self.lead_spin = QSpinBox()
         self.lead_spin.setRange(-5, 5)
         self.lead_spin.setValue(int(self.settings.get("highlight_lead_words", 1)))
-        form.addRow("Lead / lag (words):", self.lead_spin)
+        form.addRow(tr("Lead / lag (words):"), self.lead_spin)
 
         self.gran_box = QComboBox()
         self.gran_box.addItems(_HIGHLIGHT_GRANS)
@@ -202,28 +211,28 @@ class PreferencesDialog(QDialog):
         self.gran_box.setCurrentIndex(
             _HIGHLIGHT_GRANS.index(curg) if curg in _HIGHLIGHT_GRANS else 0
         )
-        form.addRow("Highlight granularity:", self.gran_box)
+        form.addRow(tr("Highlight granularity:"), self.gran_box)
 
         # Reading ruler.
         self.ruler_height = QSpinBox()
         self.ruler_height.setRange(16, 160)
         self.ruler_height.setSuffix(" px")
         self.ruler_height.setValue(int(self.settings.get("qt_ruler_height", 40) or 40))
-        form.addRow("Reading-ruler height:", self.ruler_height)
+        form.addRow(tr("Reading-ruler height:"), self.ruler_height)
 
         self.ruler_opacity = QSpinBox()
         self.ruler_opacity.setRange(0, 100)
         self.ruler_opacity.setSuffix(" %")
         self.ruler_opacity.setValue(int(self.settings.get("qt_ruler_opacity", 22) or 22))
-        form.addRow("Reading-ruler opacity:", self.ruler_opacity)
+        form.addRow(tr("Reading-ruler opacity:"), self.ruler_opacity)
 
         form.addRow(
-            "Reading-ruler color:",
+            tr("Reading-ruler color:"),
             self._make_swatch(
                 self._ruler_color, True,
-                theme_label="Use highlight color",
-                empty_text="Highlight color",
-                name="Reading ruler color",
+                theme_label=tr("Use highlight color"),
+                empty_text=tr("Highlight color"),
+                name=tr("Reading ruler color"),
             ),
         )
 
@@ -234,35 +243,35 @@ class PreferencesDialog(QDialog):
         self.rsvp_pos.setCurrentIndex(
             _RSVP_POSITIONS.index(curp) if curp in _RSVP_POSITIONS else 0
         )
-        form.addRow("RSVP position:", self.rsvp_pos)
+        form.addRow(tr("RSVP position:"), self.rsvp_pos)
 
         self.rsvp_font = QSpinBox()
         self.rsvp_font.setRange(12, 200)
         self.rsvp_font.setSuffix(" pt")
         self.rsvp_font.setValue(int(self.settings.get("qt_rsvp_font_size", 48) or 48))
-        form.addRow("RSVP font size:", self.rsvp_font)
+        form.addRow(tr("RSVP font size:"), self.rsvp_font)
 
-        self.rsvp_ctx = QCheckBox("Show previous / next word")
+        self.rsvp_ctx = QCheckBox(tr("Show previous / next word"))
         self.rsvp_ctx.setChecked(bool(self.settings.get("qt_rsvp_context", True)))
-        form.addRow("RSVP context:", self.rsvp_ctx)
+        form.addRow(tr("RSVP context:"), self.rsvp_ctx)
 
         # Misc reading toggles.
-        self.current_line = QCheckBox("Tint the line being read")
+        self.current_line = QCheckBox(tr("Tint the line being read"))
         self.current_line.setChecked(
             bool(self.settings.get("qt_current_line_highlight", False))
         )
-        form.addRow("Current-line highlight:", self.current_line)
+        form.addRow(tr("Current-line highlight:"), self.current_line)
 
-        self.autoscroll = QCheckBox("Follow the spoken word")
+        self.autoscroll = QCheckBox(tr("Follow the spoken word"))
         self.autoscroll.setChecked(bool(self.settings.get("qt_autoscroll", True)))
-        form.addRow("Auto-scroll:", self.autoscroll)
+        form.addRow(tr("Auto-scroll:"), self.autoscroll)
 
         self.syllable_sep = QLineEdit(str(self.settings.get("qt_syllable_sep", "·")))
         self.syllable_sep.setMaxLength(1)
-        self.syllable_sep.setToolTip("Single character shown between syllables")
-        form.addRow("Syllable separator:", self.syllable_sep)
+        self.syllable_sep.setToolTip(tr("Single character shown between syllables"))
+        form.addRow(tr("Syllable separator:"), self.syllable_sep)
 
-        self.tabs.addTab(w, "Reading")
+        self.tabs.addTab(w, tr("Reading"))
 
     # ── Voice tab ────────────────────────────────────────────────────────────
 
@@ -293,13 +302,13 @@ class PreferencesDialog(QDialog):
         if cur == "silent":
             cur = "none"
         self.engine_box.setCurrentIndex(engines.index(cur) if cur in engines else 0)
-        form.addRow("TTS engine:", self.engine_box)
+        form.addRow(tr("TTS engine:"), self.engine_box)
 
         self.rate_spin = QSpinBox()
         self.rate_spin.setRange(50, 400)
         self.rate_spin.setSuffix(" wpm")
         self.rate_spin.setValue(int(self.settings.get("tts_rate", 265) or 265))
-        form.addRow("Speech rate:", self.rate_spin)
+        form.addRow(tr("Speech rate:"), self.rate_spin)
 
         self.volume_spin = QSpinBox()
         self.volume_spin.setRange(0, 100)
@@ -307,19 +316,19 @@ class PreferencesDialog(QDialog):
         self.volume_spin.setValue(
             int(round(float(self.settings.get("tts_volume", 1.0) or 1.0) * 100))
         )
-        form.addRow("Volume:", self.volume_spin)
+        form.addRow(tr("Volume:"), self.volume_spin)
 
         self.prefer_voice = QLineEdit(str(self.settings.get("tts_prefer_voice", "")))
-        self.prefer_voice.setToolTip("Substring of a preferred default voice name")
-        form.addRow("Preferred voice:", self.prefer_voice)
+        self.prefer_voice.setToolTip(tr("Substring of a preferred default voice name"))
+        form.addRow(tr("Preferred voice:"), self.prefer_voice)
 
         self.eleven_key = QLineEdit(str(self.settings.get("elevenlabs_api_key", "")))
         try:  # PyQt6
             self.eleven_key.setEchoMode(QLineEdit.EchoMode.Password)
         except AttributeError:  # PyQt5
             self.eleven_key.setEchoMode(QLineEdit.Password)  # type: ignore[attr-defined]
-        self.eleven_key.setToolTip("Opt-in ElevenLabs cloud voice key (empty = disabled)")
-        form.addRow("ElevenLabs API key:", self.eleven_key)
+        self.eleven_key.setToolTip(tr("Opt-in ElevenLabs cloud voice key (empty = disabled)"))
+        form.addRow(tr("ElevenLabs API key:"), self.eleven_key)
 
         self.bitrate_box = QComboBox()
         self.bitrate_box.addItems(_AUDIOBOOK_BITRATES)
@@ -327,9 +336,9 @@ class PreferencesDialog(QDialog):
         self.bitrate_box.setCurrentIndex(
             _AUDIOBOOK_BITRATES.index(curb) if curb in _AUDIOBOOK_BITRATES else 4
         )
-        form.addRow("Audiobook bitrate:", self.bitrate_box)
+        form.addRow(tr("Audiobook bitrate:"), self.bitrate_box)
 
-        self.tabs.addTab(w, "Voice")
+        self.tabs.addTab(w, tr("Voice"))
 
     # ── Display tab ──────────────────────────────────────────────────────────
 
@@ -344,17 +353,17 @@ class PreferencesDialog(QDialog):
         self.reading_font.setCurrentIndex(
             _READING_FONTS.index(curf) if curf in _READING_FONTS else 0
         )
-        form.addRow("Reading font:", self.reading_font)
+        form.addRow(tr("Reading font:"), self.reading_font)
 
         # Display font — a "Choose…" button opens QFontDialog; the picked family
         # + size are staged into these members and written on apply.
         self._font_family = str(self.settings.get("qt_font_family", ""))
         self._font_size = int(self.settings.get("qt_font_size", 14) or 14)
         self.font_btn = QPushButton()
-        self.font_btn.setAccessibleName("Display font")
+        self.font_btn.setAccessibleName(tr("Display font"))
         self._refresh_font_btn()
         self.font_btn.clicked.connect(self._choose_font)
-        form.addRow("Display font:", self.font_btn)
+        form.addRow(tr("Display font:"), self.font_btn)
 
         self.theme_box = QComboBox()
         self.theme_box.addItems(BUILT_IN_THEME_NAMES)
@@ -363,22 +372,22 @@ class PreferencesDialog(QDialog):
         self.theme_box.setCurrentIndex(
             BUILT_IN_THEME_NAMES.index(curt) if curt in BUILT_IN_THEME_NAMES else 0
         )
-        form.addRow("Theme:", self.theme_box)
+        form.addRow(tr("Theme:"), self.theme_box)
 
-        self.follow_os = QCheckBox("Match the OS dark / light appearance")
+        self.follow_os = QCheckBox(tr("Match the OS dark / light appearance"))
         self._orig_follow_os = bool(self.settings.get("qt_follow_os_theme", True))
         self.follow_os.setChecked(self._orig_follow_os)
-        form.addRow("Follow OS theme:", self.follow_os)
+        form.addRow(tr("Follow OS theme:"), self.follow_os)
 
-        self.tabs.addTab(w, "Display")
+        self.tabs.addTab(w, tr("Display"))
 
     def _refresh_font_btn(self) -> None:
-        fam = self._font_family or "(default)"
-        self.font_btn.setText(f"{fam}  {self._font_size}pt  —  Choose…")
+        fam = self._font_family or tr("(default)")
+        self.font_btn.setText(f"{fam}  {self._font_size}pt  —  " + tr("Choose…"))
 
     def _choose_font(self) -> None:
         current = QFont(self._font_family or "", self._font_size)
-        font, ok = QFontDialog.getFont(current, self, "Choose Display Font")
+        font, ok = QFontDialog.getFont(current, self, tr("Choose Display Font"))
         if ok:
             self._font_family = font.family()
             self._font_size = max(6, font.pointSize())
@@ -390,13 +399,13 @@ class PreferencesDialog(QDialog):
         w = QWidget()
         form = QFormLayout(w)
 
-        self.auto_install = QCheckBox("Auto-install optional features on demand")
+        self.auto_install = QCheckBox(tr("Auto-install optional features on demand"))
         self.auto_install.setChecked(bool(self.settings.get("auto_install", True)))
-        form.addRow("Optional features:", self.auto_install)
+        form.addRow(tr("Optional features:"), self.auto_install)
 
-        self.auto_updates = QCheckBox("Check for updates on startup")
+        self.auto_updates = QCheckBox(tr("Check for updates on startup"))
         self.auto_updates.setChecked(bool(self.settings.get("auto_check_updates", False)))
-        form.addRow("Updates:", self.auto_updates)
+        form.addRow(tr("Updates:"), self.auto_updates)
 
         self.sync_policy = QComboBox()
         self.sync_policy.addItems(_SYNC_POLICIES)
@@ -404,7 +413,7 @@ class PreferencesDialog(QDialog):
         self.sync_policy.setCurrentIndex(
             _SYNC_POLICIES.index(curs) if curs in _SYNC_POLICIES else 0
         )
-        form.addRow("Sync conflict policy:", self.sync_policy)
+        form.addRow(tr("Sync conflict policy:"), self.sync_policy)
 
         self.footnote_mode = QComboBox()
         self.footnote_mode.addItems(_FOOTNOTE_MODES)
@@ -412,11 +421,11 @@ class PreferencesDialog(QDialog):
         self.footnote_mode.setCurrentIndex(
             _FOOTNOTE_MODES.index(curfn) if curfn in _FOOTNOTE_MODES else 0
         )
-        form.addRow("Footnotes:", self.footnote_mode)
+        form.addRow(tr("Footnotes:"), self.footnote_mode)
 
-        self.paginate = QCheckBox("Paginate very large documents")
+        self.paginate = QCheckBox(tr("Paginate very large documents"))
         self.paginate.setChecked(bool(self.settings.get("qt_paginate_large_docs", False)))
-        form.addRow("Large documents:", self.paginate)
+        form.addRow(tr("Large documents:"), self.paginate)
 
         self.paginate_threshold = QSpinBox()
         self.paginate_threshold.setRange(10000, 1000000)
@@ -425,9 +434,9 @@ class PreferencesDialog(QDialog):
         self.paginate_threshold.setValue(
             int(self.settings.get("qt_paginate_threshold_words", 60000) or 60000)
         )
-        form.addRow("Pagination threshold:", self.paginate_threshold)
+        form.addRow(tr("Pagination threshold:"), self.paginate_threshold)
 
-        self.tabs.addTab(w, "General")
+        self.tabs.addTab(w, tr("General"))
 
     # ── write + apply ────────────────────────────────────────────────────────
 
@@ -645,6 +654,6 @@ class PreferencesDialog(QDialog):
             pass
 
         try:
-            win.statusBar().showMessage("Preferences applied")
+            win.statusBar().showMessage(tr("Preferences applied"))
         except Exception:
             pass
