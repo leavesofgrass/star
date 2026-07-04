@@ -491,5 +491,6 @@
   "Word color:": "Couleur du mot :",
   "Word highlight color": "Couleur de surlignage du mot",
   "Spoken-word highlight:": "Surlignage du mot prononcé :",
-  "Highlight the word being spoken": "Surligner le mot en cours de lecture"
+  "Highlight the word being spoken": "Surligner le mot en cours de lecture",
+  "Change display font (Ctrl+Alt+F)": "Changer la police d'affichage (Ctrl+Alt+F)"
 }

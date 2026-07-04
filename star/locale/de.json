@@ -491,5 +491,6 @@
   "Word color:": "Wortfarbe:",
   "Word highlight color": "Wort-Hervorhebungsfarbe",
   "Spoken-word highlight:": "Hervorhebung des gesprochenen Wortes:",
-  "Highlight the word being spoken": "Das gesprochene Wort hervorheben"
+  "Highlight the word being spoken": "Das gesprochene Wort hervorheben",
+  "Change display font (Ctrl+Alt+F)": "Anzeigeschriftart ändern (Ctrl+Alt+F)"
 }

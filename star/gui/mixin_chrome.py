@@ -120,7 +120,7 @@ class ChromeMixin:
             "Add a note at the cursor (Ctrl+Shift+A)",
         )
         _act("Reading Level", "level", self._qt_reading_level, "Show reading level (Ctrl+L)")
-        _act("Font", "font", self._qt_change_font_dialog, "Change display font")
+        _act("Font", "font", self._qt_change_font_dialog, "Change display font (Ctrl+Alt+F)")
         tb.addSeparator()
         # ── App ──────────────────────────────────────────
         _act("Help", "help", self._show_about, "Open README.md (F1)")
@@ -375,7 +375,8 @@ class ChromeMixin:
                     continue
                 label, fn = row[0], row[1]
                 shortcut = row[2] if len(row) > 2 else ""
-                menu.addAction(_mi(label, shortcut, fn))
+                tip = row[3] if len(row) > 3 else ""
+                menu.addAction(_mi(label, shortcut, fn, tip=tip))
             return menu
 
         # Speech menu — every playback command reachable without the keyboard.
@@ -384,14 +385,17 @@ class ChromeMixin:
             [
                 ("Play / Pause", self._tts_toggle, "Space"),
                 ("Stop", self._tts_stop, "Escape"),
-                ("Play from Cursor", self._qt_play_from_cursor, "Ctrl+Space"),
+                ("Play from Cursor", self._qt_play_from_cursor, "Ctrl+Space",
+                 "Start reading aloud from the caret position"),
                 None,
                 ("Faster (+20 wpm)", lambda: self._rate_change(+20), "Ctrl+="),
                 ("Slower (−20 wpm)", lambda: self._rate_change(-20), "Ctrl+-"),
                 None,
-                ("Choose TTS Engine…", self._qt_pick_backend, "Ctrl+Shift+G"),
+                ("Choose TTS Engine…", self._qt_pick_backend, "Ctrl+Shift+G",
+                 "Switch between the installed speech engines"),
                 ("Choose Voice…", self._voice_picker_qt, "Ctrl+Shift+V"),
-                ("Voice Manager…", self._qt_voice_manager, "F4"),
+                ("Voice Manager…", self._qt_voice_manager, "F4",
+                 "Preview, star, and install voices for the active engine"),
                 (
                     "Speech Cursor Mode",
                     lambda: (
@@ -467,14 +471,16 @@ class ChromeMixin:
         edit_menu = _menu(
             "Edit",
             [
-                ("Find…", self._find_show, "Ctrl+F"),
+                ("Find…", self._find_show, "Ctrl+F",
+                 "Find in the document — Enter jumps, Ctrl+Enter reads aloud"),
                 ("Copy", self._qt_copy, "Ctrl+C"),
                 None,
                 ("Toggle Edit Mode", self._qt_edit_mode_toggle, "Ctrl+E"),
                 ("Save", self._qt_save, "Ctrl+S"),
                 # Menu-only: F7 is View ▸ Caret Browsing (an ambiguous shortcut
                 # would fire neither).
-                ("Check Spelling", self._qt_check_spelling),
+                ("Check Spelling", self._qt_check_spelling, "",
+                 "Spell-check the document and step through suggestions"),
             ],
         )
         # Preferences lives at the foot of Edit (the conventional home for an
@@ -599,7 +605,12 @@ class ChromeMixin:
             )
         )
         view_menu.addAction(
-            _mi("Change Font…", "Ctrl+Alt+F", self._qt_change_font_dialog)
+            _mi(
+                "Change Font…",
+                "Ctrl+Alt+F",
+                self._qt_change_font_dialog,
+                tip="Pick any installed font family and size for the reading view",
+            )
         )
         # Reading Level is shared with the Tools menu (one Ctrl+L owner).
         level_act = _mi("Reading Level", "Ctrl+L", self._qt_reading_level)
@@ -891,4 +902,10 @@ class ChromeMixin:
         # relocates an already-added menu rather than duplicating it.
         mb.insertMenu(hl_menu.menuAction(), edit_menu)
         mb.insertMenu(hl_menu.menuAction(), view_menu)
+
+        # QMenu hides action tooltips unless told otherwise — without this,
+        # every tip= written above is invisible in the menu bar.  Applies to
+        # submenus too (findChildren is recursive).
+        for m in mb.findChildren(QMenu):
+            m.setToolTipsVisible(True)
 
