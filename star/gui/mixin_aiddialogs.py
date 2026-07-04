@@ -63,6 +63,9 @@ class AidDialogsMixin:
         # Reflect any settings changes made while it was off.
         ruler.set_height(int(self.settings.get("qt_ruler_height", 40)))
         ruler.set_opacity(int(self.settings.get("qt_ruler_opacity", 22)))
+        _rc = str(self.settings.get("qt_ruler_color", "") or "").strip() \
+            or str(self.settings.get("highlight_color", "cyan"))
+        ruler.set_color(QColor(_rc))
         try:
             self.editor.cursorPositionChanged.connect(ruler.follow_caret)
         except (TypeError, RuntimeError):
@@ -80,7 +83,7 @@ class AidDialogsMixin:
 
     def _qt_reading_ruler_dialog(self) -> None:
         """Adjust the reading ruler's band height and opacity (previews live)."""
-        keys = ("qt_ruler_height", "qt_ruler_opacity")
+        keys = ("qt_ruler_height", "qt_ruler_opacity", "qt_ruler_color")
         orig = {k: self.settings.get(k) for k in keys}
 
         dlg = QDialog(self)
@@ -105,13 +108,65 @@ class AidDialogsMixin:
         opacity.setValue(int(orig["qt_ruler_opacity"] or 22))
         form.addRow("Band opacity:", opacity)
 
+        # Colour: a swatch button opens the system colour dialog; "Use highlight
+        # color" reverts to matching the spoken-word highlight (the default).
+        ruler_col = {"v": str(orig["qt_ruler_color"] or "")}
+
+        def _hl_col() -> str:
+            return str(self.settings.get("highlight_color", "cyan"))
+
+        color_btn = QPushButton()
+
+        def _paint_col() -> None:
+            c = QColor(ruler_col["v"] or _hl_col())
+            if c.isValid():
+                lum = 0.299 * c.red() + 0.587 * c.green() + 0.114 * c.blue()
+                fg = "#000000" if lum > 140 else "#ffffff"
+                color_btn.setStyleSheet(
+                    f"QPushButton{{background-color:{c.name()};color:{fg};"
+                    "padding:5px;border:1px solid #888;}"
+                )
+                color_btn.setText(c.name() + ("" if ruler_col["v"] else "  (highlight)"))
+            else:
+                color_btn.setStyleSheet("")
+                color_btn.setText("Highlight color")
+
+        def _pick_col() -> None:
+            start = QColor(ruler_col["v"] or _hl_col())
+            if not start.isValid():
+                start = QColor("#06b6d4")
+            chosen = QColorDialog.getColor(start, dlg, "Choose ruler color")
+            if chosen.isValid():
+                ruler_col["v"] = chosen.name()
+                _paint_col()
+                _preview()
+
+        color_btn.clicked.connect(_pick_col)
+        _paint_col()
+        col_wrap = QWidget()
+        col_hb = QHBoxLayout(col_wrap)
+        col_hb.setContentsMargins(0, 0, 0, 0)
+        col_hb.addWidget(color_btn, 1)
+        use_hl_btn = QPushButton("Use highlight color")
+
+        def _use_hl() -> None:
+            ruler_col["v"] = ""
+            _paint_col()
+            _preview()
+
+        use_hl_btn.clicked.connect(_use_hl)
+        col_hb.addWidget(use_hl_btn)
+        form.addRow("Band color:", col_wrap)
+
         def _preview() -> None:
             self.settings._data["qt_ruler_height"] = height.value()
             self.settings._data["qt_ruler_opacity"] = opacity.value()
+            self.settings._data["qt_ruler_color"] = ruler_col["v"]
             ruler = getattr(self, "_reading_ruler", None)
             if ruler is not None:
                 ruler.set_height(height.value())
                 ruler.set_opacity(opacity.value())
+                ruler.set_color(QColor(ruler_col["v"] or _hl_col()))
 
         height.valueChanged.connect(lambda _v: _preview())
         opacity.valueChanged.connect(lambda _v: _preview())
@@ -141,6 +196,10 @@ class AidDialogsMixin:
             if ruler is not None:
                 ruler.set_height(int(orig["qt_ruler_height"] or 40))
                 ruler.set_opacity(int(orig["qt_ruler_opacity"] or 22))
+                _oc = str(orig["qt_ruler_color"] or "") or str(
+                    self.settings.get("highlight_color", "cyan")
+                )
+                ruler.set_color(QColor(_oc))
 
     def _qt_rsvp_position_dialog(self) -> None:
         """Show a 3×3 grid dialog to pick the RSVP overlay position.

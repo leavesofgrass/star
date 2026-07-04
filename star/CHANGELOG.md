@@ -34,6 +34,9 @@ still installs itself in one click — students never see `pip`.
   highlight and the sentence band (in "Both" mode) from a color picker in
   **View ▸ Reading Aids ▸ Karaoke Highlight…** — so the two are easy to tell
   apart. The sentence band can follow the theme or use a color you choose.
+- **Reading-ruler color.** The reading ruler's band color is now pickable too
+  (**View ▸ Reading Aids ▸ Reading Ruler…**) — independent of the word highlight,
+  or set to match it.
 - **Faster very-large documents.** Opt-in pagination renders only a window of a
   huge document at a time — a ~500-page document's first paint drops from several
   seconds to well under one, with reading, highlighting, Find, and Define-Word

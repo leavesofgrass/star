@@ -244,7 +244,8 @@ class _ReadingRulerOverlay(QWidget):
         self._editor = editor
         self._height: int = int(settings.get("qt_ruler_height", 40))
         self._opacity: int = int(settings.get("qt_ruler_opacity", 22))
-        self._color = QColor(str(settings.get("highlight_color", "cyan")))
+        _rc = str(settings.get("qt_ruler_color", "") or "").strip()
+        self._color = QColor(_rc or str(settings.get("highlight_color", "cyan")))
         if not self._color.isValid():
             self._color = QColor("#06b6d4")
         self._center_y: int = 0

@@ -207,6 +207,10 @@ DEFAULTS: Dict[str, Any] = {
     "qt_reading_ruler": False,       # whether the ruler overlay is shown
     "qt_ruler_height": 40,           # band height in pixels (16–160)
     "qt_ruler_opacity": 22,          # band opacity, 0–100 (percent)
+    # Reading-ruler band color.  Empty = match the spoken-word highlight color;
+    # set a hex (e.g. "#ffcc00") for an independent ruler color.  Pickable in the
+    # Reading Ruler… dialog.
+    "qt_ruler_color": "",
     # ── RSVP (Rapid Serial Visual Presentation) ───────────────────
     # One word at a time displayed at a fixed point — an aid for some dyslexic
     # readers and users with restricted visual fields.
