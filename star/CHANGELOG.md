@@ -8,6 +8,66 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.22] 2026-07-04
+
+A settings-and-polish release: every reader preference now lives in one tabbed
+**Preferences** dialog, the menus are leaner, and a post-release refinement
+audit's fixes are all in — including two persistence bugs and a master switch
+that existed only on paper.
+
+### ✨ Added
+
+- **Preferences dialog.** All reader settings in one place — **Edit ▸
+  Preferences… (`Ctrl+,`)** with Reading, Voice, Display, and General tabs:
+  spoken-word highlight (style, colors, speed, lead), reading ruler, RSVP,
+  auto-scroll, syllable separator, TTS engine/rate/volume, fonts, theme, and
+  the general options. Apply-on-OK with an Apply button; **Restore Defaults**
+  re-stages every field from the shipped defaults without saving until you
+  confirm. Fully translated (Spanish, French, German, Portuguese).
+- **Spoken-word highlight master switch.** `highlight_current_word` is now
+  honored by the GUI (Preferences ▸ Reading): turn the karaoke highlight off
+  entirely while keeping auto-scroll, the status line, and RSVP alive.
+- **Menu tooltips.** Hovering a menu item now shows its description — the
+  explanatory tips existed but Qt never displayed them.
+
+### 🔧 Changed
+
+- **Leaner Reading Aids menu.** The three settings dialogs (Karaoke
+  Highlight…, Reading Ruler…, RSVP Position…) moved into Preferences; their
+  richer live-tuning dialogs stay one `F2` away as Command Palette **Tune …**
+  entries. The toggles are unchanged.
+- **Preferences lives in Edit.** Settings are under **Edit ▸ Preferences…**,
+  the conventional home (was briefly Tools).
+- **Better defaults.** The visual highlight now leads the audio by one word
+  (`highlight_lead_words` 0 → 1) and audiobooks export at 128 kb/s
+  (`audiobook_bitrate` 64k → 128k) — both promoted from real-world use.
+
+### 🐛 Fixed
+
+- **Voice favorites and the difficult-words toggle now persist.** Both were
+  silently dropped on every restart (their keys were missing from the settings
+  schema the loader accepts).
+- **Reading font picked in Preferences applies immediately** — including the
+  on-demand font fetch and the View-menu radio sync; previously it saved but
+  changed nothing until relaunch.
+- **A theme picked in Preferences sticks.** It now counts as an explicit
+  choice, so OS light/dark auto-detection no longer overrides it on the next
+  launch; re-ticking "Follow OS theme" re-arms auto-detection.
+- **Font-size settings unified.** The stylesheet honored only the legacy
+  `font_size` key, so a hand-edited `qt_font_size` changed nothing (and the
+  two could disagree). Both now resolve through one chain.
+- **Live overlays follow Preferences.** Applying ruler height/opacity/color
+  and RSVP position/size/context updates a visible overlay immediately.
+
+### 🧪 Quality
+
+- New Preferences test suite (construct-smoke for the palette-only dialogs,
+  apply-hook spies, Restore-Defaults staging, theme-explicit both ways) and a
+  CI coverage floor for the dialog module; the accessibility pass gives the
+  color swatches screen-reader names.
+
+---
+
 ## [0.1.21] 2026-07-03
 
 A voices-and-reading release delivered as three multi-agent waves, then hardened
