@@ -2,7 +2,7 @@
 
 The historic voice picker (``_voice_picker_qt`` in mixin_display.py) is a single
 ``QInputDialog`` list of the *active* backend's voices.  This mixin adds a fuller
-**Voice Manager** (Speech ▸ Voice Manager…, Ctrl+Shift+F2) that:
+**Voice Manager** (Speech ▸ Voice Manager…, F4) that:
 
 * lists every voice from the active backend **and** the downloadable Piper voice
   catalog in one place;

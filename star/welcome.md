@@ -10,11 +10,17 @@ works right here. Go ahead and try them on this text.
 out the essentials. You can replay it any time from **Help ▸ Guided Tour**
 (**Shift+F1**).
 
+**Reading this in a terminal?** The essentials there: **Space** play/pause ·
+**Enter** read from the caret · **arrow keys** move the caret · **Esc** stop ·
+**Ctrl+O** open · **Ctrl+F** search · **d** define · **a** note ·
+**?** shortcuts · **F1** help · **F2** commands.
+
 ## Hear it read aloud
 
 Press **Space** to start reading from the top. Press **Space** again to pause,
-and **Escape** to stop. Use **−** and **+** (or the toolbar's Slower and Faster
-buttons) to change the speaking rate while it reads.
+and **Escape** to stop. Use **Ctrl+−** and **Ctrl+=** (or the toolbar's Slower
+and Faster buttons) to change the speaking rate while it reads — in the
+terminal it's plain **−** and **+**.
 
 ## Move around freely
 
@@ -55,6 +61,8 @@ live match count and next/previous navigation.
 
 ## Make it yours
 
+- **Edit ▸ Preferences…** (**Ctrl+,**) gathers every reader setting — highlight,
+  voice, display, and more — in one tabbed dialog.
 - **F5** cycles the color theme (Obsidian is the default; Zed and a
   **high-contrast** theme are included for low-vision reading).
 - Turn on the **dyslexia-friendly font**, adjust text spacing, bionic reading,

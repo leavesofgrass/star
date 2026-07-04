@@ -22,6 +22,9 @@ Open it from the TUI with `M-x settings`.
 
 ## All settings keys
 
+`tui_*` keys configure the terminal UI and are set from the config file or
+`M-x settings` only — they have no control in the GUI's Preferences dialog.
+
 | Key | Default | Description |
 |---|---|---|
 | `theme` | `"obsidian"` | Color theme: `obsidian`, `dark`, `light`, `contrast`, `high-contrast` (AAA low-vision), `phosphor`. See `qt_follow_os_theme` for automatic light/dark/high-contrast switching |
@@ -106,6 +109,7 @@ Open it from the TUI with `M-x settings`.
 | `qt_rsvp_context` | `true` | Qt RSVP: show the previous/next word above and below the focused word |
 | `tui_rsvp_mode` | `false` | TUI mirror of the RSVP toggle |
 | `tui_rsvp_position` | `"top-center"` | TUI RSVP placement (same nine-position set as `qt_rsvp_position`) |
+| `tui_caret_follow_speech` | `true` | TUI: while reading aloud, the caret follows the spoken word so Enter resumes from here; a manual caret move gets a ~3-second grace window |
 | `annotations` | `{}` | Per-document notes: `{path: [{char_pos, word_idx, anchor, note, tags, cite, ts, id, relations}]}`. Reviewable notes (a highlight and/or a note body) also carry an `sr_state` sub-dict — the spaced-repetition scheduler's per-card memory (next review date, interval, stability, difficulty, reps, lapses), so review scheduling persists across sessions. See [`star/sr.py`](../star/sr.py) (FSRS scheduler) and [`star/annotations.py`](../star/annotations.py) |
 | `annotation_filter_presets` | `{}` | Saved note-filter queries, `{name: filter-query}` (populated automatically) |
 | `citations` | `[]` | Shared citation library (BibTeX/RIS/CSL-JSON import/export) |

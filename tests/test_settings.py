@@ -151,3 +151,19 @@ def test_clean_settings_have_no_load_error(monkeypatch, tmp_path):
 
     monkeypatch.setattr(settings_mod, "SETTINGS_FILE", tmp_path / "settings.json")
     assert Settings().load_error == ""  # first launch: no file, no error
+
+
+def test_every_default_key_documented():
+    """Every top-level DEFAULTS key must have a `key` row in
+    docs/configuration.md — the 0.1.21 completeness sweep established the
+    invariant; this makes it self-enforcing instead of re-audited by hand."""
+    import re
+    from pathlib import Path
+
+    from star.settings import DEFAULTS
+
+    doc = Path(__file__).resolve().parent.parent / "docs" / "configuration.md"
+    text = doc.read_text(encoding="utf-8")
+    documented = set(re.findall(r"`([A-Za-z0-9_]+)`", text))
+    missing = sorted(k for k in DEFAULTS if k not in documented)
+    assert not missing, f"settings keys missing from docs/configuration.md: {missing}"

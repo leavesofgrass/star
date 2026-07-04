@@ -389,7 +389,7 @@ trigger it).
 | Stop | (Playback toolbar) | `Esc` | `M-x stop` (`Esc`) |
 | Speed up (+20 wpm) | (Playback toolbar) | `Ctrl+=` | `M-x rate-up` (`+`) |
 | Slow down (−20 wpm) | (Playback toolbar) | `Ctrl+-` | `M-x rate-down` (`-`) |
-| Play from cursor / selection | — | `Ctrl+Space` | — |
+| Play from cursor / selection | — | `Ctrl+Space` | `Enter` / `Ctrl+Space` |
 | Cycle speed preset | — | `F8` | `M-x speed <name>` (`F8`) |
 | Toggle SSML prosody | — | `Ctrl+Alt+Y` | `M-x ssml` |
 | Choose TTS engine | Speech ▸ Choose TTS Engine… | `Ctrl+Shift+G` | `M-x tts-backend` |
@@ -503,7 +503,7 @@ off with the `qt_ctrl_pause` setting.
 | Stop | `Esc` | `Esc` |
 | Speed up (+20 wpm) | `Ctrl+=` | `+` |
 | Slow down (−20 wpm) | `Ctrl+-` | `-` |
-| Play from cursor / selection | `Ctrl+Space` | — |
+| Play from cursor / selection | `Ctrl+Space` | `Enter` / `Ctrl+Space` |
 | Choose TTS engine | `Ctrl+Shift+G` | `M-x tts-backend` |
 | Choose voice | `Ctrl+Shift+V` | `Ctrl+T` |
 | Pronunciation lexicon | `Ctrl+Shift+I` | `M-x pron-add` / `pron-list` |
@@ -540,18 +540,26 @@ bracket keys as fallbacks.
 | Next sentence | `Alt+.` | `.` |
 | Previous sentence | `Alt+,` | `,` |
 | Replay sentence | `Alt+;` | `;` |
-| Play from cursor / selection | `Ctrl+Space` | — |
+| Play from cursor / selection | `Ctrl+Space` | `Enter` / `Ctrl+Space` |
 
-### Scroll navigation (TUI)
+### Caret navigation (TUI)
+
+The arrow keys move a free, word-granularity reading caret through the
+document — the view follows it, and `Enter` reads aloud from wherever it
+stands. While speech plays, the caret follows the spoken word (the
+`tui_caret_follow_speech` setting, on by default), so `Enter` always resumes
+"from here"; a deliberate caret move gets a ~3-second grace window during
+which the view stays with you instead of snapping back to the speech.
 
 | Key | Action |
 |---|---|
-| `↑` / `k` | Scroll one line up |
-| `↓` / `j` | Scroll one line down |
-| `PgUp` / `b` | Page up |
-| `PgDn` | Page down |
-| `Home` | Jump to beginning of document |
-| `End` | Jump to end of document |
+| `←` / `→` | Move the caret one word back / forward |
+| `↑` / `↓` | Move the caret one line (sticky column; view follows) |
+| `PgUp` / `PgDn` | Move the caret one screenful |
+| `Home` / `End` | Caret to beginning / end of document |
+| `Enter` (or `Ctrl+Space`) | Read aloud from the caret |
+| `Ctrl+X` / `Esc` | Stop reading |
+| `j` / `k` | Plain scroll one line (caret-free, classic behavior) |
 | `H` | History: go back to previous position |
 | `L` | History: go forward |
 
@@ -876,10 +884,11 @@ All standard Emacs line-editing keys work inside the minibuffer (`C-a`, `C-e`,
 ├──────────────────────────────────────────────────────────────────────┤
 │  # Chapter 1: Introduction                                           │  ← document
 │  This paragraph is being read aloud. The [current]                  │     view
-│  word is shown with a cyan background highlight.                     │  ← word highlight
+│  word is shown with an orange background highlight                   │  ← word highlight
+│  (in the default theme).                                             │
 ├──────────────────────────────────────────────────────────────────────┤
 │ Document Title   Line 42/380   11%                                   │  ← status bar
-│   Space:read/pause  ↑↓:scroll  Ctrl-O:open  Ctrl-F:search           │  ← key hints
+│   Space:play/pause  Enter:read-here  Ctrl-O:open  Ctrl-F:search      │  ← key hints
 │ M-x: open█                                                           │  ← minibuffer
 └──────────────────────────────────────────────────────────────────────┘
 ```

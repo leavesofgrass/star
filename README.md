@@ -119,9 +119,10 @@ notes) are in the **[Installation guide](docs/installation.md)**.
   spacing (WCAG 1.4.12), and high-DPI support.
 - **Guided tour & translations:** a skippable first-run walkthrough (replay any
   time from **Help ▸ Guided Tour**, Shift+F1), Help ▸ Check for Updates, and a
-  translatable TUI with a first-run language picker (Spanish, French, German,
-  Portuguese). **Right-to-left interface languages mirror the whole app** —
-  Arabic is included as a first catalog.
+  translated interface — terminal UI included — in Spanish, French, German, and
+  Portuguese, with a first-run language picker in the Qt GUI (the TUI honors the
+  `ui_language` setting). **Right-to-left interface languages mirror the whole
+  app** — Arabic is included as a first catalog.
 - **Fast on huge documents:** opt-in pagination renders only a window of a very
   large document at a time, dropping first paint on a ~500-page file from seconds
   to well under one (off by default).
@@ -134,6 +135,9 @@ notes) are in the **[Installation guide](docs/installation.md)**.
   downloads it in the background — **no `pip install` step anywhere** — and it
   works right away (only the large speech-to-text pack needs a restart). Driven by
   a first-run chooser or `star --install-optional`.
+- **One tabbed Preferences dialog:** every reader setting — Reading, Voice,
+  Display, General — in **Edit ▸ Preferences…** (**Ctrl+,**), with Apply and
+  **Restore Defaults**.
 - **Clear, consistent UI:** an all-icon toolbar with descriptive tooltips (vector
   glyphs drawn programmatically and tinted to your theme — no image files); a
   **readable welcome page** that reads aloud like any document; and **F1** opens

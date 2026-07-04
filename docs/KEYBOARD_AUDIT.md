@@ -6,8 +6,10 @@ order** (WCAG 2.4.3 Focus Order, Level A). This document enumerates every
 keyboard shortcut, traces the tab/focus path through the main window, docks, and
 dialogs, and flags any control that is reachable only by mouse.
 
-Scope: the Qt GUI (`star/gui/`). The curses TUI has its own key model and is
-audited separately. Verified against v0.1.19 + the Wave 2b accessibility work.
+Scope: the Qt GUI (`star/gui/`). The curses TUI has its own key model — the
+arrow keys move a reading caret, `Enter` (or `Ctrl+Space`) reads aloud from
+it, and `Ctrl+X` / `Esc` stop — documented under **Caret navigation (TUI)**
+in [usage_guide.md](usage_guide.md). Verified against v0.1.22.
 
 Legend: **[A]** = WCAG 2.1.1 Keyboard · **[F]** = WCAG 2.4.3 Focus Order ·
 ✅ pass · ⚠ recommendation (out of the accessibility-work file scope) ·

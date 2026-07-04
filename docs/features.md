@@ -91,7 +91,7 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 | Karaoke video export | Sentence-synchronized MP4: TTS audio + rendered page frames with highlight advancing sentence by sentence; soft SRT subtitle track |
 | Audiobook export (M4B) | Export a document as a chaptered `.m4b` audiobook — chapters come from its headings — for listening on the go (needs ffmpeg) |
 | RSVP reading mode | One-word-at-a-time display at a fixed on-screen point; 9 placement positions for limited-visual-field accessibility; prev/next context words; syncs with TTS |
-| Interface language | Localize the menus, toolbar, and docks — **and now the terminal UI** — (English, Spanish, French, German, Portuguese, plus a first Arabic catalog); first-run language picker; switch live from View ▸ Interface Language; TTS prefers a voice matching the interface language |
+| Interface language | Localize the menus, toolbar, and docks — **and now the terminal UI** — (English, Spanish, French, German, Portuguese, plus a first Arabic catalog); first-run language picker in the Qt GUI (the TUI honors the `ui_language` setting); switch live from View ▸ Interface Language; TTS prefers a voice matching the interface language |
 | Right-to-left interface | Choosing a right-to-left interface language mirrors the whole app and reading view; Arabic is included as a first catalog |
 | Export | Markdown, PDF (with highlights), BRF braille, TTS audio, SRT/VTT subtitles, and karaoke MP4 video |
 | Reading statistics | Per-document time read, progress %, and session count, with totals and a most-read dashboard |
@@ -1235,6 +1235,21 @@ Each announcement is paired with the matching status-bar message, so the same
 information is both seen and heard. The helper is defensive: it is a silent no-op
 when the accessibility bridge is unavailable (e.g. a headless test run) and never
 raises, so an announcement failing can't break playback or a load.
+
+### Terminal caret browsing
+
+The TUI has a true, freely movable reading caret, mirroring the Qt GUI's caret
+browsing: the arrow keys move it word-by-word (`←`/`→`) and line-by-line
+(`↑`/`↓`, with a sticky column), `PgUp`/`PgDn` by screenful, `Home`/`End` to
+the document ends — and the view follows it. **Enter** (or `Ctrl+Space`) reads
+aloud from wherever the caret stands; `Ctrl+X` or `Esc` stops. While reading,
+the caret tracks the spoken word (`tui_caret_follow_speech`) so Enter always
+resumes "from here" — a deliberate caret move gets a few seconds' grace before
+the view rejoins the speech — and sentence replay, notes, and Define Word all
+operate at the caret. `j`/`k` keep the classic caret-free scrolling. The TUI's
+default dark theme marks the title/status bars and the spoken-word highlight
+in a colorblind-safe **orange** (xterm-256 DarkOrange, `#ff8700`), with a
+yellow fallback on 8-color terminals.
 
 ### High-contrast AAA theme & OS theme follow
 
