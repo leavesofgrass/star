@@ -304,3 +304,24 @@ def test_reenabling_follow_os_rearms_auto_detect(window):
     dlg.follow_os.setChecked(True)  # re-enable; theme left unchanged
     dlg._apply()
     assert window.settings.get("qt_theme_explicit") is False
+
+
+def test_apply_announces_to_screen_readers(window, monkeypatch):
+    """Apply must announce() — the status bar is invisible to screen readers."""
+    import star.gui.preferences as prefs_mod
+
+    spoken = []
+    monkeypatch.setattr(prefs_mod, "announce", lambda _w, msg: spoken.append(msg))
+    dlg = _dialog(window)
+    dlg._apply()
+    assert any("applied" in m.lower() for m in spoken), spoken
+    # A deliberate theme change is announced by name, once.
+    other = next(
+        dlg.theme_box.itemText(i)
+        for i in range(dlg.theme_box.count())
+        if dlg.theme_box.itemText(i) != dlg._orig_theme
+    )
+    spoken.clear()
+    dlg.theme_box.setCurrentText(other)
+    dlg._apply()
+    assert any(other in m for m in spoken), spoken

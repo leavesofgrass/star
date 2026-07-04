@@ -24,6 +24,7 @@ except ImportError:  # PyQt5 fallback
 from ..i18n import tr
 from ..settings import DEFAULTS
 from ..themes import BUILT_IN_THEME_NAMES
+from .a11y import announce
 
 # RSVP position keys, in the overlay's own dict order (top→bottom, left→right).
 _RSVP_POSITIONS = [
@@ -619,12 +620,18 @@ class PreferencesDialog(QDialog):
         # override it on the next launch.  Conversely, ticking "Follow OS theme"
         # without changing the theme re-arms OS auto-detection by clearing the flag.
         new_theme = str(self.settings.get("theme", "obsidian"))
-        if new_theme != self._orig_theme:
+        theme_changed = new_theme != self._orig_theme
+        if theme_changed:
             self.settings._data["qt_theme_explicit"] = True
         elif self.follow_os.isChecked() and not self._orig_follow_os:
             self.settings._data["qt_theme_explicit"] = False
         try:
             win._apply_qt_theme(new_theme)
+            if theme_changed:
+                # Mirror the menu pickers so screen-reader users hear the
+                # switch (the status bar is not spoken by Qt's a11y bridge).
+                announce(win.editor, tr("Theme: {name}").format(name=new_theme))
+                self._orig_theme = new_theme  # Apply twice ≠ announce twice
         except Exception:
             pass
 
@@ -676,5 +683,10 @@ class PreferencesDialog(QDialog):
 
         try:
             win.statusBar().showMessage(tr("Preferences applied"))
+        except Exception:
+            pass
+        try:
+            # The status bar is invisible to screen readers — announce too.
+            announce(win.editor, tr("Preferences applied"))
         except Exception:
             pass

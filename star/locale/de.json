@@ -495,5 +495,9 @@
   "Change display font (Ctrl+Alt+F)": "Anzeigeschriftart ändern (Ctrl+Alt+F)",
   "  Space:play/pause  Enter:read-here  Tab:speech-cursor  Ctrl+T:voice  Ctrl+X:stop  ,/.:sent  [/]:para  {/}:head-scroll  </>:read-head  ;:replay-sent  r:replay-para  Ctrl-F:search  +/-:speed  F2:commands  F1:help  Ctrl-Q:quit": "  Space:Wiedergabe/Pause  Enter:ab-hier-lesen  Tab:Sprechcursor  Ctrl+T:Stimme  Ctrl+X:Stopp  ,/.:Satz  [/]:Abs.  {/}:zur-Übersch.  </>:Übersch.-lesen  ;:Satz-wdh.  r:Abs.-wdh.  Ctrl-F:Suche  +/-:Tempo  F2:Befehle  F1:Hilfe  Ctrl-Q:Beenden",
   "Switch the menus, toolbar, and messages to {language}": "Menüs, Symbolleiste und Meldungen auf {language} umstellen",
-  "Could not open {title}": "{title} konnte nicht geöffnet werden"
+  "Could not open {title}": "{title} konnte nicht geöffnet werden",
+  "Reading font: Default": "Leseschriftart: Standard",
+  "Enabling reading font ({name}) — fetching if needed…": "Leseschriftart ({name}) wird aktiviert — wird bei Bedarf geladen…",
+  "Reading font: {name} — applied across the UI": "Leseschriftart: {name} — auf die gesamte Oberfläche angewendet",
+  "{name} unavailable (offline?) — install it or try again": "{name} nicht verfügbar (offline?) — installieren oder erneut versuchen"
 }

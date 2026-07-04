@@ -7,6 +7,7 @@ lazily by main_window.py (itself imported by runner.py after the _QT guard).
 """
 from .._runtime import *  # noqa: F401,F403
 from ..i18n import tr
+from .a11y import announce
 from ..tui.text import _shortcuts_text
 
 
@@ -269,20 +270,29 @@ class CommandsMixin:
         self._sync_reading_font_menu()
         if hasattr(self, "_dyslexia_font_act"):
             self._dyslexia_font_act.setChecked(key != "default")
+        # Each outcome is announced as well as shown: the status bar is not
+        # spoken by Qt's a11y bridge, and reading fonts are first and foremost
+        # an accessibility feature — the failure case matters most.
         if key == "default":
             self._apply_dyslexia_font(False)
-            self.statusBar().showMessage("Reading font: Default")
+            msg = tr("Reading font: Default")
+            self.statusBar().showMessage(msg)
+            announce(self.editor, msg)
             return
         label = next((lbl for lbl, k in self._READING_FONT_CHOICES if k == key), key)
-        self.statusBar().showMessage(f"Enabling reading font ({label}) — fetching if needed…")
+        self.statusBar().showMessage(
+            tr("Enabling reading font ({name}) — fetching if needed…").format(name=label)
+        )
         QApplication.processEvents()
         fam = self._apply_dyslexia_font(True, fetch=True)
         if fam:
-            self.statusBar().showMessage(f"Reading font: {fam} — applied across the UI")
+            msg = tr("Reading font: {name} — applied across the UI").format(name=fam)
         else:
-            self.statusBar().showMessage(
-                f"{label} unavailable (offline?) — install it or try again"
+            msg = tr("{name} unavailable (offline?) — install it or try again").format(
+                name=label
             )
+        self.statusBar().showMessage(msg)
+        announce(self.editor, msg)
 
     def _sync_reading_font_menu(self) -> None:
         """Tick the reading-font submenu radio item matching the current key."""

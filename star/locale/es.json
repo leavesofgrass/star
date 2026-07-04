@@ -495,5 +495,9 @@
   "Change display font (Ctrl+Alt+F)": "Cambiar la fuente de visualización (Ctrl+Alt+F)",
   "  Space:play/pause  Enter:read-here  Tab:speech-cursor  Ctrl+T:voice  Ctrl+X:stop  ,/.:sent  [/]:para  {/}:head-scroll  </>:read-head  ;:replay-sent  r:replay-para  Ctrl-F:search  +/-:speed  F2:commands  F1:help  Ctrl-Q:quit": "  Space:reproducir/pausar  Enter:leer-aquí  Tab:cursor-de-lectura  Ctrl+T:voz  Ctrl+X:detener  ,/.:frase  [/]:párr.  {/}:ir-a-encab.  </>:leer-encab.  ;:repetir-frase  r:repetir-párr.  Ctrl-F:buscar  +/-:velocidad  F2:comandos  F1:ayuda  Ctrl-Q:salir",
   "Switch the menus, toolbar, and messages to {language}": "Cambiar los menús, la barra de herramientas y los mensajes a {language}",
-  "Could not open {title}": "No se pudo abrir {title}"
+  "Could not open {title}": "No se pudo abrir {title}",
+  "Reading font: Default": "Fuente de lectura: predeterminada",
+  "Enabling reading font ({name}) — fetching if needed…": "Activando la fuente de lectura ({name}) — descargando si es necesario…",
+  "Reading font: {name} — applied across the UI": "Fuente de lectura: {name} — aplicada en toda la interfaz",
+  "{name} unavailable (offline?) — install it or try again": "{name} no disponible (¿sin conexión?) — instálala o vuelve a intentarlo"
 }
