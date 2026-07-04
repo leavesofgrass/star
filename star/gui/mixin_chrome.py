@@ -616,14 +616,6 @@ class ChromeMixin:
                 tip="Adjust line height, letter and word spacing (WCAG 1.4.12)",
             )
         )
-        aids_menu.addAction(
-            _mi(
-                "Karaoke Highlight…",
-                "Ctrl+Alt+K",
-                self._qt_karaoke_dialog,
-                tip="Tune the spoken-word highlight style, color, speed and lead",
-            )
-        )
         aids_menu.addSeparator()
         # ── Reading Font chooser (Default / OpenDyslexic / Atkinson / Lexend) ─
         # Each choice fetches its OFL font from GitHub on demand (no pip) and
@@ -696,14 +688,6 @@ class ChromeMixin:
             checked=bool(self.settings.get("qt_reading_ruler", False)),
         )
         aids_menu.addAction(self._ruler_act)
-        aids_menu.addAction(
-            _mi(
-                "Reading Ruler…",
-                "",
-                self._qt_reading_ruler_dialog,
-                tip="Adjust the reading ruler's height and opacity",
-            )
-        )
         self._vocab_act = _mi(
             "Highlight Difficult Words",
             "Ctrl+Alt+O",
@@ -731,14 +715,6 @@ class ChromeMixin:
             checked=bool(self.settings.get("qt_rsvp_mode", False)),
         )
         aids_menu.addAction(self._rsvp_act)
-        aids_menu.addAction(
-            _mi(
-                "RSVP Position…",
-                "",
-                self._qt_rsvp_position_dialog,
-                tip="Choose which screen quadrant the RSVP word appears in",
-            )
-        )
 
         # ── Interface language (UI i18n) ───────────────────────────────
         # Localizes the chrome (menus, toolbar, docks).  Native language
@@ -757,6 +733,15 @@ class ChromeMixin:
 
         # Tools menu — transcription, dictation, and maintenance.
         tools_menu: QMenu = mb.addMenu(tr("Tools"))
+        tools_menu.addAction(
+            _mi(
+                "Preferences…",
+                "Ctrl+,",
+                self._qt_preferences,
+                tip="All reader settings in one place (Reading, Voice, Display, General)",
+            )
+        )
+        tools_menu.addSeparator()
         tools_menu.addAction(
             _mi(
                 "Install Optional Features…",

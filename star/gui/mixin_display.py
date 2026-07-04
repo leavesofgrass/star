@@ -77,6 +77,14 @@ class DisplayMixin:
         self.editor.setExtraSelections([])
         self.tts_manager._backend.speak(f"Voice changed to {voice_name}.")
 
+    def _qt_preferences(self) -> None:
+        """Open the centralized tabbed Preferences dialog (Tools ▸ Preferences,
+        Ctrl+,).  Gathers Reading, Voice, Display, and General settings that were
+        previously scattered across per-feature dialogs; OK/Apply write and apply,
+        Cancel changes nothing."""
+        from .preferences import PreferencesDialog
+        PreferencesDialog(self).exec()
+
     def _apply_qt_theme(self, theme_name: str) -> None:
         """Apply *theme_name* to the editor widget and re-render.
 
