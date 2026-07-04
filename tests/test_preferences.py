@@ -158,6 +158,19 @@ def test_palette_registers_tuning_dialogs(window):
         assert want in labels, f"palette lost {want!r}"
 
 
+def test_highlight_master_toggle_writes_and_gates_rows(window):
+    """The Reading tab's master switch writes highlight_current_word and
+    grays out the dependent karaoke rows while unchecked."""
+    dlg = _dialog(window)
+    assert dlg.hl_master.isChecked() is True  # shipped default
+    dlg.hl_master.setChecked(False)
+    assert all(not dep.isEnabled() for dep in dlg._hl_dependents)
+    dlg._write_settings()
+    assert window.settings.get("highlight_current_word") is False
+    dlg.hl_master.setChecked(True)
+    assert all(dep.isEnabled() for dep in dlg._hl_dependents)
+
+
 def test_apply_fires_live_hooks_with_picked_values(window):
     """_apply() must actually invoke every live-effect hook with the staged
     values — the hooks are try/except-guarded, so without these spies a hook

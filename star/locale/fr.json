@@ -489,5 +489,7 @@
   "Use theme": "Utiliser le thème",
   "Volume:": "Volume :",
   "Word color:": "Couleur du mot :",
-  "Word highlight color": "Couleur de surlignage du mot"
+  "Word highlight color": "Couleur de surlignage du mot",
+  "Spoken-word highlight:": "Surlignage du mot prononcé :",
+  "Highlight the word being spoken": "Surligner le mot en cours de lecture"
 }

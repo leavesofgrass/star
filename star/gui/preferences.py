@@ -171,6 +171,13 @@ class PreferencesDialog(QDialog):
         w = QWidget()
         form = QFormLayout(w)
 
+        # Master switch: everything karaoke-related below grays out with it.
+        self.hl_master = QCheckBox(tr("Highlight the word being spoken"))
+        self.hl_master.setChecked(
+            bool(self.settings.get("highlight_current_word", True))
+        )
+        form.addRow(tr("Spoken-word highlight:"), self.hl_master)
+
         self.style_box = QComboBox()
         self.style_box.addItems(_HIGHLIGHT_STYLES)
         cur = str(self.settings.get("highlight_style", "background"))
@@ -179,19 +186,15 @@ class PreferencesDialog(QDialog):
         )
         form.addRow(tr("Highlight style:"), self.style_box)
 
-        form.addRow(
-            tr("Word color:"),
-            self._make_swatch(
-                self._hl_color, False, name=tr("Word highlight color")
-            ),
+        hl_swatch = self._make_swatch(
+            self._hl_color, False, name=tr("Word highlight color")
         )
-        form.addRow(
-            tr("Sentence color:"),
-            self._make_swatch(
-                self._sent_color, True,
-                name=tr("Sentence highlight color"),
-            ),
+        form.addRow(tr("Word color:"), hl_swatch)
+        sent_swatch = self._make_swatch(
+            self._sent_color, True,
+            name=tr("Sentence highlight color"),
         )
+        form.addRow(tr("Sentence color:"), sent_swatch)
 
         self.speed_spin = QDoubleSpinBox()
         self.speed_spin.setRange(0.5, 1.5)
@@ -212,6 +215,21 @@ class PreferencesDialog(QDialog):
             _HIGHLIGHT_GRANS.index(curg) if curg in _HIGHLIGHT_GRANS else 0
         )
         form.addRow(tr("Highlight granularity:"), self.gran_box)
+
+        # Gray out the karaoke rows when the master switch is off (the values
+        # are still written on apply — they simply have no effect until it is
+        # back on, mirroring _apply_word_highlight's paint gate).
+        self._hl_dependents = (
+            self.style_box, hl_swatch, sent_swatch,
+            self.speed_spin, self.lead_spin, self.gran_box,
+        )
+
+        def _sync_hl_enabled(on: bool) -> None:
+            for dep in self._hl_dependents:
+                dep.setEnabled(on)
+
+        self.hl_master.toggled.connect(_sync_hl_enabled)
+        _sync_hl_enabled(self.hl_master.isChecked())
 
         # Reading ruler.
         self.ruler_height = QSpinBox()
@@ -454,6 +472,7 @@ class PreferencesDialog(QDialog):
             box.setCurrentIndex(options.index(val) if val in options else 0)
 
         # Reading.
+        self.hl_master.setChecked(bool(D["highlight_current_word"]))
         _combo(self.style_box, _HIGHLIGHT_STYLES, "highlight_style")
         self._hl_color["v"] = str(D["highlight_color"])
         self._hl_color["repaint"]()
@@ -502,6 +521,7 @@ class PreferencesDialog(QDialog):
         """Write every widget value into ``settings._data`` (no save yet)."""
         d = self.settings._data
         # Reading.
+        d["highlight_current_word"] = self.hl_master.isChecked()
         d["highlight_style"] = self.style_box.currentText()
         d["highlight_color"] = self._hl_color["v"]
         d["sentence_highlight_color"] = self._sent_color["v"]

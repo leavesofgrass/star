@@ -245,9 +245,15 @@ class PlaybackMixin:
         cursor.setPosition(char_pos)
         cursor.setPosition(char_pos + word_len, _KEEP_ANCHOR)
 
+        # Master switch (Preferences ▸ Reading ▸ Spoken-word highlight): when
+        # off, only the persistent user highlights are painted — but cursor
+        # tracking, autoscroll, the status line, and the RSVP feed stay alive,
+        # so the aid can be disabled without killing the rest of the pipeline.
+        paint = bool(self.settings.get("highlight_current_word", True))
+
         # Optional current-line band: a full-width tint behind the line
         # being read, drawn *under* the word highlight (a reading aid).
-        if self.settings.get("qt_current_line_highlight", False):
+        if paint and self.settings.get("qt_current_line_highlight", False):
             pal = self._effective_palette(self.settings.get("theme", "dark"))
             band = QColor(str(pal.get("sel", "#2c313a")))
             line_fmt = QTextCharFormat()
@@ -268,7 +274,7 @@ class PlaybackMixin:
         # the sentence gets a softer band and the word is marked on top.
         gran = str(self.settings.get("highlight_granularity", "word"))
         sent_cursor = None
-        if gran in ("sentence", "both") and self._qt_sentence_starts:
+        if paint and gran in ("sentence", "both") and self._qt_sentence_starts:
             ss = self._qt_sentence_starts
             si = self._qt_find_sentence_idx(vis_idx)
             s_word = ss[si] if si < len(ss) else vis_idx
@@ -291,7 +297,10 @@ class PlaybackMixin:
                 sent_cursor.setPosition(s_char)
                 sent_cursor.setPosition(e_char, _KEEP_ANCHOR)
 
-        if gran == "sentence" and sent_cursor is not None:
+        if not paint:
+            # Master toggle off — keep only the persistent user highlights.
+            self.editor.setExtraSelections(selections)
+        elif gran == "sentence" and sent_cursor is not None:
             # Highlight the entire sentence; no separate per-word mark.
             sel = QTextEdit.ExtraSelection()
             sel.format = self._hl_fmt

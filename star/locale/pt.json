@@ -489,5 +489,7 @@
   "Use theme": "Usar tema",
   "Volume:": "Volume:",
   "Word color:": "Cor da palavra:",
-  "Word highlight color": "Cor de destaque da palavra"
+  "Word highlight color": "Cor de destaque da palavra",
+  "Spoken-word highlight:": "Destaque da palavra falada:",
+  "Highlight the word being spoken": "Destacar a palavra sendo falada"
 }

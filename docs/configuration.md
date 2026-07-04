@@ -57,7 +57,7 @@ Open it from the TUI with `M-x settings`.
 | `subtitle_format` | `"srt"` | Caption format for subtitle export: `srt` or `vtt` |
 | `subtitle_word_level` | `false` | Emit one subtitle cue per word instead of sentence-grouped cues |
 | `export_subtitles_with_audio` | `false` | Also write an SRT/VTT caption track next to every audio export |
-| `highlight_current_word` | `true` | Highlight the spoken word during TTS |
+| `highlight_current_word` | `true` | Highlight the spoken word during TTS (master switch — **Edit ▸ Preferences… ▸ Reading**; off keeps autoscroll, the status line, and RSVP alive but paints no karaoke highlight) |
 | `highlight_color` | `"cyan"` | TTS word highlight color (any Qt/CSS color name or `#rrggbb`) |
 | `sentence_highlight_color` | `""` | Sentence-band color in the `both` highlight granularity; empty = follow the theme's selection color (pickable in **Edit ▸ Preferences… (Ctrl+,)**, or live via the Command Palette (F2) **Tune Karaoke Highlight…**) |
 | `highlight_style` | `"background"` | Qt karaoke highlight style: `background` (filled), `underline`, `box` (wavy underline), `bold`, `color` (colored text) |
