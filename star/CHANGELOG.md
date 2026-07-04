@@ -54,6 +54,18 @@ that existed only on paper.
 
 ### 🐛 Fixed
 
+- **Failed opens no longer masquerade as success.** A file that couldn't be
+  opened used to toast "Opened: Error", enter the recent-files list, and —
+  with auto-play on — read the raw error text aloud in the terminal. Both
+  UIs now say "Could not open …" plainly and leave recents alone.
+- **A corrupt settings file is backed up, not silently erased.** Preferences,
+  reading positions, and highlights now survive as a timestamped `.bak`, and
+  star tells you what happened instead of quietly starting fresh.
+- **A failing cloud voice speaks up.** An invalid ElevenLabs key or an outage
+  used to "read" the document in total silence; star now says the cloud
+  voice failed and continues aloud with a local voice.
+- **Terminal caret no longer jumps documents.** Opening a new file resets the
+  reading caret instead of carrying an arbitrary position across.
 - **Voice favorites and the difficult-words toggle now persist.** Both were
   silently dropped on every restart (their keys were missing from the settings
   schema the loader accepts).
@@ -82,6 +94,14 @@ that existed only on paper.
   apply-hook spies, Restore-Defaults staging, theme-explicit both ways) and a
   CI coverage floor for the dialog module; the accessibility pass gives the
   color swatches screen-reader names.
+- **Errors look, sound, and persist like errors.** Terminal error toasts are
+  styled and logged to a `tui.log` beside your settings; GUI failures
+  (save, exports, transcription) persist in the status bar and are spoken to
+  screen readers; Preferences Apply and reading-font changes are announced.
+  Transcription without ffmpeg now explains itself up front.
+- The welcome page's speed-key hint was wrong (and it now greets terminal
+  readers too); the manual documents the terminal caret keys; a new test
+  keeps every settings key documented automatically.
 
 ---
 
