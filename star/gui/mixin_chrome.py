@@ -477,6 +477,17 @@ class ChromeMixin:
                 ("Check Spelling", self._qt_check_spelling),
             ],
         )
+        # Preferences lives at the foot of Edit (the conventional home for an
+        # app's settings), added via _mi so it keeps a tooltip.
+        edit_menu.addSeparator()
+        edit_menu.addAction(
+            _mi(
+                "Preferences…",
+                "Ctrl+,",
+                self._qt_preferences,
+                tip="All reader settings in one place (Reading, Voice, Display, General)",
+            )
+        )
 
         # Citations menu.
         _menu(
@@ -733,15 +744,6 @@ class ChromeMixin:
 
         # Tools menu — transcription, dictation, and maintenance.
         tools_menu: QMenu = mb.addMenu(tr("Tools"))
-        tools_menu.addAction(
-            _mi(
-                "Preferences…",
-                "Ctrl+,",
-                self._qt_preferences,
-                tip="All reader settings in one place (Reading, Voice, Display, General)",
-            )
-        )
-        tools_menu.addSeparator()
         tools_menu.addAction(
             _mi(
                 "Install Optional Features…",
