@@ -160,7 +160,7 @@ jobs:
         # single collected data file.
         shell: bash
         run: |
-          bash tools/ci-pytest.sh python -m pytest --cov=star.tts --cov=star.documents --cov=star.render --cov=star.citations --cov=star.obsidian --cov=star.graph --cov=star.markup --cov=star.ttstext --cov=star.dictionary --cov=star.autodeps --cov=star.library --cov=star.export --cov-report=term-missing
+          bash tools/ci-pytest.sh python -m pytest --cov=star.tts --cov=star.documents --cov=star.render --cov=star.citations --cov=star.obsidian --cov=star.graph --cov=star.markup --cov=star.ttstext --cov=star.dictionary --cov=star.autodeps --cov=star.library --cov=star.export --cov=star.gui.preferences --cov-report=term-missing
           python -m coverage report --include="*/tts/*.py" --fail-under=30
           python -m coverage report --include="*/documents/*.py" --fail-under=32
           python -m coverage report --include="*/render.py" --fail-under=70
@@ -176,6 +176,11 @@ jobs:
           # optional Pandoc stack (the CI base install) those paths don't run, so
           # the achievable floor is the Markdown-exporter path (~59%).
           python -m coverage report --include="*/export.py" --fail-under=55
+          # First star.gui module under the gate: the Preferences dialog's
+          # apply-hooks are its fragile core and tests/test_preferences.py
+          # alone deterministically covers ~88% (offscreen QPA; PyQt6 is a
+          # core dependency, so this job always runs the GUI tests).
+          python -m coverage report --include="*/gui/preferences.py" --fail-under=85
 
   lint:
     name: lint (ruff)
