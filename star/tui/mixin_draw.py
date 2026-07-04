@@ -299,11 +299,17 @@ class DrawMixin:
         status_row = h - 3
         hints_row = h - 2
 
-        # Timed message
+        # Timed message.  Errors paint with the theme's error attr (previously
+        # unused for toasts — error and info messages looked identical).
         if self.message and (time.monotonic() - self.message_t) < self.message_dur:
-            _fillrow(self.scr, status_row, self._a("status"))
+            msg_attr = (
+                self._a("error")
+                if getattr(self, "message_error", False)
+                else self._a("status")
+            )
+            _fillrow(self.scr, status_row, msg_attr)
             _addstr(
-                self.scr, status_row, 0, f" {self.message}"[: w - 1], self._a("status")
+                self.scr, status_row, 0, f" {self.message}"[: w - 1], msg_attr
             )
         else:
             self.message = ""

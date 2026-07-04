@@ -100,6 +100,19 @@ class TranscriptionMixin:
         """Transcribe an audio file with Whisper and open it as a document."""
         if not self._qt_require_optional_feature("transcribe", tr("Speech recognition")):
             return
+        # Whisper decodes audio through ffmpeg; without it the failure is a
+        # baffling "[WinError 2] The system cannot find the file specified"
+        # AFTER the model loads.  Pre-check like the M4B exporter does.
+        from ..audiobook import find_ffmpeg
+
+        if not find_ffmpeg():
+            QMessageBox.warning(
+                self,
+                "Transcribe Audio",
+                "Transcription needs ffmpeg to decode the audio file.\n\n"
+                "Install ffmpeg and make sure it is on your PATH, then try again.",
+            )
+            return
         src, _flt = QFileDialog.getOpenFileName(
             self,
             "Transcribe Audio",
@@ -126,7 +139,8 @@ class TranscriptionMixin:
     def _qt_on_transcribed(self, text: str, src: str) -> None:
         """Main-thread handler for a completed transcription."""
         if src.startswith("ERROR: "):
-            self.statusBar().showMessage(src[7:])
+            # Say what failed, not just the naked exception text.
+            self._status_error(f"Transcription failed: {src[7:]}")
             return
         if not text:
             self.statusBar().showMessage("Transcription produced no text")

@@ -31,7 +31,7 @@ class CitationsMixin:
         try:
             imported = _import_citations(src)
         except Exception as exc:  # noqa: BLE001
-            self.statusBar().showMessage(f"Import error: {exc}")
+            self._status_error(f"Import error: {exc}")
             return
         existing = self._qt_load_citations()
         by_id = {c.get("id"): c for c in existing if c.get("id")}
@@ -74,7 +74,7 @@ class CitationsMixin:
                 f"Exported {len(items)} citation(s) → {dest}"
             )
         except OSError as exc:
-            self.statusBar().showMessage(f"Export error: {exc}")
+            self._status_error(f"Export error: {exc}")
 
     def _qt_add_citation(self) -> None:
         """Add a citation to the library by hand (a few quick prompts)."""

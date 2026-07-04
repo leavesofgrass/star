@@ -272,7 +272,7 @@ class AnnotationsMixin:
             Path(dest).write_text(content, encoding="utf-8")
             self.statusBar().showMessage(f"Exported {len(items)} note(s) → {dest}")
         except OSError as exc:
-            self.statusBar().showMessage(f"Export error: {exc}")
+            self._status_error(f"Export error: {exc}")
 
     def _qt_export_anki(self) -> None:
         """Export the current document's notes as an Anki deck (.apkg).
@@ -326,5 +326,5 @@ class AnnotationsMixin:
             )
         except Exception as exc:  # noqa: BLE001
             QMessageBox.warning(self, "Anki export failed", str(exc))
-            self.statusBar().showMessage(f"Anki export error: {exc}")
+            self._status_error(f"Anki export error: {exc}")
 

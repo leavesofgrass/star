@@ -1,4 +1,6 @@
 """The curses terminal user interface (StarApp)."""
+import logging as _logging
+
 from .._runtime import *  # noqa: F401,F403
 from ..i18n import set_language
 from .theming import _setup_colors
@@ -26,6 +28,29 @@ from .mixin_annotations import AnnotationsMixin
 from .mixin_caret import CaretMixin
 from .mixin_keys import KeysMixin
 from .mixin_draw import DrawMixin
+
+_log = _logging.getLogger("star.tui")
+
+
+def _ensure_tui_log_handler() -> None:
+    """Attach a file handler to the TUI logger once (best-effort).
+
+    curses owns the screen, so a log file next to settings.json is the only
+    durable place errors and the main-loop guard's tracebacks can go.
+    delay=True means the file is not even created until something logs."""
+    if any(isinstance(h, _logging.FileHandler) for h in _log.handlers):
+        return
+    try:
+        handler = _logging.FileHandler(
+            SETTINGS_FILE.parent / "tui.log", encoding="utf-8", delay=True
+        )
+        handler.setFormatter(
+            _logging.Formatter("%(asctime)s %(levelname)s %(message)s")
+        )
+        _log.addHandler(handler)
+        _log.setLevel(_logging.WARNING)
+    except OSError:
+        pass
 
 
 class StarApp(
@@ -62,6 +87,8 @@ class StarApp(
         self.message = ""
         self.message_t = 0.0
         self.message_dur = 4.0
+        self.message_error = False  # paints with the theme's error attr
+        self._last_internal_error = ""  # dedup for the run()-loop guard
         self.mode = "normal"  # "normal" | "mx" | "search" | "goto"
         self.mx_ed = LineEditor()
         self.mx_completions: List[str] = []
@@ -136,6 +163,9 @@ class StarApp(
         # TTS word highlight callback
         self.tts.set_on_highlight(self._on_highlight)
 
+        # Errors need somewhere durable to go (see _ensure_tui_log_handler).
+        _ensure_tui_log_handler()
+
         # If the settings file was corrupt, _load reset to defaults and saved a
         # backup — tell the user once instead of resetting invisibly.
         if getattr(settings, "load_error", ""):
@@ -191,9 +221,13 @@ class StarApp(
     def notify(self, msg: str, dur: float = 4.0, error: bool = False) -> None:
         self.message = msg
         self.message_t = time.monotonic()
-        self.message_dur = dur
+        # Errors linger longer, paint with the theme's error attr, and are
+        # logged — curses owns the screen, so ~/.../star/tui.log is the only
+        # durable place a failure can go once the toast expires.
+        self.message_dur = max(dur, 8.0) if error else dur
+        self.message_error = error
         if error:
-            pass  # Could pipe to log
+            _log.warning("%s", msg)
 
     # ── Main run loop ──────────────────────────────────────────────────
 
@@ -209,8 +243,16 @@ class StarApp(
                 self._handle_key(ch)
             except KeyboardInterrupt:
                 break
-            except Exception:
-                pass
+            except Exception as exc:
+                # Never crash the terminal UI — but never hide the failure
+                # either: log the traceback and toast once per distinct error
+                # (the dedup guards against a per-tick exception storm from a
+                # broken draw path flooding the log and the status row).
+                sig = f"{type(exc).__name__}: {exc}"
+                if sig != self._last_internal_error:
+                    self._last_internal_error = sig
+                    _log.exception("TUI main-loop error")
+                    self.notify(f"Internal error: {exc}", error=True)
         self.tts.stop()
         try:
             self.stats.tick(False, self.doc.path if self.doc else "")

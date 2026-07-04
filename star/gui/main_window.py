@@ -483,12 +483,26 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         # Wire the feature-install completion callback → main thread.
         self._deps_installed_signal.connect(self._on_feature_installed, _QUEUED)
         # Wire the audio-export completion signal → status bar update.
+        # Export completions AND failures both arrive here as plain text;
+        # route failures through the persistent, announced error surface so
+        # they are neither wiped by the next routine update nor silent to
+        # screen readers.
         self._export_audio_signal.connect(
-            lambda msg: self.statusBar().showMessage(msg), _QUEUED
+            lambda msg: (
+                self._status_error(msg)
+                if "error" in msg.lower()
+                else self.statusBar().showMessage(msg)
+            ),
+            _QUEUED,
         )
         # Batch-conversion progress / completion (background thread).
         self._batch_progress_signal.connect(
-            lambda msg: self.statusBar().showMessage(msg), _QUEUED
+            lambda msg: (
+                self._status_error(msg)
+                if "error" in msg.lower()
+                else self.statusBar().showMessage(msg)
+            ),
+            _QUEUED,
         )
         self._batch_done_signal.connect(self._on_batch_done, _QUEUED)
         self._watch_signal.connect(

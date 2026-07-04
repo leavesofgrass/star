@@ -12,6 +12,25 @@ from .a11y import announce
 
 
 class DisplayMixin:
+    # ── Status-bar helpers ───────────────────────────────────────────────
+    # The bare showMessage default lingers forever and treats failures the
+    # same as routine notes; these two make intent explicit.
+
+    def _status(self, msg: str, ms: int = 6000) -> None:
+        """Transient status note — clears itself so stale progress text
+        ("Exporting …") never outlives the work."""
+        self.statusBar().showMessage(msg, ms)
+
+    def _status_error(self, msg: str) -> None:
+        """Failure surface: persistent (no timeout) + spoken via announce(),
+        so an error is not missed while looking away and reaches screen
+        readers (QStatusBar alone is invisible to them)."""
+        self.statusBar().showMessage(msg)
+        try:
+            announce(self.editor, msg)
+        except Exception:
+            pass
+
     # ── Display options ─────────────────────────────────────────────────────
 
     def _rate_change(self, delta: int) -> None:

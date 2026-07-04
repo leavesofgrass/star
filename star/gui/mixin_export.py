@@ -142,7 +142,7 @@ class ExportMixin:
             self._watcher.start()
         except Exception as exc:
             self._watcher = None
-            self.statusBar().showMessage(f"Watch error: {exc}")
+            self._status_error(f"Watch error: {exc}")
             return
         self._watch_action.setText("Stop Watching Folder")
         self.statusBar().showMessage(f"Watching {in_dir} → {out_dir}  [{fmt}]")
@@ -163,7 +163,7 @@ class ExportMixin:
             Path(dest).write_text(self.doc.markdown, encoding="utf-8")
             self.statusBar().showMessage(f"Exported Markdown → {dest}")
         except OSError as e:
-            self.statusBar().showMessage(f"Export error: {e}")
+            self._status_error(f"Export error: {e}")
 
     def _qt_export_pdf(self) -> None:
         """Save the current document as a PDF (via Qt's built-in printer).
@@ -247,7 +247,7 @@ class ExportMixin:
             Path(dest).write_text(brf, encoding="utf-8")
             self.statusBar().showMessage(f"Exported BRF → {dest}")
         except OSError as e:
-            self.statusBar().showMessage(f"Export error: {e}")
+            self._status_error(f"Export error: {e}")
 
     def _qt_export_audio(self) -> None:
         """Export the full document as a TTS audio file.
@@ -443,7 +443,7 @@ class ExportMixin:
                     if "cancelled" in err.lower():
                         self.statusBar().showMessage("Audiobook export cancelled")
                     else:
-                        self.statusBar().showMessage(f"Audiobook export error: {err}")
+                        self._status_error(f"Audiobook export error: {err}")
                 else:
                     self.statusBar().showMessage(f"Audiobook exported → {dest}")
 

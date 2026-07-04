@@ -232,7 +232,7 @@ class EditNavMixin:
                 orig.write_text(new_md, encoding="utf-8")
                 saved_path = str(orig)
             except OSError as exc:
-                self.statusBar().showMessage(f"Save error: {exc}")
+                self._status_error(f"Save error: {exc}")
                 return
         else:
             # Binary or non-text format — prompt for a .md path.
@@ -250,7 +250,7 @@ class EditNavMixin:
                 Path(dest).write_text(new_md, encoding="utf-8")
                 saved_path = dest
             except OSError as exc:
-                self.statusBar().showMessage(f"Save error: {exc}")
+                self._status_error(f"Save error: {exc}")
                 return
 
         # --- update in-memory document ---------------------------------
