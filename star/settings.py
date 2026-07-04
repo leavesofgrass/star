@@ -47,6 +47,10 @@ DEFAULTS: Dict[str, Any] = {
     "tts_volume": 1.0,  # 0.0 – 1.0
     "tts_voice": "",  # empty = system default (auto-resolved per platform)
     "tts_prefer_voice": "eloquence",  # substring of a preferred default voice
+    # Voice Manager favorites (F4): starred voice ids.  Must live in DEFAULTS —
+    # _load() only accepts known keys, so an unseeded key written at runtime
+    # would be silently dropped on the next launch.
+    "tts_favorite_voices": [],
     # Opt-in ElevenLabs cloud neural voice.  Empty = disabled (no network egress);
     # paste a key AND select the "elevenlabs" engine to enable.  See star/tts/cloud.
     "elevenlabs_api_key": "",
@@ -196,6 +200,9 @@ DEFAULTS: Dict[str, Any] = {
     "qt_reading_font": "default",
     "qt_current_line_highlight": False,  # band-highlight the line being read
     "qt_bionic_reading": False,  # embolden the leading part of each word
+    # Highlight Difficult Words overlay (Ctrl+Alt+O).  Seeded here so the
+    # toggle's state survives restarts (see tts_favorite_voices note above).
+    "qt_vocab_highlight": False,
     # ── Syllable splitting (offline decoding aid, needs pyphen) ────
     # Display-only: inserts a middot between syllables (read·a·bil·i·ty) in the
     # rendered document; never alters the TTS text or the highlight word map.
