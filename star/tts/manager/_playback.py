@@ -131,8 +131,35 @@ class PlaybackMixin:
         else:
             self._expect_callbacks = False
             self._paced_playback = False
+
+            # Cloud backends synthesize inside their worker thread, so a
+            # present-but-invalid key (HTTP 401) or a mid-session outage fails
+            # AFTER speak() returns — recorded on backend.last_error, not
+            # raised.  Wrap on_done to detect that, fall back to a local
+            # engine, and retry the same utterance once, so the document never
+            # "reads" silently while the highlight advances.  The timer-gen
+            # guard skips the retry if the user stopped or restarted speech.
+            final_on_done = on_done
+            if hasattr(self._backend, "last_error"):
+                _cloud_gen = self._timer_gen
+
+                def _on_done_cloud(orig: Callable[[], None] = on_done) -> None:
+                    err = str(getattr(self._backend, "last_error", "") or "")
+                    if err and self._timer_gen == _cloud_gen:
+                        try:
+                            self.last_engine_error = (
+                                f"Cloud voice failed ({err}) — using a local voice"
+                            )
+                            self._select_backend("auto")
+                            self._backend.speak(text, on_done=orig)
+                            return  # speech continues on the fallback engine
+                        except Exception:
+                            pass  # fall through: end the utterance normally
+                    orig()
+
+                final_on_done = _on_done_cloud
             try:
-                self._backend.speak(text, on_done=on_done)
+                self._backend.speak(text, on_done=final_on_done)
             except CloudTTSError:
                 # An opt-in cloud voice failed at synth time (missing key or a
                 # network error).  Fall back to a local engine with timer-only

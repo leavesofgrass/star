@@ -206,6 +206,11 @@ class CloudBackend(TTSBackend):
             )
         self._speaking = True
         self._stop_flag.clear()
+        # Cleared per utterance; the worker records synth/playback failures
+        # here (it cannot raise across threads).  The manager inspects it in
+        # its on_done wrapper to fall back to a local engine — without this,
+        # a present-but-invalid key (HTTP 401) "reads" the document silently.
+        self.last_error = ""
 
         def _run() -> None:
             tmp_path = ""
@@ -224,10 +229,10 @@ class CloudBackend(TTSBackend):
                         stderr=subprocess.DEVNULL,
                     )
                     self._play_proc.wait()
-            except CloudTTSError:
-                pass  # already recoverable; utterance is silent, on_done fires
-            except Exception:
-                pass
+            except CloudTTSError as e:
+                self.last_error = str(e)  # e.g. "elevenlabs: HTTP 401 …"
+            except Exception as e:
+                self.last_error = f"{type(e).__name__}: {e}"
             finally:
                 self._speaking = False
                 self._play_proc = None

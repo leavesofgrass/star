@@ -230,3 +230,12 @@ class StarApp(
             self.stats.tick(speaking, path, widx, len(wm))
         except Exception:
             pass
+        # One-shot engine-failure note (e.g. a cloud voice dying mid-session
+        # and being swapped for a local engine on the TTS thread).
+        try:
+            err = str(getattr(self.tts, "last_engine_error", "") or "")
+            if err:
+                self.tts.last_engine_error = ""
+                self.notify(err, dur=8.0, error=True)
+        except Exception:
+            pass

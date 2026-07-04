@@ -49,6 +49,10 @@ class TTSManager(SelectionMixin, PlaybackMixin, ExportMixin):
         self._current_word_idx: int = -1
         self._on_highlight: Optional[Callable[[int], None]] = None  # callback(word_idx)
         self._on_done: Optional[Callable[[], None]] = None
+        # One-shot, user-facing engine-failure note (e.g. a cloud voice dying
+        # mid-session with HTTP 401 and being swapped for a local engine).
+        # The UIs poll it on their status tick, show it once, and clear it.
+        self.last_engine_error: str = ""
         self._timer_thread: Optional[threading.Thread] = None
         self._timer_stop = threading.Event()
         # Monotonically-increasing counter, incremented every time a new timer

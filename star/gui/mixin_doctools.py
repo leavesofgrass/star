@@ -9,6 +9,7 @@ IMPORT SAFETY: references Qt at module scope — imported lazily by main_window.
 """
 from .._runtime import *  # noqa: F401,F403
 from ..i18n import tr
+from .a11y import announce
 from ..feeds import fetch_feed
 from ..library import (
     add_library_folder,
@@ -36,6 +37,17 @@ class DocToolsMixin:
             wm = getattr(self.doc, "word_map", []) if self.doc else []
             widx = self.tts_manager.current_word_idx if speaking else -1
             self.stats.tick(speaking, path, widx, len(wm))
+        except Exception:
+            pass
+        # One-shot engine-failure note (e.g. a cloud voice dying mid-session
+        # and being swapped for a local engine on the TTS thread — this timer
+        # is the safe main-thread surface for it).
+        try:
+            err = str(getattr(self.tts_manager, "last_engine_error", "") or "")
+            if err:
+                self.tts_manager.last_engine_error = ""
+                self.statusBar().showMessage(err, 15000)
+                announce(self.editor, err)
         except Exception:
             pass
 
