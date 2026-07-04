@@ -107,13 +107,13 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 | High-contrast AAA theme | WCAG 2.1 AAA (§1.4.6) low-vision theme; theming can also follow the OS light / dark / high-contrast preference |
 | Reading Font chooser | Pick OpenDyslexic, Atkinson Hyperlegible, or Lexend from View ▸ Reading Aids ▸ Reading Font; auto-fetched on first use and applied across the whole UI — document, menus, toolbar, and panels |
 | Syllable splitting | Show words split into syllables (`read·a·bil·i·ty`) as a decoding aid; display-only, so speech and highlighting are unaffected |
-| Reading ruler | A movable, translucent band (typoscope) that follows the caret line to help keep your place; adjustable height and opacity |
+| Reading ruler | A movable, translucent band (typoscope) that follows the caret line to help keep your place; adjustable height, opacity, and band color (or "Use highlight color" to match the highlight) |
 | One-click optional features | Missing add-ons are offered for background download — no `pip` required; the feature works in the same session |
 | Plugin system | Third parties add TTS engines, document formats, or exporters via entry-point plugins; introspect with `star --plugins` |
 | Dependency status report | `star --deps` lists every optional dependency and how to add the rest |
 | Built-in themes | dark (default), light, contrast, high-contrast (WCAG AAA), phosphor — all colorblind-friendly; can also follow the OS light / dark / high-contrast preference |
 | CSS theme customization | Drop any `.css` file into the themes folder; star picks it up instantly |
-| High-DPI display support | Qt GUI scales correctly on 4K and HiDPI screens |
+| High-DPI display support | Qt GUI scales correctly on 4K and HiDPI screens; toolbar icons render crisply on high-DPI displays |
 | Reading level | Flesch-Kincaid grade and ease score on demand |
 | `--plain` mode | Extracts clean text to stdout for piping to other tools |
 | Batch & hot-folder convert | Convert many files / a folder at once, or auto-convert a watched folder |
@@ -310,6 +310,18 @@ it scrolled into view.
 highlighted. Switch to **sentence** highlighting (the whole current sentence is
 banded) or **both** (a soft sentence band with the current word on top) in **View
 → Reading Aids → Karaoke Highlight…** or with `M-x highlight-granularity`.
+
+**Highlight colors:** the same **Karaoke Highlight…** dialog has two color
+pickers. **Word color** sets the spoken-word highlight (opens a system color
+dialog); **Sentence color** sets the sentence band shown in **Both** granularity,
+and can either **follow the theme** (a "Use theme" button matches the theme's
+selection color) or use a color you pick — so the word and the band can be set to
+clearly distinct colors.
+
+**Follow-scroll:** as playback advances, the reading view keeps the spoken word
+in a steady middle reading band (~40% down the viewport) rather than letting it
+drift to the bottom edge, so there is always already-read context above and
+upcoming text below. Controlled by the `qt_autoscroll` setting (on by default).
 
 **Highlight timer and SAPI5 pacing:** the highlight timer fires once per word at
 `highlight_speed × tts_rate`. With pyttsx3 callbacks active, a *pacing guard*

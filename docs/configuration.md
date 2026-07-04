@@ -59,11 +59,13 @@ Open it from the TUI with `M-x settings`.
 | `export_subtitles_with_audio` | `false` | Also write an SRT/VTT caption track next to every audio export |
 | `highlight_current_word` | `true` | Highlight the spoken word during TTS |
 | `highlight_color` | `"cyan"` | TTS word highlight color (any Qt/CSS color name or `#rrggbb`) |
+| `sentence_highlight_color` | `""` | Sentence-band color in the `both` highlight granularity; empty = follow the theme's selection color (pickable in **View ▸ Reading Aids ▸ Karaoke Highlight…**) |
 | `highlight_style` | `"background"` | Qt karaoke highlight style: `background` (filled), `underline`, `box` (wavy underline), `bold`, `color` (colored text) |
 | `highlight_lead_words` | `0` | Qt only: words the visual highlight leads (`+`) or lags (`-`) the audio |
 | `highlight_granularity` | `"word"` | Highlight by `word`, whole `sentence` (less flicker), or `both` (sentence band + word) |
 | `highlight_speed` | `1.0` | Highlight timer speed as a fraction of `tts_rate`; `1.0` = match speech exactly. The pacing guard caps how far the timer can lead confirmed audio, so values above `1.0` do not cause runaway drift. |
 | `recent_files` | `[]` | Recently opened files (populated automatically) |
+| `last_path` | `""` | Path/URL of the most recently opened document (populated automatically) |
 | `recent_files_limit` | `20` | Maximum entries in the recent files list |
 | `gui_width` | `1000` | Qt window width in pixels |
 | `gui_height` | `700` | Qt window height in pixels |
@@ -73,8 +75,10 @@ Open it from the TUI with `M-x settings`.
 | `qt_ctrl_pause` | `true` | Tap the `Ctrl` key alone to play/pause speech (JAWS habit); chords like `Ctrl+O` never trigger it |
 | `qt_edit_preview` | `false` | Show a live-rendered HTML preview beside the editor in edit mode (toggle with `Ctrl+Shift+L`) |
 | `qt_caret_browsing` | `true` | Show a movable text caret in the read-only document view for keyboard navigation, passage selection, and Define Word (toggle with `F7` or **View ▸ Caret Browsing**) |
+| `qt_autoscroll` | `true` | Auto-scroll the reading view to keep the spoken/highlighted word visible; set `false` to scroll manually |
 | `reading_stats` | `{}` | Per-document reading time, progress, and session counts (populated automatically) |
 | `library` | `{}` | Library/bookshelf metadata for every opened document (populated automatically) |
+| `library_folders` | `[]` | Folders scanned as a folder-as-library (e.g. a Dropbox/OneDrive/Syncthing directory); the filesystem is the library, so it syncs across machines for free |
 | `sync_conflict_policy` | `"newest"` | How to resolve a synced `.star/` sidecar that diverges between machines: `newest` (newer timestamp wins — the classic last-write-wins), `highest_progress` (keep the furthest reading position), or `manual` (keep local and surface conflicts). Annotations always union by id |
 | `profiles` | `{}` | Named setting bundles (voice, rate, theme, font, spacing, highlight) saved via the Profiles menu |
 | `pronunciations` | `{}` | Pronunciation lexicon: `{term: spoken form}` applied before other TTS normalization |
@@ -94,6 +98,7 @@ Open it from the TUI with `M-x settings`.
 | `qt_reading_ruler` | `false` | Show a movable, translucent band (typoscope) that follows the caret to help keep your place |
 | `qt_ruler_height` | `40` | Reading-ruler band height in pixels (16–160) |
 | `qt_ruler_opacity` | `22` | Reading-ruler band opacity, `0`–`100` (percent) |
+| `qt_ruler_color` | `""` | Reading-ruler band color; empty = match `highlight_color` (pickable in the Reading Ruler… dialog) |
 | `qt_vocab_highlight` | `false` | Highlight uncommon / academic vocabulary (difficult-word overlay; needs `wordfreq`) |
 | `qt_rsvp_mode` | `false` | Qt GUI: show the RSVP (Rapid Serial Visual Presentation) overlay — one word at a time at a fixed point |
 | `qt_rsvp_position` | `"top-center"` | Qt RSVP overlay placement: `top-left`/`center`/`right`, `center-left`/`right`, `center`, `bottom-left`/`center`/`right` |
@@ -102,8 +107,14 @@ Open it from the TUI with `M-x settings`.
 | `tui_rsvp_mode` | `false` | TUI mirror of the RSVP toggle |
 | `tui_rsvp_position` | `"top-center"` | TUI RSVP placement (same nine-position set as `qt_rsvp_position`) |
 | `annotations` | `{}` | Per-document notes: `{path: [{char_pos, word_idx, anchor, note, tags, cite, ts, id, relations}]}`. Reviewable notes (a highlight and/or a note body) also carry an `sr_state` sub-dict — the spaced-repetition scheduler's per-card memory (next review date, interval, stability, difficulty, reps, lapses), so review scheduling persists across sessions. See [`star/sr.py`](../star/sr.py) (FSRS scheduler) and [`star/annotations.py`](../star/annotations.py) |
+| `annotation_filter_presets` | `{}` | Saved note-filter queries, `{name: filter-query}` (populated automatically) |
 | `citations` | `[]` | Shared citation library (BibTeX/RIS/CSL-JSON import/export) |
+| `graph` | *(nested)* | Knowledge-graph options for typed relations between annotations: `auto_rebuild_on_annotation_change` (`true`), `default_layout` (`"spring"`), `node_color_by` (`"doc"`), `show_orphan_nodes` (`false`), `concept_domain` (`"general"`), `last_export_dir` (`""`) |
+| `vault` | *(nested)* | Obsidian vault import/export: `last_vault_dir` (`""`) and `default_link_relation` (`"SEE_ALSO"`, the type given to untyped `[[wikilinks]]` on import) |
+| `video` | *(nested)* | Video-export options: `resolution` (`"1280x720"`), `theme` (`""` = inherit global), `font_scale` (`1.0`), `subtitles` (`"soft"` — `soft`/`burn`/`none`), `last_export_dir` (`""`) |
 | `whisper_model` | `"base"` | Whisper model size for transcription/dictation (`tiny`…`large`) |
+| `transcribe_timestamps` | `false` | Prefix each transcript segment with its `[hh:mm:ss]` start time |
+| `whisper_chunk_seconds` | `6` | Chunk length in seconds for live streaming dictation |
 | `user_highlights` | `{}` | Persistent text highlights per document path |
 | `document_cache` | `true` | Cache parsed documents for instant reopening |
 | `cache_max_size_mb` | `100` | Maximum cache directory size in MB |
@@ -130,6 +141,12 @@ Open it from the TUI with `M-x settings`.
 | `reading_positions` | `{}` | Saved reading positions per document |
 | `nav_history_size` | `50` | Within-session navigation history depth |
 | `regex_search` | `false` | Enable regex mode for search |
+| `keybindings` | `{}` | Qt GUI shortcut remaps, `{default_shortcut: custom_shortcut}` |
+| `batch_format` | `"markdown"` | Default output format for batch conversion: `markdown`, `text`, or `braille` |
+| `watch_format` | `"markdown"` | Default output format for the `--watch` hot-folder: `markdown`, `text`, or `braille` |
+| `watch_stable_seconds` | `2.0` | Hot-folder debounce: convert a file only after its size holds steady this long (so files still copying in are never read half-written) |
+| `watch_poll_interval` | `0.5` | Hot-folder poll interval in seconds |
+| `watch_move_processed` | `true` | Move each source into `<input>/processed/` after a successful hot-folder conversion (failures go to `<input>/failed/`) |
 
 Default speed presets:
 

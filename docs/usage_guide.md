@@ -296,8 +296,18 @@ live under **View ▸ Reading Aids** unless noted.
   restart.)
 - **Reading ruler.** Toggle **View ▸ Reading Aids ▸ Reading Ruler** to show a
   movable, translucent band (a typoscope) that follows the caret line to help
-  you keep your place. To adjust its height and opacity, open **View ▸ Reading
-  Aids ▸ Reading Ruler…**. Both are menu-only — no shortcut.
+  you keep your place. To adjust its height, opacity, and band color, open
+  **View ▸ Reading Aids ▸ Reading Ruler…**; the color picker there includes a
+  **Use highlight color** button to match the reading highlight. Both are
+  menu-only — no shortcut.
+- **Highlight colors.** Open **View ▸ Reading Aids ▸ Karaoke Highlight…**
+  (**Ctrl+Alt+K**) to pick the spoken-**Word color** and, for **Both**
+  granularity, the **Sentence color** band — the band can **follow the theme**
+  (a **Use theme** button) or use a color you choose, so the word and the band
+  stand apart.
+- **Follow-scroll.** While speech plays, the reading view auto-scrolls to keep
+  the spoken word in a steady middle reading band instead of drifting to the
+  bottom edge. It is on by default; turn it off with the `qt_autoscroll` setting.
 - **RSVP one-word mode.** Turn on **View ▸ Reading Aids ▸ RSVP Mode**
   (**Ctrl+Alt+E**) to show one word at a time in a large panel synced to
   speech — an aid many dyslexic readers find easier to track. Choose where the
@@ -411,14 +421,14 @@ trigger it).
 | Toggle Notes panel | View ▸ Toggle Notes Panel | `Ctrl+Shift+N` | `M-x annotations-list` |
 | Change font | View ▸ Change Font… | `Ctrl+Alt+F` | `M-x font <family>` |
 | Text spacing | View ▸ Reading Aids ▸ Text Spacing… | `Ctrl+Alt+W` | — |
-| Karaoke highlight / granularity | View ▸ Reading Aids ▸ Karaoke Highlight… | `Ctrl+Alt+K` | `M-x highlight-granularity` |
+| Karaoke highlight / granularity / colors | View ▸ Reading Aids ▸ Karaoke Highlight… | `Ctrl+Alt+K` | `M-x highlight-granularity` |
 | Dyslexia-friendly font | View ▸ Reading Aids ▸ Dyslexia-Friendly Font | `Ctrl+Alt+X` | — |
 | Reading font (Default/OpenDyslexic/Atkinson/Lexend) | View ▸ Reading Aids ▸ Reading Font | — (menu only) | — |
 | Bionic reading | View ▸ Reading Aids ▸ Bionic Reading | `Ctrl+Alt+J` | — |
 | Syllable splitting | View ▸ Reading Aids ▸ Syllable Splitting | — (menu only) | — |
 | Current-line highlight | View ▸ Reading Aids ▸ Current-Line Highlight | `Ctrl+Alt+L` | — |
 | Reading ruler | View ▸ Reading Aids ▸ Reading Ruler | — (menu only) | — |
-| Reading ruler height / opacity | View ▸ Reading Aids ▸ Reading Ruler… | — (menu only) | — |
+| Reading ruler height / opacity / color | View ▸ Reading Aids ▸ Reading Ruler… | — (menu only) | — |
 | Highlight difficult words | View ▸ Reading Aids ▸ Highlight Difficult Words | `Ctrl+Alt+O` | — |
 | RSVP mode | View ▸ Reading Aids ▸ RSVP Mode | `Ctrl+Alt+E` | `M-x rsvp-mode` |
 | RSVP position | View ▸ Reading Aids ▸ RSVP Position… | — | `M-x rsvp-position` |
@@ -616,14 +626,14 @@ a bookmark set in one interface appears in the other.
 | Toggle Notes panel | `Ctrl+Shift+N` | `M-x annotations-list` |
 | Change font | `Ctrl+Alt+F` | — |
 | Text spacing | `Ctrl+Alt+W` | — |
-| Tune karaoke highlight | `Ctrl+Alt+K` | — |
+| Tune karaoke highlight (style / colors / speed) | `Ctrl+Alt+K` | — |
 | Highlight granularity (word/sentence/both) | `Ctrl+Alt+K` (dialog) | `M-x highlight-granularity` |
 | Dyslexia-friendly font | `Ctrl+Alt+X` | — |
 | Reading font (Default/OpenDyslexic/Atkinson/Lexend) | View ▸ Reading Aids ▸ Reading Font | — |
 | Bionic reading | `Ctrl+Alt+J` | — |
 | Syllable splitting | View ▸ Reading Aids ▸ Syllable Splitting | — |
 | Current-line highlight | `Ctrl+Alt+L` | — |
-| Reading ruler (+ height/opacity dialog) | View ▸ Reading Aids ▸ Reading Ruler / Reading Ruler… | — |
+| Reading ruler (+ height/opacity/color dialog) | View ▸ Reading Aids ▸ Reading Ruler / Reading Ruler… | — |
 | RSVP mode | `Ctrl+Alt+E` | `M-x rsvp-mode` |
 | RSVP position picker | — | `M-x rsvp-position` |
 | Live HTML preview (edit mode) | `Ctrl+Shift+L` | — |
@@ -902,11 +912,11 @@ your notes and highlights) and Sync with Anki (AnkiConnect)….
 **View menu** — Toggle Contents Panel (`Ctrl+\`), Toggle Notes Panel
 (`Ctrl+Shift+N`), Next Theme (`F5`), Choose Theme…, Reload CSS Themes, Open
 Themes Folder, Change Font…, Reading Level (`Ctrl+L`), and **Reading Aids ▸**
-Text Spacing… / Karaoke Highlight… / Reading Font (Default / OpenDyslexic /
-Atkinson Hyperlegible / Lexend) / Dyslexia-Friendly Font / Bionic Reading /
-Syllable Splitting / Current-Line Highlight / Reading Ruler (+ Reading Ruler…
-for height & opacity) / Highlight Difficult Words / Define Word… / Live HTML
-Preview.
+Text Spacing… / Karaoke Highlight… (granularity, style, and the word/sentence-band
+colors) / Reading Font (Default / OpenDyslexic / Atkinson Hyperlegible / Lexend) /
+Dyslexia-Friendly Font / Bionic Reading / Syllable Splitting / Current-Line
+Highlight / Reading Ruler (+ Reading Ruler… for height, opacity & band color) /
+Highlight Difficult Words / Define Word… / Live HTML Preview.
 
 **Speech menu** — Play/Pause, Stop, speed, Choose TTS Engine… (`Ctrl+Shift+G`;
 engines include the opt-in `elevenlabs` cloud engine — see [Pick a speech engine](#pick-a-speech-engine-system-and-cloud-voices)),
@@ -919,7 +929,9 @@ Reading Statistics…, and Clear Document Cache.
 
 **Help menu** — Command Palette…, Keyboard Shortcuts…, Customize Shortcuts…,
 **Guided Tour** (`Shift+F1`), Help (`F1`), Open Documentation, **Check for
-Updates…**, and About star.
+Updates…**, and **About star** (`Ctrl+F1`) — a short summary of what star is and
+does, the version and license, and a clickable link to the project on GitHub
+(opens in your browser).
 
 **Profiles, Notes, Citations menus** — see the
 [Quick command reference](#quick-command-reference) for every item, its menu
