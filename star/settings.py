@@ -332,6 +332,9 @@ class Settings:
 
     def __init__(self):
         self._data: Dict[str, Any] = dict(DEFAULTS)
+        # Set when the settings file existed but could not be read: the UIs
+        # surface it once at startup so a reset never happens invisibly.
+        self.load_error: str = ""
         self._load()
 
     def _load(self) -> None:
@@ -350,9 +353,24 @@ class Settings:
         except FileNotFoundError:
             pass  # first launch — defaults are correct, not an error
         except (json.JSONDecodeError, OSError) as exc:
-            # A corrupt or unreadable settings file silently resets every
-            # preference to default; surface it so the reset is diagnosable.
+            # A corrupt or unreadable settings file resets every preference to
+            # default — and the next save() would atomically overwrite the
+            # evidence, permanently destroying reading positions, highlights,
+            # the library, and keys.  Preserve a timestamped backup first and
+            # record load_error so both UIs tell the user what happened.
+            backup = ""
+            try:
+                ts = time.strftime("%Y%m%d-%H%M%S")
+                bak = SETTINGS_FILE.with_name(f"{SETTINGS_FILE.name}.corrupt-{ts}.bak")
+                shutil.copy2(SETTINGS_FILE, bak)
+                backup = str(bak)
+            except OSError:
+                pass  # backup is best-effort; the warning below still lands
             _log.warning("Could not read settings from %s: %s", SETTINGS_FILE, exc)
+            self.load_error = (
+                "Settings file was unreadable and has been reset to defaults"
+                + (f" — backup saved to {backup}" if backup else "")
+            )
         self._migrate()
 
     def _migrate(self) -> None:

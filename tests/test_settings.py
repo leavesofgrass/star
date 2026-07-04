@@ -123,3 +123,31 @@ def test_save_load_round_trip(settings_file):
     s2 = Settings()
     assert s2.get("tts_rate") == 275
     assert s2.get("recent_files") == ["/a.md", "/b.pdf"]
+
+
+def test_corrupt_settings_backed_up_and_reported(monkeypatch, tmp_path):
+    """A corrupt settings.json resets to defaults but preserves the evidence:
+    a timestamped .bak copy is written and load_error tells the UIs to say so
+    (previously the next save() silently overwrote the corrupt file)."""
+    import star.settings as settings_mod
+    from star.settings import DEFAULTS, Settings
+
+    corrupt = tmp_path / "settings.json"
+    corrupt.write_text("{ this is not json", encoding="utf-8")
+    monkeypatch.setattr(settings_mod, "SETTINGS_FILE", corrupt)
+
+    s = Settings()
+    assert s.get("tts_rate") == DEFAULTS["tts_rate"]  # defaults loaded
+    assert s.load_error, "load_error must be set for a corrupt file"
+    assert "reset" in s.load_error.lower()
+    baks = list(tmp_path.glob("settings.json.corrupt-*.bak"))
+    assert baks, "corrupt file must be backed up before any overwrite"
+    assert baks[0].read_text(encoding="utf-8") == "{ this is not json"
+
+
+def test_clean_settings_have_no_load_error(monkeypatch, tmp_path):
+    import star.settings as settings_mod
+    from star.settings import Settings
+
+    monkeypatch.setattr(settings_mod, "SETTINGS_FILE", tmp_path / "settings.json")
+    assert Settings().load_error == ""  # first launch: no file, no error

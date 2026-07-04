@@ -136,6 +136,11 @@ class StarApp(
         # TTS word highlight callback
         self.tts.set_on_highlight(self._on_highlight)
 
+        # If the settings file was corrupt, _load reset to defaults and saved a
+        # backup — tell the user once instead of resetting invisibly.
+        if getattr(settings, "load_error", ""):
+            self.notify(str(settings.load_error), dur=10.0, error=True)
+
         if initial_path:
             self._open_async(initial_path)
         else:

@@ -607,6 +607,18 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         # test that merely constructs the window is unaffected.
         QTimer.singleShot(0, self._maybe_run_first_run_tour)
         QTimer.singleShot(0, self._maybe_startup_update_check)
+        # If the settings file was corrupt, _load reset to defaults and saved a
+        # backup — tell the user once instead of resetting invisibly.
+        if getattr(self.settings, "load_error", ""):
+            QTimer.singleShot(0, self._report_settings_reset)
+
+    def _report_settings_reset(self) -> None:
+        """Show + announce the settings-file reset recorded by Settings._load."""
+        msg = str(getattr(self.settings, "load_error", ""))
+        if not msg:
+            return
+        self.statusBar().showMessage(msg, 30000)
+        announce(self, msg)
 
     # ── Bundled documentation (README, welcome) ───────────────────────
     def _bundled_path(self, name: str) -> "Optional[Path]":
