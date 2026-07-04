@@ -106,6 +106,25 @@ def test_none_engine_stored_as_silent(window):
     assert window.settings.get("tts_backend") == "silent"
 
 
+def test_restore_defaults_stages_shipped_values(window):
+    """Restore Defaults re-stages every widget from DEFAULTS without saving."""
+    from star.settings import DEFAULTS
+
+    dlg = _dialog(window)
+    before = dict(window.settings._data)
+    dlg.rate_spin.setValue(390)
+    dlg.style_box.setCurrentText("underline")
+    dlg._hl_color["v"] = "#123456"
+    dlg._restore_defaults()
+    assert dlg.rate_spin.value() == DEFAULTS["tts_rate"]
+    assert dlg.style_box.currentText() == DEFAULTS["highlight_style"]
+    assert dlg._hl_color["v"] == DEFAULTS["highlight_color"]
+    assert dlg.bitrate_box.currentText() == DEFAULTS["audiobook_bitrate"]
+    assert dlg.paginate_threshold.value() == DEFAULTS["qt_paginate_threshold_words"]
+    # Staging only: nothing was written or saved.
+    assert window.settings._data == before
+
+
 def test_palette_only_dialogs_construct(window, monkeypatch):
     """The three tuning dialogs demoted from the menu bar still build.
 

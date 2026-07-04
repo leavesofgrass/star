@@ -21,6 +21,7 @@ try:  # QTabWidget is not re-exported by _runtime; import it directly.
 except ImportError:  # PyQt5 fallback
     from PyQt5.QtWidgets import QTabWidget  # type: ignore[no-redef]
 
+from ..settings import DEFAULTS
 from ..themes import BUILT_IN_THEME_NAMES
 
 # RSVP position keys, in the overlay's own dict order (top→bottom, left→right).
@@ -70,30 +71,44 @@ class PreferencesDialog(QDialog):
         self._build_display_tab()
         self._build_general_tab()
 
-        # OK / Cancel / Apply — apply-on-OK; Cancel writes nothing.
+        # OK / Cancel / Apply / Restore Defaults — apply-on-OK; Cancel writes
+        # nothing; Restore Defaults only re-stages the widgets (see method).
         buttons = QDialogButtonBox(
             _std_button(QDialogButtonBox, "Ok")
             | _std_button(QDialogButtonBox, "Cancel")
             | _std_button(QDialogButtonBox, "Apply")
+            | _std_button(QDialogButtonBox, "RestoreDefaults")
         )
         buttons.accepted.connect(self._on_ok)
         buttons.rejected.connect(self.reject)
         apply_btn = buttons.button(_std_button(QDialogButtonBox, "Apply"))
         if apply_btn is not None:
             apply_btn.clicked.connect(self._apply)
+        restore_btn = buttons.button(_std_button(QDialogButtonBox, "RestoreDefaults"))
+        if restore_btn is not None:
+            restore_btn.clicked.connect(self._restore_defaults)
+            restore_btn.setToolTip(
+                "Reset every field on all tabs to the shipped defaults "
+                "(nothing is saved until OK or Apply)"
+            )
         outer.addWidget(buttons)
 
     # ── colour swatch helper (shared with the karaoke dialog pattern) ────────
 
     def _make_swatch(self, state: dict, allow_theme: bool, theme_label: str = "",
-                     empty_text: str = "Theme default"):
+                     empty_text: str = "Theme default", name: str = ""):
         """Build a swatch QPushButton (opens QColorDialog); optionally wrap it
         with a second button that clears the colour to *empty* (theme/highlight).
 
-        *state* is a ``{"v": hexstr}`` dict mutated in place.  Returns the widget
-        to place in the form (the button itself, or a wrapper with the extra
+        *state* is a ``{"v": hexstr}`` dict mutated in place; a ``repaint``
+        callback is stored on it so Restore Defaults can refresh the swatch.
+        *name* becomes the accessible name — the visible text is just a hex
+        string, useless to a screen reader without it.  Returns the widget to
+        place in the form (the button itself, or a wrapper with the extra
         button)."""
         btn = QPushButton()
+        if name:
+            btn.setAccessibleName(name)
 
         def _paint() -> None:
             c = QColor(state["v"]) if state["v"] else QColor()
@@ -122,6 +137,7 @@ class PreferencesDialog(QDialog):
 
         btn.clicked.connect(_pick)
         _paint()
+        state["repaint"] = _paint  # runtime-only; _write_settings reads "v" alone
         if not allow_theme:
             return btn
         wrap = QWidget()
@@ -129,6 +145,8 @@ class PreferencesDialog(QDialog):
         hb.setContentsMargins(0, 0, 0, 0)
         hb.addWidget(btn, 1)
         clear_btn = QPushButton(theme_label or "Use theme")
+        if name:
+            clear_btn.setAccessibleName(f"{name} — {theme_label or 'Use theme'}")
 
         def _clear() -> None:
             state["v"] = ""
@@ -136,6 +154,8 @@ class PreferencesDialog(QDialog):
 
         clear_btn.clicked.connect(_clear)
         hb.addWidget(clear_btn)
+        # Tabbing into the composite row lands on the swatch, not the wrapper.
+        wrap.setFocusProxy(btn)
         return wrap
 
     # ── Reading tab ──────────────────────────────────────────────────────────
@@ -152,10 +172,16 @@ class PreferencesDialog(QDialog):
         )
         form.addRow("Highlight style:", self.style_box)
 
-        form.addRow("Word color:", self._make_swatch(self._hl_color, False))
+        form.addRow(
+            "Word color:",
+            self._make_swatch(self._hl_color, False, name="Word highlight color"),
+        )
         form.addRow(
             "Sentence color:",
-            self._make_swatch(self._sent_color, True, theme_label="Use theme"),
+            self._make_swatch(
+                self._sent_color, True, theme_label="Use theme",
+                name="Sentence highlight color",
+            ),
         )
 
         self.speed_spin = QDoubleSpinBox()
@@ -197,6 +223,7 @@ class PreferencesDialog(QDialog):
                 self._ruler_color, True,
                 theme_label="Use highlight color",
                 empty_text="Highlight color",
+                name="Reading ruler color",
             ),
         )
 
@@ -324,6 +351,7 @@ class PreferencesDialog(QDialog):
         self._font_family = str(self.settings.get("qt_font_family", ""))
         self._font_size = int(self.settings.get("qt_font_size", 14) or 14)
         self.font_btn = QPushButton()
+        self.font_btn.setAccessibleName("Display font")
         self._refresh_font_btn()
         self.font_btn.clicked.connect(self._choose_font)
         form.addRow("Display font:", self.font_btn)
@@ -402,6 +430,60 @@ class PreferencesDialog(QDialog):
         self.tabs.addTab(w, "General")
 
     # ── write + apply ────────────────────────────────────────────────────────
+
+    def _restore_defaults(self) -> None:
+        """Reset every widget on all four tabs to the shipped default.
+
+        Staging-only, matching the dialog's semantics: nothing is written or
+        applied until OK / Apply, so Cancel still discards the reset.  Values
+        come from settings.DEFAULTS — the single source of truth — never from
+        re-hardcoded literals."""
+        D = DEFAULTS
+
+        def _combo(box, options: list, key: str) -> None:
+            val = str(D[key])
+            box.setCurrentIndex(options.index(val) if val in options else 0)
+
+        # Reading.
+        _combo(self.style_box, _HIGHLIGHT_STYLES, "highlight_style")
+        self._hl_color["v"] = str(D["highlight_color"])
+        self._hl_color["repaint"]()
+        self._sent_color["v"] = str(D["sentence_highlight_color"])
+        self._sent_color["repaint"]()
+        self.speed_spin.setValue(float(D["highlight_speed"]))
+        self.lead_spin.setValue(int(D["highlight_lead_words"]))
+        _combo(self.gran_box, _HIGHLIGHT_GRANS, "highlight_granularity")
+        self.ruler_height.setValue(int(D["qt_ruler_height"]))
+        self.ruler_opacity.setValue(int(D["qt_ruler_opacity"]))
+        self._ruler_color["v"] = str(D["qt_ruler_color"])
+        self._ruler_color["repaint"]()
+        _combo(self.rsvp_pos, _RSVP_POSITIONS, "qt_rsvp_position")
+        self.rsvp_font.setValue(int(D["qt_rsvp_font_size"]))
+        self.rsvp_ctx.setChecked(bool(D["qt_rsvp_context"]))
+        self.current_line.setChecked(bool(D["qt_current_line_highlight"]))
+        self.autoscroll.setChecked(bool(D["qt_autoscroll"]))
+        self.syllable_sep.setText(str(D["qt_syllable_sep"]))
+        # Voice.  "auto" is always first in the engine combo.
+        self.engine_box.setCurrentIndex(0)
+        self.rate_spin.setValue(int(D["tts_rate"]))
+        self.volume_spin.setValue(int(round(float(D["tts_volume"]) * 100)))
+        self.prefer_voice.setText(str(D["tts_prefer_voice"]))
+        self.eleven_key.setText(str(D["elevenlabs_api_key"]))
+        _combo(self.bitrate_box, _AUDIOBOOK_BITRATES, "audiobook_bitrate")
+        # Display.
+        _combo(self.reading_font, _READING_FONTS, "qt_reading_font")
+        self._font_family = str(D["qt_font_family"])
+        self._font_size = int(D["qt_font_size"])
+        self._refresh_font_btn()
+        _combo(self.theme_box, list(BUILT_IN_THEME_NAMES), "theme")
+        self.follow_os.setChecked(bool(D["qt_follow_os_theme"]))
+        # General.
+        self.auto_install.setChecked(bool(D["auto_install"]))
+        self.auto_updates.setChecked(bool(D["auto_check_updates"]))
+        _combo(self.sync_policy, _SYNC_POLICIES, "sync_conflict_policy")
+        _combo(self.footnote_mode, _FOOTNOTE_MODES, "footnote_mode")
+        self.paginate.setChecked(bool(D["qt_paginate_large_docs"]))
+        self.paginate_threshold.setValue(int(D["qt_paginate_threshold_words"]))
 
     def _on_ok(self) -> None:
         self._apply()
