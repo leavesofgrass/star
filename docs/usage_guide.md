@@ -205,10 +205,6 @@ Engine…** (**Ctrl+Shift+G**), or `M-x tts-backend` in the terminal UI. The
 Voice Manager (**F4**) then lists that engine's voices for filtering and
 preview.
 
-- **`qtspeech` — your OS system voices (no setup).** Speaks with the voices
-  already installed on your computer (SAPI on Windows, AVSpeech on macOS,
-  speech-dispatcher on Linux). No API key and no download; per-word highlighting
-  works as usual.
 - **`elevenlabs` — cloud neural voices (opt-in).** Premium neural speech from
   the ElevenLabs service. **Nothing is sent anywhere** until you both paste your
   key and select a cloud voice: put your key in the **`elevenlabs_api_key`**
@@ -750,7 +746,7 @@ complete.
 | `rate-down` | Decrease reading rate by 20 wpm |
 | `volume-up` | Increase TTS volume |
 | `volume-down` | Decrease TTS volume |
-| `tts-backend` | Switch TTS engine at runtime (`pyttsx3`/`espeak`/`festival`/`piper`/`coqui`/`dectalk`/`qtspeech`/`elevenlabs`/`none`) |
+| `tts-backend` | Switch TTS engine at runtime (`pyttsx3`/`espeak`/`festival`/`piper`/`coqui`/`dectalk`/`elevenlabs`/`none`) |
 | `highlight-granularity word\|sentence\|both` | Highlight the spoken word, the whole sentence, or both |
 | `tts-voice` | Switch TTS voice by ID |
 | `ssml-on` / `ssml-off` | Enable/disable SSML prosody markup |
@@ -913,8 +909,7 @@ for height & opacity) / Highlight Difficult Words / Define Word… / Live HTML
 Preview.
 
 **Speech menu** — Play/Pause, Stop, speed, Choose TTS Engine… (`Ctrl+Shift+G`;
-engines include `qtspeech` for your OS system voices and the opt-in `elevenlabs`
-cloud engine — see [Pick a speech engine](#pick-a-speech-engine-system-and-cloud-voices)),
+engines include the opt-in `elevenlabs` cloud engine — see [Pick a speech engine](#pick-a-speech-engine-system-and-cloud-voices)),
 Choose Voice…, **Voice Manager…** (`F4`, filter / preview / favorite / download
 voices), Speech Cursor Mode, and the Pronunciation Lexicon.
 

@@ -212,10 +212,9 @@ What the fat zipapp does and does not remove:
 | `wordfreq` | Difficult-word overlay (**View ▸ Reading Aids ▸ Highlight Difficult Words**) | `pip install wordfreq` |
 | `pyphen` | Syllable splitting (**View ▸ Reading Aids ▸ Syllable Splitting**); pure-Python, offline | `pip install pyphen` |
 
-> **Two speech engines need no extra at all.** The `qtspeech` engine (your OS's
-> built-in system voices) rides on `PyQt6`, which is already in the base install;
-> the `elevenlabs` cloud engine uses only the standard library (paste a key to
-> enable). Neither has an optional-dependency group.
+> **The cloud engine needs no extra at all.** The `elevenlabs` cloud engine uses
+> only the standard library (paste a key to enable) — it has no optional-
+> dependency group.
 
 ## External Binary Dependencies
 

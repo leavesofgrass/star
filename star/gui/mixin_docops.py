@@ -197,16 +197,23 @@ class DocOpsMixin:
         without editing settings.json.  Switching to a backend with no
         available voice keeps the previous engine and explains why.
         """
-        # Registry-driven so newly registered backends (e.g. qtspeech,
-        # elevenlabs) appear automatically instead of being missed by a
-        # hardcoded list.  "auto" leads; the always-present "silent" backend is
-        # offered to the user as "none".
+        # Registry-driven so a newly registered backend appears automatically.
+        # A backend *name* can have several implementations (espeak has an
+        # in-process and a CLI backend; dectalk a .dll and a CLI), and
+        # _select_backend already tries every implementation of the chosen name
+        # in priority order — so collapse duplicate names here, otherwise the
+        # user sees "espeak" (and "dectalk") listed twice.  "silent" is offered
+        # to the user as "none".
         try:
             from ..plugins import PluginRegistry
             reg_names = [c.name for c in PluginRegistry.get().backends]
         except Exception:
             reg_names = ["pyttsx3", "espeak", "festival", "piper", "coqui", "dectalk"]
-        engines = ["auto"] + [n for n in reg_names if n != "silent"] + ["none"]
+        seen = []
+        for _n in reg_names:
+            if _n != "silent" and _n not in seen:
+                seen.append(_n)
+        engines = ["auto"] + seen + ["none"]
         current = str(self.settings.get("tts_backend", "auto"))
         cur_idx = engines.index(current) if current in engines else 0
         chosen, ok = QInputDialog.getItem(
@@ -229,7 +236,6 @@ class DocOpsMixin:
                 "coqui": "Enable the Coqui voice from Tools ▸ Optional Features.",
                 "elevenlabs": "Paste your key into 'elevenlabs_api_key' in"
                 " settings to use the cloud voice.",
-                "qtspeech": "No system speech voices are available on this machine.",
             }
             hint = hints.get(chosen, "")
             self.statusBar().showMessage(

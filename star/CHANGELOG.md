@@ -18,9 +18,6 @@ still installs itself in one click — students never see `pip`.
 
 ### ✨ Added
 
-- **Qt-native system voices.** A new `qtspeech` engine speaks with your operating
-  system's built-in voices (SAPI on Windows, AVSpeech on macOS, speech-dispatcher
-  on Linux) — no API key, no download, and per-word highlighting.
 - **Cloud neural voices (opt-in).** An `elevenlabs` engine for premium neural
   speech. Nothing ever leaves your machine unless you paste a key **and** choose
   the cloud voice; on any failure star silently falls back to a local engine.

@@ -163,8 +163,12 @@ piper      = "star.tts.piper:PiperBackend"
 coqui      = "star.tts.coqui:CoquiBackend"
 dectalk    = "star.tts.dectalk:DECtalkBackend"
 dectalkdll = "star.tts.dectalk:DECtalkDLLBackend"
-qtspeech   = "star.tts.qtspeech:QtSpeechBackend"
 elevenlabs = "star.tts.cloud.elevenlabs:ElevenLabsBackend"
+# NOTE: qtspeech (Qt-native system voices) is intentionally NOT registered yet —
+# deferred until its audio output is verified on real Windows/macOS/Linux
+# hardware.  At priority 35 it displaced the reliable pyttsx3/SAPI default in
+# auto-selection while producing no audible output.  star/tts/qtspeech.py and its
+# tests remain in the tree for a future release.
 
 [project.entry-points."star.formats"]
 pdf      = "star.documents.handlers:PDFHandler"

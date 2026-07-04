@@ -55,7 +55,7 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 |---|---|
 | Qt GUI (primary) | Windowed application with menu bar, toolbar, dock panels, and a keyboard shortcut for every command; launches by default when PyQt6/PyQt5 is installed |
 | Terminal TUI (secondary) | Full-featured, fully keyboard-driven curses interface for headless / text-only use; force it with `--tui` |
-| Built-in TTS | Qt-native system voices (`qtspeech` — OS voices, no key/download, per-word highlighting), pyttsx3 (SAPI5 / NSSpeechSynthesizer / eSpeak-NG), macOS `say` (native, default on Mac), eSpeak-NG (in-process libespeak-ng, or CLI), DECtalk, Festival, Piper (neural, offline, free), Coqui, ElevenLabs (opt-in cloud neural) |
+| Built-in TTS | pyttsx3 (SAPI5 / NSSpeechSynthesizer / eSpeak-NG), macOS `say` (native, default on Mac), eSpeak-NG (in-process libespeak-ng, or CLI), DECtalk, Festival, Piper (neural, offline, free), Coqui, ElevenLabs (opt-in cloud neural) |
 | Voice Manager | Browse, filter, preview, and favorite voices across every engine (`F4`); one-click download of offline Piper neural voices |
 | eSpeak-NG playback sync | Driven in-process via libespeak-ng (ctypes); per-word events carry their audio position, so the highlight follows the actual audio, not a timer estimate |
 | Default reading rate | **265 wpm** — intentionally brisk; adjustable at runtime |
@@ -200,12 +200,6 @@ Switch engines any time with **Speech → Choose TTS Engine…** (`Ctrl+Shift+G`
   `ctypes`); each per-word event carries the word's audio position, so the
   highlight follows actual playback. Falls back to the `espeak-ng` CLI
   (timer-paced) when the shared library is absent.
-- **Qt-native system voices (`qtspeech`)** — speaks with your operating system's
-  built-in voices (SAPI on Windows, AVSpeech on macOS, speech-dispatcher on
-  Linux) through Qt's own speech module. No API key and no download, and it
-  reports word boundaries so the highlight follows each spoken word. Available
-  when the Qt binding ships `QtTextToSpeech`.
-
   | Platform | Install |
   |---|---|
   | Linux (Debian/Ubuntu) | `sudo apt install espeak-ng` |
@@ -238,7 +232,6 @@ Switch engines any time with **Speech → Choose TTS Engine…** (`Ctrl+Shift+G`
 M-x tts-backend pyttsx3
 M-x tts-backend applesay     # macOS native `say`
 M-x tts-backend espeak
-M-x tts-backend qtspeech     # OS voices via Qt (no key/download)
 M-x tts-backend festival
 M-x tts-backend piper        # neural, offline, free (needs a .onnx model)
 M-x tts-backend coqui
