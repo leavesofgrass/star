@@ -272,6 +272,32 @@ class DisplayMixin:
                     f"{APP_TITLE} v{APP_VERSION} — README.md not found", 6000
                 )
 
+    def _qt_about(self) -> None:
+        """Show the About dialog: a short summary of what star is and does, plus
+        a link back to the project on GitHub, with the version and licence."""
+        box = QMessageBox(self)
+        box.setWindowTitle(f"About {APP_NAME}")
+        try:
+            box.setTextFormat(Qt.TextFormat.RichText)
+            box.setIcon(QMessageBox.Icon.Information)
+        except AttributeError:  # PyQt5
+            box.setTextFormat(Qt.RichText)  # type: ignore[attr-defined]
+            box.setIcon(QMessageBox.Information)  # type: ignore[attr-defined]
+        box.setText(
+            f"<b>{APP_TITLE}</b><br>Version {APP_VERSION}<br><br>"
+            "star reads your documents aloud — PDF, EPUB, Office files, Markdown "
+            "and more — with word-by-word highlighting, your choice of "
+            "text-to-speech engine, and accessibility-first reading aids. It is "
+            "keyboard-driven and screen-reader friendly.<br><br>"
+            f'Project &amp; source: <a href="{__url__}">{__url__}</a><br><br>'
+            f"{__copyright__} · {__license__}"
+        )
+        # Make the GitHub link open in the user's browser.
+        lbl = box.findChild(QLabel, "qt_msgbox_label")
+        if lbl is not None:
+            lbl.setOpenExternalLinks(True)
+        box.exec() if _QT == "PyQt6" else box.exec_()
+
     def _set_font(self, family: str = "", size: int = 0) -> None:
         """Change the display font family and/or size.
 

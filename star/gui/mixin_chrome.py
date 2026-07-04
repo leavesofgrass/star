@@ -892,16 +892,7 @@ class ChromeMixin:
                 None,
                 ("Check for Updates…", self._qt_check_for_updates, ""),
                 None,
-                (
-                    "About star",
-                    lambda: QMessageBox.about(
-                        self,
-                        f"About {APP_NAME}",
-                        f"<b>{APP_TITLE}</b><br>Version {APP_VERSION}<br><br>"
-                        f"{__copyright__}<br>{__license__}",
-                    ),
-                    "Ctrl+F1",
-                ),
+                ("About star", self._qt_about, "Ctrl+F1"),
             ],
         )
 

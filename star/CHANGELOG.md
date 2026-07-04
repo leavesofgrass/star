@@ -57,6 +57,8 @@ still installs itself in one click — students never see `pip`.
 - **Crisp toolbar icons on high-resolution displays.** The monochrome toolbar
   glyphs now render at the display's device-pixel ratio instead of upscaling a
   small bitmap, so they stay sharp and legible on hi-DPI screens.
+- **About dialog** rewritten: a short summary of what star is and does, a
+  clickable link to the project on GitHub, and the version and licence.
 - **Reading progress syncs without losing work.** When the same document is read
   on two machines through a synced folder, star now *merges* the sidecars instead
   of last-write-wins: reading position resolves by a policy you choose (newest,

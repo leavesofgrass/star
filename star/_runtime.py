@@ -42,8 +42,9 @@ License: GNU General Public License v3 (or later)
 
 __version__ = "0.1.21"
 __author__ = "Jon Pielaet"
-__copyright__ = "Copyright (C) 2026 Jon Pielaet"
+__copyright__ = "Copyright (C) 2026 the star authors"
 __license__ = "GPL-3.0-or-later"
+__url__ = "https://github.com/leavesofgrass/star"
 
 # =============================================================================
 # Standard library
@@ -606,4 +607,4 @@ _SENTENCE_SPLIT_RE = re.compile(
 # re-exported explicitly because `import *` skips underscored names
 # unless they are named in __all__.
 __all__ = [n for n in dict(globals()) if not n.startswith("__")]
-__all__ += ["__version__", "__author__", "__copyright__", "__license__"]
+__all__ += ["__version__", "__author__", "__copyright__", "__license__", "__url__"]
