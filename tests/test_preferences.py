@@ -106,6 +106,39 @@ def test_none_engine_stored_as_silent(window):
     assert window.settings.get("tts_backend") == "silent"
 
 
+def test_palette_only_dialogs_construct(window, monkeypatch):
+    """The three tuning dialogs demoted from the menu bar still build.
+
+    They are reachable only from the Command Palette now, so nothing else in
+    CI would touch them — a rename/regression would otherwise ship silently
+    (the 0.1.15 'nothing imports it' failure class)."""
+    from PyQt6.QtWidgets import QDialog
+
+    monkeypatch.setattr(QDialog, "exec", lambda self: 0, raising=False)
+    window._qt_karaoke_dialog()
+    window._qt_reading_ruler_dialog()
+    window._qt_rsvp_position_dialog()
+
+
+def test_preferences_opener_runs(window, monkeypatch):
+    """Edit ▸ Preferences… (Ctrl+,) opens via the lazy _qt_preferences hook."""
+    from PyQt6.QtWidgets import QDialog
+
+    monkeypatch.setattr(QDialog, "exec", lambda self: 0, raising=False)
+    window._qt_preferences()
+
+
+def test_palette_registers_tuning_dialogs(window):
+    """The Command Palette lists all three tuners by their stable names."""
+    labels = [label for label, _fn in window._qt_command_registry()]
+    for want in (
+        "Tune Karaoke Highlight…",
+        "Tune Reading Ruler…",
+        "Tune RSVP Position…",
+    ):
+        assert want in labels, f"palette lost {want!r}"
+
+
 def test_theme_change_marks_explicit(window):
     """Deliberately changing the theme sets qt_theme_explicit so OS-follow
     won't silently override it on the next launch (mirrors the menu pickers)."""
