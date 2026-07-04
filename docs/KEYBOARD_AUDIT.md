@@ -57,7 +57,7 @@ survive a UI-language switch. Source: `star/gui/mixin_chrome.py`.
 |---|---|---|
 | `Space` | Play / Pause | 🔊 announces "Playing" / "Paused" |
 | `Escape` | Stop | 🔊 announces "Stopped" |
-| `Ctrl+Return` | Play from Cursor | 🔊 announces "Playing" |
+| `Ctrl+Space` | Play from Cursor | 🔊 announces "Playing" (pairs with caret browsing) |
 | `Ctrl+=` | Faster (+20 wpm) | |
 | `Ctrl+-` | Slower (−20 wpm) | |
 | `Ctrl+Shift+G` | Choose TTS Engine… | |

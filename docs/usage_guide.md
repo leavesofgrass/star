@@ -376,7 +376,7 @@ trigger it).
 | Stop | (Playback toolbar) | `Esc` | `M-x stop` (`Esc`) |
 | Speed up (+20 wpm) | (Playback toolbar) | `Ctrl+=` | `M-x rate-up` (`+`) |
 | Slow down (−20 wpm) | (Playback toolbar) | `Ctrl+-` | `M-x rate-down` (`-`) |
-| Play from cursor / selection | — | `Ctrl+Return` | — |
+| Play from cursor / selection | — | `Ctrl+Space` | — |
 | Cycle speed preset | — | `F8` | `M-x speed <name>` (`F8`) |
 | Toggle SSML prosody | — | `Ctrl+Alt+Y` | `M-x ssml` |
 | Choose TTS engine | Speech ▸ Choose TTS Engine… | `Ctrl+Shift+G` | `M-x tts-backend` |
@@ -489,7 +489,7 @@ off with the `qt_ctrl_pause` setting.
 | Stop | `Esc` | `Esc` |
 | Speed up (+20 wpm) | `Ctrl+=` | `+` |
 | Slow down (−20 wpm) | `Ctrl+-` | `-` |
-| Play from cursor / selection | `Ctrl+Return` | — |
+| Play from cursor / selection | `Ctrl+Space` | — |
 | Choose TTS engine | `Ctrl+Shift+G` | `M-x tts-backend` |
 | Choose voice | `Ctrl+Shift+V` | `Ctrl+T` |
 | Pronunciation lexicon | `Ctrl+Shift+I` | `M-x pron-add` / `pron-list` |
@@ -526,7 +526,7 @@ bracket keys as fallbacks.
 | Next sentence | `Alt+.` | `.` |
 | Previous sentence | `Alt+,` | `,` |
 | Replay sentence | `Alt+;` | `;` |
-| Play from cursor / selection | `Ctrl+Return` | — |
+| Play from cursor / selection | `Ctrl+Space` | — |
 
 ### Scroll navigation (TUI)
 

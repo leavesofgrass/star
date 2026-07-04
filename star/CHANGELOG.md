@@ -43,6 +43,9 @@ still installs itself in one click — students never see `pip`.
 
 ### 🔧 Changed
 
+- **Play from cursor is now `Ctrl+Space`** (was `Ctrl+Return`), which makes caret
+  browsing a full navigation tool: move the caret with the arrow keys, then press
+  `Ctrl+Space` to start reading from that point.
 - **Reading progress syncs without losing work.** When the same document is read
   on two machines through a synced folder, star now *merges* the sidecars instead
   of last-write-wins: reading position resolves by a policy you choose (newest,

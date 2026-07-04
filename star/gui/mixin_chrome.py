@@ -384,7 +384,7 @@ class ChromeMixin:
             [
                 ("Play / Pause", self._tts_toggle, "Space"),
                 ("Stop", self._tts_stop, "Escape"),
-                ("Play from Cursor", self._qt_play_from_cursor, "Ctrl+Return"),
+                ("Play from Cursor", self._qt_play_from_cursor, "Ctrl+Space"),
                 None,
                 ("Faster (+20 wpm)", lambda: self._rate_change(+20), "Ctrl+="),
                 ("Slower (−20 wpm)", lambda: self._rate_change(-20), "Ctrl+-"),

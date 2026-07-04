@@ -84,14 +84,16 @@ class PlaybackMixin:
         word whose character offset is closest to or just after the
         cursor).
 
-        Shortcut: Ctrl+Return.
+        Shortcut: Ctrl+Space (pairs with caret browsing — move the caret with the
+        arrow keys, then Ctrl+Space to read from there).
+
         """
         if not self.doc:
             self.statusBar().showMessage("No document loaded")
             return
         cursor = self.editor.textCursor()
         # Use selection start so clicking and highlighting a passage
-        # then pressing Ctrl+Return reads from the top of the highlight.
+        # then pressing Ctrl+Space reads from the top of the highlight.
         char_pos = (
             cursor.selectionStart() if cursor.hasSelection() else cursor.position()
         )
