@@ -46,6 +46,11 @@ still installs itself in one click — students never see `pip`.
 - **Play from cursor is now `Ctrl+Space`** (was `Ctrl+Return`), which makes caret
   browsing a full navigation tool: move the caret with the arrow keys, then press
   `Ctrl+Space` to start reading from that point.
+- **The reading view follows the spoken word more steadily.** Auto-scroll now
+  keeps the highlighted word in a comfortable middle reading band (with context
+  above and text ahead below) instead of nudging it to the bottom edge — so it's
+  easy to keep your place while listening. Set `qt_autoscroll` to `false` to
+  scroll manually.
 - **Reading progress syncs without losing work.** When the same document is read
   on two machines through a synced folder, star now *merges* the sidecars instead
   of last-write-wins: reading position resolves by a policy you choose (newest,

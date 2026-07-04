@@ -97,6 +97,9 @@ DEFAULTS: Dict[str, Any] = {
     # for a fixed band that clearly contrasts with the word color.  Both are
     # pickable from View ▸ Reading Aids ▸ Karaoke Highlight….
     "sentence_highlight_color": "",
+    # Auto-scroll the reading view to follow the spoken/highlighted word so the
+    # reader never loses their place.  Set False to scroll manually.
+    "qt_autoscroll": True,
     "gui_width": 1000,
     "gui_height": 700,
     "footnote_mode": "inline",  # "inline" | "deferred" | "skip"

@@ -142,6 +142,25 @@ class PlaybackMixin:
 
     # ── Word highlight (called on GUI thread via _word_signal) ─────────
 
+    def _scroll_read_word_into_view(self, char_pos: int) -> None:
+        """Keep the spoken word in a comfortable reading band as playback moves.
+
+        Scrolls only when the word drifts out of the middle of the viewport,
+        then brings it to ~40% down so there is already-read context above and
+        upcoming text below — steadier than ensureCursorVisible's edge nudge,
+        which lets the read line pin to the bottom where it's easy to lose.
+        """
+        ed = self.editor
+        vh = ed.viewport().height()
+        if vh <= 0:
+            return
+        cur = QTextCursor(ed.document())
+        cur.setPosition(max(0, char_pos))
+        r = ed.cursorRect(cur)
+        if r.top() < vh * 0.15 or r.bottom() > vh * 0.85:
+            vbar = ed.verticalScrollBar()
+            vbar.setValue(vbar.value() + int(r.center().y() - vh * 0.40))
+
     def _apply_word_highlight(self, word_idx: int, session: int) -> None:
         """Paint the currently spoken word using QTextEdit.setExtraSelections().
 
@@ -303,11 +322,15 @@ class PlaybackMixin:
             sel.cursor = cursor
             self.editor.setExtraSelections(selections + [sel])
 
-        # Scroll so the highlighted word is always visible.
-        # setTextCursor + ensureCursorVisible is the reliable approach;
-        # the cursor width is 0 so no blinking caret is visible.
+        # Move the (caret-invisible) text cursor to the spoken word so the
+        # reading ruler and the resume point track it, then keep the word in a
+        # steady reading band.  ensureCursorVisible only nudges the word to the
+        # nearest edge — which lets the read line drift down to the bottom and is
+        # easy to lose track of — so scroll it into the middle instead (honours
+        # the qt_autoscroll preference).
         self.editor.setTextCursor(cursor)
-        self.editor.ensureCursorVisible()
+        if self.settings.get("qt_autoscroll", True):
+            self._scroll_read_word_into_view(char_pos)
 
         # Status bar: word text + reading progress.
         if self.doc and word_idx < len(self.doc.word_map):
