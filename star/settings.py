@@ -92,6 +92,11 @@ DEFAULTS: Dict[str, Any] = {
     "dictionary_file": "",
     "highlight_current_word": True,
     "highlight_color": "cyan",  # color of the TTS word highlight
+    # Sentence-band color used in "both" highlight granularity.  Empty = follow
+    # the theme's selection color (previous behaviour); set a hex like "#3b3f52"
+    # for a fixed band that clearly contrasts with the word color.  Both are
+    # pickable from View ▸ Reading Aids ▸ Karaoke Highlight….
+    "sentence_highlight_color": "",
     "gui_width": 1000,
     "gui_height": 700,
     "footnote_mode": "inline",  # "inline" | "deferred" | "skip"

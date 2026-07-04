@@ -30,6 +30,10 @@ still installs itself in one click — students never see `pip`.
   (`read·a·bil·i·ty`); display-only, so speech and highlighting are unaffected.
 - **Reading ruler.** A movable, translucent band that follows the caret to help
   keep your place (adjustable height and opacity).
+- **Highlight color pickers.** Pick the exact colors for the spoken-word
+  highlight and the sentence band (in "Both" mode) from a color picker in
+  **View ▸ Reading Aids ▸ Karaoke Highlight…** — so the two are easy to tell
+  apart. The sentence band can follow the theme or use a color you choose.
 - **Faster very-large documents.** Opt-in pagination renders only a window of a
   huge document at a time — a ~500-page document's first paint drops from several
   seconds to well under one, with reading, highlighting, Find, and Define-Word

@@ -280,7 +280,11 @@ class PlaybackMixin:
             # Softer band over the sentence + the word marked on top.
             pal = self._effective_palette(self.settings.get("theme", "dark"))
             band_fmt = QTextCharFormat()
-            band_fmt.setBackground(QColor(str(pal.get("sel", "#2c313a"))))
+            _sent_col = str(self.settings.get("sentence_highlight_color", "") or "").strip()
+            if _sent_col and QColor(_sent_col).isValid():
+                band_fmt.setBackground(QColor(_sent_col))
+            else:
+                band_fmt.setBackground(QColor(str(pal.get("sel", "#2c313a"))))
             band_sel = QTextEdit.ExtraSelection()
             band_sel.format = band_fmt
             band_sel.cursor = sent_cursor

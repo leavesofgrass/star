@@ -282,6 +282,7 @@ class AidDialogsMixin:
         keys = (
             "highlight_style",
             "highlight_color",
+            "sentence_highlight_color",
             "highlight_speed",
             "highlight_lead_words",
             "highlight_granularity",
@@ -320,21 +321,69 @@ class AidDialogsMixin:
         )
         form.addRow("Style:", style_box)
 
-        _COLORS = [
-            "cyan",
-            "yellow",
-            "green",
-            "magenta",
-            "orange",
-            "red",
-            "blue",
-            "white",
-        ]
-        color_box = QComboBox()
-        color_box.setEditable(True)
-        color_box.addItems(_COLORS)
-        color_box.setEditText(str(orig["highlight_color"] or "cyan"))
-        form.addRow("Color:", color_box)
+        # Colour pickers — a swatch button opens the system colour dialog for the
+        # spoken word and (in "both" granularity) the sentence band, so the two
+        # can be set to clearly distinct colours.
+        word_state = {"v": str(orig["highlight_color"] or "cyan")}
+        sent_state = {"v": str(orig["sentence_highlight_color"] or "")}
+
+        def _swatch(state: dict, allow_theme: bool):
+            btn = QPushButton()
+
+            def _paint() -> None:
+                c = QColor(state["v"]) if state["v"] else QColor()
+                if c.isValid():
+                    lum = 0.299 * c.red() + 0.587 * c.green() + 0.114 * c.blue()
+                    fg = "#000000" if lum > 140 else "#ffffff"
+                    btn.setStyleSheet(
+                        f"QPushButton{{background-color:{c.name()};color:{fg};"
+                        "padding:5px;border:1px solid #888;}"
+                    )
+                    btn.setText(c.name())
+                else:
+                    btn.setStyleSheet("")
+                    btn.setText("Theme default")
+
+            def _pick() -> None:
+                start = (
+                    QColor(state["v"])
+                    if state["v"] and QColor(state["v"]).isValid()
+                    else QColor("#888888")
+                )
+                chosen = QColorDialog.getColor(start, dlg, "Choose highlight color")
+                if chosen.isValid():
+                    state["v"] = chosen.name()
+                    _paint()
+                    _preview()
+
+            btn.clicked.connect(_pick)
+            _paint()
+            if not allow_theme:
+                return btn
+            wrap = QWidget()
+            hb = QHBoxLayout(wrap)
+            hb.setContentsMargins(0, 0, 0, 0)
+            hb.addWidget(btn, 1)
+            theme_btn = QPushButton("Use theme")
+            theme_btn.setToolTip("Match the theme's selection colour")
+
+            def _use_theme() -> None:
+                state["v"] = ""
+                _paint()
+                _preview()
+
+            theme_btn.clicked.connect(_use_theme)
+            hb.addWidget(theme_btn)
+            return wrap
+
+        word_btn = _swatch(word_state, False)
+        word_btn.setToolTip(
+            "Color of the spoken word (and the whole sentence in Sentence mode)"
+        )
+        form.addRow("Word color:", word_btn)
+        sent_widget = _swatch(sent_state, True)
+        sent_widget.setToolTip("Color of the sentence band (Both mode)")
+        form.addRow("Sentence color:", sent_widget)
 
         speed = QDoubleSpinBox()
         speed.setRange(0.5, 1.5)
@@ -355,7 +404,8 @@ class AidDialogsMixin:
 
         def _preview() -> None:
             self.settings._data["highlight_style"] = style_box.currentText()
-            self.settings._data["highlight_color"] = color_box.currentText().strip()
+            self.settings._data["highlight_color"] = word_state["v"]
+            self.settings._data["sentence_highlight_color"] = sent_state["v"]
             self.settings._data["highlight_speed"] = speed.value()
             self.settings._data["highlight_lead_words"] = lead.value()
             self.settings._data["highlight_granularity"] = gran_box.currentText()
@@ -363,7 +413,6 @@ class AidDialogsMixin:
 
         gran_box.currentTextChanged.connect(lambda _v: _preview())
         style_box.currentTextChanged.connect(lambda _v: _preview())
-        color_box.editTextChanged.connect(lambda _v: _preview())
         speed.valueChanged.connect(lambda _v: _preview())
         lead.valueChanged.connect(lambda _v: _preview())
 
@@ -382,12 +431,14 @@ class AidDialogsMixin:
         if result:
             _preview()
             self.settings.save()
-            self.statusBar().showMessage(
+            _msg = (
                 f"Highlight — {gran_box.currentText()}, "
-                f"{style_box.currentText()}, "
-                f"{color_box.currentText().strip()}, "
-                f"{speed.value():.2f}×, lead {lead.value():+d}"
+                f"{style_box.currentText()}, word {word_state['v']}"
             )
+            if sent_state["v"]:
+                _msg += f", sentence {sent_state['v']}"
+            _msg += f", {speed.value():.2f}×, lead {lead.value():+d}"
+            self.statusBar().showMessage(_msg)
         else:
             for k, v in orig.items():
                 self.settings._data[k] = v
