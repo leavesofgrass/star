@@ -72,6 +72,7 @@ _BRL_PUNCT = {
 }
 _BRL_NUMBER_SIGN = 60  # dots 3-4-5-6
 _BRL_CAPITAL_SIGN = 32  # dot 6
+_BRL_LETTER_SIGN = 48  # dots 5-6 — grade-1 indicator terminating number mode
 
 
 def _text_to_braille_grade1(text: str) -> str:
@@ -82,6 +83,8 @@ def _text_to_braille_grade1(text: str) -> str:
     sign), capital signs, common punctuation, and whitespace.  Unknown
     characters are dropped so the output stays valid Braille-ASCII.
     """
+    import unicodedata
+
     out: List[str] = []
     in_number = False
     for ch in text:
@@ -93,12 +96,27 @@ def _text_to_braille_grade1(text: str) -> str:
             out.append(" ")
             in_number = False
             continue
+        if ch.lower() not in _BRL_LETTER and ch not in _BRL_DIGIT and ch not in _BRL_PUNCT:
+            # Fold accented Latin letters to their base letter instead of
+            # silently dropping them ("café" embossed as "caf").
+            folded = "".join(
+                c
+                for c in unicodedata.normalize("NFKD", ch)
+                if unicodedata.category(c) != "Mn"
+            )
+            if len(folded) == 1 and folded.lower() in _BRL_LETTER:
+                ch = folded
         low = ch.lower()
         if low in _BRL_LETTER:
+            # A letter a-j immediately after a number shares its cell with the
+            # digit 1-0, so it MUST be preceded by the letter sign (dots 5-6)
+            # — without it "3a" embosses as "31", silent content corruption.
+            # (Letters k-z use cells outside the digit range; UEB still calls
+            # for the terminator on a-j, which is the ambiguous set.)
+            if in_number and low in "abcdefghij":
+                out.append(_BRAILLE_ASCII[_BRL_LETTER_SIGN])
             if ch.isupper():
                 out.append(_BRAILLE_ASCII[_BRL_CAPITAL_SIGN])
-            # A letter a-j immediately after a number must be separated from
-            # the number by a letter sign; we end number mode on any letter.
             in_number = False
             out.append(_BRAILLE_ASCII[_BRL_LETTER[low]])
         elif ch in _BRL_DIGIT:

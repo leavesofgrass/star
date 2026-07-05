@@ -98,9 +98,12 @@ def _wrap_segs(segs: List[Seg], width: int) -> List[Line]:
                     col += tlen
             else:
                 if tlen >= width:
-                    while tok:
-                        chunk = tok[:width]
-                        tok = tok[width:]
+                    # Index-based chunking: the old `tok = tok[width:]` re-slice
+                    # copied the whole remaining tail per chunk — O(n²) that
+                    # froze the TUI ~34 s on a 5 MB single-token file, repeated
+                    # on every resize.  Output-identical, O(n).
+                    for j in range(0, tlen, width):
+                        chunk = tok[j : j + width]
                         if line:
                             result.append(line)
                         line = [(chunk, role)]

@@ -57,12 +57,21 @@ class CaretMixin:
             return
         h, _ = self.scr.getmaxyx()
         view_h = max(1, h - 4)
-        margin = int(self.settings.get("scroll_margin", 3))
+        # A margin >= half the viewport makes the two branches fight (the
+        # caret can never satisfy both); clamp like a text editor would.
+        margin = min(int(self.settings.get("scroll_margin", 3)), (view_h - 1) // 2)
+        margin = max(0, margin)
         line = wp.disp_line
         if line < self.scroll + margin:
             self.scroll = max(0, line - margin)
         elif line >= self.scroll + view_h - margin:
             self.scroll = max(0, line - view_h + margin + 1)
+        # Clamp to what is actually rendered: during the async word-map
+        # rebuild after a resize, word_map lines can briefly exceed the new
+        # render — an unclamped scroll then blanks the whole screen.
+        total = len(self.rendered)
+        if total:
+            self.scroll = max(0, min(self.scroll, total - 1))
 
     def _caret_after_manual_move(self) -> None:
         self._caret_manual_ts = time.monotonic()

@@ -116,11 +116,19 @@ class DrawMixin:
             _scroll_line = -1
 
         if _scroll_line >= 0:
-            margin = int(self.settings["scroll_margin"])
+            # Margin clamped so an oversized scroll_margin cannot make the
+            # two branches fight (see CaretMixin._caret_scroll_into_view).
+            margin = min(int(self.settings["scroll_margin"]), (view_h - 1) // 2)
+            margin = max(0, margin)
             if _scroll_line < self.scroll + margin:
                 self.scroll = max(0, _scroll_line - margin)
             elif _scroll_line >= self.scroll + view_h - margin:
                 self.scroll = max(0, _scroll_line - view_h + margin + 1)
+
+        # Defensive: never draw from past the rendered buffer (a stale
+        # word-map line during the post-resize rebuild would blank the view).
+        if self.rendered:
+            self.scroll = max(0, min(self.scroll, len(self.rendered) - 1))
 
         if self.loading:
             mid = view_top + view_h // 2

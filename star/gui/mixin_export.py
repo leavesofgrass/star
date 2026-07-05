@@ -260,6 +260,9 @@ class ExportMixin:
         if not self.doc:
             self.statusBar().showMessage("No document loaded")
             return
+        if not (self.doc.plain_text or "").strip():
+            self.statusBar().showMessage("Document has no readable text")
+            return
         p = Path(self.doc.path) if self.doc.path else Path("export")
         fmt = str(self.settings.get("audio_export_format", "wav")).lstrip(".")
         default = str(p.parent / (p.stem + f".{fmt}"))
@@ -310,6 +313,9 @@ class ExportMixin:
         """
         if not self.doc:
             self.statusBar().showMessage("No document loaded")
+            return
+        if not (self.doc.plain_text or "").strip():
+            self.statusBar().showMessage("Document has no readable text")
             return
         p = Path(self.doc.path) if self.doc.path else Path("export")
         fmt = str(self.settings.get("subtitle_format", "srt")).lower()

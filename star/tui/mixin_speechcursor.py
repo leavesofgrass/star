@@ -55,8 +55,14 @@ class SpeechCursorMixin:
             self._sc_reader.close()
             self._sc_reader = None
         self._tts_stop()  # also silence the main TTS backend
+        # Hand the position to the normal-mode caret so Enter/Space continue
+        # from where the user browsed to — leaving the caret where it was
+        # before SC mode made the two cursors silently disagree.
+        dest_word = self._line_to_word(self._sc_line)
+        if self.doc and self.doc.word_map and 0 <= dest_word < len(self.doc.word_map):
+            self._caret_word = dest_word
+            self._caret_goal_col = -1
         if start_reading:
-            dest_word = self._line_to_word(self._sc_line)
             self.scroll = self._sc_line
             self._tts_paused_at_word = -1
             self._tts_play_from_word(dest_word)
@@ -103,10 +109,12 @@ class SpeechCursorMixin:
             return
         dest_line = max(0, min(dest_line, total - 1))
         self._sc_line = dest_line
-        # Keep cursor comfortably visible
+        # Keep cursor comfortably visible (margin clamped so an oversized
+        # scroll_margin cannot make the two branches fight — see CaretMixin).
         h, _ = self.scr.getmaxyx()
         view_h = max(1, h - 4)
-        margin = int(self.settings.get("scroll_margin", 3))
+        margin = min(int(self.settings.get("scroll_margin", 3)), (view_h - 1) // 2)
+        margin = max(0, margin)
         if dest_line < self.scroll + margin:
             self.scroll = max(0, dest_line - margin)
         elif dest_line >= self.scroll + view_h - margin:

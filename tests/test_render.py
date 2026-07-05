@@ -143,3 +143,25 @@ def test_lines_to_plain_roundtrip():
 
 def test_lines_to_plain_empty():
     assert lines_to_plain([]) == "" or lines_to_plain([]).strip() == ""
+
+
+# ── 0.1.22 audit: hard-wrap performance + correctness ────────────────────────
+
+
+def test_hard_wrap_long_token_output_and_speed():
+    """Words longer than the wrap width chunk correctly — and in O(n).
+
+    The old tail-re-slice was O(n^2): a single 5 MB token froze the TUI for
+    ~34 s on every render/resize.  1 MB must now wrap well under a second."""
+    import time as _time
+
+    token = "x" * 1_000_000
+    t0 = _time.perf_counter()
+    lines = render_markdown(token, 80)
+    elapsed = _time.perf_counter() - t0
+    assert elapsed < 2.0, f"hard wrap took {elapsed:.2f}s — O(n^2) regression"
+    flat = "".join(t for line in lines for t, _ in line)
+    assert flat == token  # no characters lost or duplicated
+    assert all(
+        sum(len(t) for t, _ in line) <= 80 for line in lines
+    ), "a wrapped line exceeds the width"

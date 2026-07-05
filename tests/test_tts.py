@@ -752,3 +752,37 @@ def test_resolve_default_voice_no_match_is_noop(fake_backends):
                          tts_prefer_voice="eloquence")
     mgr._resolve_default_voice()
     assert mgr._backend.chosen is None
+
+
+# ── 0.1.22 audit: export guards + ElevenLabs RIFF wrap ───────────────────────
+
+
+def test_export_audio_rejects_empty_text(tmp_path):
+    """Empty/whitespace text must fail with a clear message, not reach
+    pyttsx3's bare `assert text` (which surfaced as 'Audio export error: ')."""
+    from star.settings import Settings
+    from star.tts import TTSManager
+
+    mgr = TTSManager(Settings())
+    with pytest.raises(ValueError, match="no readable text"):
+        mgr.export_audio("   \n  ", str(tmp_path / "out.wav"))
+    with pytest.raises(ValueError, match="no readable text"):
+        mgr.export_subtitles("", str(tmp_path / "out.srt"))
+
+
+def test_elevenlabs_riff_wraps_raw_pcm():
+    """output_format=pcm_16000 returns HEADERLESS PCM — the backend must wrap
+    it in a real RIFF/WAV container before playback or .wav export."""
+    from star.tts.cloud.elevenlabs import ElevenLabsBackend
+
+    raw = b"\x00\x01" * 800  # fake 16-bit PCM samples
+    wrapped = ElevenLabsBackend._riff_wrap(raw, 16000)
+    assert wrapped[:4] == b"RIFF" and wrapped[8:12] == b"WAVE"
+    import io
+    import wave
+
+    with wave.open(io.BytesIO(wrapped)) as w:
+        assert w.getframerate() == 16000
+        assert w.getnchannels() == 1
+        assert w.getsampwidth() == 2
+        assert w.readframes(w.getnframes()) == raw

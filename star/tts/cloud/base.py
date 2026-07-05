@@ -276,6 +276,12 @@ class CloudBackend(TTSBackend):
         if not api_key:
             raise CloudTTSError(f"{self.name}: no API key configured.")
         audio = self._synth_bytes(text, api_key)
+        # Safety net for every cloud provider: a .wav that doesn't start with
+        # a RIFF header would silently corrupt audiobook/audio exports.
+        if audio[:4] != b"RIFF":
+            raise CloudTTSError(
+                f"{self.name}: provider returned non-WAV audio; export aborted."
+            )
         Path(wav_path).write_bytes(audio)
 
     @property

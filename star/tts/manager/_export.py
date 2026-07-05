@@ -60,6 +60,11 @@ class ExportMixin:
         Call it from a background thread when used in a GUI to avoid
         freezing the interface.
         """
+        if not (text or "").strip():
+            # Without this, empty text reached pyttsx3's bare `assert text`
+            # (surfacing as "Audio export error: " with no reason) and
+            # whitespace produced a 46-byte silent WAV "successfully".
+            raise ValueError("Document has no readable text to synthesize.")
         ext = Path(dest_path).suffix.lower()
         if ext == ".wav":
             self._backend.export_to_wav(text, dest_path)
@@ -101,8 +106,11 @@ class ExportMixin:
     ) -> None:
         """Generate and write an SRT/VTT caption track for the synthesized WAV."""
         subs = _generate_subtitles(text, wav_path, fmt=fmt, word_level=word_level)
-        if subs:
-            Path(sub_path).write_text(subs, encoding="utf-8")
+        if not subs:
+            # Callers report success after this returns — an empty cue list
+            # must fail loudly, not silently skip writing the file.
+            raise ValueError("No caption cues could be generated for this text.")
+        Path(sub_path).write_text(subs, encoding="utf-8")
 
     def export_subtitles(
         self,
@@ -117,6 +125,8 @@ class ExportMixin:
         Use this when only captions are wanted (no audio file).  **Blocks**
         until synthesis is complete.
         """
+        if not (text or "").strip():
+            raise ValueError("Document has no readable text to synthesize.")
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
             tmp_wav = tmp.name
         try:

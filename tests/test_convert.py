@@ -110,3 +110,19 @@ def test_batch_stop_event_cancels(tmp_path, settings):
     stop.set()  # already stopped → nothing should be processed
     summary = convert.run_batch([tmp_path], out, "text", settings, stop=stop)
     assert summary.total == 0
+
+
+def test_braille_letter_sign_after_number():
+    """Grade 1: an a-j letter after digits needs the letter sign (dots 5-6) —
+    without it '3a' embosses as '31' (silent content corruption)."""
+    from star.braille import _BRAILLE_ASCII, _BRL_LETTER_SIGN, _text_to_braille_grade1
+
+    sign = _BRAILLE_ASCII[_BRL_LETTER_SIGN]
+    out = _text_to_braille_grade1("3a")
+    assert sign in out, "letter sign missing after a number"
+    # k-z (outside the digit cells) and letters after a space don't need it.
+    assert sign not in _text_to_braille_grade1("3 a")
+    # And accented Latin letters fold to their base instead of vanishing.
+    cafe = _text_to_braille_grade1("café")
+    plain = _text_to_braille_grade1("cafe")
+    assert cafe == plain, "accented letter dropped from braille output"

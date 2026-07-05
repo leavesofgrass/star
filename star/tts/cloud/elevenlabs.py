@@ -62,13 +62,33 @@ class ElevenLabsBackend(CloudBackend):
     def _voice_id(self) -> str:
         return self._voice or self._DEFAULT_VOICE
 
+    #: Sample rate matching the ``output_format=pcm_16000`` request below.
+    _PCM_RATE = 16000
+
+    @staticmethod
+    def _riff_wrap(pcm: bytes, rate: int) -> bytes:
+        """Wrap raw 16-bit mono PCM in a WAV (RIFF) container — stdlib only."""
+        import io
+        import wave
+
+        buf = io.BytesIO()
+        with wave.open(buf, "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)  # 16-bit
+            w.setframerate(rate)
+            w.writeframes(pcm)
+        return buf.getvalue()
+
     def _synth_bytes(self, text: str, api_key: str) -> bytes:
         """POST to ``/v1/text-to-speech/{voice_id}`` and return WAV audio bytes.
 
-        Requests PCM WAV (``output_format=pcm_16000`` wrapped as a WAV container
-        via the ``Accept`` header) so the bytes drop straight into star's WAV
-        playback path with no transcoding.  Raises :class:`CloudTTSError` on any
-        network/API failure (handled in :meth:`CloudBackend._http_post`).
+        ``output_format=pcm_16000`` returns HEADERLESS 16-bit mono PCM — the
+        ``Accept`` header does not add a container, so the bytes are wrapped
+        into a real RIFF/WAV here (the format is fully specified by the
+        request, no probing needed).  Without the wrap, playback and .wav
+        export received raw PCM in a .wav file.  Raises
+        :class:`CloudTTSError` on any network/API failure (handled in
+        :meth:`CloudBackend._http_post`).
         """
         url = f"{self._API_ROOT}/v1/text-to-speech/{self._voice_id()}"
         body = json.dumps(
@@ -81,15 +101,14 @@ class ElevenLabsBackend(CloudBackend):
         headers = {
             "xi-api-key": api_key,  # the provider's key header — never logged
             "Content-Type": "application/json",
-            # Ask for a WAV container so star's WAV player accepts the bytes.
             "Accept": "audio/wav",
         }
-        # ``output_format`` is a query param on this endpoint; pcm_16000 in a WAV
-        # wrapper is broadly supported and matches the WAV Accept header.
         url = url + "?output_format=pcm_16000"
         audio = self._http_post(url, body, headers)
         if not audio:
             raise CloudTTSError(f"{self.name}: empty audio response from provider.")
+        if audio[:4] != b"RIFF":  # tolerate a future provider-side container
+            audio = self._riff_wrap(audio, self._PCM_RATE)
         return audio
 
     # ── voice enumeration ────────────────────────────────────────────────────
