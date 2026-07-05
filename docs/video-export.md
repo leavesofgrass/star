@@ -139,9 +139,12 @@ produces a plain video+audio MP4 with no subtitle track.
 **"ffmpeg not found"** — ffmpeg is not on PATH. Install it and restart the
 terminal so `star` picks up the new PATH.
 
-**"TTS synthesis failed"** — no TTS backend is available or the document
-produced empty plain text. Run `star --deps` to check your TTS installation,
-or try `M-x tts-backend` to pick a working engine first.
+**"Document has no readable text"** — the document produced empty plain text;
+there is nothing to synthesize. Audio and subtitle export refuse the same way.
+
+**"TTS synthesis failed"** — no TTS backend is available. Run `star --deps` to
+check your TTS installation, or try `M-x tts-backend` to pick a working engine
+first.
 
 **"No frame renderer available"** — neither Qt nor Pillow is installed.
 `pip install "star-reader[video]"` installs Pillow.

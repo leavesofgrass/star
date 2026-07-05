@@ -35,7 +35,7 @@ Open it from the TUI with `M-x settings`.
 | `tour_seen` | `false` | Set automatically once the first-run guided tour has been shown or skipped, so it never re-triggers on its own. The tour stays re-runnable from **Help ▸ Guided Tour** |
 | `auto_check_updates` | `false` | Opt in to a quiet, best-effort update check shortly after launch (one cached PyPI query; only speaks up if a newer release exists). Off by default for privacy/offline use — **Help ▸ Check for Updates…** always runs a manual check regardless |
 | `ui_language` | `"en"` | UI-chrome language (menus, toolbar, docks): `en`, `es`, `fr`, `de`, `pt`. See [Interface language](features.md#interface-language-i18n) |
-| `tts_backend` | `"auto"` | TTS engine: `auto`, `pyttsx3`, `espeak`, `festival`, `piper`, `coqui`, `dectalk`, `none` |
+| `tts_backend` | `"auto"` | TTS engine: `auto`, `pyttsx3`, `espeak`, `festival`, `piper`, `coqui`, `dectalk`, `elevenlabs` (cloud; needs `elevenlabs_api_key`), `none` |
 | `piper_model` | `""` | Path to a Piper `.onnx` voice model for the `piper` backend (neural, offline). The matching `.onnx.json` must sit beside it. Also honored: `PIPER_MODEL` env var and Piper voice directories. |
 | `elevenlabs_api_key` | `""` | API key for the opt-in `elevenlabs` cloud neural voice. Empty = disabled (no network egress); paste a key **and** select the `elevenlabs` engine to enable |
 | `tts_rate` | `265` | Reading speed in words per minute |
@@ -115,7 +115,7 @@ Open it from the TUI with `M-x settings`.
 | `citations` | `[]` | Shared citation library (BibTeX/RIS/CSL-JSON import/export) |
 | `graph` | *(nested)* | Knowledge-graph options for typed relations between annotations: `auto_rebuild_on_annotation_change` (`true`), `default_layout` (`"spring"`), `node_color_by` (`"doc"`), `show_orphan_nodes` (`false`), `concept_domain` (`"general"`), `last_export_dir` (`""`) |
 | `vault` | *(nested)* | Obsidian vault import/export: `last_vault_dir` (`""`) and `default_link_relation` (`"SEE_ALSO"`, the type given to untyped `[[wikilinks]]` on import) |
-| `video` | *(nested)* | Video-export options: `resolution` (`"1280x720"`), `theme` (`""` = inherit global), `font_scale` (`1.0`), `subtitles` (`"soft"` — `soft`/`burn`/`none`), `last_export_dir` (`""`) |
+| `video` | *(nested)* | Video-export options: `resolution` (`"1280x720"`), `theme` (`""` = inherit global), `font_scale` (`1.0`), `subtitles` (`"soft"` = selectable muxed SRT track, `"none"` = no track), `last_export_dir` (`""`) |
 | `whisper_model` | `"base"` | Whisper model size for transcription/dictation (`tiny`…`large`) |
 | `transcribe_timestamps` | `false` | Prefix each transcript segment with its `[hh:mm:ss]` start time |
 | `whisper_chunk_seconds` | `6` | Chunk length in seconds for live streaming dictation |
@@ -125,7 +125,7 @@ Open it from the TUI with `M-x settings`.
 | `qt_paginate_threshold_words` | `60000` | Only paginate documents with at least this many words (the size gate) — ordinary books/articles always take the unchanged whole-document path |
 | `qt_paginate_words_per_page` | `1200` | Target words per rendered page under pagination |
 | `qt_paginate_window_pages` | `2` | Pages of context rendered on each side of the active page (a larger window re-renders less often but lays out more at once) |
-| `footnote_mode` | `"inline"` | Footnote handling: `inline`, `deferred`, `skip` |
+| `footnote_mode` | `"inline"` | Footnote handling: `inline` (note text spoken at the reference), `deferred` (references removed; the notes are collected as a plain numbered list under a `## Footnotes` heading at the end), `skip` (removed entirely) |
 | `pdf_reading_order` | `"reconstruct"` | PDF layout handling: `reconstruct` rebuilds multi-column reading order and suppresses running headers/footers/page numbers; `raw` keeps pdfminer's native box order |
 | `prefer_pandoc` | `true` | When Pandoc is installed, prefer it as a first-class importer for the office/markup formats it handles (and Pandoc-only types like `.rtf`, `.fb2`, `.typst`); falls back to native loaders if Pandoc fails. EPUB always stays native (chapter navigation). Set `false` to always use native loaders |
 | `epub_show_chapters` | `true` | Include chapter headings in EPUB rendering |

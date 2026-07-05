@@ -761,7 +761,7 @@ Markdown/Pandoc footnotes (`[^1]`, `[^label]`) are handled per `footnote_mode`:
 | Mode | Behavior |
 |---|---|
 | `inline` (default) | Footnote text inserted at the reference: *word (footnote: text)* |
-| `deferred` | References removed; text collected as a "## Footnotes" section at the end |
+| `deferred` | References removed; the notes are collected as a plain numbered list under a "## Footnotes" heading at the end |
 | `skip` | All footnote markers and definitions silently removed |
 
 Change at runtime with `M-x footnote-mode inline|deferred|skip`.
@@ -841,7 +841,9 @@ braille display; on Windows, NVDA and JAWS handle routing.
 
 BRF export works **with no dependencies** via a pure-Python uncontracted **Grade
 1** translator using the NABCC character set, with number/capital signs,
-punctuation, and standard **40-cell × 25-line** page geometry.
+punctuation, and standard **40-cell × 25-line** page geometry. Letters a–j
+right after a digit get the letter sign (so `3a` never embosses as `31`), and
+accented Latin letters fold to their base letter.
 
 > Earlier versions relied solely on liblouis, where a missing translation table
 > could make liblouis call `exit()` at the C level — closing the whole window.
@@ -887,8 +889,9 @@ Click any entry or type its ref directly.
 loaded in its native format (PDF, EPUB, Markdown, …), and keyed in the library
 and annotations by the ref — so notes survive across sessions.
 
-- **Qt GUI:** **File ▸ Open Archive…** — pick the archive from a dialog, then
-  select a member from the list that appears.
+- **Qt GUI:** **File ▸ Open Archive…** — pick the archive from a dialog. An
+  archive with a single readable member opens it directly; multiple members
+  show a picker (cancelling the picker opens the archive's index instead).
 - **TUI:** `M-x open-archive [path]` — same workflow from the command palette.
 - **CLI / open directly:** `star /path/to/book.zip!chapter1.pdf`
 

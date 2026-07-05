@@ -54,10 +54,48 @@ that existed only on paper.
 
 ### 🐛 Fixed
 
+- **File ▸ Open Archive works again.** Opening a document from a zip/tar
+  archive had been broken since roughly 0.1.12 — the action called a method
+  that no longer existed. Now fixed and covered by a test.
+- **Everything in a nested list is spoken.** Standard 4-space-indented
+  sub-items ("    - apples") were silently skipped by the text-to-speech
+  narration — the indented-code filter ran before list markers were
+  removed. Nested ">>" quote markers no longer leak into speech either.
+- **Deferred footnotes survive exports.** With footnotes set to "deferred",
+  HTML and EPUB exports shipped an empty "Footnotes" heading — the note
+  text itself was dropped. Notes now export as a plain numbered list.
+- **Resizing the terminal keeps your place.** The TUI used to jump back to
+  the previous session's saved position on every window resize (and re-toast
+  "Resumed at N%"); the view now stays anchored to what you were reading.
+  The saved position restores only when a document is opened.
 - **Failed opens no longer masquerade as success.** A file that couldn't be
   opened used to toast "Opened: Error", enter the recent-files list, and —
   with auto-play on — read the raw error text aloud in the terminal. Both
   UIs now say "Could not open …" plainly and leave recents alone.
+- **OCR language setting works.** `ocr_lang` (e.g. `"eng+spa"`) is now
+  passed to Tesseract — it was documented but never wired, so OCR always
+  ran in English. `recent_files_limit`, `video.theme`, and
+  `video.font_scale` are wired too; four settings that did nothing were
+  removed.
+- **ElevenLabs audio is a real WAV.** The cloud voice returned headerless
+  PCM that star saved into .wav files; it is now properly containerized,
+  fixing playback and audio/audiobook export with the cloud voice.
+- **Braille fixes.** Grade-1 BRF now emits the letter sign for a–j after
+  numbers ("3a" no longer embosses as "31") and folds accented letters to
+  their base instead of dropping them ("café" kept its é as *e*).
+- **No more freeze on pathological files.** A multi-megabyte single-line
+  file froze the terminal reader for half a minute per redraw; wrapping is
+  now linear-time. Oversized `scroll_margin` values and a resize race that
+  could briefly blank the TUI screen are also fixed.
+- **No network on a default launch.** The GUI no longer downloads the
+  OpenDyslexic font at startup when no reading font was ever selected —
+  fonts fetch on first *use*, as documented, with a once-per-machine retry
+  guard. The summarizer's tokenizer download now honors the
+  `auto_install` / `STAR_NO_AUTOINSTALL` kill-switch like everything else.
+- **The GUI starts without curses.** Installs without `windows-curses`
+  (pipx, `--no-deps`) crashed before a window appeared because the GUI's
+  import chain touched the terminal stack; the import is now lazy and a
+  test locks it in.
 - **A corrupt settings file is backed up, not silently erased.** Preferences,
   reading positions, and highlights now survive as a timestamped `.bak`, and
   star tells you what happened instead of quietly starting fresh.

@@ -133,7 +133,10 @@ def test_synth_request_url_headers_and_body(monkeypatch):
     b = ElevenLabsBackend(api_key="tok-123", voice="voiceXYZ")
     audio = b._synth_bytes("hello world", "tok-123")
 
-    assert audio == b"WAVBYTES"
+    # pcm_16000 responses are HEADERLESS PCM: the backend must wrap them in a
+    # real RIFF/WAV container (the raw payload survives inside verbatim).
+    assert audio[:4] == b"RIFF" and audio[8:12] == b"WAVE"
+    assert audio.endswith(b"WAVBYTES")
     assert captured["method"] == "POST"
     assert captured["url"].startswith(
         "https://api.elevenlabs.io/v1/text-to-speech/voiceXYZ"
