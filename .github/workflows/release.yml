@@ -294,16 +294,20 @@ jobs:
             dist/*.app.zip
           if-no-files-found: ignore
 
-  # ── OPTIONAL: Linux AppImage ───────────────────────────────────────────────
+  # ── Linux AppImage ─────────────────────────────────────────────────────────
   # Bundles a Python runtime + star into a single self-contained ``star.AppImage``
   # that runs on most Linux distros with no install step.  No signing needed
   # (AppImages are typically distributed with a GPG .asc from the sign job above).
   #
-  # GATING: same trigger as the other installers (manual ``build_installers`` or
-  # ``vars.ENABLE_INSTALLERS=true``).  See docs/PACKAGING.md → "Linux AppImage".
+  # GATING: builds on every ``v*`` tag — a DEFAULT release artifact since
+  # 0.1.22, attached to the GitHub Release — plus the manual
+  # ``build_installers`` / ``vars.ENABLE_INSTALLERS`` triggers shared with the
+  # other installers.  See docs/PACKAGING.md → "Linux AppImage" (which also
+  # documents the local one-command Docker build).
   linux-appimage:
-    name: Linux AppImage (optional)
+    name: Linux AppImage
     if: >-
+      startsWith(github.ref, 'refs/tags/v') ||
       (github.event_name == 'workflow_dispatch' && inputs.build_installers) ||
       vars.ENABLE_INSTALLERS == 'true'
     runs-on: ubuntu-latest
@@ -322,19 +326,22 @@ jobs:
           if-no-files-found: ignore
 
   # ── Publish the GitHub Release ─────────────────────────────────────────────
-  # The automated release is wheel + sdist only (published to PyPI above and
-  # attached here).  Neither the star.pyz nor the deprecated star.exe is a
-  # dependency or attached to releases — build those manually if you need them
-  # (see windows-pyz / windows-exe above and docs/installation.md).
+  # The automated release is wheel + sdist + the Linux AppImage.  Neither the
+  # star.pyz nor the deprecated star.exe is a dependency or attached to releases
+  # — build those manually if you need them (see windows-pyz / windows-exe above
+  # and docs/installation.md).
   #
-  # The optional signing / installer jobs above are intentionally NOT in
-  # ``needs`` — they are best-effort and skipped by default, so the release must
-  # not wait on them.  Their artifacts, when produced, are still swept up by the
-  # ``download-artifact@v4`` step below (it downloads *every* uploaded artifact)
-  # and attached to the release automatically.
+  # ``linux-appimage`` IS in ``needs``: without it, the ~5-minute AppImage build
+  # races this job and its artifact silently misses the sweep-up below.  The
+  # ``if: always()`` + explicit wheel check keeps the release from being held
+  # hostage — a failed AppImage build still publishes wheel + sdist.  The other
+  # signing / installer jobs stay out of ``needs`` (best-effort, skipped by
+  # default); when they finish in time their artifacts are still swept up by
+  # ``download-artifact@v4`` (it downloads *every* uploaded artifact).
   release:
     name: Publish GitHub Release
-    needs: [wheel]
+    needs: [wheel, linux-appimage]
+    if: always() && needs.wheel.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Download all build artifacts

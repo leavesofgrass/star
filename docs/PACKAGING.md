@@ -23,7 +23,7 @@ day-to-day "cut a release" procedure) and [`installation.md`](installation.md)
 | **Fat zipapp** | `star.pyz` | `python build_zipapp.py` / `windows-pyz` job (manual) | ⚙️ manual | Bundles `star` + `[all]` extras; platform-specific (carries compiled wheels). See [installation.md](installation.md#single-file-build-starpyz). |
 | **Windows installer** | `star-setup-<v>.exe` | `windows-installer` job (optional) | 🔒 opt-in | NSIS click-through installer around `star.pyz`; Authenticode-signed when a cert is provided. |
 | **macOS app / DMG** | `star.app.zip` + `star-<v>.dmg` | `macos-app` job (optional) | 🔒 opt-in | briefcase-built `.app`/`.dmg`; codesigned + notarized when an Apple Developer ID is provided. |
-| **Linux AppImage** | `star-<v>-x86_64.AppImage` | `linux-appimage` job (optional) | 🔒 opt-in | Self-contained via python-appimage; distributed with a detached GPG `.asc`. |
+| **Linux AppImage** | `star-<v>-x86_64.AppImage` | `linux-appimage` job | ✅ | Self-contained via python-appimage; built on every `v*` tag and attached to the GitHub Release (default since 0.1.22). |
 | **GPG signatures** | `*.whl.asc`, `*.tar.gz.asc` | `sign-artifacts` job (optional) | 🔒 opt-in | Detached armored signatures for the wheel + sdist. |
 | **Deprecated exe** | `star.exe` | `windows-exe` job (manual) | ⚠️ deprecated | PyInstaller onefile; manual fallback only. See [RELEASING.md](RELEASING.md). |
 
@@ -95,7 +95,10 @@ release's download-all step and attached automatically.
   which uses **python-appimage** to bundle a relocatable CPython + `star-reader[all]`
   into `star-<v>-x86_64.AppImage`. No signing here — pair it with the `.asc`
   from `sign-artifacts`.
-- **Gate:** manual `build_installers: true`, **or** `vars.ENABLE_INSTALLERS == 'true'`.
+- **Gate:** runs on **every `v*` tag** (default release artifact since 0.1.22 —
+  the publish job waits for it via `needs`, but a failed AppImage build never
+  blocks the wheel/sdist release). Also runs via manual `build_installers: true`
+  or `vars.ENABLE_INSTALLERS == 'true'`.
 - **No secrets required.**
 
 **Building locally from any OS (Docker):**
