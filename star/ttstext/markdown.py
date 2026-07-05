@@ -22,6 +22,13 @@ def _strip_markdown_for_tts(
     """
     text = md
 
+    # List markers — stripped BEFORE the indented-code pass below, because a
+    # CommonMark nested list item ("    - apples") is also 4-space-indented:
+    # stripping "indented code" first silently deleted every nested list item
+    # from narration (content loss in a reader whose job is reading).
+    text = re.sub(r"^\s*[-*+]\s+", "", text, flags=re.MULTILINE)
+    text = re.sub(r"^\s*\d+[.)]\s+", "", text, flags=re.MULTILINE)
+
     # Remove fenced code blocks entirely if requested
     if skip_code:
         text = re.sub(r"```[\s\S]*?```", "", text)
@@ -52,12 +59,9 @@ def _strip_markdown_for_tts(
     text = re.sub(r"\*([^*\n]+?)\*", r"\1", text)
     text = re.sub(r"_([^_\n]+?)_", r"\1", text)
 
-    # Blockquotes
-    text = re.sub(r"^>\s?", "", text, flags=re.MULTILINE)
-
-    # List markers
-    text = re.sub(r"^\s*[-*+]\s+", "", text, flags=re.MULTILINE)
-    text = re.sub(r"^\s*\d+[.)]\s+", "", text, flags=re.MULTILINE)
+    # Blockquotes — collapse the whole marker run so nested/email-style
+    # quotes (">> quoted") don't leak ">" characters into narration.
+    text = re.sub(r"^(?:>\s?)+", "", text, flags=re.MULTILINE)
 
     # Table narration — must run before pipes are stripped.
     # _tables_to_narration() is defined later in the file; it operates on the

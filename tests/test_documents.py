@@ -225,7 +225,12 @@ def test_footnotes_skip_removes_markers_and_text():
 def test_footnotes_deferred_appends_section():
     out = _process_footnotes(_FN, "deferred")
     assert "## Footnotes" in out
-    assert "[^1]: first note" in out
+    # The note text must survive as PLAIN content, never as a bare
+    # "[^label]:" definition — with the in-text references stripped, Pandoc
+    # treats reference-less definitions as unused and silently drops them,
+    # so HTML/EPUB exports shipped an empty "Footnotes" heading.
+    assert "first note" in out
+    assert "[^1]:" not in out
     # the inline reference markers are removed from the body
     assert "this[^1]" not in out
 

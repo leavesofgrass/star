@@ -91,9 +91,15 @@ def _process_footnotes(md: str, mode: str = "inline") -> str:
     if mode == "deferred":
         md = re.sub(r"\[\^[^\]]+\]", "", md).strip()
         if definitions:
+            # Emit the collected notes as a plain numbered list, NOT as bare
+            # "[^label]:" definitions — with every in-text reference stripped
+            # above, Pandoc treats reference-less definitions as unused and
+            # silently DROPS them, so HTML/EPUB exports shipped an empty
+            # "Footnotes" heading with no footnote bodies.
             md += "\n\n## Footnotes\n\n"
-            for label, text in definitions.items():
-                md += f"[^{label}]: {text}\n"
+            for i, (label, text) in enumerate(definitions.items(), start=1):
+                marker = label if label.isdigit() else f"{i} ({label})"
+                md += f"{marker}. {text}\n"
         return md
 
     return md

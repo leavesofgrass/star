@@ -34,7 +34,7 @@ class DocOpsMixin:
         if len(members) == 1:
             from ..archive import make_ref
             ref = make_ref(dest, members[0])
-            self._load_document(ref)
+            self._open_path(ref)
             return
         # Multiple members: let user pick one (or load the index)
         labels = members
@@ -44,10 +44,10 @@ class DocOpsMixin:
         if ok and chosen:
             from ..archive import make_ref
             ref = make_ref(dest, chosen)
-            self._load_document(ref)
+            self._open_path(ref)
         else:
             # Load the index document
-            self._load_document(dest)
+            self._open_path(dest)
 
     # ── Metadata editor (Qt GUI) ───────────────────────────────────────────
 

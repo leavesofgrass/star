@@ -48,8 +48,9 @@ class DocumentMixin:
         # Persist the current document's position before replacing it.
         self._save_reading_position()
         self.doc = doc
-        # Build word map in background too
-        self._render_doc()
+        # Build word map in background too; the OPEN path is the only one
+        # that restores the saved reading position (see _render_doc).
+        self._render_doc(restore=True)
         self.scroll = 0
         self._tts_stop()  # also clears any saved pause position for old doc
         # Reset the caret: a word index from the OLD document's word map would
@@ -83,9 +84,26 @@ class DocumentMixin:
             if self.settings["tts_auto_play"]:
                 self._tts_play()
 
-    def _render_doc(self) -> None:
+    def _render_doc(self, restore: bool = False) -> None:
+        """Re-render the document at the current terminal size.
+
+        *restore* — scroll to the saved reading position once the word map is
+        rebuilt.  Only the document-open path passes True: plain re-renders
+        (terminal resize, F7 syntax toggle, wrap-width change) must keep the
+        CURRENT position — restoring on every resize yanked the viewport back
+        to the last session's offset and re-fired the "Resumed at N%" toast.
+        """
         if not self.doc:
             return
+        # Anchor the viewport to the first visible word: word indices are
+        # stable across wrap widths, display lines are not, so this is how a
+        # re-render at a new width lands on the same content.
+        anchor_word = -1
+        if not restore and self.doc.word_map and self.rendered:
+            for i, wp in enumerate(self.doc.word_map):
+                if wp.disp_line >= self.scroll:
+                    anchor_word = i
+                    break
         h, w = self.scr.getmaxyx()
         wrap = int(self.settings["wrap_width"]) or (w - 2)
         self.rendered = render_markdown(
@@ -101,7 +119,12 @@ class DocumentMixin:
             self.doc.word_map = _build_word_map(self.doc.plain_text, flat)
             self.tts.set_word_map(self.doc.word_map)
             self._build_sentence_map()  # depends on word_map
-            self._restore_reading_position()  # scroll to last position
+            if restore:
+                self._restore_reading_position()  # scroll to last position
+            elif 0 <= anchor_word < len(self.doc.word_map):
+                dest = self.doc.word_map[anchor_word].disp_line
+                total = len(self.rendered)
+                self.scroll = max(0, min(dest, total - 1)) if total else 0
 
         threading.Thread(target=_build, daemon=True).start()
 

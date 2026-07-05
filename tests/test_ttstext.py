@@ -453,3 +453,36 @@ def test_preprocess_respects_settings_isolation(tmp_path, monkeypatch):
     monkeypatch.setattr(_settings_mod, "SETTINGS_FILE", tmp_path / "s.json")
     out = _preprocess_tts_text("It is 2024 now.", Settings())
     assert "twenty twenty-four" in out
+
+
+# ── 0.1.22 audit: nested lists + nested blockquotes must be narrated ─────────
+
+
+def test_nested_list_items_are_spoken():
+    """CommonMark nested list items are 4-space-indented — the indented-code
+    strip used to run first and silently deleted them from narration."""
+    md = (
+        "Groceries:\n\n"
+        "- fruit\n"
+        "    - apples\n"
+        "    - bananas\n"
+        "- bread\n"
+    )
+    out = _strip_markdown_for_tts(md, skip_code=True)
+    for word in ("fruit", "apples", "bananas", "bread"):
+        assert word in out, f"nested list item {word!r} lost from narration"
+
+
+def test_true_indented_code_still_skipped():
+    """Real indented code (no list marker) is still stripped with skip_code."""
+    md = "Paragraph.\n\n    x = compute_thing()\n\nAfter.\n"
+    out = _strip_markdown_for_tts(md, skip_code=True)
+    assert "compute_thing" not in out
+    assert "Paragraph." in out and "After." in out
+
+
+def test_nested_blockquote_markers_do_not_leak():
+    md = "> quoted\n>> nested quote\n> > spaced nested\n"
+    out = _strip_markdown_for_tts(md, skip_code=True)
+    assert ">" not in out
+    assert "quoted" in out and "nested quote" in out and "spaced nested" in out

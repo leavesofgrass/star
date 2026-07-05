@@ -391,7 +391,7 @@ class _WelcomeAwareApp(_FakeApp):
         self.render_calls = 0
         self.settings = _Settings(recent_files=[], tts_auto_play=True)
 
-    def _render_doc(self):  # rendering exercised by its own tests
+    def _render_doc(self, restore=False):  # rendering exercised by its own tests
         self.render_calls += 1
 
     def _save_reading_position(self):  # exercised separately below
@@ -632,3 +632,48 @@ def test_error_doc_never_reported_as_success():
     assert not any(m.startswith("Opened") for m in msgs)
     assert any("Could not open" in m for m in msgs)
     assert any(is_err for _m, is_err in app.messages)  # toast flagged as error
+
+
+# ── 0.1.22 audit: re-render must keep position; only open restores ───────────
+
+
+class _SyncThread:
+    """Runs the thread target synchronously so _render_doc's async build
+    completes before the test asserts."""
+
+    def __init__(self, target=None, daemon=None):
+        self._target = target
+
+    def start(self):
+        if self._target:
+            self._target()
+
+
+def test_rerender_keeps_position_and_open_restores(monkeypatch):
+    import star.tui.mixin_document as md_mod
+
+    monkeypatch.setattr(md_mod.threading, "Thread", _SyncThread)
+    doc, rendered = _doc_from_md()
+    late_offset = doc.word_map[-1].tts_offset  # saved position near the end
+    app = _PosApp(rendered=rendered, doc=doc, scroll=3)
+    app.welcome = False
+    app.settings = _Settings(
+        tts_auto_resume=True, wrap_width=60, tab_width=4, syntax_highlight=True,
+        scroll_margin=3,
+        reading_positions={doc.path: {"offset": late_offset, "pct": 90, "ts": "t"}},
+    )
+
+    # Plain re-render (terminal resize / F7): the viewport stays anchored to
+    # the first visible word (line 3 is blank, so the anchor word sits on the
+    # next content line) — and the saved LATE position is NOT restored.
+    expected_line = next(
+        wp.disp_line for wp in doc.word_map if wp.disp_line >= 3
+    )
+    app._render_doc()
+    assert app.scroll == expected_line, "re-render must keep the anchored word"
+    assert not any("Resumed" in m for m, _ in app.messages)
+
+    # Open path (restore=True): jumps to the saved position and says so.
+    app._render_doc(restore=True)
+    assert app.scroll > 3, "open must restore the saved (late) position"
+    assert any("Resumed" in m for m, _ in app.messages)

@@ -224,3 +224,33 @@ def test_edit_mode_save_round_trip(window, qtbot, tmp_path):
     assert window._qt_edit_mode is False
     assert window.editor.isReadOnly()
     assert "Edited body text now." in window.editor.toPlainText()
+
+
+# ── archive open (File ▸ Open Archive…) ──────────────────────────────────────
+
+
+def test_open_archive_single_member_loads(window, qtbot, tmp_path, monkeypatch):
+    """A one-member zip opens through _qt_open_archive.
+
+    This path called a method that never existed (self._load_document) from
+    ~0.1.12 until 0.1.22 — every archive open raised AttributeError.  Nothing
+    in CI exercised it, so it shipped broken through ten releases."""
+    import zipfile
+
+    from PyQt6.QtWidgets import QFileDialog
+
+    zip_path = tmp_path / "docs.zip"
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        zf.writestr("inner.md", "# Inside the archive\n\nHello from the zip.\n")
+
+    monkeypatch.setattr(
+        QFileDialog,
+        "getOpenFileName",
+        staticmethod(lambda *a, **k: (str(zip_path), "")),
+    )
+    window._qt_open_archive()
+    assert _pump_until(
+        qtbot,
+        window,
+        lambda w: w.doc is not None and "Inside the archive" in (w.doc.markdown or ""),
+    ), "archive member did not load as the current document"
