@@ -13,6 +13,9 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("STAR_NO_AUTOINSTALL", "1")
 
 _HAS_QT = bool(importlib.util.find_spec("PyQt6") or importlib.util.find_spec("PyQt5"))
+# numpy ships only with the audio/whisper extra; the one test that exercises the
+# int16→float32 conversion needs it, the rest (mocked) do not.
+_HAS_NUMPY = importlib.util.find_spec("numpy") is not None
 pytestmark = pytest.mark.skipif(not _HAS_QT, reason="PyQt not installed")
 
 
@@ -157,6 +160,7 @@ def test_dictate_cancel_discards_recording(window, monkeypatch):
     assert "args" not in emitted  # nothing transcribed / added on cancel
 
 
+@pytest.mark.skipif(not _HAS_NUMPY, reason="numpy not installed (audio extra)")
 def test_transcribe_samples_needs_no_ffmpeg(monkeypatch):
     """Dictation transcribes an in-memory array — Whisper gets a float32
     ndarray, so no WAV is written and no ffmpeg subprocess is spawned (which
