@@ -8,7 +8,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.1.22] 2026-07-04
+## [0.1.22] 2026-07-05
 
 A settings-and-polish release: every reader preference now lives in one tabbed
 **Preferences** dialog, the menus are leaner, and a post-release refinement
