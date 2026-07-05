@@ -98,6 +98,26 @@ release's download-all step and attached automatically.
 - **Gate:** manual `build_installers: true`, **or** `vars.ENABLE_INSTALLERS == 'true'`.
 - **No secrets required.**
 
+**Building locally from any OS (Docker):**
+
+```bash
+bash tools/build-appimage-docker.sh     # → dist/star-<v>-x86_64.AppImage
+```
+
+This wraps the same build script in a `python:3.13-slim` container (the source
+is copied into the container filesystem first — AppDirs need symlinks, which a
+mounted Windows volume can't hold — and only the artifact is copied back out).
+
+**Runtime expectations:** the CLI (`star --version`, `--tui`, conversion) runs
+on a bare distro with **no system Python at all** (verified on pristine
+Ubuntu 24.04 and Debian 12 containers). The **GUI** additionally needs the
+standard desktop libraries that every graphical distro already ships; only on
+a minimal/container image would you install them by hand
+(`libgl1 libegl1 libglib2.0-0t64 libxkbcommon0 libdbus-1-3 libxcb-cursor0
+libfontconfig1` on Ubuntu). Bundling `libGL` is deliberately avoided — it must
+match the host's graphics driver. In containers/CI, run the AppImage with
+`--appimage-extract-and-run` (no FUSE needed).
+
 ---
 
 ## Enabling everything: maintainer checklist
