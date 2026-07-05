@@ -57,7 +57,8 @@ def export_video(document: Any, settings: Any, out_path: str, tts_backend: Any =
     vid = settings.get("video") or {}
     width, height = _parse_resolution(vid.get("resolution", "1280x720"))
     subtitle_mode = vid.get("subtitles", "soft")
-    theme = settings.get("theme", "dark")
+    # video.theme overrides the global theme ("" = inherit), as documented.
+    theme = str(vid.get("theme") or settings.get("theme", "dark"))
 
     import tempfile as _tmp
     with _tmp.TemporaryDirectory() as tmpdir:
@@ -95,7 +96,10 @@ def export_video(document: Any, settings: Any, out_path: str, tts_backend: Any =
         for i, (start, end, dur) in enumerate(cues):
             png_path = str(td / f"frame_{i:05d}.png")
             hi_start, hi_end = spans[i]
-            ok = _render_frame(plain, hi_start, hi_end, png_path, width, height, theme)
+            ok = _render_frame(
+                plain, hi_start, hi_end, png_path, width, height, theme,
+                font_scale=float(vid.get("font_scale", 1.0) or 1.0),
+            )
             if not ok:
                 return {"error": "Frame rendering failed (install PyQt6 or Pillow)"}
             frame_paths.append((png_path, dur))
@@ -229,14 +233,19 @@ def _render_frame(
     width: int,
     height: int,
     theme: str,
+    font_scale: float = 1.0,
 ) -> bool:
     """Render a single frame to *png_path*; return True on success.
 
     Tries Qt offscreen first, then Pillow; returns False when neither works.
     """
-    if _try_render_qt(plain_text, hi_start, hi_end, png_path, width, height, theme):
+    if _try_render_qt(
+        plain_text, hi_start, hi_end, png_path, width, height, theme, font_scale
+    ):
         return True
-    if _try_render_pillow(plain_text, hi_start, hi_end, png_path, width, height, theme):
+    if _try_render_pillow(
+        plain_text, hi_start, hi_end, png_path, width, height, theme, font_scale
+    ):
         return True
     return False
 
@@ -249,6 +258,7 @@ def _try_render_qt(
     width: int,
     height: int,
     theme: str,
+    font_scale: float = 1.0,
 ) -> bool:
     """Render via Qt offscreen.  Returns False when Qt is unavailable."""
     try:
@@ -296,7 +306,10 @@ def _try_render_qt(
         td.setPlainText(plain_text)
         td.setPageSize(QSizeF(width - 80, height))
 
-        font = QFont("Segoe UI" if sys.platform == "win32" else "DejaVu Sans", 16)
+        font = QFont(
+            "Segoe UI" if sys.platform == "win32" else "DejaVu Sans",
+            max(6, round(16 * font_scale)),  # video.font_scale, as documented
+        )
         td.setDefaultFont(font)
 
         # Dim everything first
@@ -335,6 +348,7 @@ def _try_render_pillow(
     width: int,
     height: int,
     theme: str,
+    font_scale: float = 1.0,
 ) -> bool:
     """Render via Pillow.  Returns False when Pillow is unavailable."""
     if not _PILLOW_AVAILABLE:
@@ -351,7 +365,7 @@ def _try_render_pillow(
         img = Image.new("RGB", (width, height), bg_col)
         draw = ImageDraw.Draw(img)
 
-        font_size = max(14, height // 28)
+        font_size = max(14, round((height // 28) * font_scale))
         try:
             font = ImageFont.truetype("arial.ttf", font_size)
         except Exception:

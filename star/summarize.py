@@ -57,7 +57,17 @@ def summarize_document(text: str, sentence_count: int = 7) -> str:
     except LookupError:
         # sumy's Tokenizer relies on NLTK's "punkt" sentence-tokenizer data,
         # which is not bundled and is absent on a first run.  Fetch it once
-        # and retry, rather than failing the whole feature.
+        # and retry, rather than failing the whole feature — but ONLY when
+        # automatic installs are allowed: this was the sole download that
+        # bypassed the auto_install / STAR_NO_AUTOINSTALL kill-switch.
+        from . import autodeps
+
+        if not autodeps.enabled():
+            raise RuntimeError(
+                "Summarization needs NLTK tokenizer data and automatic "
+                "installs are disabled.  Install it manually with:\n"
+                "    python -m nltk.downloader punkt punkt_tab"
+            ) from None
         try:
             import nltk
 

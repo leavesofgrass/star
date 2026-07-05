@@ -167,7 +167,7 @@ class DisplayMixin:
             base = Qt.TextSelectableByMouse | Qt.LinksAccessibleByMouse  # type: ignore[attr-defined]
             kbd = Qt.TextSelectableByKeyboard  # type: ignore[attr-defined]
         self.editor.setTextInteractionFlags(base | kbd if on else base)
-        self.editor.setCursorWidth(2 if on else 0)
+        self.editor.setCursorWidth(self._caret_width())
 
     def _qt_toggle_caret_browsing(self) -> None:
         """Toggle the visible, freely-movable document caret (View ▸ Caret

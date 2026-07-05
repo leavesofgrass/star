@@ -222,31 +222,9 @@ class CoreNavMixin:
         self.statusBar().showMessage(f"↺ Replaying paragraph from block {i + 1}")
 
     # ─ heading ───────────────────────────────────────────────────────────
-
-    def _qt_skip_next_heading(self) -> None:
-        """Scroll to next heading; restart speech if it was playing."""
-        doc_obj = self.editor.document()
-        n = doc_obj.blockCount()
-        start = self._qt_current_block() + 1
-        for i in range(start, n):
-            if self._qt_is_heading_block(i):
-                heading_text = doc_obj.findBlockByNumber(i).text().strip()
-                self._qt_navigate_to_word(self._qt_block_to_word(i))
-                self.statusBar().showMessage(f"↓ Heading: {heading_text[:60]}")
-                return
-        self.statusBar().showMessage("No heading below current position")
-
-    def _qt_skip_prev_heading(self) -> None:
-        """Scroll to previous heading; restart speech if it was playing."""
-        doc_obj = self.editor.document()
-        start = self._qt_current_block() - 1
-        for i in range(start, -1, -1):
-            if self._qt_is_heading_block(i):
-                heading_text = doc_obj.findBlockByNumber(i).text().strip()
-                self._qt_navigate_to_word(self._qt_block_to_word(i))
-                self.statusBar().showMessage(f"↑ Heading: {heading_text[:60]}")
-                return
-        self.statusBar().showMessage("No heading above current position")
+    # (The old _qt_skip_next/prev_heading pair — scroll without reading —
+    # was superseded by _qt_read_*_heading, which every menu/toolbar/palette
+    # entry uses; the silent pair had zero call sites and was removed.)
 
     def _qt_read_next_heading(self) -> None:
         """Jump to next heading and *always* begin reading (TUI ’>’)."""

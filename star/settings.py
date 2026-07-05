@@ -112,7 +112,6 @@ DEFAULTS: Dict[str, Any] = {
     "footnote_mode": "inline",  # "inline" | "deferred" | "skip"
     "epub_show_chapters": True,
     "document_cache": True,
-    "cache_max_size_mb": 100,
     "qt_show_toc": True,
     "qt_show_notes": False,  # Notes/annotations dock hidden until first used
     "annotations": {},  # {path: [{"char_pos", "word_idx", "anchor", "note", "tags", "cite", "ts", "id", "relations"}]}
@@ -146,7 +145,6 @@ DEFAULTS: Dict[str, Any] = {
     "keybindings": {},  # {default_shortcut: custom_shortcut} GUI remap overrides
     "bookmarks": {},
     "nav_history_size": 50,
-    "regex_search": False,
     "qt_hidpi": True,
     "qt_font_family": _default_sans_font(),  # sans-serif for reading accessibility
     "qt_font_size": 14,
@@ -253,8 +251,6 @@ DEFAULTS: Dict[str, Any] = {
     "subtitle_format": "srt",  # srt|vtt — format used when emitting captions
     "subtitle_word_level": False,  # one cue per word instead of per sentence
     "export_subtitles_with_audio": False,  # also write captions on audio export
-    "speak_image_alts": True,
-    "show_reading_level": True,
     "normalize_math": True,
     "recent_files_limit": 20,
     # Abbreviation expansion

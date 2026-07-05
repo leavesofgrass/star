@@ -702,7 +702,7 @@ DAISY URLs. Reading order follows the `<spine>`/`<book>` sequence.
 On reopen, star checks the file's modification time and the settings fingerprint;
 if both match, the cached result is used immediately. Cache files are JSON named
 by a hash of the path and settings. Force a fresh parse with `M-x cache-clear`.
-Configure via `document_cache` and `cache_max_size_mb`.
+Configure via `document_cache`.
 
 ---
 

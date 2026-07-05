@@ -121,7 +121,6 @@ Open it from the TUI with `M-x settings`.
 | `whisper_chunk_seconds` | `6` | Chunk length in seconds for live streaming dictation |
 | `user_highlights` | `{}` | Persistent text highlights per document path |
 | `document_cache` | `true` | Cache parsed documents for instant reopening |
-| `cache_max_size_mb` | `100` | Maximum cache directory size in MB |
 | `qt_paginate_large_docs` | `false` | Qt GUI: opt into windowed pagination so only part of a very large document is laid out at a time (much faster first paint). Off by default; see the caveat below. See [Performance](PERFORMANCE.md) |
 | `qt_paginate_threshold_words` | `60000` | Only paginate documents with at least this many words (the size gate) — ordinary books/articles always take the unchanged whole-document path |
 | `qt_paginate_words_per_page` | `1200` | Target words per rendered page under pagination |
@@ -138,13 +137,10 @@ Open it from the TUI with `M-x settings`.
 | `use_ssml` | `false` | Wrap TTS text in SSML for prosody (pyttsx3/eSpeak) |
 | `ssml_sentence_pause_ms` | `350` | SSML pause after sentence-ending punctuation |
 | `ssml_clause_pause_ms` | `150` | SSML pause after clause punctuation |
-| `speak_image_alts` | `true` | Read image alt-text aloud |
-| `show_reading_level` | `true` | Enable reading-level computation |
 | `speed_presets` | *(see below)* | Named speed presets |
 | `bookmarks` | `{}` | Named bookmarks per document |
 | `reading_positions` | `{}` | Saved reading positions per document |
 | `nav_history_size` | `50` | Within-session navigation history depth |
-| `regex_search` | `false` | Enable regex mode for search |
 | `keybindings` | `{}` | Qt GUI shortcut remaps, `{default_shortcut: custom_shortcut}` |
 | `batch_format` | `"markdown"` | Default output format for batch conversion: `markdown`, `text`, or `braille` |
 | `watch_format` | `"markdown"` | Default output format for the `--watch` hot-folder: `markdown`, `text`, or `braille` |

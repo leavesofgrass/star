@@ -4,7 +4,7 @@ from .html import _load_html_str
 from .pdf import _load_pdf
 
 
-def _load_image_ocr(path: str) -> str:
+def _load_image_ocr(path: str, lang: str = "eng") -> str:
     if not _OCR:
         return (
             "# OCR support not available\n\n"
@@ -14,7 +14,8 @@ def _load_image_ocr(path: str) -> str:
     try:
         pytesseract, Image = _load_ocr()
         img = Image.open(path).convert("RGB")
-        text = pytesseract.image_to_string(img)
+        # ocr_lang setting (e.g. "eng+spa"); Tesseract's own default is eng.
+        text = pytesseract.image_to_string(img, lang=lang or "eng")
         return f"# {Path(path).name}\n\n{text.strip()}\n"
     except Exception as e:
         return f"# OCR Error\n\n```\n{e}\n```\n"

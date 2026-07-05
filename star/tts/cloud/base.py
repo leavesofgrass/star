@@ -111,7 +111,11 @@ class CloudBackend(TTSBackend):
         return key.strip()
 
     def set_api_key(self, key: str) -> None:
-        """Set the in-memory API key (used by tests and explicit callers)."""
+        """Set the in-memory API key programmatically.
+
+        Public hook for embedders/plugins; nothing in star or its tests calls
+        it today (keys normally come from settings / the environment via
+        _get_api_key)."""
         self._api_key = key or ""
 
     # ── availability: keyed on config only, never on a network probe ─────────

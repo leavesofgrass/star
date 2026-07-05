@@ -126,8 +126,10 @@ def test_load_navigate_highlight_copy_export(window, qtbot, tmp_path, monkeypatc
     assert window.doc is not None and window.doc.word_map
 
     # 2. NAVIGATE — jump to the next heading; the cursor should move.
+    # (_qt_read_next_heading is the real surface: menu Ctrl+H / toolbar; the
+    # silent _qt_skip_* pair was dead code and has been removed.)
     start_pos = window.editor.textCursor().position()
-    window._qt_skip_next_heading()
+    window._qt_read_next_heading()
     # (welcome.md has headings, so this advances or reports movement)
     assert window.editor.textCursor().position() >= start_pos
 

@@ -159,7 +159,7 @@ def _pdf_order_boxes(boxes: List["_PdfBox"], page_width: float) -> List["_PdfBox
     return sorted(boxes, key=key)
 
 
-def _load_pdf(path: str, reconstruct: bool = True) -> str:
+def _load_pdf(path: str, reconstruct: bool = True, ocr_lang: str = "eng") -> str:
     if not _PDF and not (_OCR and _PYMUPDF):
         return (
             "# PDF support not available\n\n"
@@ -188,7 +188,9 @@ def _load_pdf(path: str, reconstruct: bool = True) -> str:
                     pix = doc[pnum - 1].get_pixmap(matrix=fitz.Matrix(2, 2))
                     img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
                     doc.close()
-                    ocr_text = pytesseract.image_to_string(img).strip()
+                    ocr_text = pytesseract.image_to_string(
+                        img, lang=ocr_lang or "eng"
+                    ).strip()
                 collected.append({
                     "pnum": pnum,
                     "boxes": boxes,
@@ -233,7 +235,7 @@ def _load_pdf(path: str, reconstruct: bool = True) -> str:
                 img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
                 parts.append(
                     f"\n---\n*Page {pnum}*\n\n"
-                    + pytesseract.image_to_string(img).strip()
+                    + pytesseract.image_to_string(img, lang=ocr_lang or "eng").strip()
                 )
             doc.close()
             return "\n".join(parts)

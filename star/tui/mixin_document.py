@@ -78,7 +78,8 @@ class DocumentMixin:
             recents: List[str] = self.settings["recent_files"]
             if doc.path and doc.path not in recents:
                 recents.insert(0, doc.path)
-                self.settings["recent_files"] = recents[:20]
+                limit = max(1, int(self.settings.get("recent_files_limit", 20)))
+                self.settings["recent_files"] = recents[:limit]
             self.settings["last_path"] = doc.path
             _record_library(self.settings, doc)  # library / bookshelf
             if self.settings["tts_auto_play"]:

@@ -264,9 +264,10 @@ def load_document(path: str, settings: Settings) -> Document:
         md = _load_pdf(
             path,
             reconstruct=str(settings.get("pdf_reading_order", "reconstruct")) != "raw",
+            ocr_lang=str(settings.get("ocr_lang", "eng") or "eng"),
         )
     elif fmt == "image":
-        md = _load_image_ocr(path)
+        md = _load_image_ocr(path, lang=str(settings.get("ocr_lang", "eng") or "eng"))
     elif fmt == "r":
         md = _load_r_code(path)
     elif fmt == "notebook":
