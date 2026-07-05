@@ -196,7 +196,9 @@ if (-not $Lean) {
 # wordnet + omw-1.4 (glosses) and cmudict (pronunciations).  Download them into
 # build\nltk_data so star.spec bundles them and both features work offline.
 $nltkData = Join-Path $root "build\nltk_data"
-if (-not (Test-Path (Join-Path $nltkData "corpora\wordnet"))) {
+# nltk keeps corpora as .zip and reads them transparently, so key the guard on
+# the zip (the "wordnet" dir may never be extracted).
+if (-not (Test-Path (Join-Path $nltkData "corpora\wordnet.zip"))) {
     Info "Staging NLTK data (punkt + wordnet + cmudict) for offline summarize / Define Word"
     $env:STAR_NLTK_DIR = $nltkData
     & $py -c "import os,nltk; d=os.environ['STAR_NLTK_DIR']; os.makedirs(d,exist_ok=True); [nltk.download(p,download_dir=d) for p in ('punkt','punkt_tab','wordnet','omw-1.4','cmudict')]; print('NLTK data staged')" | Out-Host
