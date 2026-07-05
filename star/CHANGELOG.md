@@ -8,6 +8,22 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### 🔧 Changed
+
+- **Translate opens a readable document.** Translating a document used to
+  drop the result into a read-only pane — you couldn't read it aloud or
+  navigate it, which is the whole point of star. The translation now opens
+  as a live document (press Space to hear it, caret/highlighting all work);
+  your original stays put and one **Back** away.
+- **Dictate records until you say stop.** No more guessing "how many
+  seconds?" up front — a recording dialog shows a live timer and a **Stop**
+  button (Enter to stop, Esc to cancel); the note is transcribed when you're
+  done.
+
+---
+
 ## [0.1.22] 2026-07-05
 
 A settings-and-polish release: every reader preference now lives in one tabbed

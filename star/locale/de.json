@@ -499,5 +499,11 @@
   "Reading font: Default": "Leseschriftart: Standard",
   "Enabling reading font ({name}) — fetching if needed…": "Leseschriftart ({name}) wird aktiviert — wird bei Bedarf geladen…",
   "Reading font: {name} — applied across the UI": "Leseschriftart: {name} — auf die gesamte Oberfläche angewendet",
-  "{name} unavailable (offline?) — install it or try again": "{name} nicht verfügbar (offline?) — installieren oder erneut versuchen"
+  "{name} unavailable (offline?) — install it or try again": "{name} nicht verfügbar (offline?) — installieren oder erneut versuchen",
+  "Dictate Note": "Notiz diktieren",
+  "Recording status": "Aufnahmestatus",
+  "Speak now. Press Stop (or Enter) when you're done.": "Sprechen Sie jetzt. Drücken Sie Stopp (oder Enter), wenn Sie fertig sind.",
+  "Stop && Transcribe": "Stoppen und transkribieren",
+  "🎙  Recording…  0:00": "🎙  Aufnahme…  0:00",
+  "🎙  Recording…  {m}:{s:02d}": "🎙  Aufnahme…  {m}:{s:02d}"
 }

@@ -368,7 +368,6 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
     # dictate: (text, char_pos_str, anchor).
     _transcribe_signal = pyqtSignal(str, str)
     _dictate_signal = pyqtSignal(str, str, str)
-    _dictate_partial_signal = pyqtSignal(str)  # live streaming dictation preview
     _doi_signal = pyqtSignal(str)  # Crossref DOI lookup result (JSON or ERROR:)
     # Document summarization runs on a background thread (LexRank can be
     # slow on long documents); carries (summary, error_message).
@@ -514,7 +513,6 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         # Wire the Whisper transcription / dictation result signals.
         self._transcribe_signal.connect(self._qt_on_transcribed, _QUEUED)
         self._dictate_signal.connect(self._qt_on_dictated, _QUEUED)
-        self._dictate_partial_signal.connect(self._qt_on_dictate_partial, _QUEUED)
         self._doi_signal.connect(self._qt_on_doi, _QUEUED)
         # Wire the summarization result signal → GUI thread.
         self._summary_signal.connect(self._qt_on_summary, _QUEUED)

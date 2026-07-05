@@ -74,3 +74,84 @@ def _record_audio_to_wav(seconds: float, samplerate: int = 16000) -> str:
         w.setframerate(samplerate)
         w.writeframes(rec.tobytes())
     return tmp.name
+
+
+class StreamRecorder:
+    """Record from the microphone until the caller says stop — no fixed length.
+
+    Backs the "press Stop when you're done" dictation UI: a fixed-duration
+    ``sd.rec`` forces the user to guess how long they'll talk, so this opens a
+    non-blocking ``InputStream`` whose callback (running on sounddevice's own
+    audio thread) appends each block to a list.  ``elapsed`` lets the UI show a
+    live timer; ``stop`` closes the stream and writes the accumulated audio to
+    a temp WAV, returning its path (or "" if nothing was captured).
+    """
+
+    def __init__(self, samplerate: int = 16000) -> None:
+        if not _AUDIO_IN:
+            raise RuntimeError(
+                "Microphone capture requires sounddevice + numpy:\n"
+                "  pip install sounddevice numpy"
+            )
+        self._sd = _load_sounddevice()
+        self._samplerate = samplerate
+        self._blocks: List[Any] = []
+        self._stream = None
+        self._start_t = 0.0
+
+    def _callback(self, indata, _frames, _time, _status) -> None:
+        # Copy: sounddevice reuses the buffer after the callback returns.
+        self._blocks.append(indata.copy())
+
+    def start(self) -> None:
+        self._start_t = time.monotonic()
+        self._stream = self._sd.InputStream(
+            samplerate=self._samplerate,
+            channels=1,
+            dtype="int16",
+            callback=self._callback,
+        )
+        self._stream.start()
+
+    @property
+    def elapsed(self) -> float:
+        return time.monotonic() - self._start_t if self._start_t else 0.0
+
+    def stop(self) -> str:
+        """Stop recording and write the captured audio to a temp WAV.
+
+        Returns the WAV path, or "" when no audio was captured (immediate
+        stop / no input).  Safe to call once; further calls are no-ops."""
+        if self._stream is None:
+            return ""
+        try:
+            self._stream.stop()
+            self._stream.close()
+        finally:
+            self._stream = None
+        if not self._blocks:
+            return ""
+        import wave
+
+        import numpy as _np
+
+        audio = _np.concatenate(self._blocks, axis=0)
+        tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+        tmp.close()
+        with wave.open(tmp.name, "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(self._samplerate)
+            w.writeframes(audio.tobytes())
+        return tmp.name
+
+    def cancel(self) -> None:
+        """Discard the recording without producing a file."""
+        self._blocks = []
+        if self._stream is not None:
+            try:
+                self._stream.stop()
+                self._stream.close()
+            except Exception:
+                pass
+            self._stream = None

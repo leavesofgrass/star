@@ -499,5 +499,11 @@
   "Reading font: Default": "Police de lecture : par défaut",
   "Enabling reading font ({name}) — fetching if needed…": "Activation de la police de lecture ({name}) — téléchargement si nécessaire…",
   "Reading font: {name} — applied across the UI": "Police de lecture : {name} — appliquée à toute l'interface",
-  "{name} unavailable (offline?) — install it or try again": "{name} indisponible (hors ligne ?) — installez-la ou réessayez"
+  "{name} unavailable (offline?) — install it or try again": "{name} indisponible (hors ligne ?) — installez-la ou réessayez",
+  "Dictate Note": "Dicter une note",
+  "Recording status": "État de l'enregistrement",
+  "Speak now. Press Stop (or Enter) when you're done.": "Parlez maintenant. Appuyez sur Arrêter (ou Entrée) quand vous avez fini.",
+  "Stop && Transcribe": "Arrêter et transcrire",
+  "🎙  Recording…  0:00": "🎙  Enregistrement…  0:00",
+  "🎙  Recording…  {m}:{s:02d}": "🎙  Enregistrement…  {m}:{s:02d}"
 }

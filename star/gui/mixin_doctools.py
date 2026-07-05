@@ -10,6 +10,7 @@ IMPORT SAFETY: references Qt at module scope — imported lazily by main_window.
 from .._runtime import *  # noqa: F401,F403
 from ..i18n import tr
 from .a11y import announce
+from ..documents import Document
 from ..feeds import fetch_feed
 from ..library import (
     add_library_folder,
@@ -199,11 +200,15 @@ class DocToolsMixin:
         dlg.exec() if _QT == "PyQt6" else dlg.exec_()
 
     def _qt_translate(self) -> None:
-        """Translate the current document into another language.
+        """Translate the current document and open the result AS A DOCUMENT.
 
-        Opens a dialog with a language picker and a result pane; the
-        network call runs on a background thread and its result is
-        delivered to the GUI thread via _translate_signal.
+        The translation becomes the live, speakable document — Space reads it
+        aloud, caret navigation and highlighting all work on it — instead of
+        being trapped in a read-only pane (star's whole point is reading text
+        aloud).  The original stays on disk and one Back / reopen away; the
+        translation is an in-memory doc (no path), so it never pollutes
+        recents or the library.  The network call runs off the GUI thread and
+        its result is delivered via _translate_signal.
         """
         if not self._qt_require_optional_feature("translate", tr("Document translation")):
             return
@@ -213,62 +218,31 @@ class DocToolsMixin:
             )
             return
 
-        dlg = QDialog(self)
-        dlg.setWindowTitle(f"Translate — {self.doc.title}")
-        dlg.resize(560, 460)
-        lay = QVBoxLayout(dlg)
+        names = [name for name, _code in COMMON_LANGUAGES]
+        chosen, ok = QInputDialog.getItem(
+            self, "Translate Document", "Translate to:", names, 0, False
+        )
+        if not ok or not chosen:
+            return
+        code = dict((n, c) for n, c in COMMON_LANGUAGES).get(chosen, "en")
+        self._qt_do_translate(code, chosen)
 
-        row = QHBoxLayout()
-        row.addWidget(QLabel("Translate to:"))
-        combo = QComboBox()
-        combo.setAccessibleName(tr("Translate to language"))
-        for name, code in COMMON_LANGUAGES:
-            combo.addItem(name, code)
-        row.addWidget(combo, 1)
-        go_btn = QPushButton("Translate")
-        row.addWidget(go_btn)
-        lay.addLayout(row)
-
-        view = QTextEdit()
-        view.setReadOnly(True)
-        view.setAccessibleName("Translation result")
-        lay.addWidget(view)
-        self._translate_view = view
-        self._translate_btn = go_btn
-
-        try:
-            _close_btn = QDialogButtonBox.StandardButton.Close
-        except AttributeError:
-            _close_btn = QDialogButtonBox.Close  # type: ignore[attr-defined]
-        buttons = QDialogButtonBox(_close_btn)
-        buttons.rejected.connect(dlg.reject)
-        lay.addWidget(buttons)
-
-        def _do() -> None:
-            code = str(combo.itemData(combo.currentIndex()) or "en")
-            self._qt_do_translate(code)
-
-        go_btn.clicked.connect(_do)
-        dlg.exec() if _QT == "PyQt6" else dlg.exec_()
-        # Drop the widget references so a late result is ignored safely.
-        self._translate_view = None
-        self._translate_btn = None
-
-    def _qt_do_translate(self, code: str) -> None:
+    def _qt_do_translate(self, code: str, lang_name: str) -> None:
         """Kick off a background translation of the current document."""
         if not self.doc:
             return
         text = self.doc.plain_text or ""
         truncated = len(text) > 15000
         text = text[:15000]
-        if getattr(self, "_translate_btn", None) is not None:
-            self._translate_btn.setEnabled(False)
-        if getattr(self, "_translate_view", None) is not None:
-            self._translate_view.setPlainText("Translating…")
+        # Remember what the result is FROM and TO for the translated doc's
+        # title (self.doc will be replaced by the time the result lands).
+        self._translate_lang = lang_name
+        self._translate_src_title = self.doc.title or "document"
+        self._translate_truncated = truncated
         self.statusBar().showMessage(
-            "Translating first 15000 characters…"
+            f"Translating first 15000 characters to {lang_name}…"
             if truncated
-            else "Translating…"
+            else f"Translating to {lang_name}…"
         )
 
         def _work() -> None:
@@ -281,25 +255,35 @@ class DocToolsMixin:
         threading.Thread(target=_work, daemon=True).start()
 
     def _qt_on_translation(self, result: str, error: str) -> None:
-        """Main-thread handler: show the translation (or an error)."""
-        btn = getattr(self, "_translate_btn", None)
-        view = getattr(self, "_translate_view", None)
-        try:
-            if btn is not None:
-                btn.setEnabled(True)
-            if error:
-                if view is not None:
-                    view.setPlainText("")
-                QMessageBox.warning(self, "Translation failed", error)
-                self.statusBar().showMessage("Translation failed")
-                return
-            if view is not None:
-                view.setPlainText(result or "")
-            self.statusBar().showMessage("Translation ready")
-        except RuntimeError:
-            # The dialog (and its widgets) was closed before the result
-            # arrived; nothing left to update.
-            pass
+        """Main-thread handler: open the translation as the live document."""
+        if error:
+            self._status_error(f"Translation failed: {error}")
+            return
+        if not (result or "").strip():
+            self.statusBar().showMessage("Translation produced no text")
+            return
+        lang = getattr(self, "_translate_lang", "")
+        src = getattr(self, "_translate_src_title", "document")
+        title = f"{src} (translated to {lang})" if lang else f"{src} (translated)"
+        note = (
+            "\n\n> *(First 15000 characters translated.)*\n"
+            if getattr(self, "_translate_truncated", False)
+            else ""
+        )
+        # Reuse the transcription-result pattern: an in-memory Document with no
+        # path, handed to the normal load path so the word map / highlighting /
+        # speech are all rebuilt for it (see _qt_on_transcribed).
+        self._pending_doc = Document(
+            path="",
+            title=title,
+            markdown=f"# {title}\n\n{result}\n{note}",
+            plain_text=result,
+            format="translation",
+        )
+        self._on_doc_loaded()
+        self.statusBar().showMessage(
+            f"Translated to {lang} — press Space to read the translation aloud"
+        )
 
     def _qt_open_feed(self) -> None:
         """Prompt for a feed URL, fetch it, and pick an article to open."""

@@ -8,7 +8,7 @@ lazily by main_window.py (itself imported by runner.py after the _QT guard).
 from .._runtime import *  # noqa: F401,F403
 from ..documents import Document
 from ..i18n import tr
-from ..transcribe import _record_audio_to_wav, _transcribe_audio
+from ..transcribe import StreamRecorder, _transcribe_audio
 
 
 class TranscriptionMixin:
@@ -158,53 +158,98 @@ class TranscriptionMixin:
         self.statusBar().showMessage(f"Transcribed {name} ({len(text)} chars)")
 
     def _qt_dictate_note(self) -> None:
-        """Record a short voice memo and add it as a note (Whisper)."""
+        """Record a voice memo — until the user says stop — and add it as a note.
+
+        No "how many seconds?" guess up front: a live recording dialog shows an
+        elapsed timer and a Stop button (Enter), plus Cancel (Esc) to discard.
+        The mic is captured through a non-blocking stream so the dialog stays
+        responsive; on Stop the audio is transcribed (Whisper) on a background
+        thread and attached as a note at the reading position, exactly as
+        before.
+        """
         if not self.doc:
             self.statusBar().showMessage("Open a document before dictating a note")
             return
         if not self._qt_require_optional_feature("transcribe", tr("Voice dictation")):
             return
-        secs, ok = QInputDialog.getInt(
-            self, "Dictate Note", "Record for how many seconds?", 8, 2, 300
-        )
-        if not ok:
+        try:
+            recorder = StreamRecorder()
+            recorder.start()
+        except Exception as exc:  # noqa: BLE001 — no mic / no sounddevice
+            self._status_error(f"Could not start recording: {exc}")
             return
+
         char_pos, anchor = self._qt_current_anchor()
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle(tr("Dictate Note"))
+        dlg.setModal(True)
+        lay = QVBoxLayout(dlg)
+        label = QLabel(tr("🎙  Recording…  0:00"))
+        label.setAccessibleName(tr("Recording status"))
+        lay.addWidget(label)
+        hint = QLabel(tr("Speak now. Press Stop (or Enter) when you're done."))
+        lay.addWidget(hint)
+        try:  # PyQt6
+            _ok_flag = QDialogButtonBox.StandardButton.Ok
+            _cancel_flag = QDialogButtonBox.StandardButton.Cancel
+        except AttributeError:  # PyQt5
+            _ok_flag = QDialogButtonBox.Ok  # type: ignore[attr-defined]
+            _cancel_flag = QDialogButtonBox.Cancel  # type: ignore[attr-defined]
+        box = QDialogButtonBox(_ok_flag | _cancel_flag)
+        stop_btn = box.button(_ok_flag)
+        if stop_btn is not None:
+            stop_btn.setText(tr("Stop && Transcribe"))
+            stop_btn.setDefault(True)
+        box.accepted.connect(dlg.accept)
+        box.rejected.connect(dlg.reject)
+        lay.addWidget(box)
+
+        # Live elapsed timer, driven on the GUI thread (recording itself runs
+        # on the sounddevice callback thread, so this only paints).
+        timer = QTimer(dlg)
+
+        def _tick() -> None:
+            s = int(recorder.elapsed)
+            label.setText(tr("🎙  Recording…  {m}:{s:02d}").format(m=s // 60, s=s % 60))
+
+        timer.timeout.connect(_tick)
+        timer.start(200)
+
+        accepted = dlg.exec() if _QT == "PyQt6" else dlg.exec_()
+        timer.stop()
+
+        try:
+            _ok_val = QDialog.DialogCode.Accepted
+        except AttributeError:  # PyQt5
+            _ok_val = QDialog.Accepted
+        if accepted != _ok_val:
+            recorder.cancel()
+            self.statusBar().showMessage("Dictation cancelled")
+            return
+
+        try:
+            wav = recorder.stop()
+        except Exception as exc:  # noqa: BLE001
+            self._status_error(f"Recording failed: {exc}")
+            return
+        if not wav:
+            self.statusBar().showMessage("No audio was recorded")
+            return
+
         model = str(self.settings.get("whisper_model", "base"))
-        chunk = max(2, int(self.settings.get("whisper_chunk_seconds", 6)))
-        self.statusBar().showMessage(f"Recording {secs}s… speak now")
+        self.statusBar().showMessage("Transcribing your note…")
 
         def _work() -> None:
-            # Live streaming: record in short chunks, transcribing each as
-            # it arrives so the user sees text accumulate instead of waiting
-            # for one long blocking pass.  Chunks are concatenated into the
-            # final note.
             try:
-                remaining = secs
-                parts: List[str] = []
-                while remaining > 0:
-                    seg = min(chunk, remaining)
-                    remaining -= seg
-                    wav = _record_audio_to_wav(seg)
-                    try:
-                        piece = _transcribe_audio(wav, model)
-                    finally:
-                        Path(wav).unlink(missing_ok=True)
-                    if piece:
-                        parts.append(piece)
-                        self._dictate_partial_signal.emit(" ".join(parts))
-                self._dictate_signal.emit(
-                    " ".join(parts), str(int(char_pos)), anchor
-                )
+                text = _transcribe_audio(wav, model)
+                self._dictate_signal.emit(text, str(int(char_pos)), anchor)
             except Exception as exc:  # noqa: BLE001
                 self._dictate_signal.emit("", "ERROR", str(exc))
+            finally:
+                Path(wav).unlink(missing_ok=True)
 
         threading.Thread(target=_work, daemon=True).start()
-
-    def _qt_on_dictate_partial(self, text: str) -> None:
-        """Live status update as dictation chunks are transcribed."""
-        preview = text[-80:]
-        self.statusBar().showMessage(f"🎙 …{preview}")
 
     def _qt_on_dictated(self, text: str, char_pos_s: str, anchor: str) -> None:
         """Main-thread handler for a completed dictation → save as a note."""
