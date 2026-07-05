@@ -61,7 +61,14 @@ datas = [
     ("star/README.md", "star"),
     ("star/LICENSE", "star"),
     ("star/CHANGELOG.md", "star"),
+    # First-screen welcome page — loads as a real document at startup
+    # (0.1.18+); without it the GUI silently falls back to a static splash.
+    ("star/welcome.md", "star"),
 ]
+# i18n catalogs (0.1.19+): es/fr/de/pt UI translations + the ar RTL proof.
+# Without these, Interface Language silently falls back to English.
+if _os.path.isdir(_os.path.join(_here, "star", "locale")):
+    datas.append(("star/locale", "star/locale"))
 binaries = []
 
 hiddenimports = [

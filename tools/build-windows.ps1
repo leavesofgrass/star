@@ -198,7 +198,16 @@ if ($Lean) {
     Remove-Item Env:STAR_LEAN -ErrorAction SilentlyContinue
     Info "Running PyInstaller WITH the dictation stack (Torch/Whisper) -- slow + large"
 }
-& $py -m PyInstaller --clean --noconfirm star.spec | Out-Host
+# PyInstaller writes its INFO log to STDERR; under Windows PowerShell 5.1 with
+# $ErrorActionPreference = "Stop", the first stderr line becomes a terminating
+# NativeCommandError even though the build is fine (pwsh 7 on CI is unaffected).
+# Relax the preference for this one native call and gate on the exit code.
+$eap = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+& $py -m PyInstaller --clean --noconfirm star.spec 2>&1 | ForEach-Object { "$_" } | Out-Host
+$pyiExit = $LASTEXITCODE
+$ErrorActionPreference = $eap
+if ($pyiExit -ne 0) { Die "PyInstaller failed (exit $pyiExit)" }
 
 $exe = Join-Path $root "dist\star.exe"
 if (Test-Path $exe) {
