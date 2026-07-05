@@ -97,9 +97,9 @@ class _FakeRecorder:
     def start(self):
         self.started = True
 
-    def stop(self):
+    def stop_samples(self):
         self.stopped = True
-        return "/tmp/rec.wav"
+        return [1, 2, 3]  # non-empty "audio" so transcription runs
 
     def cancel(self):
         self.cancelled = True
@@ -111,7 +111,8 @@ def _patch_dictate(window, monkeypatch, accepted, transcript="hello note"):
 
     _FakeRecorder.instances = []
     monkeypatch.setattr(mod, "StreamRecorder", _FakeRecorder)
-    monkeypatch.setattr(mod, "_transcribe_audio", lambda *a, **k: transcript)
+    # Dictation transcribes the samples directly (no WAV / ffmpeg).
+    monkeypatch.setattr(mod, "_transcribe_samples", lambda *a, **k: transcript)
     monkeypatch.setattr(window, "_qt_require_optional_feature", lambda *a: True)
     monkeypatch.setattr(window, "_qt_current_anchor", lambda: (0, "anchor"))
     # Don't block on a modal; simulate the user's Stop (accept) or Cancel.
@@ -121,9 +122,6 @@ def _patch_dictate(window, monkeypatch, accepted, transcript="hello note"):
                       else QDialog.DialogCode.Rejected),
         raising=False,
     )
-    # Path.unlink on a fake path must not raise.
-    import pathlib
-    monkeypatch.setattr(pathlib.Path, "unlink", lambda self, **k: None)
 
 
 def test_dictate_records_until_stop_then_transcribes(window, monkeypatch):
@@ -157,3 +155,30 @@ def test_dictate_cancel_discards_recording(window, monkeypatch):
     rec = _FakeRecorder.instances[0]
     assert rec.started and rec.cancelled and not rec.stopped
     assert "args" not in emitted  # nothing transcribed / added on cancel
+
+
+def test_transcribe_samples_needs_no_ffmpeg(monkeypatch):
+    """Dictation transcribes an in-memory array — Whisper gets a float32
+    ndarray, so no WAV is written and no ffmpeg subprocess is spawned (which
+    would flash a console window in the windowed exe)."""
+    import numpy as np
+
+    import star.transcribe as t
+
+    captured = {}
+
+    def _fake_transcribe(audio):
+        captured["audio"] = audio
+        return {"text": " hi "}
+
+    monkeypatch.setattr(t, "_WHISPER", "openai")
+    monkeypatch.setattr(
+        t, "_load_whisper",
+        lambda: type("W", (), {"load_model": staticmethod(
+            lambda _m: type("M", (), {"transcribe": staticmethod(_fake_transcribe)})()
+        )})(),
+    )
+    out = t._transcribe_samples(np.array([16384, -16384], dtype="int16"), "base")
+    assert out == "hi"
+    a = captured["audio"]
+    assert a.dtype == np.float32 and abs(a[0] - 0.5) < 1e-3  # int16 → [-1,1]

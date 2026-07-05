@@ -53,6 +53,35 @@ def _transcribe_audio(
     )
 
 
+def _transcribe_samples(
+    samples: Any, model_name: str = "base", samplerate: int = 16000
+) -> str:
+    """Transcribe in-memory 16-bit mono PCM (16 kHz) WITHOUT ffmpeg.
+
+    Whisper accepts a float32 ndarray directly, so the microphone-dictation
+    path can skip the WAV → ffmpeg round-trip entirely.  That matters twice
+    over in a frozen, windowed build: ffmpeg-via-subprocess flashes a console
+    window (star.exe has no console), and it made dictation depend on ffmpeg
+    being found on PATH.  Feeding the samples straight in avoids both.
+    """
+    import numpy as np
+
+    if samples is None or len(samples) == 0:
+        return ""
+    audio = np.asarray(samples, dtype=np.float32).flatten() / 32768.0
+    if _WHISPER == "openai":
+        model = _load_whisper().load_model(model_name)
+        return str(model.transcribe(audio).get("text", "")).strip()
+    if _WHISPER == "faster":
+        model = _load_faster_whisper()(model_name)
+        segments, _info = model.transcribe(audio)
+        return " ".join(seg.text for seg in segments).strip()
+    raise RuntimeError(
+        "Speech recognition requires Whisper:\n"
+        "  pip install openai-whisper   (or: pip install faster-whisper)"
+    )
+
+
 def _record_audio_to_wav(seconds: float, samplerate: int = 16000) -> str:
     """Record *seconds* of mono microphone audio to a temp WAV; return its path."""
     if not _AUDIO_IN:
@@ -117,32 +146,42 @@ class StreamRecorder:
     def elapsed(self) -> float:
         return time.monotonic() - self._start_t if self._start_t else 0.0
 
-    def stop(self) -> str:
-        """Stop recording and write the captured audio to a temp WAV.
+    def stop_samples(self) -> Any:
+        """Stop recording and return the captured int16 mono samples.
 
-        Returns the WAV path, or "" when no audio was captured (immediate
-        stop / no input).  Safe to call once; further calls are no-ops."""
+        Returns a numpy array, or None when nothing was captured (immediate
+        stop / no input).  This is the ffmpeg-free path — feed the result to
+        _transcribe_samples.  Safe to call once; further calls return None."""
         if self._stream is None:
-            return ""
+            return None
         try:
             self._stream.stop()
             self._stream.close()
         finally:
             self._stream = None
         if not self._blocks:
+            return None
+        import numpy as _np
+
+        return _np.concatenate(self._blocks, axis=0)
+
+    def stop(self) -> str:
+        """Stop recording and write the captured audio to a temp WAV.
+
+        Returns the WAV path, or "" when no audio was captured.  Kept for
+        file-based consumers; the dictation path uses stop_samples instead."""
+        samples = self.stop_samples()
+        if samples is None:
             return ""
         import wave
 
-        import numpy as _np
-
-        audio = _np.concatenate(self._blocks, axis=0)
         tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
         tmp.close()
         with wave.open(tmp.name, "wb") as w:
             w.setnchannels(1)
             w.setsampwidth(2)
             w.setframerate(self._samplerate)
-            w.writeframes(audio.tobytes())
+            w.writeframes(samples.tobytes())
         return tmp.name
 
     def cancel(self) -> None:

@@ -140,7 +140,11 @@ if _bundle_dictation:
 # the frozen build with no extra install.  Guarded so the spec still builds when
 # one of these optional packages is absent.
 for _pkg in (
-    "sumy", "genanki", "pyspellchecker", "nltk",
+    # NOTE: the IMPORT name, not the PyPI distribution name — collect_all
+    # needs the package.  pyspellchecker installs as ``spellchecker``; naming
+    # it "pyspellchecker" here collected ZERO files, so edit mode's spell
+    # dictionary (resources/en.json.gz) never shipped ("dictionary missing").
+    "sumy", "genanki", "spellchecker", "nltk",
     "deep_translator", "feedparser", "wordfreq", "langcodes", "ftfy",
 ):
     try:

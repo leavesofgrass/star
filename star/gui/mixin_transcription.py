@@ -8,7 +8,7 @@ lazily by main_window.py (itself imported by runner.py after the _QT guard).
 from .._runtime import *  # noqa: F401,F403
 from ..documents import Document
 from ..i18n import tr
-from ..transcribe import StreamRecorder, _transcribe_audio
+from ..transcribe import StreamRecorder, _transcribe_audio, _transcribe_samples
 
 
 class TranscriptionMixin:
@@ -229,11 +229,11 @@ class TranscriptionMixin:
             return
 
         try:
-            wav = recorder.stop()
+            samples = recorder.stop_samples()
         except Exception as exc:  # noqa: BLE001
             self._status_error(f"Recording failed: {exc}")
             return
-        if not wav:
+        if samples is None or len(samples) == 0:
             self.statusBar().showMessage("No audio was recorded")
             return
 
@@ -241,13 +241,13 @@ class TranscriptionMixin:
         self.statusBar().showMessage("Transcribing your note…")
 
         def _work() -> None:
+            # _transcribe_samples feeds the audio to Whisper directly (no WAV,
+            # no ffmpeg subprocess → no console-window flash in star.exe).
             try:
-                text = _transcribe_audio(wav, model)
+                text = _transcribe_samples(samples, model)
                 self._dictate_signal.emit(text, str(int(char_pos)), anchor)
             except Exception as exc:  # noqa: BLE001
                 self._dictate_signal.emit("", "ERROR", str(exc))
-            finally:
-                Path(wav).unlink(missing_ok=True)
 
         threading.Thread(target=_work, daemon=True).start()
 

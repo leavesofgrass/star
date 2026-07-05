@@ -191,14 +191,15 @@ if (-not $Lean) {
     }
 }
 
-# ── Stage NLTK punkt data (offline document summarization) ──────────────────
-# sumy's sentence tokenizer needs NLTK's punkt / punkt_tab data.  Download it
-# into build\nltk_data so star.spec bundles it and Summarize works offline.
+# ── Stage NLTK data (offline summarization + Define Word) ───────────────────
+# sumy's sentence tokenizer needs punkt / punkt_tab; Define Word (Ctrl+D) needs
+# wordnet + omw-1.4 (glosses) and cmudict (pronunciations).  Download them into
+# build\nltk_data so star.spec bundles them and both features work offline.
 $nltkData = Join-Path $root "build\nltk_data"
-if (-not (Test-Path (Join-Path $nltkData "tokenizers\punkt_tab"))) {
-    Info "Staging NLTK punkt tokenizer data for offline summarization"
+if (-not (Test-Path (Join-Path $nltkData "corpora\wordnet"))) {
+    Info "Staging NLTK data (punkt + wordnet + cmudict) for offline summarize / Define Word"
     $env:STAR_NLTK_DIR = $nltkData
-    & $py -c "import os,nltk; d=os.environ['STAR_NLTK_DIR']; os.makedirs(d,exist_ok=True); nltk.download('punkt',download_dir=d); nltk.download('punkt_tab',download_dir=d); print('NLTK punkt data staged')" | Out-Host
+    & $py -c "import os,nltk; d=os.environ['STAR_NLTK_DIR']; os.makedirs(d,exist_ok=True); [nltk.download(p,download_dir=d) for p in ('punkt','punkt_tab','wordnet','omw-1.4','cmudict')]; print('NLTK data staged')" | Out-Host
 }
 
 # ── Build ───────────────────────────────────────────────────────────────────
