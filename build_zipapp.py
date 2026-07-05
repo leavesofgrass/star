@@ -85,6 +85,11 @@ def clean_staging() -> None:
     if STAGING_DIR.exists():
         shutil.rmtree(STAGING_DIR)
     STAGING_DIR.mkdir(parents=True, exist_ok=True)
+    # setuptools' in-tree build reuses build/lib and never prunes deleted
+    # modules, so pre-refactor monoliths (markup.py, ttstext.py, …) leaked
+    # into every locally built wheel — and into shipped pyz builds.  Purge
+    # it before any pip wheel/install step so the wheel matches the tree.
+    shutil.rmtree(ROOT / "build" / "lib", ignore_errors=True)
 
 
 def pip_install_all() -> None:

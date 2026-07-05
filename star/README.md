@@ -85,7 +85,7 @@ The complete documentation is online at
 | [Configuration](https://github.com/leavesofgrass/star/blob/main/docs/configuration.md) | Every `settings.json` key |
 | [Architecture & Contributing](https://github.com/leavesofgrass/star/blob/main/docs/architecture.md) | Package layout, distribution, contributing, tests |
 | [Changelog](CHANGELOG.md) | Full record of changes |
-| [Build guide](BUILD.md) | Building the cross-platform wheel (and the deprecated Windows `star.exe`) |
+| [Build guide](https://github.com/leavesofgrass/star/blob/main/BUILD.md) | Building the cross-platform wheel (and the deprecated Windows `star.exe`) |
 
 ---
 

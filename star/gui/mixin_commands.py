@@ -8,7 +8,12 @@ lazily by main_window.py (itself imported by runner.py after the _QT guard).
 from .._runtime import *  # noqa: F401,F403
 from ..i18n import tr
 from .a11y import announce
-from ..tui.text import _shortcuts_text
+
+# NOTE: star.tui.text is imported lazily inside _qt_show_shortcuts, NOT here:
+# a module-scope import pulls the whole TUI/curses stack into the GUI's import
+# chain, and on a machine without windows-curses (pipx, --no-deps, conda) that
+# crashed the Qt GUI before a window ever appeared — the 0.1.15 failure class,
+# invisible to CI because CI always has curses.
 
 
 class CommandsMixin:
@@ -27,6 +32,8 @@ class CommandsMixin:
 
     def _qt_show_shortcuts(self) -> None:
         """Show the canonical keyboard shortcut cheat sheet in a dialog."""
+        from ..tui.text import _shortcuts_text  # lazy — see module docstring note
+
         dlg = QDialog(self)
         dlg.setWindowTitle("Keyboard Shortcuts")
         dlg.resize(640, 600)

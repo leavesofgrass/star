@@ -49,12 +49,19 @@ CP: Dict[str, int] = {r: i + 1 for i, r in enumerate(_ROLES)}
 # on Windows.  That single mismatch painted the whole Windows TUI chrome red
 # for releases — always go through the named constants, which are correct on
 # both platforms.
-_BLACK = curses.COLOR_BLACK
-_GREEN = curses.COLOR_GREEN
-_BLUE = curses.COLOR_BLUE
-_MAGENTA = curses.COLOR_MAGENTA
-_CYAN = curses.COLOR_CYAN
-_WHITE = curses.COLOR_WHITE
+#
+# getattr with a fallback, NOT direct attribute access: the runtime hub sets
+# ``curses = None`` when the module is absent (pipx / --no-deps installs
+# without windows-curses), and this module is reached from the GUI's import
+# chain — a bare curses.COLOR_BLACK here crashed the whole Qt GUI at startup
+# on curses-less machines.  The fallback values are never *used* there (no
+# terminal), they just have to import.
+_BLACK = getattr(curses, "COLOR_BLACK", 0)
+_GREEN = getattr(curses, "COLOR_GREEN", 2)
+_BLUE = getattr(curses, "COLOR_BLUE", 4)
+_MAGENTA = getattr(curses, "COLOR_MAGENTA", 5)
+_CYAN = getattr(curses, "COLOR_CYAN", 6)
+_WHITE = getattr(curses, "COLOR_WHITE", 7)
 _DEF = -1  # terminal default (use_default_colors)
 
 # Orange sentinel for theme tables, resolved by _resolve_color at init_pair

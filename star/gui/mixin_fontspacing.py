@@ -82,13 +82,28 @@ class FontSpacingMixin:
             "auto_install", True
         ):
             return
-        # Prefetch whichever reading font is currently selected (OpenDyslexic by
-        # default so the classic behavior is unchanged); a no-op once it's on
-        # disk or a matching system family is already installed.
+        # Only prefetch a reading font the user has actually SELECTED.  The
+        # documented contract is "fetched on first use" — with no selection
+        # there is no use, and the old fallthrough contacted GitHub on every
+        # launch of a default-settings install (4 GETs), violating that
+        # promise.  Selecting a font later fetches it on demand via
+        # _apply_dyslexia_font(fetch=True), exactly as documented.
         key = self._reading_font_key()
-        font_key = key if key in _fontmod.FONTS else "opendyslexic"
+        if key == "default" or key not in _fontmod.FONTS:
+            return
+        font_key = key
         if _fontmod.is_font_fetched(font_key) or self._find_dyslexia_font():
             return
+        # Once-per-machine attempt marker (autodeps convention): a blocked or
+        # offline machine must not re-contact GitHub on every single launch.
+        try:
+            marker = _fontmod.font_dir() / f".{font_key}.attempted"
+            if marker.exists():
+                return
+            marker.parent.mkdir(parents=True, exist_ok=True)
+            marker.touch()
+        except OSError:
+            pass  # marker is best-effort; worst case we retry next launch
 
         def _work() -> None:
             try:

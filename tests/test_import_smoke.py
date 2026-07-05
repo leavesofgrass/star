@@ -69,3 +69,28 @@ def test_star_app_composes_from_mixins():
     assert isinstance(StarApp, type)
     for method in ("_define_cmd", "execute_command", "run", "draw"):
         assert callable(getattr(StarApp, method, None)), f"missing StarApp.{method}"
+
+
+def test_gui_imports_without_curses():
+    """The Qt GUI must import on a machine without windows-curses (pipx /
+    --no-deps / conda installs).  The runtime hub sets curses=None when the
+    module is absent; a GUI-chain module touching curses attributes at import
+    time crashes before a window exists — the 0.1.15 failure class, invisible
+    to CI because CI always has curses.  Simulated by blocking the import."""
+    import os
+    import subprocess
+    import sys
+
+    code = (
+        "import sys; "
+        "sys.modules['curses'] = None; sys.modules['_curses'] = None; "
+        "import star.gui.main_window; print('GUI-OK')"
+    )
+    env = dict(os.environ)
+    env.setdefault("QT_QPA_PLATFORM", "offscreen")
+    env.setdefault("STAR_NO_AUTOINSTALL", "1")
+    proc = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, env=env,
+        timeout=120,
+    )
+    assert proc.returncode == 0 and "GUI-OK" in proc.stdout, proc.stderr[-2000:]
