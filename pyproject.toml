@@ -117,7 +117,10 @@ video = ["Pillow"]
 # interactive/end-to-end Qt GUI tests and hypothesis powers the loader property
 # tests; both are pure-Python wheels, so the base matrix legs pick them up too
 # and simply skip the Qt-guarded modules when PyQt is somehow absent.
-test = ["pytest", "pytest-cov", "pytest-qt", "hypothesis"]
+# pytest-xdist parallelizes the suite (~3× faster) AND fixes the exit-139 Qt
+# teardown flake: the addopts below pin every Qt test to one worker (a crash-
+# free serial order) while the non-GUI bulk fans out across the rest.
+test = ["pytest", "pytest-cov", "pytest-qt", "pytest-xdist", "hypothesis"]
 all = [
     "pytesseract",
     "pymupdf",
@@ -201,7 +204,13 @@ star = ["README.md", "LICENSE", "CHANGELOG.md", "welcome.md", "locale/*.json", "
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
+# -n auto  → run across all cores (pytest-xdist).
+# --dist loadgroup → keep xdist_group("qt") tests (all the GUI tests, grouped
+#   in tests/conftest.py) together on ONE worker so they run in their crash-free
+#   serial order; the non-GUI tests fan out across the other workers.  This is
+#   what killed the flaky exit-139 Qt-teardown segfault AND cut the suite ~3×.
+#   Escape hatch for single-test TDD runs / debugging:  pytest -n0 <target>
+addopts = "-q -n auto --dist loadgroup"
 pythonpath = ["."]
 markers = [
     "network: test requires network access (may be skipped offline)",

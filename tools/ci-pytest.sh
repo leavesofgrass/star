@@ -2,11 +2,12 @@
 # Run pytest, retrying ONLY on a native crash (segfault / abort) — never on a
 # real test failure.
 #
-# Building ~90 QWidgets in one process intermittently segfaults PyQt6 on Linux
-# during window teardown/construction (a known Qt flake, not a product or test
-# bug — it never reproduces on Windows/macOS and the app works fine).  Exit codes
-# 139 (SIGSEGV), 134 (SIGABRT), 132/136 (SIGILL/SIGFPE) are that native crash and
-# are retried up to three times.  Any other non-zero exit is a genuine test
+# The exit-139 Qt-teardown segfault is now PREVENTED structurally: pytest runs
+# under xdist with `--dist loadgroup` (see pyproject addopts), which pins every
+# Qt test to one worker so they run in their crash-free serial order while the
+# non-GUI bulk parallelizes.  This retry loop stays as a thin backstop: exit
+# codes 139 (SIGSEGV), 134 (SIGABRT), 132/136 (SIGILL/SIGFPE) are a native crash
+# and are retried up to three times; any other non-zero exit is a genuine test
 # failure and fails the job immediately.
 #
 # Usage: bash tools/ci-pytest.sh python -m pytest [args...]
