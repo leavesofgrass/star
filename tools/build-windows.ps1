@@ -139,7 +139,14 @@ if (-not $SkipInstall) {
         "pyspellchecker",
         "deep-translator",
         "feedparser",
-        "wordfreq"
+        "wordfreq",
+        # Small pure-Python fillers so the self-contained exe leaves nothing
+        # obvious dark in `--deps`: MP3/OGG muxing helper, TUI clipboard,
+        # and the .7z / .rar members of File > Open Archive.
+        "pydub",
+        "pyperclip",
+        "py7zr",
+        "rarfile"
     )
     if ($Ocr) { $deps += @("pytesseract", "PyMuPDF", "Pillow") }
 
@@ -163,6 +170,12 @@ if (-not $SkipInstall) {
     }
 
     & $py -m pip install @deps | Out-Host
+
+    # Install star itself so its dist-info (entry-point metadata) exists for
+    # star.spec's copy_metadata("star-reader").  Without it the frozen app's
+    # plugin registry discovers ZERO TTS backends — a reader that can't speak.
+    Info "Installing star-reader itself (entry-point metadata for the registry)"
+    & $py -m pip install --no-deps --force-reinstall . | Out-Host
     Ok "Dependencies installed"
 }
 

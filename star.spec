@@ -26,6 +26,7 @@ from PyInstaller.utils.hooks import (
     collect_all,
     collect_data_files,
     collect_submodules,
+    copy_metadata,
 )
 
 block_cipher = None
@@ -69,6 +70,16 @@ datas = [
 # Without these, Interface Language silently falls back to English.
 if _os.path.isdir(_os.path.join(_here, "star", "locale")):
     datas.append(("star/locale", "star/locale"))
+
+# ── Plugin registry metadata — REQUIRED for any speech at all ───────────────
+# Since 0.1.21 every TTS engine (SAPI/pyttsx3, eSpeak, DECtalk, …) is
+# discovered through importlib.metadata entry points declared in
+# pyproject.toml ([project.entry-points."star.backends"]).  A frozen app has
+# NO dist-info unless it is copied in: without this block the registry finds
+# zero backends, the engine picker shows only "auto"/"none", and star falls
+# to the SilentBackend — a reader that cannot speak.  Requires star-reader to
+# be pip-installed in the build venv (tools/build-windows.ps1 does this).
+datas += copy_metadata("star-reader")
 binaries = []
 
 hiddenimports = [
