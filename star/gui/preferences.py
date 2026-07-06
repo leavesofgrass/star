@@ -341,6 +341,14 @@ class PreferencesDialog(QDialog):
         self.prefer_voice.setToolTip(tr("Substring of a preferred default voice name"))
         form.addRow(tr("Preferred voice:"), self.prefer_voice)
 
+        self.auto_play = QCheckBox(tr("Start reading when a document opens"))
+        self.auto_play.setToolTip(
+            tr("Begin speaking automatically from your saved position whenever "
+               "a document is opened")
+        )
+        self.auto_play.setChecked(bool(self.settings.get("tts_auto_play", False)))
+        form.addRow("", self.auto_play)
+
         self.eleven_key = QLineEdit(str(self.settings.get("elevenlabs_api_key", "")))
         try:  # PyQt6
             self.eleven_key.setEchoMode(QLineEdit.EchoMode.Password)
@@ -497,6 +505,7 @@ class PreferencesDialog(QDialog):
         self.rate_spin.setValue(int(D["tts_rate"]))
         self.volume_spin.setValue(int(round(float(D["tts_volume"]) * 100)))
         self.prefer_voice.setText(str(D["tts_prefer_voice"]))
+        self.auto_play.setChecked(bool(D["tts_auto_play"]))
         self.eleven_key.setText(str(D["elevenlabs_api_key"]))
         _combo(self.bitrate_box, _AUDIOBOOK_BITRATES, "audiobook_bitrate")
         # Display.
@@ -544,6 +553,7 @@ class PreferencesDialog(QDialog):
         d["tts_rate"] = self.rate_spin.value()
         d["tts_volume"] = self.volume_spin.value() / 100.0
         d["tts_prefer_voice"] = self.prefer_voice.text()
+        d["tts_auto_play"] = self.auto_play.isChecked()
         d["elevenlabs_api_key"] = self.eleven_key.text()
         d["audiobook_bitrate"] = self.bitrate_box.currentText()
         # Display.

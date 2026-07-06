@@ -231,6 +231,12 @@ class DocumentMixin:
         # the library and recents on every launch.
         if not self._is_welcome(doc):
             _record_library(self.settings, doc)
+            # Start reading automatically once the word map is ready — the
+            # documented tts_auto_play behavior the TUI has always had (see
+            # star/tui/mixin_document.py), consumed by _qt_maybe_auto_play on
+            # the _restore_signal so playback begins from the restored
+            # position.  The welcome page is excluded, mirroring the TUI.
+            self._auto_play_pending = bool(self.settings.get("tts_auto_play", False))
         self.statusBar().showMessage(f"Opened: {doc.title}")
         # Announce the load to assistive tech without stealing focus from the
         # document view (pairs with the visible status-bar message).

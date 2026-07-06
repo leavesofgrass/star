@@ -228,26 +228,46 @@ class DocToolsMixin:
         self._qt_do_translate(code, chosen)
 
     def _qt_do_translate(self, code: str, lang_name: str) -> None:
-        """Kick off a background translation of the current document."""
+        """Kick off a background translation of the current document.
+
+        The whole document is translated — translate_text chunks it under the
+        backend's 5000-char request limit and reports per-piece progress
+        through _translate_progress_signal.  Very long documents are worth a
+        heads-up first: each piece is a network round-trip.
+        """
         if not self.doc:
             return
         text = self.doc.plain_text or ""
-        truncated = len(text) > 15000
-        text = text[:15000]
+        if len(text) > 200_000:
+            try:
+                yes, no = QMessageBox.StandardButton.Yes, QMessageBox.StandardButton.No
+            except AttributeError:  # PyQt5
+                yes, no = QMessageBox.Yes, QMessageBox.No  # type: ignore[attr-defined]
+            ret = QMessageBox.question(
+                self,
+                tr("Translate Document"),
+                tr("This is a long document (about {pages} pages), so the "
+                   "translation may take several minutes. Translate it "
+                   "all?").format(pages=len(text) // 1800),
+                yes | no,
+            )
+            if ret != yes:
+                return
         # Remember what the result is FROM and TO for the translated doc's
         # title (self.doc will be replaced by the time the result lands).
         self._translate_lang = lang_name
         self._translate_src_title = self.doc.title or "document"
-        self._translate_truncated = truncated
-        self.statusBar().showMessage(
-            f"Translating first 15000 characters to {lang_name}…"
-            if truncated
-            else f"Translating to {lang_name}…"
-        )
+        self.statusBar().showMessage(f"Translating to {lang_name}…")
+
+        def _progress(done: int, total: int) -> None:
+            if total > 1:
+                self._translate_progress_signal.emit(
+                    f"Translating to {lang_name}… part {done} of {total}"
+                )
 
         def _work() -> None:
             try:
-                result = translate_text(text, target_lang=code)
+                result = translate_text(text, target_lang=code, progress=_progress)
                 self._translate_signal.emit(result, "")
             except Exception as exc:  # noqa: BLE001
                 self._translate_signal.emit("", str(exc))
@@ -265,18 +285,13 @@ class DocToolsMixin:
         lang = getattr(self, "_translate_lang", "")
         src = getattr(self, "_translate_src_title", "document")
         title = f"{src} (translated to {lang})" if lang else f"{src} (translated)"
-        note = (
-            "\n\n> *(First 15000 characters translated.)*\n"
-            if getattr(self, "_translate_truncated", False)
-            else ""
-        )
         # Reuse the transcription-result pattern: an in-memory Document with no
         # path, handed to the normal load path so the word map / highlighting /
         # speech are all rebuilt for it (see _qt_on_transcribed).
         self._pending_doc = Document(
             path="",
             title=title,
-            markdown=f"# {title}\n\n{result}\n{note}",
+            markdown=f"# {title}\n\n{result}\n",
             plain_text=result,
             format="translation",
         )

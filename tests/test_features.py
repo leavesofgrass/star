@@ -77,6 +77,69 @@ def test_common_languages_well_formed():
     assert ("English", "en") in translate.COMMON_LANGUAGES
 
 
+def test_chunk_text_respects_backend_limit_and_reassembles():
+    """deep-translator's Google backend rejects requests >= 5000 chars, so
+    every chunk must stay under it — and joining chunk+separator must
+    reproduce the original text exactly (nothing dropped at boundaries)."""
+    paragraphs = [f"Paragraph {i}. " + ("word " * 300).strip() for i in range(20)]
+    text = "\n\n".join(paragraphs)  # ~30k chars
+    chunks = translate._chunk_text(text)
+    assert len(chunks) > 1
+    assert all(len(piece) < 5000 for piece, _sep in chunks)
+    assert "".join(piece + sep for piece, sep in chunks) == text
+
+
+def test_chunk_text_oversized_paragraph_splits_at_sentences():
+    # One 12k-char paragraph with no blank lines must fall back to sentence
+    # boundaries rather than sending an oversized request.
+    par = " ".join(f"Sentence number {i} has a few words in it." for i in range(300))
+    chunks = translate._chunk_text(par)
+    assert len(chunks) > 1
+    assert all(len(piece) < 5000 for piece, _sep in chunks)
+    assert "".join(piece + sep for piece, sep in chunks) == par
+
+
+def test_chunk_text_unbroken_run_is_hard_sliced():
+    blob = "x" * 12000  # no punctuation, no spaces — e.g. a base64 blob
+    chunks = translate._chunk_text(blob)
+    assert all(len(piece) <= translate._CHUNK_LIMIT for piece, _sep in chunks)
+    assert "".join(piece + sep for piece, sep in chunks) == blob
+
+
+def test_translate_text_chunks_long_documents(monkeypatch):
+    """A long document is translated piece by piece (each under the backend
+    limit), reports progress, and reassembles with paragraph structure."""
+    import sys
+    import types
+
+    sent = []
+
+    class _FakeTranslator:
+        def __init__(self, source="auto", target="en"):
+            pass
+
+        def translate(self, text):
+            sent.append(text)
+            return f"<{text}>"
+
+    fake = types.ModuleType("deep_translator")
+    fake.GoogleTranslator = _FakeTranslator
+    monkeypatch.setitem(sys.modules, "deep_translator", fake)
+    monkeypatch.setattr(translate, "_DEEP_TRANSLATOR", True)
+
+    text = "\n\n".join(("alpha beta. " * 200).strip() for _ in range(8))  # ~19k
+    ticks = []
+    out = translate.translate_text(
+        text, target_lang="es", progress=lambda d, t: ticks.append((d, t))
+    )
+    assert len(sent) > 1 and all(len(s) < 5000 for s in sent)
+    # Progress: monotonically increasing over a constant total.
+    assert ticks == [(i + 1, len(sent)) for i in range(len(sent))]
+    # Every translated piece is present, in order, with paragraphs intact.
+    assert out.startswith("<") and out.count("<") == len(sent)
+    assert "\n\n" in out
+
+
 # ── Feeds (feedparser) ─────────────────────────────────────────────────────
 
 

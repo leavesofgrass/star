@@ -29,6 +29,26 @@ class PlaybackMixin:
             lambda idx, __s=_s: self._word_signal.emit(idx, __s)
         )
 
+    def _qt_maybe_auto_play(self) -> None:
+        """Start reading a freshly opened document when tts_auto_play is on.
+
+        Runs on _restore_signal right after _qt_restore_reading_position (slot
+        order), so a returning reader hears the book resume from their saved
+        spot rather than the top.  The flag is one-shot per document load —
+        set by _on_doc_loaded_impl for real documents only (never the welcome
+        page or a failed load), so pagination re-renders can't retrigger it.
+        """
+        if not getattr(self, "_auto_play_pending", False):
+            return
+        self._auto_play_pending = False
+        if not self.doc or self.tts_manager.speaking:
+            return
+        word = self._qt_current_word_for_nav()
+        if word > 0:
+            self._tts_play_from_word(word)
+        else:
+            self._tts_play()
+
     def _tts_play(self) -> None:
         """Start speech from the beginning (word 0)."""
         if not self.doc:

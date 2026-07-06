@@ -172,6 +172,18 @@ class TranscriptionMixin:
             return
         if not self._qt_require_optional_feature("transcribe", tr("Voice dictation")):
             return
+        # Pause the reading voice BEFORE the mic opens: star's natural flow is
+        # "hear something important → dictate", and on a laptop the mic sits
+        # next to the speakers — Whisper would transcribe star's own voice
+        # into the note.  This mirrors the pause half of _tts_toggle (word
+        # saved, position stored), so Space resumes exactly where the reading
+        # stopped once the note is done.
+        if self.tts_manager.speaking:
+            saved = self.tts_manager.current_word_idx
+            self._tts_stop(announce_state=False)
+            if saved >= 0:
+                self._tts_paused_at_word = saved
+            self.statusBar().showMessage("Reading paused while you dictate")
         try:
             recorder = StreamRecorder()
             recorder.start()

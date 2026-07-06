@@ -49,7 +49,6 @@ def test_translation_opens_as_a_document(window, monkeypatch):
     )
     window._translate_lang = "French"
     window._translate_src_title = "Orig"
-    window._translate_truncated = False
 
     window._qt_on_translation("bonjour le monde", "")
 
@@ -158,6 +157,76 @@ def test_dictate_cancel_discards_recording(window, monkeypatch):
     rec = _FakeRecorder.instances[0]
     assert rec.started and rec.cancelled and not rec.stopped
     assert "args" not in emitted  # nothing transcribed / added on cancel
+
+
+class _FakeTTS:
+    """Stand-in tts_manager: attributes as given, every method a no-op (the
+    window fixture's close() still calls .stop() etc. during teardown)."""
+
+    def __init__(self, speaking=False, current_word_idx=-1):
+        self.speaking = speaking
+        self.current_word_idx = current_word_idx
+        self.last_cb_word_idx = -1  # read by _qt_current_word_for_nav
+
+    def __getattr__(self, _name):
+        return lambda *a, **k: None
+
+
+def test_dictate_pauses_tts_before_the_mic_opens(window, monkeypatch):
+    """If star is reading aloud when the user hits Dictate, the voice must be
+    paused BEFORE recording starts — otherwise the mic picks up star's own
+    speech and Whisper transcribes it into the note."""
+    _patch_dictate(window, monkeypatch, accepted=False)  # cancel; pause is the point
+    monkeypatch.setattr(
+        window, "tts_manager",
+        _FakeTTS(speaking=True, current_word_idx=42),
+        raising=False,
+    )
+    calls = {}
+    monkeypatch.setattr(
+        window, "_tts_stop",
+        lambda announce_state=True: calls.setdefault("announce", announce_state),
+    )
+    window._qt_dictate_note()
+    assert calls.get("announce") is False        # paused via the toggle's quiet path
+    assert window._tts_paused_at_word == 42      # Space resumes at the same word
+    rec = _FakeRecorder.instances[0]
+    assert rec.started                           # and recording did still start
+
+
+# ── Auto-play on open (tts_auto_play, GUI parity with the TUI) ───────────────
+
+
+def test_auto_play_starts_reading_from_the_top(window, monkeypatch):
+    window._auto_play_pending = True
+    monkeypatch.setattr(window, "tts_manager", _FakeTTS(), raising=False)
+    monkeypatch.setattr(window, "_qt_current_word_for_nav", lambda: 0)
+    started = {}
+    monkeypatch.setattr(window, "_tts_play", lambda: started.setdefault("top", True))
+    window._qt_maybe_auto_play()
+    assert started.get("top")
+    assert window._auto_play_pending is False
+
+
+def test_auto_play_resumes_from_the_restored_position(window, monkeypatch):
+    window._auto_play_pending = True
+    monkeypatch.setattr(window, "tts_manager", _FakeTTS(), raising=False)
+    monkeypatch.setattr(window, "_qt_current_word_for_nav", lambda: 7)
+    played = {}
+    monkeypatch.setattr(
+        window, "_tts_play_from_word", lambda w: played.setdefault("word", w)
+    )
+    window._qt_maybe_auto_play()
+    assert played.get("word") == 7
+
+
+def test_auto_play_is_one_shot_and_off_by_default(window, monkeypatch):
+    # Default: no pending flag → no playback call at all.
+    called = {}
+    monkeypatch.setattr(window, "_tts_play", lambda: called.setdefault("play", True))
+    window._auto_play_pending = False
+    window._qt_maybe_auto_play()
+    assert "play" not in called
 
 
 @pytest.mark.skipif(not _HAS_NUMPY, reason="numpy not installed (audio extra)")

@@ -375,6 +375,9 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
     # Translation runs on a background thread (it makes a network call);
     # carries (translated_text, error_message).
     _translate_signal = pyqtSignal(str, str)
+    # Long documents translate in chunks (the backend caps requests at 5000
+    # chars); carries a "part 3 of 8" status line from the worker thread.
+    _translate_progress_signal = pyqtSignal(str)
     # Feed fetching runs on a background thread (network call); carries
     # (entries_list, error_message) — the list is passed as a Python object.
     _feed_signal = pyqtSignal(object, str)
@@ -478,6 +481,9 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         self._doc_loaded_signal.connect(self._on_doc_loaded, _QUEUED)
         # Wire the restore-position callback → main thread.
         self._restore_signal.connect(self._qt_restore_reading_position, _QUEUED)
+        # After the position is restored: honor tts_auto_play (slots run in
+        # connection order, so the cursor is already at the saved spot).
+        self._restore_signal.connect(self._qt_maybe_auto_play, _QUEUED)
         # Wire the pagination initial-window render → main thread.
         self._paginate_signal.connect(self._page_render_initial_window, _QUEUED)
         # Wire the OpenDyslexic prefetch-complete callback → main thread.
@@ -518,6 +524,9 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         self._summary_signal.connect(self._qt_on_summary, _QUEUED)
         # Wire the translation / feed-fetch result signals → GUI thread.
         self._translate_signal.connect(self._qt_on_translation, _QUEUED)
+        self._translate_progress_signal.connect(
+            lambda msg: self.statusBar().showMessage(msg), _QUEUED
+        )
         self._feed_signal.connect(self._qt_on_feed, _QUEUED)
         self._define_signal.connect(self._qt_on_definition, _QUEUED)
         # Update-check result → GUI thread (see mixin_tour.py / update wiring).
