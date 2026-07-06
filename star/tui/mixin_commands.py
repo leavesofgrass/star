@@ -153,6 +153,13 @@ class CommandsMixin:
             "graph-export-json": lambda: self._graph_export("json"),
             "import-vault": self._obsidian_import,
             "export-vault": self._obsidian_export,
+            # Study tools — results open as live, speakable documents.
+            # Both take the REST of the line ("translate chinese (simplified)",
+            # "transcribe-file C:\lectures\week 3.mp3" — paths have spaces).
+            "translate": lambda: self._translate_cmd(" ".join(args)),
+            "summarize": self._summarize_cmd,
+            "dictate-note": self._dictate_note_cmd,
+            "transcribe-file": lambda: self._transcribe_file_cmd(" ".join(args)),
             "play": self._tts_play,
             "stop": self._tts_stop,
             "pause": self._tts_toggle,

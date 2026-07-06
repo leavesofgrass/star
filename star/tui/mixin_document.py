@@ -80,7 +80,11 @@ class DocumentMixin:
                 recents.insert(0, doc.path)
                 limit = max(1, int(self.settings.get("recent_files_limit", 20)))
                 self.settings["recent_files"] = recents[:limit]
-            self.settings["last_path"] = doc.path
+            # In-memory results (translations, summaries, transcripts) have no
+            # path — clobbering last_path with "" would make the next launch
+            # forget the real document the user was reading.
+            if doc.path:
+                self.settings["last_path"] = doc.path
             _record_library(self.settings, doc)  # library / bookshelf
             if self.settings["tts_auto_play"]:
                 self._tts_play()

@@ -9,6 +9,7 @@ from ..dictionary import (
     define as _dict_define,
     format_definition_markdown as _dict_markdown,
 )
+from ..documents import Document
 from ..stats import _format_reading_stats, _library_entries
 
 
@@ -208,6 +209,124 @@ class DocOpsMixin:
         )
         self.notify(f"Opening PubMed abstract: PMID {pmid}")
         self._open_async(url)
+
+    # ── Translate / summarize (open results as speakable documents) ─────────
+
+    def _translate_cmd(self, arg: str = "") -> None:
+        """Translate the current document (M-x translate [language]).
+
+        The result opens as a live in-memory document — Space reads it aloud,
+        caret and navigation work — exactly like the GUI flow; the original
+        stays in Recents.  With no argument the target language is picked in
+        the minibuffer (Tab-completed against the common-language list)."""
+        from ..translate import _DEEP_TRANSLATOR, COMMON_LANGUAGES
+
+        if not self.doc or not (self.doc.plain_text or "").strip():
+            self.notify("Open a document before translating.", error=True)
+            return
+        if not _DEEP_TRANSLATOR:
+            self.notify(
+                "Translation needs deep-translator: pip install deep-translator",
+                error=True,
+            )
+            return
+        if arg.strip():
+            self._translate_pick(arg)
+            return
+        names = [name for name, _code in COMMON_LANGUAGES]
+        self._enter_minibuffer(
+            "Translate to: ", on_commit=self._translate_pick, completions=names
+        )
+
+    def _translate_pick(self, value: str) -> None:
+        """Resolve a language name/code and kick off the background translate."""
+        from ..translate import COMMON_LANGUAGES, translate_text
+
+        value = (value or "").strip()
+        if not value or not self.doc:
+            return
+        code = name = ""
+        for lang_name, lang_code in COMMON_LANGUAGES:
+            if value.lower() in (lang_name.lower(), lang_code.lower()):
+                code, name = lang_code, lang_name
+                break
+        if not code:
+            self.notify(f"Unknown language: {value}", error=True)
+            return
+        text = self.doc.plain_text or ""
+        src = self.doc.title or "document"
+        self.notify(f"Translating to {name}…", dur=30.0)
+
+        def _progress(done: int, total: int) -> None:
+            if total > 1:
+                self._bg_queue.put(
+                    lambda: self.notify(
+                        f"Translating to {name}… part {done} of {total}", dur=30.0
+                    )
+                )
+
+        def _work() -> None:
+            try:
+                result = translate_text(text, target_lang=code, progress=_progress)
+                if not (result or "").strip():
+                    self._bg_queue.put(
+                        lambda: self.notify("Translation produced no text", error=True)
+                    )
+                    return
+                title = f"{src} (translated to {name})"
+                self._load_queue.put(
+                    Document(
+                        path="",
+                        title=title,
+                        markdown=f"# {title}\n\n{result}\n",
+                        plain_text=result,
+                        format="translation",
+                    )
+                )
+            except Exception as exc:  # noqa: BLE001
+                msg = f"Translation failed: {exc}"
+                self._bg_queue.put(lambda: self.notify(msg, error=True))
+
+        threading.Thread(target=_work, daemon=True).start()
+
+    def _summarize_cmd(self) -> None:
+        """Summarize the current document (M-x summarize) as a readable doc."""
+        from ..summarize import _SUMY, summarize_document
+
+        if not self.doc or not (self.doc.plain_text or "").strip():
+            self.notify("Open a document before summarizing.", error=True)
+            return
+        if not _SUMY:
+            self.notify("Summarization needs sumy: pip install sumy", error=True)
+            return
+        text = self.doc.plain_text or ""
+        src = self.doc.title or "document"
+        n = int(self.settings.get("summary_sentences", 7) or 7)
+        self.notify("Summarizing…", dur=30.0)
+
+        def _work() -> None:
+            try:
+                result = summarize_document(text, sentence_count=n)
+                if not (result or "").strip():
+                    self._bg_queue.put(
+                        lambda: self.notify("Summary produced no text", error=True)
+                    )
+                    return
+                title = f"Summary — {src}"
+                self._load_queue.put(
+                    Document(
+                        path="",
+                        title=title,
+                        markdown=f"# {title}\n\n{result}\n",
+                        plain_text=result,
+                        format="summary",
+                    )
+                )
+            except Exception as exc:  # noqa: BLE001
+                msg = f"Summarize failed: {exc}"
+                self._bg_queue.put(lambda: self.notify(msg, error=True))
+
+        threading.Thread(target=_work, daemon=True).start()
 
     def _define_cmd(self, arg: str = "") -> None:
         """Offline definition lookup (M-x define [word], or the 'd' key on the

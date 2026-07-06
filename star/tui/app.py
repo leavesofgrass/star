@@ -28,6 +28,7 @@ from .mixin_help import HelpMixin
 from .mixin_docops import DocOpsMixin
 from .mixin_rsvp import RsvpMixin
 from .mixin_annotations import AnnotationsMixin
+from .mixin_transcription import TuiTranscriptionMixin
 from .mixin_caret import CaretMixin
 from .mixin_keys import KeysMixin
 from .mixin_draw import DrawMixin
@@ -57,7 +58,7 @@ def _ensure_tui_log_handler() -> None:
 
 
 class StarApp(
-    DocumentMixin, PlaybackMixin, NavigationMixin, SpeechCursorMixin, BookmarksMixin, SearchMixin, VoiceMixin, ExportMixin, DisplayMixin, CommandsMixin, GraphMixin, HelpMixin, DocOpsMixin, RsvpMixin, AnnotationsMixin, CaretMixin, KeysMixin, DrawMixin,
+    DocumentMixin, PlaybackMixin, NavigationMixin, SpeechCursorMixin, BookmarksMixin, SearchMixin, VoiceMixin, ExportMixin, DisplayMixin, CommandsMixin, GraphMixin, HelpMixin, DocOpsMixin, RsvpMixin, AnnotationsMixin, TuiTranscriptionMixin, CaretMixin, KeysMixin, DrawMixin,
 ):
     """Main curses application for star — Speaking Terminal Access Reader."""
 
@@ -107,6 +108,10 @@ class StarApp(
         self.loading = False
         self.loading_msg = ""
         self._load_queue: "queue.Queue[Optional[Document]]" = queue.Queue()
+        # Background threads (translate / summarize / transcription) hand
+        # non-document results back to the curses loop as zero-arg callables —
+        # notify() and friends must only ever run on the loop thread.
+        self._bg_queue: "queue.Queue[Callable[[], None]]" = queue.Queue()
         self._running = True
         self._highlight_line = -1  # display line of current TTS word
         self._highlight_col_start = -1
@@ -223,6 +228,7 @@ class StarApp(
         while self._running:
             try:
                 self._poll_load_queue()
+                self._poll_bg_queue()
                 self._stats_poll()
                 self.draw()
                 ch = self.scr.getch()
@@ -249,6 +255,18 @@ class StarApp(
             pass
         self._save_reading_position()  # remember where we stopped
         self.settings.save()
+
+    def _poll_bg_queue(self) -> None:
+        """Run callbacks queued by background threads (loop thread only)."""
+        while True:
+            try:
+                cb = self._bg_queue.get_nowait()
+            except queue.Empty:
+                return
+            try:
+                cb()
+            except Exception:
+                _log.exception("background-result callback failed")
 
     def _stats_poll(self) -> None:
         """Feed the reading-statistics tracker once per loop iteration."""
