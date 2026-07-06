@@ -9,6 +9,7 @@ from .._runtime import *  # noqa: F401,F403
 from ..documents import Document
 from ..i18n import tr
 from ..transcribe import StreamRecorder, _transcribe_audio, _transcribe_samples
+from .a11y import announce
 
 
 class TranscriptionMixin:
@@ -70,6 +71,13 @@ class TranscriptionMixin:
         self.statusBar().showMessage(
             tr("Downloading {feature}…").format(feature=human_name), 0
         )
+        # A multi-minute download with no audible start is indistinguishable
+        # from a no-op for a screen-reader user — set the expectation now.
+        announce(
+            self.editor,
+            tr("Downloading {feature} — you can keep reading; star will "
+               "announce when it is ready.").format(feature=human_name),
+        )
 
         def _work() -> None:
             ready = False
@@ -90,25 +98,25 @@ class TranscriptionMixin:
         threading.Thread(target=_work, name="star-feature-install", daemon=True).start()
 
     def _on_feature_installed(self, human_name: str, ok: bool, ready: bool) -> None:
-        """GUI-thread slot: report the outcome of a feature download."""
+        """GUI-thread slot: report the outcome of a feature download.
+
+        Every outcome is announced as well as shown — the download was
+        requested minutes ago, so a blind user is not watching the status bar
+        when it lands."""
         if not ok:
-            self.statusBar().showMessage(
-                tr("Couldn't install {feature} — check your connection and try "
-                   "again.").format(feature=human_name),
-                12000,
-            )
+            msg = tr("Couldn't install {feature} — check your connection and "
+                     "try again.").format(feature=human_name)
+            duration = 12000
         elif ready:
-            self.statusBar().showMessage(
-                tr("{feature} installed — you can use it now.").format(
-                    feature=human_name),
-                12000,
-            )
+            msg = tr("{feature} installed — you can use it now.").format(
+                feature=human_name)
+            duration = 12000
         else:
-            self.statusBar().showMessage(
-                tr("{feature} installed — restart star to use it.").format(
-                    feature=human_name),
-                15000,
-            )
+            msg = tr("{feature} installed — restart star to use it.").format(
+                feature=human_name)
+            duration = 15000
+        self.statusBar().showMessage(msg, duration)
+        announce(self.editor, msg)
 
     def _qt_transcribe_file(self) -> None:
         """Transcribe an audio file with Whisper and open it as a document."""
@@ -140,6 +148,7 @@ class TranscriptionMixin:
         self.statusBar().showMessage(
             f"Transcribing with Whisper ({model})… this may take a while"
         )
+        announce(self.editor, "Transcribing — this may take a while")
 
         def _work() -> None:
             try:
@@ -158,6 +167,7 @@ class TranscriptionMixin:
             return
         if not text:
             self.statusBar().showMessage("Transcription produced no text")
+            announce(self.editor, "Transcription produced no text")
             return
         name = Path(src).stem if src else "transcription"
         md = f"# Transcription — {name}\n\n{text}\n"
@@ -170,6 +180,7 @@ class TranscriptionMixin:
         )
         self._on_doc_loaded()
         self.statusBar().showMessage(f"Transcribed {name} ({len(text)} chars)")
+        announce(self.editor, f"Transcript of {name} is open — press Space to read it")
 
     def _qt_dictate_note(self) -> None:
         """Record a voice memo — until the user says stop — and add it as a note.
@@ -198,6 +209,7 @@ class TranscriptionMixin:
             if saved >= 0:
                 self._tts_paused_at_word = saved
             self.statusBar().showMessage("Reading paused while you dictate")
+            announce(self.editor, "Reading paused while you dictate")
         try:
             recorder = StreamRecorder()
             recorder.start()
@@ -252,6 +264,7 @@ class TranscriptionMixin:
         if accepted != _ok_val:
             recorder.cancel()
             self.statusBar().showMessage("Dictation cancelled")
+            announce(self.editor, "Dictation cancelled")
             return
 
         try:
@@ -261,10 +274,14 @@ class TranscriptionMixin:
             return
         if samples is None or len(samples) == 0:
             self.statusBar().showMessage("No audio was recorded")
+            announce(self.editor, "No audio was recorded — check your microphone")
             return
 
         model = str(self.settings.get("whisper_model", "base"))
         self.statusBar().showMessage("Transcribing your note…")
+        # Whisper takes 5–30+ seconds; without an audible cue a blind user
+        # hears nothing between pressing Stop and the note landing.
+        announce(self.editor, "Transcribing your note — this takes a moment")
 
         def _work() -> None:
             # _transcribe_samples feeds the audio to Whisper directly (no WAV,
@@ -281,9 +298,11 @@ class TranscriptionMixin:
         """Main-thread handler for a completed dictation → save as a note."""
         if char_pos_s == "ERROR":
             self.statusBar().showMessage(f"Dictation error: {anchor}")
+            announce(self.editor, f"Dictation failed: {anchor}")
             return
         if not text:
             self.statusBar().showMessage("Dictation produced no text")
+            announce(self.editor, "Dictation produced no text — check your microphone")
             return
         items = self._qt_load_annotations()
         items.append(
@@ -303,4 +322,5 @@ class TranscriptionMixin:
             self._annot_dock.setVisible(True)
             self.settings["qt_show_notes"] = True
         self.statusBar().showMessage(f"Dictated note added ({len(text)} chars)")
+        announce(self.editor, "Dictated note added")
 

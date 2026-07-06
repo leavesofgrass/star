@@ -130,6 +130,7 @@
   "Download this voice before selecting it.": "Laden Sie diese Stimme herunter, bevor Sie sie auswählen.",
   "Downloaded {name}.": "{name} heruntergeladen.",
   "Downloading {feature} in the background — this can take a few minutes. Restart star when it finishes.": "{feature} wird im Hintergrund heruntergeladen — das kann einige Minuten dauern. Starte star neu, wenn es fertig ist.",
+  "Downloading {feature} — you can keep reading; star will announce when it is ready.": "{feature} wird heruntergeladen — Sie können weiterlesen; star sagt Bescheid, sobald es bereit ist.",
   "Downloading {feature}…": "{feature} wird heruntergeladen…",
   "Downloading {name}…": "{name} wird heruntergeladen…",
   "Dyslexia-Friendly Font": "Legasthenie-freundliche Schrift",
