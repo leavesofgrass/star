@@ -738,6 +738,8 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
             ).format(latest=latest, current=APP_VERSION)
             self.statusBar().showMessage(msg, 12000)
             announce(self, msg)
+            if not self._modal_ok():  # result landed on a closing window
+                return
             box = QMessageBox(self)
             box.setWindowTitle(tr("Update available"))
             box.setTextFormat(Qt.TextFormat.RichText if hasattr(Qt, "TextFormat")
@@ -1028,7 +1030,24 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
             "</body></html>"
         )
 
+    def _modal_ok(self) -> bool:
+        """True when a queued-signal handler may open a modal dialog.
+
+        Background threads deliver results through queued signals, so a
+        summary / definition / update result can land AFTER the window has
+        started closing — most visibly under offscreen test runs, where a
+        modal opened on a closing window has nobody to dismiss it and blocks
+        that xdist worker forever (the suite "hang at 93%").  Handlers gate
+        their dialogs on this and fall back to the status-bar message they
+        already show.
+        """
+        return not getattr(self, "_closing", False)
+
     def closeEvent(self, event: Any) -> None:
+        # From here on, queued-signal handlers must not open modal dialogs
+        # (see _modal_ok) — a background result arriving mid-teardown would
+        # block forever with no user to dismiss it.
+        self._closing = True
         # Persist position, then silence.
         self._qt_save_reading_position()
         # Flush the final reading-statistics slice.

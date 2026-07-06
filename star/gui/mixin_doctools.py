@@ -107,6 +107,8 @@ class DocToolsMixin:
 
     def _qt_on_summary(self, summary: str, error: str) -> None:
         """Main-thread handler: show the summary (or an error) in a dialog."""
+        if not self._modal_ok():  # result landed on a closing window
+            return
         if error:
             QMessageBox.warning(self, "Summarization failed", error)
             self.statusBar().showMessage("Summarization failed")
@@ -171,6 +173,8 @@ class DocToolsMixin:
 
     def _qt_on_definition(self, result: object, word: str, error: str) -> None:
         """Main-thread handler: show the definition (or a not-found note)."""
+        if not self._modal_ok():  # result landed on a closing window
+            return
         if error:
             QMessageBox.warning(self, "Lookup failed", error)
             self.statusBar().showMessage("Lookup failed")
@@ -323,6 +327,8 @@ class DocToolsMixin:
 
     def _qt_on_feed(self, entries: Any, error: str) -> None:
         """Main-thread handler: list the feed's entries; open the chosen one."""
+        if not self._modal_ok():  # result landed on a closing window
+            return
         if error or not entries:
             QMessageBox.information(
                 self, "Feed", "No entries found — check the URL."

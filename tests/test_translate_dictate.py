@@ -229,6 +229,139 @@ def test_auto_play_is_one_shot_and_off_by_default(window, monkeypatch):
     assert "play" not in called
 
 
+# ── _qt_on_dictated: the result handler, driven with its real emit shapes ────
+
+
+def test_dictated_note_is_stored_with_the_dictated_tag(window):
+    """Success shape: the note lands in the annotations store, anchored and
+    tagged 'dictated' — the whole point of the feature."""
+    window._qt_on_dictated("remember the mitochondria", "5", "hola mundo")
+    items = window._qt_load_annotations()
+    assert len(items) == 1
+    note = items[0]
+    assert note["note"] == "remember the mitochondria"
+    assert note["tags"] == ["dictated"]
+    assert note["char_pos"] == 5 and note["anchor"] == "hola mundo"
+
+
+def test_dictation_error_shape_is_surfaced_not_stored(window):
+    """Error shape ('', 'ERROR', <message>): the user hears what failed and
+    no phantom annotation is created."""
+    window._qt_on_dictated("", "ERROR", "model exploded")
+    assert "model exploded" in window.statusBar().currentMessage()
+    assert window._qt_load_annotations() == []
+
+
+def test_dictation_empty_text_is_reported_not_stored(window):
+    window._qt_on_dictated("", "5", "anchor")
+    assert "no text" in window.statusBar().currentMessage().lower()
+    assert window._qt_load_annotations() == []
+
+
+# ── Modal-on-closing-window guard (the suite-hang class) ─────────────────────
+
+
+def test_queued_results_never_open_modals_on_a_closing_window(window, monkeypatch):
+    """A background result (summary/definition/…) that lands after closeEvent
+    must not open a modal dialog — offscreen there is nobody to dismiss it,
+    which wedged the xdist GUI worker (the suite 'hang at 93%')."""
+    from PyQt6.QtWidgets import QDialog, QMessageBox
+
+    opened = []
+    monkeypatch.setattr(QDialog, "exec", lambda self: opened.append("dlg"),
+                        raising=False)
+    monkeypatch.setattr(QMessageBox, "warning",
+                        staticmethod(lambda *a, **k: opened.append("warn")))
+    assert window._modal_ok()          # live window: modals allowed
+    window.close()                     # closeEvent sets _closing
+    assert not window._modal_ok()
+    window._qt_on_summary("a summary", "")
+    window._qt_on_summary("", "an error")
+    window._qt_on_definition(None, "word", "")
+    assert opened == []                # nothing modal after close
+
+
+# ── StreamRecorder lifecycle (no mic, fake sounddevice) ──────────────────────
+
+
+class _FakeStream:
+    def __init__(self, samplerate, channels, dtype, callback):
+        self.callback = callback
+        self.started = self.stopped = self.closed = False
+
+    def start(self):
+        self.started = True
+
+    def stop(self):
+        self.stopped = True
+
+    def close(self):
+        self.closed = True
+
+
+def _fake_recorder_env(monkeypatch):
+    import star.transcribe as t
+
+    holder = {}
+
+    class _SD:
+        @staticmethod
+        def InputStream(**kw):
+            holder["stream"] = _FakeStream(**kw)
+            return holder["stream"]
+
+    monkeypatch.setattr(t, "_AUDIO_IN", True)
+    monkeypatch.setattr(t, "_load_sounddevice", lambda: _SD())
+    return t, holder
+
+
+@pytest.mark.skipif(not _HAS_NUMPY, reason="numpy not installed (audio extra)")
+def test_stream_recorder_captures_blocks_until_stopped(monkeypatch):
+    import numpy as np
+
+    t, holder = _fake_recorder_env(monkeypatch)
+    rec = t.StreamRecorder()
+    rec.start()
+    stream = holder["stream"]
+    assert stream.started
+    # Feed blocks the way sounddevice's audio thread would.
+    stream.callback(np.array([[1], [2]], dtype="int16"), 2, None, None)
+    stream.callback(np.array([[3]], dtype="int16"), 1, None, None)
+    out = rec.stop_samples()
+    assert stream.stopped and stream.closed          # mic released
+    assert list(out.flatten()) == [1, 2, 3]          # blocks in order
+    assert rec.stop_samples() is None                # idempotent second stop
+
+
+@pytest.mark.skipif(not _HAS_NUMPY, reason="numpy not installed (audio extra)")
+def test_stream_recorder_immediate_stop_returns_none(monkeypatch):
+    t, _holder = _fake_recorder_env(monkeypatch)
+    rec = t.StreamRecorder()
+    rec.start()
+    assert rec.stop_samples() is None  # no blocks arrived → "no audio"
+
+
+@pytest.mark.skipif(not _HAS_NUMPY, reason="numpy not installed (audio extra)")
+def test_stream_recorder_cancel_releases_the_mic_and_discards(monkeypatch):
+    import numpy as np
+
+    t, holder = _fake_recorder_env(monkeypatch)
+    rec = t.StreamRecorder()
+    rec.start()
+    holder["stream"].callback(np.array([[9]], dtype="int16"), 1, None, None)
+    rec.cancel()
+    assert holder["stream"].closed     # mic is not left captured
+    assert rec.stop_samples() is None  # recording discarded
+
+
+def test_stream_recorder_refuses_without_audio_stack(monkeypatch):
+    import star.transcribe as t
+
+    monkeypatch.setattr(t, "_AUDIO_IN", False)
+    with pytest.raises(RuntimeError, match="sounddevice"):
+        t.StreamRecorder()
+
+
 @pytest.mark.skipif(not _HAS_NUMPY, reason="numpy not installed (audio extra)")
 def test_transcribe_samples_needs_no_ffmpeg(monkeypatch):
     """Dictation transcribes an in-memory array — Whisper gets a float32

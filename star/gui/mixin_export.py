@@ -86,7 +86,8 @@ class ExportMixin:
 
     def _on_batch_done(self, msg: str) -> None:
         self.statusBar().showMessage("Batch conversion complete.")
-        QMessageBox.information(self, "Batch Convert", msg)
+        if self._modal_ok():  # never modal on a closing window
+            QMessageBox.information(self, "Batch Convert", msg)
 
     def _qt_watch_folder(self) -> None:
         """Start or stop hot-folder watching from the GUI (toggle).

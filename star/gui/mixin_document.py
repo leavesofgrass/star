@@ -99,14 +99,18 @@ class DocumentMixin:
 
             detail = _tb.format_exc()
             self.statusBar().showMessage(f"Error displaying document: {_exc}")
-            try:
-                QMessageBox.critical(
-                    self,
-                    "Document Display Error",
-                    f"Could not display the document.\n\n{detail[:1000]}",
-                )
-            except Exception:
-                pass
+            # Never modal on a closing window: this slot runs from a queued
+            # signal, so a late failure during teardown would otherwise open
+            # a dialog nobody can dismiss (the suite-hang class).
+            if self._modal_ok():
+                try:
+                    QMessageBox.critical(
+                        self,
+                        "Document Display Error",
+                        f"Could not display the document.\n\n{detail[:1000]}",
+                    )
+                except Exception:
+                    pass
 
     def _on_doc_loaded_impl(self) -> None:
         """Inner implementation of _on_doc_loaded, called inside a

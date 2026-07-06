@@ -23,6 +23,11 @@ jobs:
   test:
     name: test (${{ matrix.os }}, py${{ matrix.python }}${{ matrix.extras && ', extras' || '' }})
     runs-on: ${{ matrix.os }}
+    # The suite runs in ~1-3 min; a wedged xdist worker (see
+    # faulthandler_timeout in pyproject) must fail fast, not burn the
+    # runner's 6-hour default.  The extras leg installs Torch, so give
+    # setup generous headroom.
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       # star is pure-Python and cross-platform.  The matrix covers the min and
@@ -83,6 +88,7 @@ jobs:
   full-fat:
     name: full-fat (all optional deps, py3.13)
     runs-on: ubuntu-latest
+    timeout-minutes: 40  # hang tripwire (see the test job); Torch install is slow
     # Installs the entire optional-dependency surface (`.[all,test]`) so the
     # real-behaviour branches of every feature run instead of their skip paths —
     # this is the integration-regression net.  The base `test` matrix legs run
@@ -132,6 +138,7 @@ jobs:
   coverage:
     name: coverage gate (per-module floors)
     runs-on: ubuntu-latest
+    timeout-minutes: 30  # hang tripwire (see the test job)
     steps:
       - uses: actions/checkout@v4
 
