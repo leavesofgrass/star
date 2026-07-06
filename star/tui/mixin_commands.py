@@ -97,6 +97,10 @@ class CommandsMixin:
         cmd = parts[0].lower()
         args = parts[1:]
         arg = args[0] if args else ""
+        # The raw remainder of the line, whitespace intact — for commands whose
+        # argument is a path or phrase (" ".join(args) would collapse a path
+        # like "week  3.mp3" into a nonexistent file).
+        rest = cmd_line.split(None, 1)[1].strip() if len(parts) > 1 else ""
 
         cmd_map = {
             "open": self._open_file_prompt,
@@ -156,10 +160,10 @@ class CommandsMixin:
             # Study tools — results open as live, speakable documents.
             # Both take the REST of the line ("translate chinese (simplified)",
             # "transcribe-file C:\lectures\week 3.mp3" — paths have spaces).
-            "translate": lambda: self._translate_cmd(" ".join(args)),
+            "translate": lambda: self._translate_cmd(rest),
             "summarize": self._summarize_cmd,
             "dictate-note": self._dictate_note_cmd,
-            "transcribe-file": lambda: self._transcribe_file_cmd(" ".join(args)),
+            "transcribe-file": lambda: self._transcribe_file_cmd(rest),
             "play": self._tts_play,
             "stop": self._tts_stop,
             "pause": self._tts_toggle,

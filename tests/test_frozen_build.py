@@ -23,15 +23,26 @@ STAR_DIR = Path(__file__).resolve().parent.parent / "star"
 def test_autodeps_disabled_when_frozen(monkeypatch):
     import sys
 
+    # The test env exports STAR_NO_AUTOINSTALL, which would make enabled()
+    # False for the WRONG reason — remove it so the frozen gate itself is
+    # what these assertions exercise (they passed with the fix reverted
+    # until this was cleared).
+    monkeypatch.delenv("STAR_NO_AUTOINSTALL", raising=False)
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     assert autodeps.enabled() is False
-    # Even the explicit user-initiated path must refuse: there is no pip.
+    # Even the explicit user-initiated path must refuse: there is no pip —
+    # and it must refuse BEFORE trying one (a pip spawn in a frozen build
+    # relaunches star itself).  The recorder proves no install was attempted.
+    attempted = []
+    monkeypatch.setattr(autodeps, "_INSTALL_FN", lambda pip: attempted.append(pip) or True)
     assert autodeps.install_now([("nosuchpkg", "nosuchpkg")]) is False
+    assert attempted == []
 
 
 def test_autodeps_frozen_beats_the_override(monkeypatch):
     import sys
 
+    monkeypatch.delenv("STAR_NO_AUTOINSTALL", raising=False)
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     autodeps.set_enabled(True)
     try:

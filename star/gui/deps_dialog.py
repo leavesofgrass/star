@@ -299,6 +299,25 @@ class DependencyChooser(QDialog):
         super().done(result)
 
     def _install(self) -> None:
+        # A frozen (PyInstaller) build has no pip and sys.executable IS star
+        # itself, so ensure_feature() can start nothing there — without this
+        # branch the empty result would fall through to "already installed",
+        # a spoken false-success for exactly the users who can't debug it.
+        if getattr(sys, "frozen", False):
+            missing = [
+                key for key in self.selected()
+                if not autodeps.feature_installed(key)
+            ]
+            if missing:
+                self._status(
+                    tr("This standalone build of star can't add features — "
+                       "install star with pip (pip install star-reader) to "
+                       "download features on demand.")
+                )
+                return  # leave the dialog open so the message is seen/heard
+            self._status(tr("Selected optional features are already installed."))
+            self.accept()
+            return
         autodeps.set_enabled(True)
         # force=True: the user explicitly chose these, so a prior *attempt* (the
         # once-per-machine marker) must not make "Install" silently do nothing.

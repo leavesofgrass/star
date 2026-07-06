@@ -119,6 +119,10 @@ class DocumentMixin:
         doc = getattr(self, "_pending_doc", None)
         if not doc:
             return
+        # Disarm auto-play up front: if a previous load armed it and THIS load
+        # turns out to be an error page (or the welcome doc), a still-pending
+        # flag must not read a traceback aloud when the restore signal lands.
+        self._auto_play_pending = False
         self.doc = doc
         # Reset any pagination state from a previously open document; the render
         # decision (whole document vs. windowed) is (re)made below per document.

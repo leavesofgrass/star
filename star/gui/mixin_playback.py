@@ -41,6 +41,11 @@ class PlaybackMixin:
         if not getattr(self, "_auto_play_pending", False):
             return
         self._auto_play_pending = False
+        # The queued _restore_signal can land AFTER closeEvent (same class as
+        # the modal-on-closing-window hang): never start a fresh engine on a
+        # window that is going away.
+        if not self._modal_ok():
+            return
         if not self.doc or self.tts_manager.speaking:
             return
         word = self._qt_current_word_for_nav()

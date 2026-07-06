@@ -106,6 +106,16 @@ def test_chunk_text_unbroken_run_is_hard_sliced():
     assert "".join(piece + sep for piece, sep in chunks) == blob
 
 
+def test_chunk_text_keeps_separator_across_a_flush_at_a_blank_paragraph():
+    """Regression (review finding): when a chunk flush lands exactly on an
+    empty paragraph, its pending \\n\\n separator must survive into the next
+    chunk — the old code dropped it and merged paragraphs."""
+    text = "A" * 10 + "\n\n\n\n" + "B" * 10
+    # limit=11 forces the flush at the empty middle paragraph.
+    chunks = translate._chunk_text(text, limit=11)
+    assert "".join(piece + sep for piece, sep in chunks) == text
+
+
 def test_translate_text_chunks_long_documents(monkeypatch):
     """A long document is translated piece by piece (each under the backend
     limit), reports progress, and reassembles with paragraph structure."""

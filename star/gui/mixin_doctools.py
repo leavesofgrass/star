@@ -262,6 +262,14 @@ class DocToolsMixin:
         self._translate_lang = lang_name
         self._translate_src_title = self.doc.title or "document"
         self.statusBar().showMessage(f"Translating to {lang_name}…")
+        # Chunked whole-document translation can run for minutes; a blind user
+        # needs to hear that it started (per-part progress stays visual-only —
+        # announcing every part would spam the screen reader).
+        announce(
+            self.editor,
+            tr("Translating to {lang} — a long document can take a few "
+               "minutes").format(lang=lang_name),
+        )
 
         def _progress(done: int, total: int) -> None:
             if total > 1:
@@ -302,6 +310,10 @@ class DocToolsMixin:
         self._on_doc_loaded()
         self.statusBar().showMessage(
             f"Translated to {lang} — press Space to read the translation aloud"
+        )
+        announce(
+            self.editor,
+            tr("Translation ready — press Space to read it aloud"),
         )
 
     def _qt_open_feed(self) -> None:

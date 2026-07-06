@@ -225,9 +225,8 @@ class DocOpsMixin:
             self.notify("Open a document before translating.", error=True)
             return
         if not _DEEP_TRANSLATOR:
-            self.notify(
-                "Translation needs deep-translator: pip install deep-translator",
-                error=True,
+            self._missing_feature_notify(
+                "translation", "pip install deep-translator"
             )
             return
         if arg.strip():
@@ -297,7 +296,7 @@ class DocOpsMixin:
             self.notify("Open a document before summarizing.", error=True)
             return
         if not _SUMY:
-            self.notify("Summarization needs sumy: pip install sumy", error=True)
+            self._missing_feature_notify("summarization", "pip install sumy")
             return
         text = self.doc.plain_text or ""
         src = self.doc.title or "document"

@@ -15,6 +15,23 @@ from ..transcribe import StreamRecorder, _transcribe_audio, _transcribe_samples
 
 class TuiTranscriptionMixin:
 
+    def _missing_feature_notify(self, feature: str, pip_hint: str) -> None:
+        """Explain a missing optional feature honestly.
+
+        A frozen (PyInstaller) build can't pip-install anything into itself,
+        so the usual "pip install X" advice is a dead end there — same
+        honesty rule as the GUI's feature prompt (see
+        gui/mixin_transcription.py).
+        """
+        if getattr(sys, "frozen", False):
+            self.notify(
+                f"This standalone build of star doesn't include {feature}; "
+                "install star with pip (pip install star-reader) to use it.",
+                error=True,
+            )
+        else:
+            self.notify(f"{feature} needs an add-on: {pip_hint}", error=True)
+
     # ── Voice-dictated notes (M-x dictate-note) ────────────────────────────
 
     def _dictate_note_cmd(self) -> None:
@@ -29,15 +46,13 @@ class TuiTranscriptionMixin:
             self.notify("Open a document before dictating a note.", error=True)
             return
         if not _AUDIO_IN:
-            self.notify(
-                "Dictation needs a microphone stack: pip install sounddevice numpy",
-                error=True,
+            self._missing_feature_notify(
+                "voice dictation", "pip install sounddevice numpy"
             )
             return
         if not _WHISPER:
-            self.notify(
-                "Dictation needs Whisper: pip install openai-whisper",
-                error=True,
+            self._missing_feature_notify(
+                "voice dictation", "pip install openai-whisper"
             )
             return
         # Pause the reading voice BEFORE the mic opens (on a laptop the mic
@@ -55,7 +70,11 @@ class TuiTranscriptionMixin:
             self.notify(f"Could not start recording: {exc}", error=True)
             return
 
-        # Capture the anchor NOW — the caret may move while Whisper runs.
+        # Capture the anchor AND the annotation key NOW — Whisper runs for
+        # many seconds, and the user may open another document meanwhile; the
+        # note must land on the document it was dictated on, not whichever
+        # one is open when transcription finishes.
+        annot_key = self._annot_key()
         word_idx = max(0, self._current_word_for_nav())
         anchor = ""
         wm = self.doc.word_map
@@ -78,9 +97,14 @@ class TuiTranscriptionMixin:
             ch = self.scr.getch()
             if ch in (10, 13, curses.KEY_ENTER):
                 break
-            if ch in (27, ord("q")):
+            if ch == 27:
                 cancelled = True
                 break
+            if ch == curses.KEY_RESIZE:
+                # The one-shot resize event must not be swallowed: re-wrap now
+                # (as the main loop would), or the document stays truncated at
+                # the old width after the recording ends.
+                self._render_doc()
         if cancelled:
             recorder.cancel()
             self.notify("Dictation cancelled")
@@ -100,20 +124,32 @@ class TuiTranscriptionMixin:
         def _work() -> None:
             try:
                 text = _transcribe_samples(samples, model)
-                self._bg_queue.put(lambda: self._dictate_done(text, word_idx, anchor))
+                self._bg_queue.put(
+                    lambda: self._dictate_done(text, word_idx, anchor, annot_key)
+                )
             except Exception as exc:  # noqa: BLE001
                 msg = f"Dictation failed: {exc}"
                 self._bg_queue.put(lambda: self.notify(msg, error=True))
 
         threading.Thread(target=_work, daemon=True).start()
 
-    def _dictate_done(self, text: str, word_idx: int, anchor: str) -> None:
-        """Curses-loop callback: attach the transcribed note (or explain)."""
+    def _dictate_done(self, text: str, word_idx: int, anchor: str, key: str) -> None:
+        """Curses-loop callback: attach the transcribed note (or explain).
+
+        *key* is the annotation-store key captured when the recording was
+        made — the store is addressed directly (not via _load/_store, which
+        use the currently open document) so a document switched mid-Whisper
+        can't steal the note.
+        """
         text = (text or "").strip()
         if not text:
             self.notify("Dictation produced no text", error=True)
             return
-        items = self._load_annotations()
+        if not key:
+            self.notify("Dictated note lost: its document is gone", error=True)
+            return
+        store = dict(self.settings.get("annotations", {}) or {})
+        items = [dict(a) for a in store.get(key, [])]
         items.append(
             {
                 "char_pos": 0,  # Qt-only; TUI anchors by word_idx
@@ -125,7 +161,8 @@ class TuiTranscriptionMixin:
                 "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
             }
         )
-        self._store_annotations(items)
+        store[key] = items
+        self.settings.set("annotations", store)
         self.notify(f"Dictated note added ({len(text)} chars)")
 
     # ── Audio-file transcription (M-x transcribe-file) ─────────────────────
@@ -133,9 +170,8 @@ class TuiTranscriptionMixin:
     def _transcribe_file_cmd(self, arg: str = "") -> None:
         """Transcribe an audio file with Whisper and open it as a document."""
         if not _WHISPER:
-            self.notify(
-                "Transcription needs Whisper: pip install openai-whisper",
-                error=True,
+            self._missing_feature_notify(
+                "audio transcription", "pip install openai-whisper"
             )
             return
         # Whisper decodes audio FILES through ffmpeg; without it the failure

@@ -51,7 +51,9 @@ def _units(text: str, limit: int) -> "List[Tuple[str, str]]":
 
     Prefers paragraph boundaries, falls back to sentence boundaries inside an
     oversized paragraph, and hard-slices only a pathological unbroken run.
-    Joining ``piece + sep`` for every unit reproduces *text* exactly.
+    Joining ``piece + sep`` reproduces *text* exactly at paragraph
+    granularity; inside an oversized paragraph the (rare) run of whitespace
+    between sentences is normalized to a single space.
     """
     out: List[Tuple[str, str]] = []
     paragraphs = text.split("\n\n")
@@ -81,13 +83,16 @@ def _chunk_text(text: str, limit: int = _CHUNK_LIMIT) -> "List[Tuple[str, str]]"
     chunks: List[Tuple[str, str]] = []
     buf, buf_sep = "", ""
     for piece, sep in _units(text, limit):
-        candidate = f"{buf}{buf_sep}{piece}" if buf else piece
+        # buf_sep must survive even when buf is empty (a flush can leave an
+        # empty buffer holding a pending paragraph separator — dropping it
+        # would merge paragraphs in the reassembled translation).
+        candidate = f"{buf}{buf_sep}{piece}" if (buf or buf_sep) else piece
         if buf and len(candidate) > limit:
             chunks.append((buf, buf_sep))
             buf, buf_sep = piece, sep
         else:
             buf, buf_sep = candidate, sep
-    if buf:
+    if buf or buf_sep:
         chunks.append((buf, buf_sep))
     return chunks
 

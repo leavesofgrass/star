@@ -148,7 +148,7 @@ class TranscriptionMixin:
         self.statusBar().showMessage(
             f"Transcribing with Whisper ({model})… this may take a while"
         )
-        announce(self.editor, "Transcribing — this may take a while")
+        announce(self.editor, tr("Transcribing — this may take a while"))
 
         def _work() -> None:
             try:
@@ -166,8 +166,9 @@ class TranscriptionMixin:
             self._status_error(f"Transcription failed: {src[7:]}")
             return
         if not text:
-            self.statusBar().showMessage("Transcription produced no text")
-            announce(self.editor, "Transcription produced no text")
+            msg = tr("Transcription produced no text")
+            self.statusBar().showMessage(msg)
+            announce(self.editor, msg)
             return
         name = Path(src).stem if src else "transcription"
         md = f"# Transcription — {name}\n\n{text}\n"
@@ -180,7 +181,11 @@ class TranscriptionMixin:
         )
         self._on_doc_loaded()
         self.statusBar().showMessage(f"Transcribed {name} ({len(text)} chars)")
-        announce(self.editor, f"Transcript of {name} is open — press Space to read it")
+        announce(
+            self.editor,
+            tr("Transcript of {name} is open — press Space to read it").format(
+                name=name),
+        )
 
     def _qt_dictate_note(self) -> None:
         """Record a voice memo — until the user says stop — and add it as a note.
@@ -208,8 +213,9 @@ class TranscriptionMixin:
             self._tts_stop(announce_state=False)
             if saved >= 0:
                 self._tts_paused_at_word = saved
-            self.statusBar().showMessage("Reading paused while you dictate")
-            announce(self.editor, "Reading paused while you dictate")
+            msg = tr("Reading paused while you dictate")
+            self.statusBar().showMessage(msg)
+            announce(self.editor, msg)
         try:
             recorder = StreamRecorder()
             recorder.start()
@@ -263,8 +269,9 @@ class TranscriptionMixin:
             _ok_val = QDialog.Accepted
         if accepted != _ok_val:
             recorder.cancel()
-            self.statusBar().showMessage("Dictation cancelled")
-            announce(self.editor, "Dictation cancelled")
+            msg = tr("Dictation cancelled")
+            self.statusBar().showMessage(msg)
+            announce(self.editor, msg)
             return
 
         try:
@@ -273,15 +280,17 @@ class TranscriptionMixin:
             self._status_error(f"Recording failed: {exc}")
             return
         if samples is None or len(samples) == 0:
-            self.statusBar().showMessage("No audio was recorded")
-            announce(self.editor, "No audio was recorded — check your microphone")
+            msg = tr("No audio was recorded — check your microphone")
+            self.statusBar().showMessage(msg)
+            announce(self.editor, msg)
             return
 
         model = str(self.settings.get("whisper_model", "base"))
-        self.statusBar().showMessage("Transcribing your note…")
         # Whisper takes 5–30+ seconds; without an audible cue a blind user
         # hears nothing between pressing Stop and the note landing.
-        announce(self.editor, "Transcribing your note — this takes a moment")
+        msg = tr("Transcribing your note — this takes a moment")
+        self.statusBar().showMessage(msg)
+        announce(self.editor, msg)
 
         def _work() -> None:
             # _transcribe_samples feeds the audio to Whisper directly (no WAV,
@@ -297,12 +306,14 @@ class TranscriptionMixin:
     def _qt_on_dictated(self, text: str, char_pos_s: str, anchor: str) -> None:
         """Main-thread handler for a completed dictation → save as a note."""
         if char_pos_s == "ERROR":
-            self.statusBar().showMessage(f"Dictation error: {anchor}")
-            announce(self.editor, f"Dictation failed: {anchor}")
+            msg = tr("Dictation failed: {error}").format(error=anchor)
+            self.statusBar().showMessage(msg)
+            announce(self.editor, msg)
             return
         if not text:
-            self.statusBar().showMessage("Dictation produced no text")
-            announce(self.editor, "Dictation produced no text — check your microphone")
+            msg = tr("Dictation produced no text — check your microphone")
+            self.statusBar().showMessage(msg)
+            announce(self.editor, msg)
             return
         items = self._qt_load_annotations()
         items.append(
@@ -322,5 +333,5 @@ class TranscriptionMixin:
             self._annot_dock.setVisible(True)
             self.settings["qt_show_notes"] = True
         self.statusBar().showMessage(f"Dictated note added ({len(text)} chars)")
-        announce(self.editor, "Dictated note added")
+        announce(self.editor, tr("Dictated note added"))
 
