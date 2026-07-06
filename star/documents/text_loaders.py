@@ -155,8 +155,7 @@ def _load_asciidoc(path: str) -> str:
             r = subprocess.run(
                 [asciidoctor, "-b", "html5", "-o", "-", path],
                 capture_output=True,
-                timeout=30,
-            )
+                timeout=30, creationflags=_SUBPROCESS_FLAGS)
             if r.returncode == 0 and r.stdout:
                 return _load_html_str(r.stdout.decode("utf-8", errors="replace"))
         except Exception:

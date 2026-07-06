@@ -63,8 +63,7 @@ class FestivalBackend(TTSBackend):
                     [self._bin],
                     stdin=subprocess.PIPE,
                     stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
+                    stderr=subprocess.DEVNULL, creationflags=_SUBPROCESS_FLAGS)
                 if self._proc.stdin:
                     self._proc.stdin.write(scheme.encode("utf-8", errors="replace"))
                     self._proc.stdin.close()
@@ -105,8 +104,7 @@ class FestivalBackend(TTSBackend):
                 [self._bin],
                 input=b"(voice.list)\n(quit)\n",
                 capture_output=True,
-                timeout=10,
-            )
+                timeout=10, creationflags=_SUBPROCESS_FLAGS)
             raw = result.stdout.decode("utf-8", errors="replace")
             # Festival prints something like: (rab_diphone en1_mbrola_3 ...)
             m = re.search(r"\(([^)]+)\)", raw)
@@ -140,8 +138,7 @@ class FestivalBackend(TTSBackend):
                 ],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
+                stderr=subprocess.DEVNULL, creationflags=_SUBPROCESS_FLAGS)
             if proc.stdin:
                 proc.stdin.write(text.encode("utf-8", errors="replace"))
                 proc.stdin.close()
@@ -161,8 +158,7 @@ class FestivalBackend(TTSBackend):
             [self._bin],
             stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+            stderr=subprocess.DEVNULL, creationflags=_SUBPROCESS_FLAGS)
         if proc.stdin:
             proc.stdin.write(scheme.encode("utf-8", errors="replace"))
             proc.stdin.close()

@@ -43,8 +43,7 @@ def _pandoc_write(md: str, to_fmt: str, out_path: str, *, title: str = "") -> No
                 input=md,
                 capture_output=True,
                 text=True,
-                timeout=60,
-            )
+                timeout=60, creationflags=_SUBPROCESS_FLAGS)
             if r.returncode == 0:
                 return
             last_err = RuntimeError(r.stderr.strip() or "pandoc exited non-zero")

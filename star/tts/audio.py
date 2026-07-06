@@ -59,7 +59,7 @@ def _convert_audio_format(src_wav: str, dest_path: str) -> None:
             cmd += ["-codec:a", "aac", "-b:a", "192k", "-vn"]
         # For other extensions let ffmpeg infer the codec from the name.
         cmd.append(dest_path)
-        result = subprocess.run(cmd, capture_output=True)
+        result = subprocess.run(cmd, capture_output=True, creationflags=_SUBPROCESS_FLAGS)
         if result.returncode == 0:
             return
         raise RuntimeError(

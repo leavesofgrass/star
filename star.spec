@@ -144,7 +144,9 @@ for _pkg in (
     # needs the package.  pyspellchecker installs as ``spellchecker``; naming
     # it "pyspellchecker" here collected ZERO files, so edit mode's spell
     # dictionary (resources/en.json.gz) never shipped ("dictionary missing").
-    "sumy", "genanki", "spellchecker", "nltk",
+    # pyphen ships its Hunspell hyphenation dictionaries as package data, so
+    # it too must be collect_all'd or Syllable Splitting is dark in the exe.
+    "sumy", "genanki", "spellchecker", "nltk", "pyphen",
     "deep_translator", "feedparser", "wordfreq", "langcodes", "ftfy",
 ):
     try:

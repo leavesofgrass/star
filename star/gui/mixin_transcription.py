@@ -25,6 +25,20 @@ class TranscriptionMixin:
         pkgs = autodeps.FEATURES.get(feature_key, [])
         if pkgs and not autodeps.missing(pkgs):
             return True
+        # A frozen (PyInstaller) build cannot install packages into itself —
+        # sys.executable IS star.exe, so the friendly "Install it now?" button
+        # would spawn star once per package and add nothing.  Be honest
+        # instead of offering a download that always fails.
+        if getattr(sys, "frozen", False):
+            QMessageBox.information(
+                self,
+                tr("{feature} not included").format(feature=human_name),
+                tr("This standalone build of star doesn't include {feature}, "
+                   "and features can't be added to it. To use {feature}, "
+                   "install star with pip (pip install star-reader) — it can "
+                   "download features on demand.").format(feature=human_name),
+            )
+            return False
         _label, _detail, mb = autodeps.FEATURE_INFO.get(feature_key, (human_name, "", 0))
         size = f"~{mb} MB" if mb < 1000 else f"~{mb / 1000:.1f} GB"
         try:

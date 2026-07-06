@@ -59,8 +59,7 @@ class AppleSayBackend(TTSBackend):
                     self._cmd(),
                     stdin=subprocess.PIPE,
                     stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
+                    stderr=subprocess.DEVNULL, creationflags=_SUBPROCESS_FLAGS)
                 if self._proc.stdin:
                     self._proc.stdin.write(text.encode("utf-8", errors="replace"))
                     self._proc.stdin.close()
@@ -96,8 +95,7 @@ class AppleSayBackend(TTSBackend):
             return []
         try:
             out = subprocess.check_output(
-                [self._bin, "-v", "?"], stderr=subprocess.DEVNULL, text=True
-            )
+                [self._bin, "-v", "?"], stderr=subprocess.DEVNULL, text=True, creationflags=_SUBPROCESS_FLAGS)
         except Exception:
             return []
         voices: List[Dict[str, str]] = []
@@ -125,8 +123,7 @@ class AppleSayBackend(TTSBackend):
             cmd,
             stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+            stderr=subprocess.DEVNULL, creationflags=_SUBPROCESS_FLAGS)
         if proc.stdin:
             proc.stdin.write(text.encode("utf-8", errors="replace"))
             proc.stdin.close()

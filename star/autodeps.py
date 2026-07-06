@@ -34,6 +34,14 @@ import subprocess
 import sys
 import threading
 
+# Windows: suppress the console-window flash when spawning pip from a windowed
+# (console-less) star — see the definition in star/_runtime.py.  Duplicated
+# here (not imported from the hub) because autodeps deliberately has no
+# star-internal imports.
+_SUBPROCESS_FLAGS = (
+    subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+)
+
 # ── Feature registry: feature key -> [(pip name, import name), …] ────────────
 # Grouped to match star's optional extras (see pyproject `[project.optional-
 # dependencies]` and diagnostics.OPTIONAL_DEPENDENCIES). Ordered light -> heavy.
@@ -150,6 +158,14 @@ def set_enabled(flag: bool | None) -> None:
 
 
 def enabled() -> bool:
+    # A PyInstaller bundle cannot pip-install into itself: sys.executable IS
+    # star.exe, so "spawn pip" would relaunch star once per package (a full
+    # onefile re-extraction each time) and install nothing.  Every runtime-
+    # install surface gates on enabled(), so this one check turns the whole
+    # machinery off in frozen builds — the exe must bundle its features
+    # instead (see star.spec), and the GUI explains rather than offers.
+    if getattr(sys, "frozen", False):
+        return False
     if os.environ.get("STAR_NO_AUTOINSTALL"):
         return False
     if _enabled_override is not None:
@@ -195,7 +211,7 @@ def _pip_install(pip_name: str, timeout: float = 1800) -> bool:
     try:
         proc = subprocess.run(
             [sys.executable, "-m", "pip", "install", "--quiet", pip_name],
-            capture_output=True, timeout=timeout)
+            capture_output=True, timeout=timeout, creationflags=_SUBPROCESS_FLAGS)
         return proc.returncode == 0
     except Exception:
         return False
@@ -262,6 +278,11 @@ def install_now(packages) -> bool:
     failed attempt must not silently no-op — and returns True only when every
     missing package installed. Blocks, so call it from a worker thread.
     """
+    # Explicit installs ignore the markers and the auto_install setting — but
+    # not physics: a frozen bundle has no pip and sys.executable is star
+    # itself (see enabled()), so even a user-initiated install cannot work.
+    if getattr(sys, "frozen", False):
+        return False
     ok = True
     for pip, mod in packages:
         if installed(mod):

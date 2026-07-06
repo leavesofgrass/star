@@ -120,8 +120,7 @@ class PiperBackend(TTSBackend):
                     cmd,
                     input=text.encode("utf-8", errors="replace"),
                     stdout=subprocess.DEVNULL,
-                    stderr=subprocess.PIPE,
-                )
+                    stderr=subprocess.PIPE, creationflags=_SUBPROCESS_FLAGS)
             except Exception as exc:  # binary vanished mid-run, etc.
                 last_err = str(exc)
                 continue
@@ -167,8 +166,7 @@ class PiperBackend(TTSBackend):
                     self._play_proc = subprocess.Popen(
                         cmd,
                         stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                    )
+                        stderr=subprocess.DEVNULL, creationflags=_SUBPROCESS_FLAGS)
                     self._play_proc.wait()
             except Exception:
                 pass

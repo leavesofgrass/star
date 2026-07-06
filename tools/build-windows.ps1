@@ -140,6 +140,9 @@ if (-not $SkipInstall) {
         "deep-translator",
         "feedparser",
         "wordfreq",
+        # Syllable Splitting (the 0.1.21 decoding aid): pyphen ships Hunspell
+        # hyphenation dictionaries as package data — star.spec collect_all's it.
+        "pyphen",
         # Small pure-Python fillers so the self-contained exe leaves nothing
         # obvious dark in `--deps`: MP3/OGG muxing helper, TUI clipboard,
         # and the .7z / .rar members of File > Open Archive.

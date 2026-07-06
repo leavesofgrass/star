@@ -129,7 +129,7 @@ def export_video(document: Any, settings: Any, out_path: str, tts_backend: Any =
         argv = _build_ffmpeg(ffmpeg, concat_path, wav_path,
                              srt_path if subtitle_mode == "soft" else None,
                              out_path)
-        result = subprocess.run(argv, capture_output=True)
+        result = subprocess.run(argv, capture_output=True, creationflags=_SUBPROCESS_FLAGS)
         if result.returncode != 0:
             stderr = result.stderr.decode("utf-8", errors="replace")
             return {"error": f"ffmpeg failed:\n{stderr[:2000]}"}

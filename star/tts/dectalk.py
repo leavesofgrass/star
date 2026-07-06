@@ -351,8 +351,7 @@ class DECtalkBackend(TTSBackend):
                     [self._bin],
                     stdin=subprocess.PIPE,
                     stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
+                    stderr=subprocess.DEVNULL, creationflags=_SUBPROCESS_FLAGS)
                 if self._proc.stdin:
                     self._proc.stdin.write(dt_text.encode("ascii", errors="replace"))
                     self._proc.stdin.close()
@@ -404,8 +403,7 @@ class DECtalkBackend(TTSBackend):
             [self._bin, "-w", wav_path],
             stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+            stderr=subprocess.DEVNULL, creationflags=_SUBPROCESS_FLAGS)
         if proc.stdin:
             proc.stdin.write(dt_text.encode("ascii", errors="replace"))
             proc.stdin.close()

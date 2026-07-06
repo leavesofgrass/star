@@ -24,8 +24,7 @@ def _pandoc_convert(path: str, from_fmt: str) -> Optional[str]:
                 [_PANDOC_BIN, "--from", from_fmt, "--to", "markdown", path],
                 capture_output=True,
                 text=True,
-                timeout=30,
-            )
+                timeout=30, creationflags=_SUBPROCESS_FLAGS)
             if r.returncode == 0 and r.stdout.strip():
                 return r.stdout
         except Exception:

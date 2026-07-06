@@ -198,8 +198,7 @@ def _load_doc(path: str) -> str:
             result = subprocess.run(
                 [antiword_bin, "-w", "0", path],
                 capture_output=True,
-                timeout=30,
-            )
+                timeout=30, creationflags=_SUBPROCESS_FLAGS)
             if result.returncode == 0:
                 text = result.stdout.decode("utf-8", errors="replace").strip()
                 if text:
@@ -234,8 +233,7 @@ def _load_doc(path: str) -> str:
                         path,
                     ],
                     capture_output=True,
-                    timeout=60,
-                )
+                    timeout=60, creationflags=_SUBPROCESS_FLAGS)
                 if result.returncode == 0:
                     docx_path = Path(tmpdir) / (Path(path).stem + ".docx")
                     if docx_path.exists():
@@ -385,8 +383,7 @@ def _load_odt_v2(path: str) -> str:
             [_PANDOC_BIN or "pandoc", "-f", "odt", "-t", "markdown", path],
             capture_output=True,
             text=True,
-            timeout=30,
-        )
+            timeout=30, creationflags=_SUBPROCESS_FLAGS)
         if result.returncode == 0 and result.stdout.strip():
             return result.stdout
     except (FileNotFoundError, OSError):

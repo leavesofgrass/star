@@ -118,6 +118,18 @@ def _module_available(name: str) -> bool:
         # Broken parent package or namespace-package edge case → treat as absent.
         return False
 
+
+# On Windows, a console-less (windowed) parent that spawns a console child pops
+# a black console window that steals focus — in star that means every pandoc
+# document open, every ffmpeg mux, and every per-utterance espeak/dectalk call
+# flashes a window and yanks screen readers to it.  Every subprocess star
+# starts must pass ``creationflags=_SUBPROCESS_FLAGS``.  Harmless where a
+# console already exists (TUI/CLI: the child just doesn't get its own), and 0
+# on POSIX.
+_SUBPROCESS_FLAGS = (
+    subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+)
+
 # =============================================================================
 # Bundled native tools (vendored for the self-contained Windows build)
 # =============================================================================

@@ -149,8 +149,7 @@ class CoquiBackend(TTSBackend):
                     self._play_proc = subprocess.Popen(
                         cmd,
                         stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                    )
+                        stderr=subprocess.DEVNULL, creationflags=_SUBPROCESS_FLAGS)
                     self._play_proc.wait()
             except Exception:
                 pass

@@ -143,7 +143,7 @@ class M4BExporter(Exporter):
                 ffmpeg, concat_path, meta_path, str(path),
                 cover_path=cover, bitrate=bitrate,
             )
-            result = subprocess.run(argv, capture_output=True)
+            result = subprocess.run(argv, capture_output=True, creationflags=_SUBPROCESS_FLAGS)
             if result.returncode != 0:
                 stderr = result.stderr.decode("utf-8", errors="replace")
                 raise RuntimeError(f"ffmpeg failed building M4B:\n{stderr[:2000]}")

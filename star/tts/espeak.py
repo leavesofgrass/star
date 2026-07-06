@@ -79,8 +79,7 @@ class ESpeakBackend(TTSBackend):
                     cmd,
                     stdin=subprocess.PIPE,
                     stdout=stdout_pipe,
-                    stderr=subprocess.DEVNULL,
-                )
+                    stderr=subprocess.DEVNULL, creationflags=_SUBPROCESS_FLAGS)
                 # Launch mark-reader thread before writing stdin so we don't
                 # miss any early marks.
                 if use_marks and self._proc.stdout is not None:
@@ -142,8 +141,7 @@ class ESpeakBackend(TTSBackend):
             return []
         try:
             out = subprocess.check_output(
-                [self._bin, "--voices"], stderr=subprocess.DEVNULL, text=True
-            )
+                [self._bin, "--voices"], stderr=subprocess.DEVNULL, text=True, creationflags=_SUBPROCESS_FLAGS)
             voices = []
             for line in out.splitlines()[1:]:
                 parts = line.split()
@@ -173,8 +171,7 @@ class ESpeakBackend(TTSBackend):
             cmd,
             stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+            stderr=subprocess.DEVNULL, creationflags=_SUBPROCESS_FLAGS)
         if proc.stdin:
             proc.stdin.write(text.encode("utf-8", errors="replace"))
             proc.stdin.close()

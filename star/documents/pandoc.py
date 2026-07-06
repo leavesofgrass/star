@@ -59,8 +59,7 @@ def _load_via_pandoc(path: str) -> Optional[str]:
                 [_PANDOC_BIN, "--to", "markdown", path],
                 capture_output=True,
                 text=True,
-                timeout=30,
-            )
+                timeout=30, creationflags=_SUBPROCESS_FLAGS)
             if result.returncode == 0:
                 return result.stdout
         except Exception:
