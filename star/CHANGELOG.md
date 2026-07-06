@@ -8,7 +8,11 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [Unreleased]
+## [0.1.23] 2026-07-05
+
+Two testing-driven usability fixes — translation and dictation now behave the
+way a reader actually needs them to — plus the packaging lessons from the
+first standalone Windows build, baked into the recipe for good.
 
 ### 🔧 Changed
 
@@ -21,6 +25,20 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
   seconds?" up front — a recording dialog shows a live timer and a **Stop**
   button (Enter to stop, Esc to cancel); the note is transcribed when you're
   done.
+
+### 🐛 Fixed
+
+- **Dictation no longer needs ffmpeg.** The recorded audio is handed to
+  Whisper as an in-memory array instead of a temp WAV, so dictating a note
+  works without ffmpeg installed — and the windowed Windows build no longer
+  flashes a console window while transcribing. (Transcribing an audio *file*
+  still uses ffmpeg to decode it.)
+- **Standalone Windows build: speech, spell check, and Define Word.** The
+  PyInstaller recipe now bundles the entry-point metadata the TTS plugin
+  registry discovers backends through (the first build had no voices at
+  all), pyspellchecker's frequency dictionary (edit mode reported the spell
+  dictionary missing), and the WordNet/CMUdict data behind **Define Word** —
+  all verified inside the frozen app.
 
 ---
 
