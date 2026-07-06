@@ -10,21 +10,39 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [0.1.23] 2026-07-05
 
-Two testing-driven usability fixes — translation and dictation now behave the
-way a reader actually needs them to — plus the packaging lessons from the
-first standalone Windows build, baked into the recipe for good.
+Testing-driven usability fixes — translation and dictation now behave the way
+a reader actually needs them to, in both interfaces — plus the packaging
+lessons from the first standalone Windows build, baked into the recipe for
+good.
+
+### ✨ Added
+
+- **The TUI gets the study tools.** Four new M-x commands bring the terminal
+  to full parity: `translate` (pick a language with Tab completion),
+  `summarize`, `dictate-note` (record until Enter, Esc cancels, live elapsed
+  time in the status line), and `transcribe-file <path>` — results open as
+  live, speakable documents, and dictated notes attach at the caret exactly
+  like `a`.
+- **Auto-play works in the GUI.** The `tts_auto_play` setting ("start
+  reading when a document opens") was honored only by the TUI; the GUI now
+  starts reading too — from your saved position, not the top — and the
+  option has a checkbox in **Preferences ▸ Voice**.
 
 ### 🔧 Changed
 
-- **Translate opens a readable document.** Translating a document used to
-  drop the result into a read-only pane — you couldn't read it aloud or
-  navigate it, which is the whole point of star. The translation now opens
-  as a live document (press Space to hear it, caret/highlighting all work);
-  your original stays put and one **Back** away.
+- **Translate opens a readable document — and translates all of it.**
+  Translating used to drop the result into a read-only pane, and silently
+  failed for anything longer than a couple of pages (the translation service
+  rejects big requests). The document is now translated in pieces (with
+  "part 3 of 8" progress) and the result opens as a live document: press
+  Space to hear it, caret and highlighting all work; your original stays
+  put — reopen it from **File ▸ Recent**.
 - **Dictate records until you say stop.** No more guessing "how many
   seconds?" up front — a recording dialog shows a live timer and a **Stop**
   button (Enter to stop, Esc to cancel); the note is transcribed when you're
-  done.
+  done. And if star was reading aloud, it pauses **before** the microphone
+  opens, so the note no longer transcribes star's own voice — press Space
+  afterwards and the reading resumes right where it stopped.
 
 ### 🐛 Fixed
 
@@ -33,12 +51,25 @@ first standalone Windows build, baked into the recipe for good.
   works without ffmpeg installed — and the windowed Windows build no longer
   flashes a console window while transcribing. (Transcribing an audio *file*
   still uses ffmpeg to decode it.)
-- **Standalone Windows build: speech, spell check, and Define Word.** The
-  PyInstaller recipe now bundles the entry-point metadata the TTS plugin
-  registry discovers backends through (the first build had no voices at
-  all), pyspellchecker's frequency dictionary (edit mode reported the spell
-  dictionary missing), and the WordNet/CMUdict data behind **Define Word** —
-  all verified inside the frozen app.
+- **You can hear dictation and downloads finish.** Every step of the
+  dictate flow (transcribing, note added, cancelled, no audio, errors) and
+  of an optional-feature download (started, ready, failed) is now announced
+  to screen readers, not just painted on the status bar.
+- **Standalone Windows build: speech, spell check, Define Word, syllable
+  splitting.** The PyInstaller recipe now bundles the entry-point metadata
+  the TTS plugin registry discovers backends through (the first build had
+  no voices at all), pyspellchecker's frequency dictionary, the
+  WordNet/CMUdict data behind **Define Word**, and pyphen's hyphenation
+  dictionaries for the syllable-splitting aid — all verified inside the
+  frozen app.
+- **The standalone build is honest about add-ons.** "Install it now?" could
+  never work inside the frozen app (it has no pip); star now explains that
+  this build can't add features instead of offering a download that always
+  fails.
+- **No more console-window flashes on Windows.** Every helper star runs
+  (pandoc when opening Word/HTML files, ffmpeg when exporting audio, the
+  speech engines) now starts without popping a focus-stealing black console
+  window in the windowed app.
 
 ---
 
