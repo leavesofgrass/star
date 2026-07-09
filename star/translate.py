@@ -87,7 +87,10 @@ def _chunk_text(text: str, limit: int = _CHUNK_LIMIT) -> "List[Tuple[str, str]]"
         # empty buffer holding a pending paragraph separator — dropping it
         # would merge paragraphs in the reassembled translation).
         candidate = f"{buf}{buf_sep}{piece}" if (buf or buf_sep) else piece
-        if buf and len(candidate) > limit:
+        # Flush on a pending separator too, not just a non-empty buffer: an
+        # empty paragraph leaves buf="" with buf_sep="\n\n", and packing the
+        # next full-size unit onto it would push the chunk past *limit*.
+        if (buf or buf_sep) and len(candidate) > limit:
             chunks.append((buf, buf_sep))
             buf, buf_sep = piece, sep
         else:

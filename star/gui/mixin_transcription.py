@@ -224,6 +224,11 @@ class TranscriptionMixin:
             return
 
         char_pos, anchor = self._qt_current_anchor()
+        # Capture the target document NOW: Whisper runs for many seconds and
+        # the user may open another document meanwhile — the note must land on
+        # the one it was dictated on, at the position it was dictated at.
+        annot_key = self._annot_key()
+        word_idx = self._qt_char_to_word(int(char_pos))
 
         dlg = QDialog(self)
         dlg.setWindowTitle(tr("Dictate Note"))
@@ -297,14 +302,25 @@ class TranscriptionMixin:
             # no ffmpeg subprocess → no console-window flash in star.exe).
             try:
                 text = _transcribe_samples(samples, model)
-                self._dictate_signal.emit(text, str(int(char_pos)), anchor)
+                self._dictate_signal.emit(
+                    text, str(int(char_pos)), anchor, annot_key, str(int(word_idx))
+                )
             except Exception as exc:  # noqa: BLE001
-                self._dictate_signal.emit("", "ERROR", str(exc))
+                self._dictate_signal.emit("", "ERROR", str(exc), "", "")
 
         threading.Thread(target=_work, daemon=True).start()
 
-    def _qt_on_dictated(self, text: str, char_pos_s: str, anchor: str) -> None:
-        """Main-thread handler for a completed dictation → save as a note."""
+    def _qt_on_dictated(
+        self, text: str, char_pos_s: str, anchor: str,
+        key: str = "", word_idx_s: str = "",
+    ) -> None:
+        """Main-thread handler for a completed dictation → save as a note.
+
+        *key* / *word_idx_s* are captured at record time (empty when an older
+        caller omits them → fall back to the open document), so the note is
+        stored against the document it was dictated on rather than whichever
+        one happens to be open when Whisper finishes.
+        """
         if char_pos_s == "ERROR":
             msg = tr("Dictation failed: {error}").format(error=anchor)
             self.statusBar().showMessage(msg)
@@ -315,11 +331,17 @@ class TranscriptionMixin:
             self.statusBar().showMessage(msg)
             announce(self.editor, msg)
             return
-        items = self._qt_load_annotations()
+        key = key or self._annot_key()
+        if not key:
+            self.statusBar().showMessage("Dictated note lost: its document is gone")
+            return
+        word_idx = int(word_idx_s) if word_idx_s else self._qt_char_to_word(
+            int(char_pos_s or 0))
+        items = self._qt_load_annotations(key)
         items.append(
             {
                 "char_pos": int(char_pos_s or 0),
-                "word_idx": self._qt_char_to_word(int(char_pos_s or 0)),
+                "word_idx": word_idx,
                 "anchor": anchor,
                 "note": text,
                 "tags": ["dictated"],
@@ -327,11 +349,14 @@ class TranscriptionMixin:
                 "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
             }
         )
-        self._qt_store_annotations(items)
-        self._qt_build_annotations()
-        if not self._annot_dock.isVisible():
-            self._annot_dock.setVisible(True)
-            self.settings["qt_show_notes"] = True
+        self._qt_store_annotations(items, key)
+        # Only refresh/reveal the notes panel when the note belongs to the
+        # document that is currently open (the user may have moved on).
+        if key == self._annot_key():
+            self._qt_build_annotations()
+            if not self._annot_dock.isVisible():
+                self._annot_dock.setVisible(True)
+                self.settings["qt_show_notes"] = True
         self.statusBar().showMessage(f"Dictated note added ({len(text)} chars)")
         announce(self.editor, tr("Dictated note added"))
 

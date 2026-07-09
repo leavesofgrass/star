@@ -116,6 +116,16 @@ def test_chunk_text_keeps_separator_across_a_flush_at_a_blank_paragraph():
     assert "".join(piece + sep for piece, sep in chunks) == text
 
 
+def test_chunk_text_never_exceeds_limit_even_after_a_blank_paragraph():
+    """Regression: a blank paragraph left buf empty with a pending "\\n\\n"
+    separator, and the next full-size unit was packed onto it — producing a
+    limit+2 chunk.  Every chunk (piece length) must stay <= limit."""
+    text = "\n\n" + "A" * 4503  # blank para, then a hard-sliced oversized run
+    chunks = translate._chunk_text(text)
+    assert all(len(piece) <= translate._CHUNK_LIMIT for piece, _sep in chunks)
+    assert "".join(piece + sep for piece, sep in chunks) == text
+
+
 def test_translate_text_chunks_long_documents(monkeypatch):
     """A long document is translated piece by piece (each under the backend
     limit), reports progress, and reassembles with paragraph structure."""

@@ -365,9 +365,12 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
     _watch_signal = pyqtSignal(str)
     # Emitted from the Whisper background threads so results
     # land on the GUI thread.  transcribe: (text, source_path);
-    # dictate: (text, char_pos_str, anchor).
+    # dictate: (text, char_pos_str, anchor, annot_key, word_idx_str) — the key
+    # and word index are captured when recording starts so the note lands on
+    # the document it was dictated on even if the user switches docs while
+    # Whisper runs.  ERROR is signalled by char_pos_str == "ERROR".
     _transcribe_signal = pyqtSignal(str, str)
-    _dictate_signal = pyqtSignal(str, str, str)
+    _dictate_signal = pyqtSignal(str, str, str, str, str)
     _doi_signal = pyqtSignal(str)  # Crossref DOI lookup result (JSON or ERROR:)
     # Document summarization runs on a background thread (LexRank can be
     # slow on long documents); carries (summary, error_message).

@@ -21,10 +21,12 @@ class AnnotationsMixin:
             return ""
         return self.doc.path or self.doc.title or ""
 
-    def _qt_load_annotations(self) -> List[Dict[str, Any]]:
-        """Return a mutable copy of the saved annotations for this document,
-        sorted by document position."""
-        key = self._annot_key()
+    def _qt_load_annotations(self, key: str = "") -> List[Dict[str, Any]]:
+        """Return a mutable copy of the saved annotations, sorted by document
+        position.  *key* addresses a specific document's store (defaulting to
+        the open one) — used by dictation, whose Whisper worker may finish
+        after the user has opened a different document."""
+        key = key or self._annot_key()
         if not key:
             return []
         store = self.settings.get("annotations", {}) or {}
@@ -32,9 +34,10 @@ class AnnotationsMixin:
         items.sort(key=lambda a: int(a.get("char_pos", 0)))
         return items
 
-    def _qt_store_annotations(self, items: List[Dict[str, Any]]) -> None:
-        """Persist *items* as the annotation list for this document."""
-        key = self._annot_key()
+    def _qt_store_annotations(self, items: List[Dict[str, Any]], key: str = "") -> None:
+        """Persist *items* as the annotation list for a document (defaulting to
+        the open one — see _qt_load_annotations for why *key* is passable)."""
+        key = key or self._annot_key()
         if not key:
             return
         store = dict(self.settings.get("annotations", {}) or {})

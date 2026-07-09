@@ -258,6 +258,24 @@ def test_dictation_empty_text_is_reported_not_stored(window):
     assert window._qt_load_annotations() == []
 
 
+def test_dictated_note_lands_on_the_dictated_doc_after_a_switch(window):
+    """If the user opens a different document while Whisper runs, the note
+    must be keyed to the document it was dictated on (captured at record
+    time), not whichever one is open when the result arrives."""
+    from star.documents import Document
+
+    orig_key = window._annot_key()          # "/tmp/orig.md" from the fixture
+    # User switches to another document mid-transcription.
+    window.doc = Document(path="/tmp/other.md", title="Other",
+                          markdown="# Other", plain_text="other text")
+    # Result lands, carrying the ORIGINAL key + word index captured at record.
+    window._qt_on_dictated("keep this", "5", "anchor", orig_key, "2")
+    # Stored under the original document…
+    assert [n["note"] for n in window._qt_load_annotations(orig_key)] == ["keep this"]
+    # …and NOT under the document that happens to be open now.
+    assert window._qt_load_annotations() == []
+
+
 # ── Modal-on-closing-window guard (the suite-hang class) ─────────────────────
 
 
