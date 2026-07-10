@@ -12,6 +12,11 @@ from .._runtime import *  # noqa: F401,F403
 from ..i18n import available_languages, get_language, set_language, tr  # noqa: F401
 from .icons import make_icon
 
+try:  # QKeySequence isn't re-exported by _runtime
+    from PyQt6.QtGui import QKeySequence
+except ImportError:  # PyQt5
+    from PyQt5.QtGui import QKeySequence  # type: ignore
+
 
 class ChromeMixin:
     def _build_toolbar(self) -> None:
@@ -628,9 +633,6 @@ class ChromeMixin:
         edit_menu = _menu(
             "Edit",
             [
-                ("Undo", self._qt_undo, "", "Undo the last edit (Ctrl+Z)"),
-                ("Redo", self._qt_redo, "", "Redo the last undone edit (Ctrl+Y)"),
-                None,
                 ("Find…", self._find_show, "Ctrl+F",
                  "Find in the document — Enter jumps, Ctrl+Enter reads aloud"),
                 ("Copy", self._qt_copy, "Ctrl+C",
@@ -647,6 +649,22 @@ class ChromeMixin:
                  "Spell-check the document and step through suggestions"),
             ],
         )
+        # Undo / Redo lead the Edit menu.  They carry the standard Ctrl+Z /
+        # Ctrl+Y sequences so the menu SHOWS the shortcut — but scoped to the
+        # editor (WidgetWithChildrenShortcut, action added to self.editor), so
+        # the binding fires only while editing and never hijacks Ctrl+Z from
+        # the Find bar, dialogs, or any other text field.
+        _first = edit_menu.actions()[0] if edit_menu.actions() else None
+        self._undo_act = self._make_editor_edit_action(
+            "Undo", QKeySequence.StandardKey.Undo, self._qt_undo,
+            "Undo the last edit")
+        self._redo_act = self._make_editor_edit_action(
+            "Redo", QKeySequence.StandardKey.Redo, self._qt_redo,
+            "Redo the last undone edit")
+        edit_menu.insertAction(_first, self._undo_act)
+        edit_menu.insertAction(_first, self._redo_act)
+        if _first is not None:
+            edit_menu.insertSeparator(_first)
         # Preferences lives at the foot of Edit (the conventional home for an
         # app's settings), added via _mi so it keeps a tooltip.
         edit_menu.addSeparator()

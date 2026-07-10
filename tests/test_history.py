@@ -61,6 +61,29 @@ def test_undo_and_redo_are_in_the_edit_menu(window):
     assert "Undo" in labels and "Redo" in labels
 
 
+def test_edit_menu_shows_undo_redo_shortcuts(window):
+    """The shortcut text is visible in the menu — but scoped to the editor so
+    it never hijacks Ctrl+Z/Y from the Find bar or dialogs."""
+    from PyQt6.QtCore import Qt
+
+    assert window._undo_act.shortcut().toString() == "Ctrl+Z"
+    assert window._redo_act.shortcut().toString() == "Ctrl+Y"
+    for act in (window._undo_act, window._redo_act):
+        assert act.shortcutContext() == Qt.ShortcutContext.WidgetWithChildrenShortcut
+        assert act in window.editor.actions()   # scoped to the editor
+
+
+def test_editor_scoped_undo_redo_still_drive_the_editor(window):
+    window._qt_enter_edit_mode()
+    window.editor.setPlainText("abc")
+    window.editor.textCursor().insertText("X")   # one undoable step
+    after_insert = window.editor.toPlainText()
+    window._undo_act.trigger()
+    assert window.editor.toPlainText() == "abc"      # undo reverts it
+    window._redo_act.trigger()
+    assert window.editor.toPlainText() == after_insert  # redo restores it
+
+
 def test_editor_context_menu_offers_undo_redo_while_editing(window):
     """Right-click in edit mode must offer Undo/Redo (Qt's standard edit menu)
     plus the Format submenu — the user's ask for context-menu access."""

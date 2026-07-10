@@ -20,12 +20,36 @@ from .._runtime import *  # noqa: F401,F403
 from ..i18n import tr
 from .a11y import announce
 
+try:  # QKeySequence isn't re-exported by _runtime
+    from PyQt6.QtGui import QKeySequence
+except ImportError:  # PyQt5
+    from PyQt5.QtGui import QKeySequence  # type: ignore
+
 _HISTORY_CAP = 500  # keep the log bounded; a session rarely needs more
 
 
 class HistoryMixin:
 
     # ── Undo / redo (editor) ───────────────────────────────────────────────
+
+    def _make_editor_edit_action(self, label, std_key, fn, tip):
+        """A QAction whose shortcut is scoped to the editor.
+
+        Setting the shortcut makes menus display it, but the
+        WidgetWithChildrenShortcut context + adding the action to self.editor
+        means the key only fires while the editor has focus — so Ctrl+Z /
+        Ctrl+Y never hijack undo in the Find bar, dialogs, or other fields."""
+        a = QAction(tr(label), self)
+        a.setShortcut(QKeySequence(std_key))
+        try:
+            a.setShortcutContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        except AttributeError:  # PyQt5
+            a.setShortcutContext(Qt.WidgetWithChildrenShortcut)  # type: ignore
+        a.setToolTip(tr(tip))
+        a.triggered.connect(fn)
+        a.triggered.connect(lambda *_a, _L=label: self._record_command(_L))
+        self.editor.addAction(a)
+        return a
 
     def _qt_undo(self) -> None:
         if not getattr(self, "_qt_edit_mode", False):
