@@ -46,6 +46,7 @@ from .mixin_fontspacing import FontSpacingMixin
 from .mixin_document import DocumentMixin
 from .mixin_annotations import AnnotationsMixin
 from .mixin_export import ExportMixin
+from .mixin_authoring import AuthoringMixin
 from .mixin_transcription import TranscriptionMixin
 from .mixin_citations import CitationsMixin
 from .mixin_graph import GraphMixin
@@ -311,7 +312,7 @@ class _ReadingRulerOverlay(QWidget):
 
 # =========================================================================
 
-class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, HighlightsMixin, PresetsMixin, DocOpsMixin, DisplayMixin, DocToolsMixin, NavigationMixin, PlaybackMixin, FontSpacingMixin, DocumentMixin, AnnotationsMixin, ExportMixin, TranscriptionMixin, CitationsMixin, GraphMixin, FindMixin, BookmarksQtMixin, VoicesMixin, ReviewMixin, TourMixin, QMainWindow):
+class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, HighlightsMixin, PresetsMixin, DocOpsMixin, DisplayMixin, DocToolsMixin, NavigationMixin, PlaybackMixin, FontSpacingMixin, DocumentMixin, AnnotationsMixin, ExportMixin, TranscriptionMixin, AuthoringMixin, CitationsMixin, GraphMixin, FindMixin, BookmarksQtMixin, VoicesMixin, ReviewMixin, TourMixin, QMainWindow):
     """Qt GUI window for star.
 
     Word-level highlight pipeline

@@ -12,6 +12,15 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ### ✨ Added
 
+- **Create documents from scratch + a Markdown formatting toolbar.** star is
+  now a writing tool, not just a reader. **File ▸ New (Ctrl+N)** opens a blank
+  document straight into edit mode, and a second toolbar appears while editing
+  with one-click **Bold, Italic, Inline Code, Heading, Bullet / Numbered list,
+  Quote, Link, and Horizontal rule** — so you can author Markdown without
+  memorising the syntax (and dictate into it with Voice Typing). Saving a new
+  document prompts for a location the first time, then it behaves like any
+  other file (Recents, save-in-place). The formatting toolbar is hidden in
+  reading mode so it never clutters the view.
 - **Voice typing — dictate straight into the document.** Alongside Dictate
   Note (which files a separate annotation), there's now **Tools ▸ Voice
   Typing (Ctrl+Alt+K)**: toggle it on, speak, toggle off, and what you said

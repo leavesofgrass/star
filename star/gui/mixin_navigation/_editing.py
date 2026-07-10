@@ -11,6 +11,7 @@ from ..._runtime import *  # noqa: F401,F403
 from ...documents import _build_word_map
 from ...i18n import tr
 from ...spellcheck import _SPELL, SpellHighlighter, misspelled_words
+from ...stats import _record_library
 from ...ttstext import _strip_markdown_for_tts
 
 
@@ -48,6 +49,9 @@ class EditNavMixin:
         self.editor.document().contentsChanged.connect(
             self._qt_on_edit_contents_changed
         )
+        # Reveal the Markdown formatting toolbar for authoring.
+        if getattr(self, "_edit_toolbar", None) is not None:
+            self._edit_toolbar.setVisible(True)
         # Attach the red-squiggle spell highlighter while editing (only when
         # pyspellchecker and a Qt QSyntaxHighlighter are both available).
         if _SPELL and SpellHighlighter is not None:
@@ -106,7 +110,9 @@ class EditNavMixin:
             self._spell_highlighter = None
         self._qt_edit_mode = False
         self._qt_edit_dirty = False
-        # The preview pane is only meaningful while editing; hide it.
+        # Hide the authoring toolbar + the preview pane (edit-mode only).
+        if getattr(self, "_edit_toolbar", None) is not None:
+            self._edit_toolbar.setVisible(False)
         self._preview.setVisible(False)
         # Re-render the (possibly updated) Markdown.
         md = self.doc.markdown if self.doc else ""
@@ -261,6 +267,16 @@ class EditNavMixin:
             table_mode=str(self.settings.get("table_reading_mode", "structured")),
         )
         self._qt_edit_dirty = False
+        # A brand-new document (created via File ▸ New) had no path; adopt the
+        # one just chosen so it lands in Recents/the library, its title tracks
+        # the file, and a second Ctrl+S saves in place instead of re-prompting.
+        if orig is None:
+            self.doc.path = saved_path
+            self.doc.title = Path(saved_path).stem or self.doc.title
+            try:
+                _record_library(self.settings, self.doc)
+            except Exception:  # noqa: BLE001 — the bookshelf is best-effort
+                pass
 
         # --- exit edit mode and re-render ------------------------------
         try:

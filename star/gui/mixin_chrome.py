@@ -68,6 +68,7 @@ class ChromeMixin:
             self._toolbar_actions[label] = a
 
         # ── File ─────────────────────────────────────────────
+        _act("New", "new_doc", self._qt_new_document, "New document (Ctrl+N)")
         _act("Open", "open", self._open_dialog, "Open a file (Ctrl+O)")
         _act("Open URL", "url", self._qt_open_url, "Open a URL")
         tb.addSeparator()
@@ -142,6 +143,59 @@ class ChromeMixin:
         _act("Help", "help", self._show_about, "Open README.md (F1)")
         _act("Quit", "quit", self.close, "Quit star (Ctrl+Q)")
 
+        # A second, Markdown-authoring toolbar, shown only in edit mode.
+        self._build_edit_toolbar()
+
+    def _build_edit_toolbar(self) -> None:
+        """Build (or rebuild) the Markdown formatting toolbar.
+
+        A separate icon toolbar with the common authoring actions (bold,
+        heading, lists, …).  Hidden in read mode and revealed by
+        _qt_enter_edit_mode, so it never clutters the reading view.  Rebuilt
+        alongside the main toolbar on a UI-language change."""
+        existing = getattr(self, "_edit_toolbar", None)
+        if existing is not None:
+            self.removeToolBar(existing)
+            existing.deleteLater()
+        tb = self.addToolBar("Formatting")
+        self._edit_toolbar = tb
+        self._edit_toolbar_actions: Dict[str, "QAction"] = {}
+        try:
+            tb.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+        except AttributeError:  # PyQt5
+            tb.setToolButtonStyle(Qt.ToolButtonIconOnly)  # type: ignore[attr-defined]
+
+        def _ea(label: str, icon: str, fn: Callable, tip: str = "") -> None:
+            a = QAction(make_icon(icon), tr(label), self)
+            a.setToolTip(tr(tip) if tip else tr(label))
+            a.triggered.connect(fn)
+            tb.addAction(a)
+            self._edit_toolbar_actions[label] = a
+
+        _ea("Bold", "bold", lambda: self._qt_md_wrap("**", "**", "bold text"),
+            "Bold — wrap the selection in **")
+        _ea("Italic", "italic", lambda: self._qt_md_wrap("*", "*", "italic text"),
+            "Italic — wrap the selection in *")
+        _ea("Inline Code", "md_code", lambda: self._qt_md_wrap("`", "`", "code"),
+            "Inline code — `code`")
+        tb.addSeparator()
+        _ea("Heading", "heading", lambda: self._qt_md_line_prefix("# "),
+            "Heading — # ")
+        _ea("Bullet List", "md_bullet_list", lambda: self._qt_md_line_prefix("- "),
+            "Bullet list — - ")
+        _ea("Numbered List", "md_number_list",
+            lambda: self._qt_md_line_prefix("", numbered=True),
+            "Numbered list — 1. ")
+        _ea("Quote", "md_quote", lambda: self._qt_md_line_prefix("> "),
+            "Block quote — > ")
+        tb.addSeparator()
+        _ea("Link", "md_link", self._qt_md_link, "Insert a link — [text](url)")
+        _ea("Horizontal Rule", "md_rule", self._qt_md_insert_rule,
+            "Insert a horizontal rule — ---")
+        # Hidden until editing; if a language switch rebuilt it mid-edit, keep
+        # it shown.
+        tb.setVisible(bool(getattr(self, "_qt_edit_mode", False)))
+
     def _build_menu_bar(self) -> None:
         """Build (or rebuild) the menu bar.
 
@@ -183,6 +237,10 @@ class ChromeMixin:
 
         # File menu
         file_menu: QMenu = mb.addMenu(tr("File"))
+        file_menu.addAction(
+            _mi("New", "Ctrl+N", self._qt_new_document,
+                tip="Start a blank document in edit mode")
+        )
         file_menu.addAction(_mi("Open…", "Ctrl+O", self._open_dialog))
         file_menu.addAction(
             _mi(

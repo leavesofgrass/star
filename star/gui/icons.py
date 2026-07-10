@@ -168,6 +168,63 @@ def _microphone(p):
     p.drawLine(QPointF(8, 18), QPointF(14, 18))           # base
 
 
+# ── Authoring: New Document + the Markdown formatting toolbar ────────────────
+
+def _new_doc(p):
+    p.drawRoundedRect(QRectF(5, 3, 9, 16), 1.2, 1.2)     # page
+    p.drawLine(QPointF(14, 13), QPointF(18, 13))         # plus (new)
+    p.drawLine(QPointF(16, 11), QPointF(16, 15))
+
+
+def _bold(p):
+    _glyph_text(p, "B", 12)
+
+
+def _italic(p):
+    f = QFont()
+    f.setPointSize(12)
+    f.setBold(True)
+    f.setItalic(True)
+    p.setFont(f)
+    p.drawText(QRectF(0, 0, _SIZE, _SIZE), _ALIGN_CENTER, "I")
+
+
+def _heading(p):
+    _glyph_text(p, "H", 12)
+
+
+def _md_bullet_list(p):
+    for y in (6, 11, 16):
+        p.drawEllipse(QPointF(5, y), 1.3, 1.3)           # bullet dots
+        p.drawLine(QPointF(9, y), QPointF(17, y))        # text lines
+
+
+def _md_number_list(p):
+    _glyph_text(p, "1", 8)                               # (rough numeral hint)
+    for y in (6, 11, 16):
+        p.drawLine(QPointF(10, y), QPointF(17, y))
+
+
+def _md_quote(p):
+    p.fillRect(QRectF(4, 5, 2, 12), _icon_color())       # quote bar
+    for y in (7, 11, 15):
+        p.drawLine(QPointF(9, y), QPointF(17, y))
+
+
+def _md_code(p):
+    _poly(p, [(8, 6), (4, 11), (8, 16)], fill=False)     # <
+    _poly(p, [(14, 6), (18, 11), (14, 16)], fill=False)  # >
+
+
+def _md_link(p):
+    p.drawRoundedRect(QRectF(3.5, 8.5, 8, 5), 2.5, 2.5)  # left link
+    p.drawRoundedRect(QRectF(10.5, 8.5, 8, 5), 2.5, 2.5)  # right link
+
+
+def _md_rule(p):
+    p.drawLine(QPointF(4, 11), QPointF(18, 11))          # horizontal rule
+
+
 def _copy(p):
     p.drawRoundedRect(QRectF(5, 4, 8, 10), 1.2, 1.2)
     p.drawRoundedRect(QRectF(9, 8, 8, 10), 1.2, 1.2)
@@ -266,6 +323,10 @@ _GLYPHS = {
     "prev_heading": _nav(_u_heading, "prev"),
     "next_heading": _nav(_u_heading, "next"),
     "voice": _voice, "speech_cursor": _speech_cursor, "microphone": _microphone,
+    "new_doc": _new_doc, "bold": _bold, "italic": _italic, "heading": _heading,
+    "md_bullet_list": _md_bullet_list, "md_number_list": _md_number_list,
+    "md_quote": _md_quote, "md_code": _md_code, "md_link": _md_link,
+    "md_rule": _md_rule,
     "copy": _copy, "highlight": _highlight, "clear_highlight": _clear_highlight,
     "edit": _edit, "save": _save,
     "theme": _theme, "contents": _contents, "notes": _notes, "add_note": _add_note,
