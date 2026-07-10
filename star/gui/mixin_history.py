@@ -43,6 +43,39 @@ class HistoryMixin:
         self.statusBar().showMessage(tr("Redo"))
         announce(self.editor, tr("Redo"))
 
+    def _qt_editor_context_menu(self, pos) -> None:
+        """Right-click menu for the editor.
+
+        Built on Qt's standard edit menu — Undo, Redo, Cut, Copy, Paste,
+        Delete, Select All — which already carries the correct enabled state
+        and native shortcuts, so Undo/Redo are always a right-click away while
+        editing.  In edit mode a Format submenu is appended for the Markdown
+        authoring actions."""
+        menu = self.editor.createStandardContextMenu()
+        if getattr(self, "_qt_edit_mode", False):
+            menu.addSeparator()
+            fmt = menu.addMenu(tr("Format"))
+            fmt.addAction(tr("Bold"),
+                          lambda: self._qt_md_wrap("**", "**", "bold text"))
+            fmt.addAction(tr("Italic"),
+                          lambda: self._qt_md_wrap("*", "*", "italic text"))
+            fmt.addAction(tr("Underline"),
+                          lambda: self._qt_md_wrap("<u>", "</u>", "underlined text"))
+            fmt.addAction(tr("Inline Code"),
+                          lambda: self._qt_md_wrap("`", "`", "code"))
+            fmt.addSeparator()
+            fmt.addAction(tr("Heading"), lambda: self._qt_md_line_prefix("# "))
+            fmt.addAction(tr("Bullet List"), lambda: self._qt_md_line_prefix("- "))
+            fmt.addAction(tr("Numbered List"),
+                          lambda: self._qt_md_line_prefix("", True))
+            fmt.addAction(tr("Block Quote"), lambda: self._qt_md_line_prefix("> "))
+            fmt.addSeparator()
+            fmt.addAction(tr("Insert Link"), self._qt_md_link)
+            fmt.addAction(tr("Horizontal Rule"), self._qt_md_insert_rule)
+        gpos = self.editor.mapToGlobal(pos)
+        menu.exec(gpos) if _QT == "PyQt6" else menu.exec_(gpos)
+        menu.deleteLater()
+
     # ── Command history ────────────────────────────────────────────────────
 
     def _record_command(self, label: str, kind: str = "cmd") -> None:

@@ -52,6 +52,27 @@ def test_undo_outside_edit_mode_is_a_gentle_no_op(window):
     assert "edit" in window.statusBar().currentMessage().lower()
 
 
+def test_undo_and_redo_are_in_the_edit_menu(window):
+    from PyQt6.QtWidgets import QMenu
+
+    edit = next(m for m in window.menuBar().findChildren(QMenu)
+                if m.title().replace("&", "") == "Edit")
+    labels = [a.text().replace("&", "") for a in edit.actions()]
+    assert "Undo" in labels and "Redo" in labels
+
+
+def test_editor_context_menu_offers_undo_redo_while_editing(window):
+    """Right-click in edit mode must offer Undo/Redo (Qt's standard edit menu)
+    plus the Format submenu — the user's ask for context-menu access."""
+    window._qt_enter_edit_mode()
+    window.editor.setPlainText("hello")
+    menu = window.editor.createStandardContextMenu()
+    std = [a.text().replace("&", "") for a in menu.actions()]
+    assert any(t.startswith("Undo") for t in std)
+    assert any(t.startswith("Redo") for t in std)
+    menu.deleteLater()
+
+
 # ── Command history ──────────────────────────────────────────────────────────
 
 

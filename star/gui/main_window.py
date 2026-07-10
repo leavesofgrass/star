@@ -792,6 +792,15 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         # width and the TextSelectableByKeyboard interaction flag.
         self.editor.setReadOnly(True)
         self._apply_caret_mode()
+        # Custom right-click menu: Qt's standard edit actions (Undo/Redo/Cut/
+        # Copy/Paste/Select All) + a Format submenu while editing, so Undo and
+        # Redo are always reachable from the context menu too.
+        try:
+            _ccm = Qt.ContextMenuPolicy.CustomContextMenu
+        except AttributeError:  # PyQt5
+            _ccm = Qt.CustomContextMenu  # type: ignore[attr-defined]
+        self.editor.setContextMenuPolicy(_ccm)
+        self.editor.customContextMenuRequested.connect(self._qt_editor_context_menu)
         # Live HTML preview pane shown beside the editor in edit mode
         # (hidden until toggled).  Wrapped with the editor in a splitter so
         # the user can drag the divider.

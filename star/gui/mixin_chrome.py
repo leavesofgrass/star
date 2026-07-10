@@ -628,6 +628,9 @@ class ChromeMixin:
         edit_menu = _menu(
             "Edit",
             [
+                ("Undo", self._qt_undo, "", "Undo the last edit (Ctrl+Z)"),
+                ("Redo", self._qt_redo, "", "Redo the last undone edit (Ctrl+Y)"),
+                None,
                 ("Find…", self._find_show, "Ctrl+F",
                  "Find in the document — Enter jumps, Ctrl+Enter reads aloud"),
                 ("Copy", self._qt_copy, "Ctrl+C",
