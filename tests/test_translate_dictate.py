@@ -414,7 +414,13 @@ def _fake_recorder_env(monkeypatch):
             holder["stream"] = _FakeStream(**kw)
             return holder["stream"]
 
+    # StreamRecorder gates on the FRESH _audio_in_now() check (not the
+    # import-time _AUDIO_IN snapshot), so patch that too — otherwise on a host
+    # where sounddevice is pip-installed but unimportable (e.g. the CI full-fat
+    # leg: numpy present, but no system libportaudio) the constructor raises and
+    # these hermetic fake-stream tests fail for reasons unrelated to their logic.
     monkeypatch.setattr(t, "_AUDIO_IN", True)
+    monkeypatch.setattr(t, "_audio_in_now", lambda: True)
     monkeypatch.setattr(t, "_load_sounddevice", lambda: _SD())
     return t, holder
 
