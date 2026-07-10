@@ -13,10 +13,11 @@
 > automatically. See [Building the cross-platform wheel](#building-the-cross-platform-wheel-recommended).
 >
 > The self-contained `star.exe` described below is a **supported release
-> artifact**: since 0.1.22 the Release workflow builds it on every `v*` tag and
+> artifact**: since 0.1.24 the Release workflow builds it on every `v*` tag and
 > attaches `star-<version>-windows-x64.exe` to the GitHub Release (alongside the
-> Linux AppImage) for the many students who can't install Python. The public exe
-> is built with `tools/build-vendor.py --no-dectalk`, so it deliberately omits the
+> macOS `.app`/DMG and the Linux AppImage) for the many students who can't
+> install Python. The public exe is built with `tools/build-vendor.py
+> --no-dectalk`, so it deliberately omits the
 > commercial DECtalk voice. The local `tools/build-windows.ps1` build still
 > requires an explicit opt-in (`-AllowDeprecatedExe`, or `STAR_ALLOW_EXE=1`) —
 > which the CI job supplies for you.
@@ -387,15 +388,27 @@ It detects Homebrew / apt / dnf / pacman / zypper and installs the same engines
 
 ---
 
+## macOS `.app` / DMG
+
+The `star/` package is cross-platform, and `star.spec` is platform-aware: on
+macOS (`sys.platform == "darwin"`) the same spec produces a ONEDIR `star.app`
+bundle instead of the Windows onefile `.exe`. Build it on a Mac with
+[`tools/build-macos.sh`](tools/build-macos.sh), which drives PyInstaller through
+`star.spec`, ad-hoc-signs the app (Developer-ID codesign + notarization when the
+`MACOS_*` secrets are present), and packages a drag-to-Applications `.dmg`. CI
+runs exactly this on every `v*` tag (the `macos-app` job) and attaches
+`star-<version>-macos-arm64.dmg` to the Release — it is **Apple-Silicon only**,
+since `macos-latest` runners are arm64. Speech uses the built-in Apple voices
+(`say` / NSSpeechSynthesizer), so no native engines are vendored into the bundle;
+ffmpeg / Pandoc / Tesseract are picked up from Homebrew if present. It ships lean
+by default (no Whisper/Torch dictation) — set `STAR_MACOS_FULL=1` to include it.
+
 ## Notes for other platforms
 
-`star.py` itself is cross-platform, and `star.spec` is largely portable, but
-PyInstaller cannot cross-compile: build the macOS app on macOS and the Linux
-binary on Linux. The `console`/windowed and bundled-data choices carry over.
-`build-vendor.py` fetches **Windows** engine binaries; for macOS/Linux the
-native helpers (`ffmpeg`, `tesseract`, `liblouis`) differ and `star.py`'s
-`_vendor_dir()` lookups only know the Windows binary names, so rather than
-vendoring them into a frozen bundle the supported path is to install them from
-the system package manager via [`tools/install_native.py`](tools/install_native.py)
-and distribute the [wheel](#cross-platform-install-the-wheel-macos--linux--windows)
-(or run from source).
+PyInstaller cannot cross-compile: build the macOS app on macOS (above) and the
+Linux binary on Linux. `build-vendor.py` fetches **Windows** engine binaries; on
+macOS/Linux the native helpers (`ffmpeg`, `tesseract`, `liblouis`) differ, so
+rather than vendoring them into a frozen bundle they're installed from the system
+package manager via [`tools/install_native.py`](tools/install_native.py). For
+Linux, the [AppImage](../docs/PACKAGING.md) is the download-and-run artifact; the
+[wheel](#cross-platform-install-the-wheel-macos--linux--windows) works everywhere.

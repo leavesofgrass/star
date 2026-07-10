@@ -148,7 +148,7 @@ are menu-only here — their shortcut owners are the editor-scoped `Ctrl+Z` /
 | `F7` | Caret Browsing (checkable) | see §2 |
 | `Ctrl+Alt+F` | Change Font… |
 | `Ctrl+L` | Reading Level |
-| `Ctrl+Shift+L` | Live HTML Preview (edit mode) |
+| `Ctrl+Shift+Z` | Live HTML Preview (edit mode) |
 
 ### View ▸ Reading Aids (accessibility)
 

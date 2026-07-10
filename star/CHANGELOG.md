@@ -19,9 +19,10 @@ macOS, Linux).
 ### ✨ Added
 
 - **Undo/Redo and a command history.** Made a formatting mistake? **Undo** and
-  **Redo** buttons lead the editing toolbar (and the Format menu), and the
-  editor's own **Ctrl+Z / Ctrl+Y** still work — each formatting action is a
-  single undo step. **Help ▸ Command History…** shows a timestamped log of the
+  **Redo** buttons lead the editing toolbar, the standard **Edit** menu (with
+  **Ctrl+Z / Ctrl+Y** shown next to them), and the Format menu, and the editor's
+  own **Ctrl+Z / Ctrl+Y** still work — each formatting action is a single undo
+  step. **Help ▸ Command History…** shows a timestamped log of the
   commands you've run this session (and any errors that came up), with a
   **Copy** button so you can paste it straight into a bug report.
 - **Create documents from scratch + a Markdown formatting toolbar.** star is
@@ -49,13 +50,14 @@ macOS, Linux).
   Preferences dialog now has six tabs: Reading, Reading Aids, Voice, Display,
   Fonts, General.
 - **Voice typing — dictate straight into the document.** Alongside Dictate
-  Note (which files a separate annotation), there's now **Tools ▸ Voice
-  Typing (Ctrl+Alt+K)**: toggle it on, speak, toggle off, and what you said
-  is inserted into the document at the cursor — so you can compose by voice,
-  not just annotate. It drops you into edit mode automatically, pauses the
-  reading voice so it doesn't transcribe itself, shows a live timer while
-  recording, and announces each step for screen-reader users. Toggle on and
-  off as many times as you like to keep dictating.
+  Note (which files a separate annotation), there's now a **microphone button
+  on the toolbar** (and **Tools ▸ Voice Typing**, **Ctrl+Alt+K**): toggle it
+  on, speak, toggle off, and what you said is inserted into the document at the
+  cursor — so you can compose by voice, not just annotate. The toolbar mic
+  button stays highlighted while it's listening. It drops you into edit mode
+  automatically, pauses the reading voice so it doesn't transcribe itself, shows
+  a live timer while recording, and announces each step for screen-reader users.
+  Toggle on and off as many times as you like to keep dictating.
 - **Self-contained Windows `star.exe` on every release.** For students who
   can't install Python, each GitHub Release now attaches a double-click
   `star-<version>-windows-x64.exe` (the same "download one file and run it"

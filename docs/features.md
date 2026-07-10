@@ -114,7 +114,7 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 | One-click optional features | Missing add-ons are offered for background download — no `pip` required; the feature works in the same session |
 | Plugin system | Third parties add TTS engines, document formats, or exporters via entry-point plugins; introspect with `star --plugins` |
 | Dependency status report | `star --deps` lists every optional dependency and how to add the rest |
-| Built-in themes | dark (default), light, contrast, high-contrast (WCAG AAA), phosphor — all colorblind-friendly; can also follow the OS light / dark / high-contrast preference |
+| Built-in themes | obsidian (default), obsidian-light, zed-one-dark, zed-one-light, dark, light, contrast, high-contrast (WCAG AAA), phosphor — all colorblind-friendly; can also follow the OS light / dark / high-contrast preference |
 | CSS theme customization | Drop any `.css` file into the themes folder; star picks it up instantly |
 | High-DPI display support | Qt GUI scales correctly on 4K and HiDPI screens; toolbar icons render crisply on high-DPI displays |
 | Reading level | Flesch-Kincaid grade and ease score on demand |
@@ -458,7 +458,7 @@ Every document you open is remembered in a central library.
 While editing Markdown source you can show a **live HTML preview** beside the
 editor that re-renders as you type.
 
-- **Toggle:** **View → Live HTML Preview** or `Ctrl+Shift+L` (enters edit mode if
+- **Toggle:** **View → Live HTML Preview** or `Ctrl+Shift+Z` (enters edit mode if
   needed; editor and preview sit in a draggable split pane).
 - **Live updates:** re-renders ~300 ms after your last keystroke (debounced) and
   follows the current theme.

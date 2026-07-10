@@ -53,11 +53,28 @@ is added without registering it in `star.diagnostics`.
    git tag v0.1.24
    git push origin v0.1.24
    ```
+6. **Watch the platform builds and verify every binary attached.** A `v*` tag
+   builds three self-contained binaries in parallel — the Windows `star.exe`
+   (`windows-exe`), the **macOS `star.app`/DMG** (`macos-app`), and the Linux
+   AppImage (`linux-appimage`) — and the `release` job waits for all three before
+   publishing the GitHub Release. Confirm all three are attached to the Release:
+   - `star-<version>-windows-x64.exe`
+   - `star-<version>-macos-arm64.dmg` **and** `…-macos-arm64.app.zip`
+   - `star-<version>-x86_64.AppImage`
+
+   > **macOS is verified only on the runner.** The `.app` is PyInstaller-built on
+   > a `macos-latest` (Apple-Silicon) runner and **cannot be produced or checked
+   > from a Windows/Linux dev box** — exactly like the AppImage needs a Linux
+   > container. So the `macos-app` job's success on the tag *is* the validation.
+   > If it's the first tag after a change to `star.spec` / `tools/build-macos.sh`,
+   > you can rehearse it without cutting a real tag via a manual
+   > `workflow_dispatch` run with `build_installers: true` (see the job's `if:`
+   > gate). It is **Apple-Silicon (arm64) only** — Intel Macs install from PyPI.
 
 Pushing a `v*` tag triggers
 [`.github/workflows/release.yml`](../.github/workflows/release.yml), which builds
 the wheel + sdist, publishes them to PyPI, and creates a GitHub Release with
-auto-generated notes.
+auto-generated notes plus the three platform binaries above.
 
 ## What the release workflow builds
 

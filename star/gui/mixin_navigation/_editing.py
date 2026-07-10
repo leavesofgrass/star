@@ -165,7 +165,7 @@ class EditNavMixin:
             self.statusBar().showMessage(
                 "✏  EDIT MODE — Markdown source  ·  "
                 "Ctrl+S: save (keep editing)  ·  Ctrl+E: finish  ·  "
-                "Ctrl+Shift+L: live preview"
+                "Ctrl+Shift+Z: live preview"
             )
 
     def _qt_on_edit_contents_changed(self) -> None:
@@ -263,7 +263,7 @@ class EditNavMixin:
             bar.setValue(min(pos, bar.maximum()))
 
     def _qt_toggle_preview(self) -> None:
-        """Toggle the live HTML preview pane (Ctrl+Shift+L).
+        """Toggle the live HTML preview pane (Ctrl+Shift+Z).
 
         The preview is meaningful only while editing the Markdown source,
         so turning it on outside edit mode enters edit mode first.

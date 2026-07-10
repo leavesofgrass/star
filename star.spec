@@ -1,12 +1,14 @@
 # -*- mode: python ; coding: utf-8 -*-
 #
-# DEPRECATED — manual fallback only.
-# The primary, stable distribution artifact is the pure-Python wheel
-# (`python -m build`, published to PyPI: `pipx install star-reader`).  This
-# PyInstaller spec is retained only for maintainers who specifically need a
-# self-contained .exe; CI no longer builds it on tag pushes.  Do not invoke it
-# directly — use `tools/build-windows.ps1 -AllowDeprecatedExe`, which sets up the
-# environment and stages the offline data this spec expects.  See BUILD.md.
+# The pure-Python wheel (`python -m build`, published to PyPI: `pipx install
+# star-reader`) is the primary, stable distribution artifact.  This PyInstaller
+# spec is the SUPPORTED recipe for the self-contained desktop binaries: CI builds
+# them from it on every `v*` tag — the `windows-exe` job produces `dist/star.exe`
+# and the `macos-app` job (via tools/build-macos.sh) produces `dist/star.app`,
+# both attached to the GitHub Release (see .github/workflows/release.yml).  Don't
+# invoke it directly — use `tools/build-windows.ps1 -AllowDeprecatedExe` (Windows)
+# or `tools/build-macos.sh` (macOS), which set up the environment and stage the
+# offline data this spec expects.  See BUILD.md.
 #
 # PyInstaller build spec for a portable, self-contained binary of star.
 #
@@ -19,9 +21,8 @@
 # step-by-step instructions (including how to make a console build that also
 # supports the --tui terminal interface).
 #
-# star is now packaged as the ``star/`` package (generated from star-monolith.py
-# by tools/split_star.py); the frozen entry point is the thin ``run_star.py``
-# wrapper, which imports ``star.app.main``.
+# star is packaged as the ``star/`` package; the frozen entry point is the thin
+# ``run_star.py`` wrapper, which imports ``star.app.main``.
 
 import os as _os
 import sys as _sys

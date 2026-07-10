@@ -166,7 +166,7 @@ See the **[full feature reference](docs/features.md)** for everything.
 | **[Configuration](docs/configuration.md)** | Every `settings.json` key |
 | **[Architecture & Contributing](docs/architecture.md)** | Package layout, distribution artifacts, contributing, tests |
 | [Changelog](star/CHANGELOG.md) | Full record of changes |
-| [Build guide](star/BUILD.md) | Building the cross-platform wheel and the self-contained Windows `star.exe` |
+| [Build guide](star/BUILD.md) | Building the cross-platform wheel and the self-contained Windows `star.exe` / macOS `.app` |
 
 ➡️ Browse all docs in the **[`docs/`](docs/)** directory.
 
@@ -176,10 +176,11 @@ See the **[full feature reference](docs/features.md)** for everything.
 
 The pure-Python **wheel** (`pip install star-reader`) is star's primary, stable
 distribution; it works on macOS, Linux, and Windows alike. For anyone who can't
-install Python, every GitHub Release also attaches double-click binaries — a
-**Linux AppImage** and a self-contained **Windows
-`star-<version>-windows-x64.exe`** (Python, the GUI, and all loaders baked in;
-DECtalk is excluded from the public exe). A single-file
+install Python, every GitHub Release also attaches double-click binaries for all
+three desktops — a self-contained **Windows `star-<version>-windows-x64.exe`**
+(Python, the GUI, and all loaders baked in; DECtalk excluded from the public
+exe), a **macOS `star-<version>-macos-arm64.dmg`** (Apple-Silicon; uses the
+built-in Apple voices), and a **Linux AppImage**. A single-file
 [`star.pyz`](docs/installation.md#single-file-build-starpyz) zipapp is
 build-it-yourself. See [Installation](docs/installation.md) and
 [`BUILD.md`](star/BUILD.md).

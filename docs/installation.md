@@ -30,13 +30,22 @@ download one file and run it, nothing else to install:
 | **macOS** (Apple Silicon) | `star-<version>-macos-arm64.dmg` | Open the `.dmg`, drag **star** to Applications, then **right-click ▸ Open** the first time. |
 | **Linux** | `star-<version>-x86_64.AppImage` | `chmod +x` it, then run it. |
 
-The Windows and Linux builds bundle Python, the GUI, every document loader,
-offline voice dictation, and the helper tools (audio export, OCR, braille, extra
-voices) — so text-to-speech, reading, and note-taking all work out of the box.
-They're large (the Windows build is ~800 MB) because everything is inside; if you
-already have Python, `pip install star-reader` is much smaller. The macOS `.app`
-uses the built-in Apple voices for speech and stays lean (offline dictation is a
-quick `pip install` away if you want it).
+All three bundle Python, the GUI, and every document loader, so reading and
+note-taking work out of the box. What differs is the extras:
+
+- The **Windows `star.exe`** is the fully-loaded one — it also bakes in offline
+  voice dictation (Whisper) and the native helper tools (ffmpeg for audio export,
+  Tesseract for OCR, liblouis for braille, eSpeak-NG for extra voices). It's large
+  (~800 MB) because everything is inside.
+- The **macOS `.app`** uses the built-in Apple voices for speech and stays lean —
+  offline Whisper dictation is **not** bundled (install from PyPI with
+  `pip install "star-reader[transcribe]"` if you want it).
+- The **Linux AppImage** carries the pure-Python feature set but **not** the
+  offline Whisper stack or the native engines; OCR, audio export, and braille use
+  your distro's `tesseract` / `ffmpeg` / `liblouis` when present.
+
+If you already have Python, `pip install star-reader` is much smaller than any of
+them.
 
 > On Windows, SmartScreen may warn about an unrecognized publisher the first
 > time (the binary isn't code-signed yet) — choose **More info → Run anyway**.
@@ -255,19 +264,20 @@ aloud, and exports text with nothing but the wheel. star detects each engine
 automatically when it is installed and on your `PATH`; `star --deps` shows which
 are currently found.
 
-> **The self-contained builds bundle these for you.** The download-and-run
-> Windows `star.exe` and Linux AppImage (see [No Python? Download-and-run
-> builds](#no-python-download-and-run-builds)) *ship these engines inside*
+> **Only the Windows `star.exe` bundles these for you.** The download-and-run
+> Windows `star.exe` (see [No Python? Download-and-run
+> builds](#no-python-download-and-run-builds)) *ships these engines inside*
 > (ffmpeg, Tesseract, liblouis, Pandoc, eSpeak-NG) plus the offline Whisper
-> dictation stack, so they "just work" with nothing else installed. **Only
-> DECtalk is excluded from the public exe.** The macOS `.app` is the exception:
-> it uses the **built-in Apple voices** and picks up ffmpeg / Pandoc / Tesseract
-> from Homebrew if you have them, rather than bundling native engines. The
-> **wheel / pipx** install does
-> **not** bundle any of them — install only the ones you want, as below. On
-> Windows, the **SAPI5** voices star uses by default (via `pyttsx3`, included
-> with the wheel) need none of this, so most Windows users never have to install
-> a native engine at all.
+> dictation stack, so it "just works" with nothing else installed. **Only
+> DECtalk is excluded from that public exe.** The **Linux AppImage** and **macOS
+> `.app`** do **not** bundle these native engines or the Whisper stack: the
+> AppImage carries only the pure-Python feature set and uses your distro's
+> `ffmpeg` / `tesseract` / `liblouis` when present; the `.app` uses the built-in
+> Apple voices and picks up ffmpeg / Pandoc / Tesseract from Homebrew if you have
+> them. The **wheel / pipx** install does **not** bundle any of them — install
+> only the ones you want, as below. On Windows, the **SAPI5** voices star uses by
+> default (via `pyttsx3`, included with the wheel) need none of this, so most
+> Windows users never have to install a native engine at all.
 
 ### macOS / Linux
 

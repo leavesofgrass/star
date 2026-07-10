@@ -84,20 +84,6 @@ jobs:
           name: pyz-windows
           path: dist/star-windows-x64.pyz
 
-  # ── Windows self-contained binary (star.exe) — DEPRECATED manual fallback ───
-  # The wheel (above) is the primary, stable artifact.  The PyInstaller star.exe
-  # is retained only as a manual fallback: it is NOT built on tag pushes and is
-  # NOT attached to the GitHub Release.  Build it only via a manual
-  # workflow_dispatch run with `build_exe: true` (optionally `lean: true`).
-  #
-  # tools/build-windows.ps1 creates an isolated venv, installs the runtime deps,
-  # stages the offline NLTK data, and runs PyInstaller.  It also requires the
-  # explicit -AllowDeprecatedExe opt-in (passed below).
-  #
-  # Note: this produces an exe WITHOUT the vendored native tools (ffmpeg,
-  # Tesseract, liblouis, Pandoc, DECtalk).  To ship a fully self-contained exe,
-  # run `python tools/build-vendor.py` before the build step (needs 7-Zip on
-  # PATH) — see docs/RELEASING.md.
   # ── Self-contained Windows star.exe ────────────────────────────────────────
   # A single double-click .exe with Python, PyQt6, every document loader, the
   # offline dictation stack (Whisper + Torch), and the vendored native tools
