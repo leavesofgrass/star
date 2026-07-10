@@ -224,6 +224,16 @@ class ChromeMixin:
         mb = self.menuBar()
         mb.clear()
         self._shortcut_actions = []
+        # star has many top-level menus; native styles (esp. Windows 11) space
+        # them generously enough that they overflow into a ">>" chevron on a
+        # 1080p display.  Tighten the per-item padding so they all fit, while
+        # keeping the hover highlight (styling one sub-control otherwise drops
+        # the native rendering for the rest).
+        mb.setStyleSheet(
+            "QMenuBar::item { padding: 4px 7px; }"
+            "QMenuBar::item:selected { background: palette(highlight); "
+            "color: palette(highlighted-text); }"
+        )
 
         # Every menu item gets a keyboard shortcut.  _mi() creates a menu
         # QAction, assigns its (remappable) shortcut, registers it for the

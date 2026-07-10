@@ -198,6 +198,17 @@ def test_underline_wraps_selection_in_html(window):
     assert "Underline" in window._edit_toolbar_actions
 
 
+def test_menu_bar_padding_is_tightened(window):
+    """star has ~15 top-level menus; the bar carries a QMenuBar::item padding
+    override so they all fit on a 1080p display instead of overflowing into a
+    chevron."""
+    ss = window.menuBar().styleSheet()
+    assert "QMenuBar::item" in ss and "padding" in ss
+    # A generous count of menus is exactly why the tightening exists.
+    menus = [a for a in window.menuBar().actions() if a.menu()]
+    assert len(menus) >= 12
+
+
 def test_formatting_is_a_no_op_outside_edit_mode(window):
     # Read mode: the editor holds rendered HTML; formatting must not touch it.
     assert window._qt_edit_mode is False
