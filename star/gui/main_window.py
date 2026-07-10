@@ -371,6 +371,9 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
     # Whisper runs.  ERROR is signalled by char_pos_str == "ERROR".
     _transcribe_signal = pyqtSignal(str, str)
     _dictate_signal = pyqtSignal(str, str, str, str, str)
+    # Voice typing (dictate into the document): (recognized_text, error) — the
+    # recognized text is inserted at the editor cursor on the GUI thread.
+    _voice_type_signal = pyqtSignal(str, str)
     _doi_signal = pyqtSignal(str)  # Crossref DOI lookup result (JSON or ERROR:)
     # Document summarization runs on a background thread (LexRank can be
     # slow on long documents); carries (summary, error_message).
@@ -522,6 +525,7 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         # Wire the Whisper transcription / dictation result signals.
         self._transcribe_signal.connect(self._qt_on_transcribed, _QUEUED)
         self._dictate_signal.connect(self._qt_on_dictated, _QUEUED)
+        self._voice_type_signal.connect(self._qt_on_voice_typed, _QUEUED)
         self._doi_signal.connect(self._qt_on_doi, _QUEUED)
         # Wire the summarization result signal → GUI thread.
         self._summary_signal.connect(self._qt_on_summary, _QUEUED)
@@ -1062,6 +1066,14 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         if self._qt_sc_reader is not None:
             self._qt_sc_reader.close()
             self._qt_sc_reader = None
+        # Release the microphone if voice typing is still recording on close.
+        _vt_rec = getattr(self, "_qt_vt_recorder", None)
+        if _vt_rec is not None:
+            try:
+                _vt_rec.cancel()
+            except Exception:
+                pass
+            self._qt_vt_recorder = None
         # Stop a running hot-folder watcher cleanly (lets an in-progress
         # conversion finish before the window closes).
         if self._watcher is not None:

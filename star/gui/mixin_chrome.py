@@ -845,6 +845,17 @@ class ChromeMixin:
         tools_menu.addAction(
             _mi("Dictate Note (record)…", "Ctrl+Alt+V", self._qt_dictate_note)
         )
+        # Voice typing: speech-to-text INTO the document (toggle on/off).
+        # Kept as a ref so the check mark tracks the recording state.
+        self._qt_vt_action = _mi(
+            "Voice Typing (dictate into document)",
+            "Ctrl+Alt+K",
+            self._qt_voice_typing_toggle,
+            tip="Toggle speech input into the document at the cursor — "
+                "speak, toggle off to insert; great for composing by voice",
+            checkable=True,
+        )
+        tools_menu.addAction(self._qt_vt_action)
         tools_menu.addAction(
             _mi(
                 "Toggle Transcript Timestamps",

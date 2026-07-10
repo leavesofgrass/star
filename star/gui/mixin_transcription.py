@@ -360,3 +360,142 @@ class TranscriptionMixin:
         self.statusBar().showMessage(f"Dictated note added ({len(text)} chars)")
         announce(self.editor, tr("Dictated note added"))
 
+    # ── Voice typing: dictate directly INTO the document ───────────────────
+
+    def _qt_voice_typing_toggle(self) -> None:
+        """Toggle speech-to-text into the document at the cursor (voice typing).
+
+        Unlike Dictate Note — which files a separate annotation — this inserts
+        the transcribed words into the document itself, so a student can
+        compose by voice.  Toggle on, speak, toggle off to insert what you
+        said; repeat to keep going.  Whisper is not a streaming recognizer, so
+        the text lands when you toggle off, not word by word.
+        """
+        if getattr(self, "_qt_vt_busy", False):
+            self.statusBar().showMessage("Still transcribing — one moment…")
+            self._qt_vt_sync_action()
+            return
+        if getattr(self, "_qt_vt_active", False):
+            self._qt_voice_typing_stop()
+        else:
+            self._qt_voice_typing_start()
+
+    def _qt_voice_typing_start(self) -> None:
+        if not self.doc:
+            self.statusBar().showMessage("Open a document before voice typing")
+            self._qt_vt_sync_action()
+            return
+        if not self._qt_require_optional_feature("transcribe", tr("Voice typing")):
+            self._qt_vt_sync_action()
+            return
+        # Insertion needs an editable document; enter edit mode if necessary and
+        # park the cursor at the end so dictation appends (common for composing).
+        if not getattr(self, "_qt_edit_mode", False):
+            self._qt_enter_edit_mode()
+            cur = self.editor.textCursor()
+            cur.setPosition(len(self.editor.toPlainText()))
+            self.editor.setTextCursor(cur)
+        # Pause the reading voice so the mic doesn't capture star speaking.
+        if self.tts_manager.speaking:
+            self._tts_stop(announce_state=False)
+        try:
+            self._qt_vt_recorder = StreamRecorder()
+            self._qt_vt_recorder.start()
+        except Exception as exc:  # noqa: BLE001 — no mic / no sounddevice
+            self._status_error(f"Could not start voice typing: {exc}")
+            self._qt_vt_recorder = None
+            self._qt_vt_sync_action()
+            return
+        self._qt_vt_active = True
+        # Live elapsed indicator on the GUI thread (recording runs on the
+        # sounddevice callback thread; this only repaints the status line).
+        self._qt_vt_timer = QTimer(self)
+        self._qt_vt_timer.timeout.connect(self._qt_vt_tick)
+        self._qt_vt_timer.start(250)
+        self._qt_vt_sync_action()
+        msg = tr("Voice typing on — speak, then toggle off to insert")
+        self.statusBar().showMessage(msg)
+        announce(self.editor, msg)
+
+    def _qt_vt_tick(self) -> None:
+        rec = getattr(self, "_qt_vt_recorder", None)
+        if rec is None:
+            return
+        s = int(rec.elapsed)
+        self.statusBar().showMessage(
+            tr("🎙  Voice typing…  {m}:{s:02d}  ·  toggle off to insert").format(
+                m=s // 60, s=s % 60)
+        )
+
+    def _qt_voice_typing_stop(self) -> None:
+        self._qt_vt_active = False
+        timer = getattr(self, "_qt_vt_timer", None)
+        if timer is not None:
+            timer.stop()
+            self._qt_vt_timer = None
+        rec = getattr(self, "_qt_vt_recorder", None)
+        self._qt_vt_recorder = None
+        self._qt_vt_sync_action()
+        if rec is None:
+            return
+        try:
+            samples = rec.stop_samples()
+        except Exception as exc:  # noqa: BLE001
+            self._status_error(f"Voice typing failed: {exc}")
+            return
+        if samples is None or len(samples) == 0:
+            msg = tr("No audio was recorded — check your microphone")
+            self.statusBar().showMessage(msg)
+            announce(self.editor, msg)
+            return
+        model = str(self.settings.get("whisper_model", "base"))
+        self._qt_vt_busy = True
+        msg = tr("Transcribing your speech…")
+        self.statusBar().showMessage(msg)
+        announce(self.editor, msg)
+
+        def _work() -> None:
+            try:
+                text = _transcribe_samples(samples, model)
+                self._voice_type_signal.emit(text, "")
+            except Exception as exc:  # noqa: BLE001
+                self._voice_type_signal.emit("", str(exc))
+
+        threading.Thread(target=_work, daemon=True).start()
+
+    def _qt_on_voice_typed(self, text: str, error: str) -> None:
+        """Main-thread handler: insert the recognized speech at the cursor."""
+        self._qt_vt_busy = False
+        if error:
+            msg = tr("Voice typing failed: {error}").format(error=error)
+            self.statusBar().showMessage(msg)
+            announce(self.editor, msg)
+            return
+        text = (text or "").strip()
+        if not text:
+            msg = tr("No speech was recognized")
+            self.statusBar().showMessage(msg)
+            announce(self.editor, msg)
+            return
+        cursor = self.editor.textCursor()
+        # Smart spacing: keep a gap from preceding non-space text, and leave a
+        # trailing space so the next dictation doesn't run words together.
+        pos = cursor.position()
+        prev = self.editor.toPlainText()[max(0, pos - 1):pos]
+        prefix = "" if (pos == 0 or prev in (" ", "\n", "\t")) else " "
+        cursor.insertText(prefix + text + " ")
+        self.editor.setTextCursor(cursor)
+        self.editor.setFocus()
+        msg = tr("Inserted {n} characters").format(n=len(text))
+        self.statusBar().showMessage(msg)
+        announce(self.editor, msg)
+
+    def _qt_vt_sync_action(self) -> None:
+        """Reflect the on/off state in the checkable menu item."""
+        act = getattr(self, "_qt_vt_action", None)
+        if act is not None:
+            try:
+                act.setChecked(bool(getattr(self, "_qt_vt_active", False)))
+            except Exception:  # noqa: BLE001
+                pass
+

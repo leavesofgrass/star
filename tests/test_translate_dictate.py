@@ -258,6 +258,58 @@ def test_dictation_empty_text_is_reported_not_stored(window):
     assert window._qt_load_annotations() == []
 
 
+# ── Voice typing: dictate INTO the document ──────────────────────────────────
+
+
+def test_voice_typing_inserts_recognized_text_at_the_cursor(window):
+    """The result handler inserts the recognized speech into the editor at the
+    cursor (this is what makes it 'type into the document', not a note)."""
+    window._qt_enter_edit_mode()          # editor becomes editable plain text
+    window.editor.setPlainText("Hello")
+    cur = window.editor.textCursor()
+    cur.setPosition(len("Hello"))         # caret at end, after a non-space char
+    window.editor.setTextCursor(cur)
+    window._qt_vt_busy = True
+
+    window._qt_on_voice_typed("world", "")
+
+    text = window.editor.toPlainText()
+    assert "Hello world " in text          # smart space inserted before "world"
+    assert window._qt_vt_busy is False     # busy flag cleared for the next round
+
+
+def test_voice_typing_error_is_surfaced_not_inserted(window):
+    window._qt_enter_edit_mode()
+    window.editor.setPlainText("keep me")
+    window._qt_vt_busy = True
+    window._qt_on_voice_typed("", "mic exploded")
+    assert "mic exploded" in window.statusBar().currentMessage()
+    assert window.editor.toPlainText() == "keep me"   # nothing inserted
+    assert window._qt_vt_busy is False
+
+
+def test_voice_typing_toggle_is_ignored_while_transcribing(window, monkeypatch):
+    """A toggle press while a transcription is still running must not start a
+    second recorder — it just reminds the user to wait."""
+    started = {"n": 0}
+    monkeypatch.setattr(window, "_qt_voice_typing_start",
+                        lambda: started.__setitem__("n", started["n"] + 1))
+    window._qt_vt_busy = True
+    window._qt_voice_typing_toggle()
+    assert started["n"] == 0
+    assert "transcrib" in window.statusBar().currentMessage().lower()
+
+
+def test_voice_typing_menu_action_tracks_state(window):
+    """The checkable menu item reflects whether recording is active."""
+    window._qt_vt_active = True
+    window._qt_vt_sync_action()
+    assert window._qt_vt_action.isChecked() is True
+    window._qt_vt_active = False
+    window._qt_vt_sync_action()
+    assert window._qt_vt_action.isChecked() is False
+
+
 def test_dictated_note_lands_on_the_dictated_doc_after_a_switch(window):
     """If the user opens a different document while Whisper runs, the note
     must be keyed to the document it was dictated on (captured at record

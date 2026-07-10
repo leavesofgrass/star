@@ -8,6 +8,27 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### ✨ Added
+
+- **Voice typing — dictate straight into the document.** Alongside Dictate
+  Note (which files a separate annotation), there's now **Tools ▸ Voice
+  Typing (Ctrl+Alt+K)**: toggle it on, speak, toggle off, and what you said
+  is inserted into the document at the cursor — so you can compose by voice,
+  not just annotate. It drops you into edit mode automatically, pauses the
+  reading voice so it doesn't transcribe itself, shows a live timer while
+  recording, and announces each step for screen-reader users. Toggle on and
+  off as many times as you like to keep dictating.
+- **Self-contained Windows `star.exe` on every release.** For students who
+  can't install Python, each GitHub Release now attaches a double-click
+  `star-<version>-windows-x64.exe` (the same "download one file and run it"
+  story the Linux AppImage already provides) with everything baked in —
+  Python, the GUI, all document loaders, offline dictation, and the helper
+  tools for audio export / OCR / braille / extra voices.
+
+---
+
 ## [0.1.23] 2026-07-05
 
 Testing-driven usability fixes — translation and dictation now behave the way

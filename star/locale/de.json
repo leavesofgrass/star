@@ -225,6 +225,7 @@
   "Import a folder of Markdown notes and their links": "Einen Ordner mit Markdown-Notizen und ihren Verknüpfungen importieren",
   "Import…": "Importieren…",
   "Insert Citation at Cursor…": "Zitat am Cursor einfügen…",
+  "Inserted {n} characters": "{n} Zeichen eingefügt",
   "Install": "Installieren",
   "Install Optional Features…": "Optionale Funktionen installieren…",
   "Install selected": "Ausgewählte installieren",
@@ -279,6 +280,7 @@
   "No forward history.": "Kein vorwärtsgerichteter Verlauf.",
   "No matches": "Keine Treffer",
   "No review cards yet. Add notes or highlights, then come back here to study them.": "Noch keine Wiederholungskarten. Fügen Sie Notizen oder Markierungen hinzu und kehren Sie zum Lernen hierher zurück.",
+  "No speech was recognized": "Keine Sprache erkannt",
   "Not now": "Nicht jetzt",
   "Notes": "Notizen",
   "Notes anchored in the document. Enter scrolls to a note; double-click or double-Enter reads from it.": "Im Dokument verankerte Notizen. Enter springt zu einer Notiz; Doppelklick oder Doppel-Enter liest ab dieser Stelle.",
@@ -475,6 +477,7 @@
   "Tools": "Werkzeuge",
   "Transcribe Audio File…": "Audiodatei transkribieren…",
   "Transcribing your note — this takes a moment": "Ihre Notiz wird transkribiert — das dauert einen Moment",
+  "Transcribing your speech…": "Ihre Sprache wird transkribiert…",
   "Transcribing — this may take a while": "Transkription läuft — das kann eine Weile dauern",
   "Transcript of {name} is open — press Space to read it": "Das Transkript von {name} ist geöffnet — drücken Sie die Leertaste zum Vorlesen",
   "Transcription produced no text": "Die Transkription ergab keinen Text",
@@ -501,6 +504,9 @@
   "Voice Manager": "Stimmenverwaltung",
   "Voice Manager…": "Stimmenverwaltung…",
   "Voice dictation": "Sprachdiktat",
+  "Voice typing": "Spracheingabe",
+  "Voice typing failed: {error}": "Spracheingabe fehlgeschlagen: {error}",
+  "Voice typing on — speak, then toggle off to insert": "Spracheingabe an — sprechen Sie, dann ausschalten zum Einfügen",
   "Voice:": "Stimme:",
   "Voices": "Stimmen",
   "Voice…": "Stimme…",
@@ -525,5 +531,6 @@
   "×": "×",
   "❓ Not sure? Everything here is optional — pick <b>All</b> for the full experience, or <b>Not now</b> and add features later from <i>Tools → Install Optional Features</i>.": "❓ Unsicher? Alles hier ist optional — wählen Sie <b>Alle</b> für das volle Erlebnis oder <b>Nicht jetzt</b> und fügen Sie Funktionen später über <i>Werkzeuge → Optionale Funktionen installieren</i> hinzu.",
   "🎙  Recording…  0:00": "🎙  Aufnahme…  0:00",
-  "🎙  Recording…  {m}:{s:02d}": "🎙  Aufnahme…  {m}:{s:02d}"
+  "🎙  Recording…  {m}:{s:02d}": "🎙  Aufnahme…  {m}:{s:02d}",
+  "🎙  Voice typing…  {m}:{s:02d}  ·  toggle off to insert": "🎙  Spracheingabe…  {m}:{s:02d}  ·  zum Einfügen ausschalten"
 }

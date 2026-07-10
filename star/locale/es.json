@@ -225,6 +225,7 @@
   "Import a folder of Markdown notes and their links": "Importar una carpeta de notas Markdown y sus enlaces",
   "Import…": "Importar…",
   "Insert Citation at Cursor…": "Insertar cita en el cursor…",
+  "Inserted {n} characters": "Se insertaron {n} caracteres",
   "Install": "Instalar",
   "Install Optional Features…": "Instalar funciones opcionales…",
   "Install selected": "Instalar seleccionadas",
@@ -279,6 +280,7 @@
   "No forward history.": "No hay historial hacia adelante.",
   "No matches": "Sin coincidencias",
   "No review cards yet. Add notes or highlights, then come back here to study them.": "Aún no hay tarjetas de repaso. Añade notas o resaltados y vuelve aquí para estudiarlas.",
+  "No speech was recognized": "No se reconoció ninguna voz",
   "Not now": "Ahora no",
   "Notes": "Notas",
   "Notes anchored in the document. Enter scrolls to a note; double-click or double-Enter reads from it.": "Notas ancladas en el documento. Enter desplaza a una nota; doble clic o doble Enter lee desde ella.",
@@ -475,6 +477,7 @@
   "Tools": "Herramientas",
   "Transcribe Audio File…": "Transcribir archivo de audio…",
   "Transcribing your note — this takes a moment": "Transcribiendo su nota — esto tarda un momento",
+  "Transcribing your speech…": "Transcribiendo lo que dijo…",
   "Transcribing — this may take a while": "Transcribiendo — esto puede tardar un rato",
   "Transcript of {name} is open — press Space to read it": "La transcripción de {name} está abierta — pulse Espacio para leerla",
   "Transcription produced no text": "La transcripción no produjo texto",
@@ -501,6 +504,9 @@
   "Voice Manager": "Gestor de voces",
   "Voice Manager…": "Gestor de voces…",
   "Voice dictation": "Dictado por voz",
+  "Voice typing": "Dictado al documento",
+  "Voice typing failed: {error}": "Error de dictado: {error}",
+  "Voice typing on — speak, then toggle off to insert": "Dictado activado — hable y desactívelo para insertar",
   "Voice:": "Voz:",
   "Voices": "Voces",
   "Voice…": "Voz…",
@@ -525,5 +531,6 @@
   "×": "×",
   "❓ Not sure? Everything here is optional — pick <b>All</b> for the full experience, or <b>Not now</b> and add features later from <i>Tools → Install Optional Features</i>.": "❓ ¿No estás seguro? Todo aquí es opcional: elige <b>Todo</b> para la experiencia completa, o <b>Ahora no</b> y añade funciones más tarde desde <i>Herramientas → Instalar funciones opcionales</i>.",
   "🎙  Recording…  0:00": "🎙  Grabando…  0:00",
-  "🎙  Recording…  {m}:{s:02d}": "🎙  Grabando…  {m}:{s:02d}"
+  "🎙  Recording…  {m}:{s:02d}": "🎙  Grabando…  {m}:{s:02d}",
+  "🎙  Voice typing…  {m}:{s:02d}  ·  toggle off to insert": "🎙  Dictado…  {m}:{s:02d}  ·  desactive para insertar"
 }
