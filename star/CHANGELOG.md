@@ -8,7 +8,13 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [Unreleased]
+## [0.1.24] 2026-07-09
+
+star grows up as a writing tool: create documents from scratch, format with a
+toolbar or the keyboard, dictate straight into the page, and undo mistakes — now
+with a smooth live-edit loop that saves without kicking you out of editing. Plus
+self-contained download-and-run builds for **all three** desktops (Windows,
+macOS, Linux).
 
 ### ✨ Added
 
@@ -68,6 +74,17 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ### 🐛 Fixed
 
+- **A real live-edit loop while editing.** Saving with **Ctrl+S** now keeps you
+  in edit mode — it writes the file and lets you keep typing and formatting,
+  instead of throwing you back to read mode on every save. Formatting actions
+  (Bold, Heading, lists, …) refresh the live preview **immediately** rather than
+  after a typing pause, so you see the styled result at once. **Ctrl+E** is now
+  the deliberate "finish editing" action and, if you have unsaved changes, asks
+  whether to Save, Discard, or Cancel — so a stray press can't lose your work.
+  Editing an imported file (PDF/DOCX/EPUB) asks once where to save the Markdown,
+  then keeps saving there; and opening a different document while you're editing
+  asks about unsaved changes first instead of quietly carrying the edit session
+  onto the new file.
 - **Dictation never tells you to run `pip`.** When the speech-to-text stack
   isn't loaded yet, star used to leak a raw "pip install …" message — the one
   thing its no-pip design forbids. Voice input now checks availability freshly

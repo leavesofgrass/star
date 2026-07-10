@@ -603,14 +603,19 @@ which the view stays with you instead of snapping back to the speech.
 
 | Key | Action |
 |---|---|
-| `Ctrl+E` | Toggle edit mode (raw Markdown ↔ rendered view) |
-| `Ctrl+S` | Save in edit mode; export as Markdown in read mode |
+| `Ctrl+E` | Enter edit mode; while editing, **finish** and return to read mode (offers to save if there are unsaved changes) |
+| `Ctrl+S` | Save and **keep editing** (in edit mode); export as Markdown in read mode |
 | `Ctrl+Shift+Z` | Toggle the live HTML preview pane (enters edit mode if needed) |
 | `Ctrl+Z` / `Ctrl+Y` | Undo / redo |
 | `Ctrl+B` / `Ctrl+I` / `Ctrl+U` | Bold / italic / underline the selection (edit mode) |
 | `Ctrl+K` | Insert a Markdown link — [text](url) (edit mode) |
 | `Ctrl+X` / `Ctrl+C` / `Ctrl+V` | Cut / copy / paste |
 | `Ctrl+C` | Copy selection or current paragraph (read mode) |
+
+**Live-edit loop:** `Ctrl+S` saves in place and leaves you in edit mode, so you
+can keep typing and formatting without being bounced to read mode. Formatting
+actions update the live preview immediately. When you're done, `Ctrl+E` finishes
+editing — and if anything is unsaved it asks whether to save, discard, or cancel.
 
 ### Search
 

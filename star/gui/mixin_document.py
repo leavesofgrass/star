@@ -53,6 +53,12 @@ class DocumentMixin:
         if path and not path.startswith(("http://", "https://")) and Path(path).is_dir():
             self._qt_open_folder_as_library(path)
             return
+        # If the user is mid-edit, resolve unsaved changes (Save/Discard/Cancel)
+        # BEFORE swapping documents.  Ctrl+S now keeps the user in edit mode, so
+        # without this a stale edit session would carry over onto the newly
+        # opened file and a later Ctrl+S could overwrite it with edit-mode text.
+        if not self._qt_confirm_leave_edit_for_replace():
+            return  # user cancelled the open
         # Save where we were in the *current* document before replacing it.
         self._qt_save_reading_position()
         self.statusBar().showMessage(f"Loading {Path(path).name} …")
@@ -119,6 +125,14 @@ class DocumentMixin:
         doc = getattr(self, "_pending_doc", None)
         if not doc:
             return
+        # Safety net: any path that replaces the document must not leave the
+        # editor in edit mode over the *new* rendered content (a later Ctrl+S
+        # would then overwrite the new file with markdown-stripped text).
+        # _open_path already resolves this with a save prompt; this silent
+        # teardown covers the other replace callers (New Document, translation /
+        # transcription results) and must run before the setHtml below so the
+        # dirty listener can't fire on the new document.
+        self._qt_teardown_edit_state()
         # Disarm auto-play up front: if a previous load armed it and THIS load
         # turns out to be an error page (or the welcome doc), a still-pending
         # flag must not read a traceback aloud when the restore signal lands.

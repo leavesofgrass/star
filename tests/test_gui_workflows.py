@@ -199,8 +199,8 @@ def test_highlight_without_selection_is_a_no_op(window):
 
 def test_edit_mode_save_round_trip(window, qtbot, tmp_path):
     """Enter edit mode, change the Markdown source, save it back to disk, and
-    verify the file and in-memory document both update and the view re-renders
-    read-only."""
+    verify the file + in-memory document update while the user *stays in edit
+    mode* (the live-edit loop) — then finishing (Ctrl+E) restores read mode."""
     # Open a real editable text file so _qt_save writes in place (no dialog).
     src = tmp_path / "note.md"
     src.write_text("# Title\n\nOriginal body text.\n", encoding="utf-8")
@@ -222,10 +222,24 @@ def test_edit_mode_save_round_trip(window, qtbot, tmp_path):
     # File on disk and the in-memory document both reflect the edit.
     assert src.read_text(encoding="utf-8") == new_src
     assert window.doc.markdown == new_src
-    # Back in read mode, read-only and rendering the edited text.
+    # Ctrl+S keeps you editing: still in edit mode, still the raw source, clean.
+    assert window._qt_edit_mode is True
+    assert not window.editor.isReadOnly()
+    assert window._qt_edit_dirty is False
+    assert window.editor.toPlainText() == new_src   # raw Markdown, not rendered
+
+    # A second edit + save writes in place again (no dialog) and stays editing.
+    newer = "# Title\n\nEdited twice.\n"
+    window.editor.setPlainText(newer)
+    window._qt_save()
+    assert src.read_text(encoding="utf-8") == newer
+    assert window._qt_edit_mode is True
+
+    # Finishing (Ctrl+E, nothing unsaved) restores read mode: read-only + rendered.
+    window._qt_exit_edit_mode(save=False)
     assert window._qt_edit_mode is False
     assert window.editor.isReadOnly()
-    assert "Edited body text now." in window.editor.toPlainText()
+    assert "Edited twice." in window.editor.toPlainText()
 
 
 # ── archive open (File ▸ Open Archive…) ──────────────────────────────────────

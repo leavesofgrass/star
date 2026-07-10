@@ -217,3 +217,200 @@ def test_formatting_is_a_no_op_outside_edit_mode(window):
     window._qt_md_line_prefix("# ")
     assert window.editor.toPlainText() == before
     assert "format" in window.statusBar().currentMessage().lower()
+
+
+# ── Live-edit workflow (save-stays-in-edit-mode + preview refresh + finish) ───
+
+
+def test_save_keeps_the_user_in_edit_mode(window, tmp_path):
+    """Ctrl+S writes the file but stays in edit mode so the user keeps the
+    live-edit loop instead of being dropped back to read mode."""
+    src = tmp_path / "note.md"
+    src.write_text("# Old\n", encoding="utf-8")
+    window.doc.path = str(src)
+    window._qt_enter_edit_mode()
+    window.editor.setPlainText("# New heading\n\nBody.\n")
+    window._qt_save()
+    assert src.read_text(encoding="utf-8") == "# New heading\n\nBody.\n"
+    assert window._qt_edit_mode is True                 # still editing
+    assert not window.editor.isReadOnly()
+    assert window._qt_edit_dirty is False               # clean after save
+    assert window.editor.toPlainText() == "# New heading\n\nBody.\n"  # raw source
+
+
+def test_formatting_refreshes_preview_immediately(window, monkeypatch):
+    """A discrete formatting action re-renders the live preview at once rather
+    than waiting for the typing debounce."""
+    _edit(window, "para")
+    # Offscreen never truly shows a widget, so force the preview's visibility
+    # for this check and spy on the render call.
+    monkeypatch.setattr(window._preview, "isVisible", lambda: True)
+    calls = []
+    monkeypatch.setattr(window, "_qt_render_preview", lambda: calls.append(1))
+    window._qt_md_line_prefix("# ")
+    assert calls, "formatting should refresh the live preview immediately"
+
+
+def test_formatting_preview_refresh_is_a_no_op_when_hidden(window, monkeypatch):
+    """With the preview hidden, formatting must not touch it (no render)."""
+    _edit(window, "para")
+    monkeypatch.setattr(window._preview, "isVisible", lambda: False)
+    calls = []
+    monkeypatch.setattr(window, "_qt_render_preview", lambda: calls.append(1))
+    window._qt_md_wrap("**", "**", "bold")
+    assert not calls
+
+
+def _qmb():
+    from PyQt6.QtWidgets import QMessageBox
+    return QMessageBox
+
+
+def test_finish_editing_cancel_keeps_editing(window, monkeypatch):
+    """Ctrl+E with unsaved changes → Cancel leaves the user editing, unsaved."""
+    QMessageBox = _qmb()
+    window._qt_enter_edit_mode()
+    window.editor.setPlainText("unsaved work")
+    window._qt_edit_dirty = True
+    monkeypatch.setattr(
+        QMessageBox, "question",
+        staticmethod(lambda *a, **k: QMessageBox.StandardButton.Cancel),
+    )
+    window._qt_edit_mode_toggle()   # Ctrl+E
+    assert window._qt_edit_mode is True
+    assert window.editor.toPlainText() == "unsaved work"
+
+
+def test_finish_editing_discard_exits_without_saving(window, monkeypatch, tmp_path):
+    """Ctrl+E → Discard leaves edit mode and does NOT write the file."""
+    QMessageBox = _qmb()
+    src = tmp_path / "note.md"
+    src.write_text("original\n", encoding="utf-8")
+    window.doc.path = str(src)
+    window.doc.markdown = "original\n"
+    window._qt_enter_edit_mode()
+    window.editor.setPlainText("throwaway")
+    window._qt_edit_dirty = True
+    monkeypatch.setattr(
+        QMessageBox, "question",
+        staticmethod(lambda *a, **k: QMessageBox.StandardButton.Discard),
+    )
+    window._qt_edit_mode_toggle()   # Ctrl+E
+    assert window._qt_edit_mode is False
+    assert src.read_text(encoding="utf-8") == "original\n"   # not overwritten
+
+
+def test_finish_editing_save_persists_then_exits(window, monkeypatch, tmp_path):
+    """Ctrl+E → Save writes the file and then leaves edit mode."""
+    QMessageBox = _qmb()
+    src = tmp_path / "note.md"
+    src.write_text("original\n", encoding="utf-8")
+    window.doc.path = str(src)
+    window.doc.markdown = "original\n"
+    window._qt_enter_edit_mode()
+    window.editor.setPlainText("kept edit\n")
+    window._qt_edit_dirty = True
+    monkeypatch.setattr(
+        QMessageBox, "question",
+        staticmethod(lambda *a, **k: QMessageBox.StandardButton.Save),
+    )
+    window._qt_edit_mode_toggle()   # Ctrl+E
+    assert src.read_text(encoding="utf-8") == "kept edit\n"
+    assert window._qt_edit_mode is False
+
+
+def test_finish_editing_when_clean_just_exits(window):
+    """Ctrl+E with no unsaved changes exits straight to read mode (no prompt)."""
+    window._qt_enter_edit_mode()
+    window._qt_edit_dirty = False
+    window._qt_edit_mode_toggle()   # Ctrl+E
+    assert window._qt_edit_mode is False
+    assert window.editor.isReadOnly()
+
+
+# ── Document-replacement teardown (regression: open mid-edit must not corrupt) ─
+
+
+def test_confirm_leave_edit_cancel_aborts(window, monkeypatch):
+    """Opening another document mid-edit → Cancel keeps the user editing."""
+    QMessageBox = _qmb()
+    window._qt_enter_edit_mode()
+    window.editor.setPlainText("mid-edit")
+    window._qt_edit_dirty = True
+    monkeypatch.setattr(
+        QMessageBox, "question",
+        staticmethod(lambda *a, **k: QMessageBox.StandardButton.Cancel),
+    )
+    assert window._qt_confirm_leave_edit_for_replace() is False
+    assert window._qt_edit_mode is True          # still editing, open aborted
+
+
+def test_confirm_leave_edit_discard_tears_down(window, monkeypatch):
+    """Discarding leaves edit mode cleanly so the next document loads read-only."""
+    QMessageBox = _qmb()
+    window._qt_enter_edit_mode()
+    window.editor.setPlainText("mid-edit")
+    window._qt_edit_dirty = True
+    monkeypatch.setattr(
+        QMessageBox, "question",
+        staticmethod(lambda *a, **k: QMessageBox.StandardButton.Discard),
+    )
+    assert window._qt_confirm_leave_edit_for_replace() is True
+    assert window._qt_edit_mode is False
+    assert window.editor.isReadOnly()
+
+
+def test_loading_a_document_mid_edit_tears_edit_mode_down(window, tmp_path):
+    """Regression (HIGH): with Ctrl+S now keeping the user in edit mode, loading
+    another file must not leave the editor editable over the new document — a
+    later save would otherwise overwrite that file with markdown-stripped text.
+    The _on_doc_loaded safety net tears edit mode down before rendering."""
+    from star.documents import Document
+
+    fileB = tmp_path / "b.md"
+    fileB.write_text("# B\n\n**bold** stays.\n", encoding="utf-8")
+    window._qt_enter_edit_mode()
+    window.editor.setPlainText("edits to the previous doc")
+    window._qt_edit_dirty = True
+    # Simulate the background load of fileB completing.
+    window._pending_doc = Document(
+        path=str(fileB), title="B",
+        markdown="# B\n\n**bold** stays.\n", plain_text="B bold stays.",
+    )
+    window._on_doc_loaded()
+    assert window._qt_edit_mode is False          # torn down by the safety net
+    assert window.editor.isReadOnly()
+    # fileB on disk is untouched — no accidental overwrite.
+    assert fileB.read_text(encoding="utf-8") == "# B\n\n**bold** stays.\n"
+
+
+def test_converted_doc_save_as_adopts_path_no_reprompt(window, monkeypatch, tmp_path):
+    """Regression: a document whose source is a non-text file must adopt the
+    chosen .md path on first Save-As, so the live-edit loop's next Ctrl+S writes
+    in place instead of re-opening the Save-As dialog every time."""
+    from PyQt6.QtWidgets import QFileDialog
+
+    md = tmp_path / "report.md"
+    window.doc.path = str(tmp_path / "report.pdf")   # non-text source format
+    window.doc.markdown = "# R\n"
+    window._qt_enter_edit_mode()
+    window.editor.setPlainText("# Report\n\nEdited once.\n")
+
+    calls = {"n": 0}
+
+    def fake_save_as(*a, **k):
+        calls["n"] += 1
+        return (str(md), "")
+
+    monkeypatch.setattr(QFileDialog, "getSaveFileName", staticmethod(fake_save_as))
+    window._qt_save()
+    assert md.read_text(encoding="utf-8") == "# Report\n\nEdited once.\n"
+    assert window.doc.path == str(md)     # adopted the saved .md path
+    assert calls["n"] == 1
+    assert window._qt_edit_mode is True   # still editing (live-edit loop)
+
+    # Second save writes in place — the dialog must NOT appear again.
+    window.editor.setPlainText("# Report\n\nEdited twice.\n")
+    window._qt_save()
+    assert md.read_text(encoding="utf-8") == "# Report\n\nEdited twice.\n"
+    assert calls["n"] == 1

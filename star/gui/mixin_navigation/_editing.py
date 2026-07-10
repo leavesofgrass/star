@@ -13,6 +13,7 @@ from ...i18n import tr
 from ...spellcheck import _SPELL, SpellHighlighter, misspelled_words
 from ...stats import _record_library
 from ...ttstext import _strip_markdown_for_tts
+from ..a11y import announce
 
 
 class EditNavMixin:
@@ -25,13 +26,105 @@ class EditNavMixin:
         read-only.  In *edit mode* the raw Markdown source is shown
         as plain text so the user can make changes with any standard
         text-editing shortcut (Ctrl+Z/Y, Ctrl+X/C/V, arrow keys,
-        Delete, Home, End, …).  Ctrl+S saves; Ctrl+E exits without
-        saving.
+        Delete, Home, End, …).  Ctrl+S saves and *keeps you editing*;
+        Ctrl+E finishes (offering to save any unsaved changes first).
         """
         if not self._qt_edit_mode:
             self._qt_enter_edit_mode()
         else:
-            self._qt_exit_edit_mode(save=False)
+            self._qt_finish_editing()
+
+    def _qt_ask_unsaved(self) -> str:
+        """Ask Save / Discard / Cancel about unsaved edits.
+
+        Returns ``"save"``, ``"discard"``, or ``"cancel"``.  Shared by the two
+        "leaving edit mode with unsaved changes" flows (finish editing, and
+        opening another document mid-edit) so they behave identically."""
+        try:
+            Save = QMessageBox.StandardButton.Save
+            Discard = QMessageBox.StandardButton.Discard
+            Cancel = QMessageBox.StandardButton.Cancel
+        except AttributeError:  # PyQt5
+            Save = QMessageBox.Save        # type: ignore[attr-defined]
+            Discard = QMessageBox.Discard  # type: ignore[attr-defined]
+            Cancel = QMessageBox.Cancel    # type: ignore[attr-defined]
+        ret = QMessageBox.question(
+            self,
+            tr("Finish Editing"),
+            tr("Save changes before leaving edit mode?"),
+            Save | Discard | Cancel,
+        )
+        if ret == Save:
+            return "save"
+        if ret == Discard:
+            return "discard"
+        return "cancel"
+
+    def _qt_finish_editing(self) -> None:
+        """Leave edit mode (Ctrl+E), offering to save unsaved changes first.
+
+        With Ctrl+S now keeping you in edit mode for a smooth live-edit loop,
+        Ctrl+E is the deliberate "I'm done" action — so a stray press must
+        never silently discard work.  If the document is dirty the user is
+        asked Save / Discard / Cancel."""
+        if getattr(self, "_qt_edit_dirty", False):
+            choice = self._qt_ask_unsaved()
+            if choice == "cancel":
+                return
+            if choice == "save" and not self._qt_persist_edits():
+                # Save-As cancelled or the write failed — stay in edit mode
+                # rather than lose the changes.
+                return
+        self._qt_exit_edit_mode(save=False)
+
+    def _qt_teardown_edit_state(self) -> None:
+        """Reset edit-mode state WITHOUT re-rendering — for when a *different*
+        document is about to replace the current one (the caller renders it).
+
+        Idempotent: a no-op when not editing.  Because Ctrl+S now keeps the user
+        in edit mode, every document-replacement path must call this (directly
+        or via _qt_confirm_leave_edit_for_replace) so the editor never stays
+        editable over the newly-loaded document — otherwise a later Ctrl+S would
+        overwrite that file with edit-mode (markdown-stripped) text."""
+        if not getattr(self, "_qt_edit_mode", False):
+            return
+        try:
+            self.editor.document().contentsChanged.disconnect(
+                self._qt_on_edit_contents_changed
+            )
+        except (RuntimeError, TypeError):
+            pass
+        if getattr(self, "_spell_highlighter", None) is not None:
+            try:
+                self._spell_highlighter.setDocument(None)
+            except Exception:  # noqa: BLE001
+                pass
+            self._spell_highlighter = None
+        self._qt_edit_mode = False
+        self._qt_edit_dirty = False
+        if getattr(self, "_edit_toolbar", None) is not None:
+            self._edit_toolbar.setVisible(False)
+        if getattr(self, "_preview", None) is not None:
+            self._preview.setVisible(False)
+        self.editor.setReadOnly(True)
+
+    def _qt_confirm_leave_edit_for_replace(self) -> bool:
+        """Resolve edit mode before another document replaces the current one.
+
+        Returns ``True`` to proceed with the replacement, ``False`` only if the
+        user chose Cancel when asked about unsaved changes.  Called from
+        _open_path so opening a file mid-edit prompts to save (Save/Discard/
+        Cancel) exactly like Ctrl+E, then tears edit mode down."""
+        if not getattr(self, "_qt_edit_mode", False):
+            return True
+        if getattr(self, "_qt_edit_dirty", False) and self._modal_ok():
+            choice = self._qt_ask_unsaved()
+            if choice == "cancel":
+                return False
+            if choice == "save" and not self._qt_persist_edits():
+                return False  # Save-As cancelled / write failed — don't discard
+        self._qt_teardown_edit_state()
+        return True
 
     def _qt_enter_edit_mode(self) -> None:
         """Switch the editor to editable Markdown source view."""
@@ -66,12 +159,12 @@ class EditNavMixin:
             self._qt_render_preview()
             self.statusBar().showMessage(
                 "✏  EDIT MODE — Markdown source + live preview  ·  "
-                "Ctrl+S: save  ·  Ctrl+E: discard & exit"
+                "Ctrl+S: save (keep editing)  ·  Ctrl+E: finish"
             )
         else:
             self.statusBar().showMessage(
                 "✏  EDIT MODE — Markdown source  ·  "
-                "Ctrl+S: save  ·  Ctrl+E: discard & exit  ·  "
+                "Ctrl+S: save (keep editing)  ·  Ctrl+E: finish  ·  "
                 "Ctrl+Shift+L: live preview"
             )
 
@@ -89,38 +182,35 @@ class EditNavMixin:
             self._preview_timer.start(300)
 
     def _qt_exit_edit_mode(self, save: bool = False) -> None:
-        """Leave edit mode, optionally saving first."""
+        """Leave edit mode and render the document read-only.
+
+        This is the single "restore read mode" path.  *save* persists the
+        edits first (bailing without leaving edit mode if a Save-As is
+        cancelled or the write fails).  It then rebuilds everything the read
+        view needs — rendered HTML, the table of contents, annotations, and
+        the TTS word maps — so playback and navigation match the saved text.
+        """
         if not self._qt_edit_mode:
             return
-        if save:
-            self._qt_save()
-        # Disconnect the dirty listener.
-        try:
-            self.editor.document().contentsChanged.disconnect(
-                self._qt_on_edit_contents_changed
-            )
-        except (RuntimeError, TypeError):
-            pass
-        # Detach the spell highlighter so it stops re-checking the read-only view.
-        if self._spell_highlighter is not None:
-            try:
-                self._spell_highlighter.setDocument(None)
-            except Exception:  # noqa: BLE001
-                pass
-            self._spell_highlighter = None
-        self._qt_edit_mode = False
-        self._qt_edit_dirty = False
-        # Hide the authoring toolbar + the preview pane (edit-mode only).
-        if getattr(self, "_edit_toolbar", None) is not None:
-            self._edit_toolbar.setVisible(False)
-        self._preview.setVisible(False)
-        # Re-render the (possibly updated) Markdown.
+        if save and not self._qt_persist_edits():
+            return  # cancelled / write failed — stay in edit mode, keep the text
+        # Disconnect the dirty listener, detach the spell highlighter, reset the
+        # edit flags, hide the toolbar/preview, and make the editor read-only.
+        self._qt_teardown_edit_state()
+        # Re-render the (possibly updated) Markdown as the read-only view.
         md = self.doc.markdown if self.doc else ""
-        self.editor.setReadOnly(True)
         self._apply_caret_mode()
         self.editor.setHtml(self._md_to_html(md))
         self._apply_block_spacing()
         self._qt_apply_user_highlights()
+        # Now that the editor holds the *rendered* text, rebuild the read-view
+        # aids from it (the TOC / annotations / word + sentence maps map onto
+        # visible lines, so they can only be built here, not against the raw
+        # source).  Match _on_doc_loaded_impl so the read view is fully current.
+        self._qt_build_toc()
+        self._qt_build_annotations()
+        self._qt_refresh_vocab_highlight()
+        self._qt_rebuild_word_maps_async()
         self.statusBar().showMessage("Read mode")
 
     def _qt_check_spelling(self) -> None:
@@ -199,29 +289,21 @@ class EditNavMixin:
 
     # ─ reading statistics & library ───────────
 
-    def _qt_save(self) -> None:
-        """Save the current document.
+    def _qt_persist_edits(self) -> bool:
+        """Write the edited Markdown to disk and update the in-memory document.
 
-        In *edit mode*: the edited Markdown is written back to the
-        original file (for .md / .markdown / .txt / .rst / .org);
-        for any other format a Save-As dialog is shown.  The document
-        is then re-rendered and the TTS word maps are rebuilt.
-
-        In *read mode*: falls through to the Markdown export dialog
-        (same as File → Export → Export as Markdown…).
+        Returns ``True`` on success, ``False`` if the user cancelled the
+        Save-As dialog or the write failed.  Does **not** change edit mode or
+        re-render — callers decide whether to stay editing or restore read
+        mode, so this is shared by ``_qt_save`` (stay) and
+        ``_qt_exit_edit_mode`` (leave).
         """
-        if not self._qt_edit_mode:
-            # Not editing — offer markdown export.
-            self._qt_export_markdown()
-            return
-
         if not self.doc:
-            return
+            return False
 
         # Capture the edited source from the plain-text editor.
         new_md = self.editor.toPlainText()
 
-        # --- persist to disk -------------------------------------------
         orig = Path(self.doc.path) if self.doc.path else None
         text_exts = {
             ".md",
@@ -233,15 +315,19 @@ class EditNavMixin:
             ".asc",
             ".asciidoc",
         }
+        prompted = False
         if orig and orig.suffix.lower() in text_exts:
             try:
                 orig.write_text(new_md, encoding="utf-8")
                 saved_path = str(orig)
             except OSError as exc:
                 self._status_error(f"Save error: {exc}")
-                return
+                return False
         else:
-            # Binary or non-text format — prompt for a .md path.
+            # Binary or non-text format (or a brand-new doc) — prompt for a .md
+            # path.  ``prompted`` marks that a real destination was chosen so we
+            # adopt it below and never re-prompt on the next save.
+            prompted = True
             stem = orig.stem if orig else "document"
             parent = str(orig.parent) if orig else ""
             dest, _ = QFileDialog.getSaveFileName(
@@ -251,13 +337,13 @@ class EditNavMixin:
                 "Markdown (*.md *.markdown)",
             )
             if not dest:
-                return
+                return False
             try:
                 Path(dest).write_text(new_md, encoding="utf-8")
                 saved_path = dest
             except OSError as exc:
                 self._status_error(f"Save error: {exc}")
-                return
+                return False
 
         # --- update in-memory document ---------------------------------
         self.doc.markdown = new_md
@@ -267,43 +353,60 @@ class EditNavMixin:
             table_mode=str(self.settings.get("table_reading_mode", "structured")),
         )
         self._qt_edit_dirty = False
-        # A brand-new document (created via File ▸ New) had no path; adopt the
-        # one just chosen so it lands in Recents/the library, its title tracks
-        # the file, and a second Ctrl+S saves in place instead of re-prompting.
-        if orig is None:
+        # Adopt the chosen path after ANY Save-As — a brand-new document (File ▸
+        # New, no path) OR a converted document whose source was a non-text file
+        # (report.pdf → report.md).  Without this, doc.path stays the .pdf, so
+        # every subsequent Ctrl+S in the live-edit loop re-opens the Save-As
+        # dialog.  Adopting makes the next Ctrl+S write the .md in place, and the
+        # document lands in Recents / the library with its title tracking the file.
+        if prompted:
             self.doc.path = saved_path
             self.doc.title = Path(saved_path).stem or self.doc.title
             try:
                 _record_library(self.settings, self.doc)
             except Exception:  # noqa: BLE001 — the bookshelf is best-effort
                 pass
+        self._qt_last_saved_path = saved_path
+        return True
 
-        # --- exit edit mode and re-render ------------------------------
-        try:
-            self.editor.document().contentsChanged.disconnect(
-                self._qt_on_edit_contents_changed
-            )
-        except (RuntimeError, TypeError):
-            pass
-        self._qt_edit_mode = False
-        self.editor.setReadOnly(True)
-        self._apply_caret_mode()
-        self.editor.setHtml(self._md_to_html(new_md))
-        self._apply_block_spacing()
-        self._qt_apply_user_highlights()
-        self._qt_build_toc()
-        self._qt_build_annotations()
+    def _qt_rebuild_word_maps_async(self) -> None:
+        """Rebuild the TTS + Qt word maps off the UI thread from the editor.
 
-        # Rebuild word maps asynchronously (same flow as _on_doc_loaded_impl)
+        Must be called with the editor showing the *rendered* read-mode text
+        (the maps correlate ``doc.plain_text`` with visible editor lines)."""
+        if not self.doc:
+            return
         qt_plain = self.editor.document().toPlainText()
         doc_ref = self.doc
 
         def _rebuild() -> None:
             try:
+                plain = doc_ref.plain_text or ""
                 flat = qt_plain.splitlines()
-                doc_ref.word_map = _build_word_map(doc_ref.plain_text, flat)
+                doc_ref.word_map = _build_word_map(plain, flat)
                 self.tts_manager.set_word_map(doc_ref.word_map)
-                self._build_qt_word_map(doc_ref.plain_text, qt_plain)
+                self._build_qt_word_map(plain, qt_plain)
+                # Sentence map — same algorithm as _on_doc_loaded_impl's _build()
+                # so next/prev-sentence nav + sentence-granularity highlighting
+                # track the edited text instead of the pre-edit boundaries.
+                wm = doc_ref.word_map
+                if wm and plain:
+                    char_starts = [0]
+                    for _m in _SENTENCE_SPLIT_RE.finditer(plain):
+                        char_starts.append(_m.end())
+                    _wi = 0
+                    word_starts = []
+                    for cs in char_starts:
+                        while _wi < len(wm) and wm[_wi].tts_offset < cs:
+                            _wi += 1
+                        word_starts.append(min(_wi, len(wm) - 1))
+                    seen: set = set()
+                    result = []
+                    for ws in word_starts:
+                        if ws not in seen:
+                            seen.add(ws)
+                            result.append(ws)
+                    self._qt_sentence_starts = result if result else [0]
             except Exception:
                 pass
 
@@ -311,4 +414,38 @@ class EditNavMixin:
 
         _threading.Thread(target=_rebuild, daemon=True).start()
 
-        self.statusBar().showMessage(f"Saved → {saved_path}")
+    def _qt_save(self) -> None:
+        """Save the current document — and keep the user in the flow.
+
+        In *edit mode*: the edited Markdown is written back to the original
+        file (for .md / .markdown / .txt / .rst / .org …); for any other
+        format a Save-As dialog is shown.  Crucially, the user **stays in edit
+        mode** afterwards so there is a smooth live-edit loop — type/format,
+        Ctrl+S, keep going — instead of being kicked back to read mode on every
+        save.  The live preview (if shown) refreshes to the saved source.
+        Ctrl+E finishes editing.
+
+        In *read mode*: falls through to the Markdown export dialog (same as
+        File → Export → Export as Markdown…).
+        """
+        if not self._qt_edit_mode:
+            # Not editing — offer markdown export.
+            self._qt_export_markdown()
+            return
+
+        if not self.doc:
+            return
+
+        if not self._qt_persist_edits():
+            return  # cancelled Save-As or write failed — nothing changed
+
+        # Stay in edit mode: the editor keeps the raw Markdown source and the
+        # cursor, so the user can carry on editing immediately.
+        saved_path = getattr(self, "_qt_last_saved_path", "")
+        if self._preview.isVisible():
+            self._qt_render_preview()
+        self.statusBar().showMessage(
+            f"Saved → {saved_path}  ·  still editing (Ctrl+E to finish)"
+        )
+        announce(self.editor, "Saved. Still editing.")
+        self.editor.setFocus()

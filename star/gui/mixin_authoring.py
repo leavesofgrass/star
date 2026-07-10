@@ -63,6 +63,24 @@ class AuthoringMixin:
         )
         return False
 
+    def _md_refresh_preview_now(self) -> None:
+        """Re-render the live preview at once after a formatting action.
+
+        A discrete button/menu action should show its styled result
+        immediately rather than waiting for the typing debounce, so we cancel
+        any pending debounced render and render synchronously.  A no-op unless
+        the live preview is actually shown."""
+        prev = getattr(self, "_preview", None)
+        if prev is None or not prev.isVisible():
+            return
+        timer = getattr(self, "_preview_timer", None)
+        if timer is not None:
+            try:
+                timer.stop()
+            except Exception:  # noqa: BLE001
+                pass
+        self._qt_render_preview()
+
     def _qt_md_wrap(self, before: str, after: str, placeholder: str = "text") -> None:
         """Wrap the selection in *before*/*after* (bold, italic, code, …).
 
@@ -81,6 +99,7 @@ class AuthoringMixin:
             cur.setPosition(end, _KEEP_ANCHOR)  # reselect the placeholder
         self.editor.setTextCursor(cur)
         self.editor.setFocus()
+        self._md_refresh_preview_now()
 
     def _qt_md_line_prefix(self, prefix: str, numbered: bool = False) -> None:
         """Prefix each line touched by the selection (or the current line).
@@ -101,6 +120,7 @@ class AuthoringMixin:
             bc.insertText(pfx)
         cur.endEditBlock()
         self.editor.setFocus()
+        self._md_refresh_preview_now()
 
     def _qt_md_link(self) -> None:
         """Insert a Markdown link, wrapping any selection as the link text."""
@@ -111,6 +131,7 @@ class AuthoringMixin:
         cur.insertText(f"[{text}](https://)")
         self.editor.setTextCursor(cur)
         self.editor.setFocus()
+        self._md_refresh_preview_now()
 
     def _qt_md_insert_rule(self) -> None:
         """Insert a horizontal rule (``---``) on its own line."""
@@ -120,3 +141,4 @@ class AuthoringMixin:
         cur.insertText("\n---\n")
         self.editor.setTextCursor(cur)
         self.editor.setFocus()
+        self._md_refresh_preview_now()

@@ -84,7 +84,7 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 | PDF reading order | Multi-column PDFs read column-by-column, top-to-bottom; running headers/footers and page numbers suppressed (toggle: `pdf_reading_order`) |
 | Speed presets | Named presets (skim/normal/study/slow) switchable at runtime |
 | Bookmarks / history | Named per-document bookmarks (`Ctrl+M`) and back/forward navigation history (`Alt+←/→`), in both the Qt GUI and the TUI |
-| Document editing | `Ctrl+E` toggles raw-Markdown edit mode; `Ctrl+S` saves back to the original file |
+| Document editing | `Ctrl+E` enters raw-Markdown edit mode; `Ctrl+S` saves back to the original file and keeps you editing; `Ctrl+E` again finishes (offering to save) |
 | Document authoring | Create a new blank document (**File ▸ New**, `Ctrl+N`, or the New toolbar button); first save prompts for a location |
 | Markdown formatting | Edit-mode formatting toolbar and a **Format** menu — Bold (`Ctrl+B`), Italic (`Ctrl+I`), Underline (`Ctrl+U`), inline code, headings, lists, block quote, link (`Ctrl+K`), horizontal rule — with editor Undo (`Ctrl+Z`) / Redo (`Ctrl+Y`) |
 | Command history | **Help ▸ Command History…** — a copyable, timestamped log of commands and errors for troubleshooting |
@@ -1103,15 +1103,20 @@ document in place.
 | Action | Key / button |
 |---|---|
 | Enter edit mode | `Ctrl+E` or the **Edit** toolbar button |
-| Exit edit mode (discard) | `Ctrl+E` again |
-| Save and return to read mode | `Ctrl+S` or the **Save** toolbar button |
+| Save and **keep editing** | `Ctrl+S` or the **Save** toolbar button |
+| Finish editing (return to read mode) | `Ctrl+E` again — offers to save if there are unsaved changes |
 
 The editor switches from rendered HTML to the raw Markdown source. Standard
 text-editor keys apply (`Ctrl+Z/Y`, `Ctrl+X/C/V`, `Ctrl+A`, word/line motion,
-etc.). `Ctrl+S` writes back to the **original file** for text-based extensions
-(`.md`, `.markdown`, `.txt`, `.rst`, `.org`, `.adoc`); for PDF/DOCX/EPUB a **Save
-As** dialog opens. The editor works on the Markdown representation — for binary
-formats this is a converted approximation, not a round-trip.
+etc.). **`Ctrl+S` saves in place and leaves you in edit mode** — a real
+live-edit loop, so you can keep typing and formatting without being bounced back
+to read mode on every save (the live preview, if shown, refreshes immediately).
+It writes back to the **original file** for text-based extensions (`.md`,
+`.markdown`, `.txt`, `.rst`, `.org`, `.adoc`); for PDF/DOCX/EPUB a **Save As**
+dialog opens. When you're done, **`Ctrl+E` finishes** — and if anything is
+unsaved it asks whether to save, discard, or cancel, so a stray press never
+loses work. The editor works on the Markdown representation — for binary formats
+this is a converted approximation, not a round-trip.
 
 ### Creating a new document
 
