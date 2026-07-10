@@ -48,17 +48,38 @@ def test_new_document_opens_blank_in_edit_mode(window):
     assert window.editor.toPlainText() == ""  # blank canvas, editable
 
 
-def test_new_document_confirms_before_discarding_edits(window, monkeypatch):
+def test_new_document_cancel_keeps_current_edits(window, monkeypatch):
+    """New Document mid-edit offers Save / Discard / Cancel (like Ctrl+E and
+    open-another-doc); Cancel keeps the current work and stays editing."""
     from PyQt6.QtWidgets import QMessageBox
 
     window._qt_enter_edit_mode()
     window._qt_edit_dirty = True
     window.editor.setPlainText("precious work")
-    # User answers "No" → keep the current document.
-    monkeypatch.setattr(QMessageBox, "question",
-                        staticmethod(lambda *a, **k: QMessageBox.StandardButton.No))
+    monkeypatch.setattr(
+        QMessageBox, "question",
+        staticmethod(lambda *a, **k: QMessageBox.StandardButton.Cancel),
+    )
     window._qt_new_document()
     assert window.editor.toPlainText() == "precious work"
+    assert window._qt_edit_mode is True
+
+
+def test_new_document_discard_starts_blank(window, monkeypatch):
+    """Discarding unsaved edits starts the blank Untitled document."""
+    from PyQt6.QtWidgets import QMessageBox
+
+    window._qt_enter_edit_mode()
+    window._qt_edit_dirty = True
+    window.editor.setPlainText("throwaway draft")
+    monkeypatch.setattr(
+        QMessageBox, "question",
+        staticmethod(lambda *a, **k: QMessageBox.StandardButton.Discard),
+    )
+    window._qt_new_document()
+    assert window._qt_edit_mode is True
+    assert window.doc.path == ""              # fresh in-memory Untitled doc
+    assert window.editor.toPlainText() == ""  # blank canvas
 
 
 # ── Formatting toolbar visibility ────────────────────────────────────────────

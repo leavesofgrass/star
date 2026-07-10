@@ -48,7 +48,8 @@ From a Windows machine with Python 3.11+ and **7-Zip** installed:
 
 ```powershell
 python tools\build-vendor.py     # download ffmpeg + Tesseract + liblouis into vendor/
-# -AllowDeprecatedExe is required: the .exe is a deprecated manual fallback.
+# -AllowDeprecatedExe opts into the local exe build; CI passes it for you on
+# every v* tag (the exe is a supported release artifact — see above).
 powershell -ExecutionPolicy Bypass -File tools\build-windows.ps1 -AllowDeprecatedExe
 ```
 

@@ -389,7 +389,7 @@ class TranscriptionMixin:
         the text lands when you toggle off, not word by word.
         """
         if getattr(self, "_qt_vt_busy", False):
-            self.statusBar().showMessage("Still transcribing — one moment…")
+            self.statusBar().showMessage(tr("Still transcribing — one moment…"))
             self._qt_vt_sync_action()
             return
         if getattr(self, "_qt_vt_active", False):
@@ -399,7 +399,7 @@ class TranscriptionMixin:
 
     def _qt_voice_typing_start(self) -> None:
         if not self.doc:
-            self.statusBar().showMessage("Open a document before voice typing")
+            self.statusBar().showMessage(tr("Open a document before voice typing"))
             self._qt_vt_sync_action()
             return
         if not self._qt_require_optional_feature("transcribe", tr("Voice typing")):

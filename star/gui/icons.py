@@ -240,12 +240,6 @@ def _redo(p):
     _poly(p, [(18, 8), (12, 6), (13, 12)], fill=True)    # right arrowhead
 
 
-def _history(p):
-    p.drawEllipse(QRectF(4, 4, 14, 14))                  # clock face
-    p.drawLine(QPointF(11, 11), QPointF(11, 7))          # hour hand
-    p.drawLine(QPointF(11, 11), QPointF(14, 12))         # minute hand
-
-
 def _copy(p):
     p.drawRoundedRect(QRectF(5, 4, 8, 10), 1.2, 1.2)
     p.drawRoundedRect(QRectF(9, 8, 8, 10), 1.2, 1.2)
@@ -348,7 +342,7 @@ _GLYPHS = {
     "heading": _heading,
     "md_bullet_list": _md_bullet_list, "md_number_list": _md_number_list,
     "md_quote": _md_quote, "md_code": _md_code, "md_link": _md_link,
-    "md_rule": _md_rule, "undo": _undo, "redo": _redo, "history": _history,
+    "md_rule": _md_rule, "undo": _undo, "redo": _redo,
     "copy": _copy, "highlight": _highlight, "clear_highlight": _clear_highlight,
     "edit": _edit, "save": _save,
     "theme": _theme, "contents": _contents, "notes": _notes, "add_note": _add_note,

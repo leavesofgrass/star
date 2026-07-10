@@ -22,19 +22,12 @@ class AuthoringMixin:
 
     def _qt_new_document(self) -> None:
         """Create a blank document and drop into edit mode (File ▸ New)."""
-        if getattr(self, "_qt_edit_dirty", False):
-            try:
-                yes, no = QMessageBox.StandardButton.Yes, QMessageBox.StandardButton.No
-            except AttributeError:  # PyQt5
-                yes, no = QMessageBox.Yes, QMessageBox.No  # type: ignore[attr-defined]
-            ret = QMessageBox.question(
-                self,
-                tr("New Document"),
-                tr("Discard unsaved changes and start a new document?"),
-                yes | no,
-            )
-            if ret != yes:
-                return
+        # If we're mid-edit with unsaved changes, offer Save / Discard / Cancel
+        # (via the shared helper) — the same choice as Ctrl+E and opening another
+        # document, instead of a bespoke discard-or-abort prompt that could only
+        # throw the work away.
+        if not self._qt_confirm_leave_edit_for_replace():
+            return  # user cancelled
         # An in-memory doc with no path — never touches recents/library until
         # the first save (which assigns a real path); mirrors the translation /
         # transcription result docs.
