@@ -331,6 +331,19 @@ def test_voice_typing_menu_action_tracks_state(window):
     assert window._qt_vt_action.isChecked() is False
 
 
+def test_voice_typing_toolbar_button_exists_and_tracks_state(window):
+    """A visible, checkable toolbar button (for visual users) toggles its
+    highlight with the recording state, in lockstep with the menu item."""
+    tb = window._toolbar_actions.get("Voice Typing")
+    assert tb is not None and tb.isCheckable()
+    window._qt_vt_active = True
+    window._qt_vt_sync_action()
+    assert tb.isChecked() is True and window._qt_vt_action.isChecked() is True
+    window._qt_vt_active = False
+    window._qt_vt_sync_action()
+    assert tb.isChecked() is False
+
+
 def test_dictated_note_lands_on_the_dictated_doc_after_a_switch(window):
     """If the user opens a different document while Whisper runs, the note
     must be keyed to the document it was dictated on (captured at record

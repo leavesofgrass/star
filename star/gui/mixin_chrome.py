@@ -44,17 +44,23 @@ class ChromeMixin:
         except AttributeError:  # PyQt5
             tb.setToolButtonStyle(Qt.ToolButtonIconOnly)  # type: ignore[attr-defined]
 
-        def _act(label: str, icon: str, fn: Callable, tip: str = "") -> None:
+        def _act(
+            label: str, icon: str, fn: Callable, tip: str = "",
+            checkable: bool = False,
+        ) -> None:
             """Add one icon button to the toolbar.
 
             Toolbar buttons intentionally carry **no** keyboard shortcut:
             every command's shortcut lives on its menu action instead, so each
             shortcut is owned by exactly one QAction.  *icon* names a glyph in
             icons.make_icon; *label* is the accessible name; *tip* (with the
-            menu's binding) is the hover tooltip.
+            menu's binding) is the hover tooltip.  *checkable* makes it a
+            visible on/off toggle (the button stays highlighted while active).
             """
             a = QAction(make_icon(icon), tr(label), self)
             a.setToolTip(tr(tip) if tip else tr(label))
+            if checkable:
+                a.setCheckable(True)
             a.triggered.connect(fn)
             tb.addAction(a)
             # Key on the untranslated label so the tour can find a control by a
@@ -88,6 +94,16 @@ class ChromeMixin:
             "speech_cursor",
             lambda: self._qt_sc_exit() if self._qt_sc_mode else self._qt_sc_enter(),
             "Speech cursor mode — line-by-line reading (Tab)",
+        )
+        # Visible on/off toggle for dictating speech into the document — the
+        # button stays highlighted while it's listening (Ctrl+Alt+K on the menu).
+        _act(
+            "Voice Typing",
+            "microphone",
+            self._qt_voice_typing_toggle,
+            "Dictate into the document — click to start, click again to insert "
+            "(Ctrl+Alt+K)",
+            checkable=True,
         )
         tb.addSeparator()
         # ── Text ───────────────────────────────────────────

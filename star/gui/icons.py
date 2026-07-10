@@ -161,6 +161,13 @@ def _speech_cursor(p):
     p.drawEllipse(QPointF(16, 11), 2.2, 2.2)         # the reading dot
 
 
+def _microphone(p):
+    p.drawRoundedRect(QRectF(8, 3, 6, 9), 3, 3)          # mic capsule
+    p.drawArc(QRectF(5.5, 5, 11, 10), 180 * 16, -180 * 16)  # cradle (lower U)
+    p.drawLine(QPointF(11, 15), QPointF(11, 18))          # stand
+    p.drawLine(QPointF(8, 18), QPointF(14, 18))           # base
+
+
 def _copy(p):
     p.drawRoundedRect(QRectF(5, 4, 8, 10), 1.2, 1.2)
     p.drawRoundedRect(QRectF(9, 8, 8, 10), 1.2, 1.2)
@@ -258,7 +265,7 @@ _GLYPHS = {
     "next_paragraph": _nav(_u_paragraph, "next"),
     "prev_heading": _nav(_u_heading, "prev"),
     "next_heading": _nav(_u_heading, "next"),
-    "voice": _voice, "speech_cursor": _speech_cursor,
+    "voice": _voice, "speech_cursor": _speech_cursor, "microphone": _microphone,
     "copy": _copy, "highlight": _highlight, "clear_highlight": _clear_highlight,
     "edit": _edit, "save": _save,
     "theme": _theme, "contents": _contents, "notes": _notes, "add_note": _add_note,

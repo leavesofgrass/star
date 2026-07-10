@@ -508,11 +508,15 @@ class TranscriptionMixin:
         announce(self.editor, msg)
 
     def _qt_vt_sync_action(self) -> None:
-        """Reflect the on/off state in the checkable menu item."""
+        """Reflect the on/off state in both the menu item and the toolbar
+        button (a visible highlight while recording, for visual users)."""
+        active = bool(getattr(self, "_qt_vt_active", False))
         act = getattr(self, "_qt_vt_action", None)
-        if act is not None:
-            try:
-                act.setChecked(bool(getattr(self, "_qt_vt_active", False)))
-            except Exception:  # noqa: BLE001
-                pass
+        tb = getattr(self, "_toolbar_actions", {}).get("Voice Typing")
+        for a in (act, tb):
+            if a is not None:
+                try:
+                    a.setChecked(active)
+                except Exception:  # noqa: BLE001
+                    pass
 
