@@ -193,6 +193,11 @@ def _heading(p):
     _glyph_text(p, "H", 12)
 
 
+def _underline(p):
+    _glyph_text(p, "U", 11)                              # the letter
+    p.drawLine(QPointF(6, 18), QPointF(16, 18))          # underline bar
+
+
 def _md_bullet_list(p):
     for y in (6, 11, 16):
         p.drawEllipse(QPointF(5, y), 1.3, 1.3)           # bullet dots
@@ -323,7 +328,8 @@ _GLYPHS = {
     "prev_heading": _nav(_u_heading, "prev"),
     "next_heading": _nav(_u_heading, "next"),
     "voice": _voice, "speech_cursor": _speech_cursor, "microphone": _microphone,
-    "new_doc": _new_doc, "bold": _bold, "italic": _italic, "heading": _heading,
+    "new_doc": _new_doc, "bold": _bold, "italic": _italic, "underline": _underline,
+    "heading": _heading,
     "md_bullet_list": _md_bullet_list, "md_number_list": _md_number_list,
     "md_quote": _md_quote, "md_code": _md_code, "md_link": _md_link,
     "md_rule": _md_rule,

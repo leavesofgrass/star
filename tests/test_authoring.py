@@ -183,6 +183,21 @@ def test_italic_and_link_bindings_exist(window):
     assert len(_action_for_shortcut(window, "Ctrl+M")) == 1
 
 
+def test_underline_wraps_selection_in_html(window):
+    """Markdown has no native underline, so Ctrl+U wraps in <u></u> (inline
+    HTML, which Markdown renderers pass through)."""
+    _edit(window, "word")
+    cur = window.editor.textCursor()
+    cur.setPosition(0)
+    cur.setPosition(4, _KA())
+    window.editor.setTextCursor(cur)
+    acts = _action_for_shortcut(window, "Ctrl+U")
+    assert len(acts) == 1
+    acts[0].trigger()
+    assert window.editor.toPlainText() == "<u>word</u>"
+    assert "Underline" in window._edit_toolbar_actions
+
+
 def test_formatting_is_a_no_op_outside_edit_mode(window):
     # Read mode: the editor holds rendered HTML; formatting must not touch it.
     assert window._qt_edit_mode is False

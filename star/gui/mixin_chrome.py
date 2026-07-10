@@ -176,6 +176,9 @@ class ChromeMixin:
             "Bold — **text** (Ctrl+B)")
         _ea("Italic", "italic", lambda: self._qt_md_wrap("*", "*", "italic text"),
             "Italic — *text* (Ctrl+I)")
+        _ea("Underline", "underline",
+            lambda: self._qt_md_wrap("<u>", "</u>", "underlined text"),
+            "Underline — <u>text</u> (Ctrl+U)")
         _ea("Inline Code", "md_code", lambda: self._qt_md_wrap("`", "`", "code"),
             "Inline code — `code`")
         tb.addSeparator()
@@ -585,6 +588,9 @@ class ChromeMixin:
                  "Ctrl+B", "Wrap the selection in ** (bold)"),
                 ("Italic", lambda: self._qt_md_wrap("*", "*", "italic text"),
                  "Ctrl+I", "Wrap the selection in * (italic)"),
+                ("Underline",
+                 lambda: self._qt_md_wrap("<u>", "</u>", "underlined text"),
+                 "Ctrl+U", "Underline — <u>text</u> (Markdown uses inline HTML)"),
                 ("Inline Code", lambda: self._qt_md_wrap("`", "`", "code"),
                  "", "Wrap the selection in ` (inline code)"),
                 None,
