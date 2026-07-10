@@ -194,6 +194,11 @@ class EditNavMixin:
             return
         if save and not self._qt_persist_edits():
             return  # cancelled / write failed — stay in edit mode, keep the text
+        # Capture whether the content changed BEFORE teardown clears edit state:
+        # only a real change needs the (background) word-map rebuild, so a plain
+        # discard / clean finish never spawns the daemon thread that races Qt
+        # teardown (the exit-139 flake — see _qt_rebuild_word_maps_async).
+        maps_stale = getattr(self, "_qt_maps_stale", False)
         # Disconnect the dirty listener, detach the spell highlighter, reset the
         # edit flags, hide the toolbar/preview, and make the editor read-only.
         self._qt_teardown_edit_state()
@@ -204,13 +209,17 @@ class EditNavMixin:
         self._apply_block_spacing()
         self._qt_apply_user_highlights()
         # Now that the editor holds the *rendered* text, rebuild the read-view
-        # aids from it (the TOC / annotations / word + sentence maps map onto
-        # visible lines, so they can only be built here, not against the raw
-        # source).  Match _on_doc_loaded_impl so the read view is fully current.
+        # aids from it (the TOC / annotations map onto visible lines, so they can
+        # only be built here).  These are cheap and main-thread, so run always.
         self._qt_build_toc()
         self._qt_build_annotations()
         self._qt_refresh_vocab_highlight()
-        self._qt_rebuild_word_maps_async()
+        # The word + sentence maps only change when the text did — rebuild them
+        # (off the UI thread) only after an actual save, matching the pre-edit
+        # maps built at load time when nothing changed.
+        if maps_stale:
+            self._qt_rebuild_word_maps_async()
+            self._qt_maps_stale = False
         self.statusBar().showMessage("Read mode")
 
     def _qt_check_spelling(self) -> None:
@@ -353,6 +362,9 @@ class EditNavMixin:
             table_mode=str(self.settings.get("table_reading_mode", "structured")),
         )
         self._qt_edit_dirty = False
+        # The saved text differs from what the read-view maps were built against,
+        # so the next return to read mode must rebuild them.
+        self._qt_maps_stale = True
         # Adopt the chosen path after ANY Save-As — a brand-new document (File ▸
         # New, no path) OR a converted document whose source was a non-text file
         # (report.pdf → report.md).  Without this, doc.path stays the .pdf, so
@@ -380,10 +392,16 @@ class EditNavMixin:
         doc_ref = self.doc
 
         def _rebuild() -> None:
+            # Bail if the window is tearing down: skip the (potentially large)
+            # work rather than churn a daemon thread against a closing window.
+            if getattr(self, "_closing", False):
+                return
             try:
                 plain = doc_ref.plain_text or ""
                 flat = qt_plain.splitlines()
                 doc_ref.word_map = _build_word_map(plain, flat)
+                if getattr(self, "_closing", False):
+                    return
                 self.tts_manager.set_word_map(doc_ref.word_map)
                 self._build_qt_word_map(plain, qt_plain)
                 # Sentence map — same algorithm as _on_doc_loaded_impl's _build()

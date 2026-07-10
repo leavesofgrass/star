@@ -414,3 +414,66 @@ def test_converted_doc_save_as_adopts_path_no_reprompt(window, monkeypatch, tmp_
     window._qt_save()
     assert md.read_text(encoding="utf-8") == "# Report\n\nEdited twice.\n"
     assert calls["n"] == 1
+
+
+# ── Word-map rebuild gate (Qt-teardown flake hardening) ──────────────────────
+
+
+def test_word_map_rebuild_only_after_a_real_change(window, monkeypatch, tmp_path):
+    """The read-view word/sentence-map rebuild runs on a background thread that
+    races Qt teardown (the documented exit-139 flake). Gate it: it must fire only
+    when an edit was actually saved — never on a plain enter/finish or discard —
+    so the common no-change path spawns no daemon thread."""
+    calls = {"n": 0}
+    monkeypatch.setattr(
+        window, "_qt_rebuild_word_maps_async",
+        lambda: calls.__setitem__("n", calls["n"] + 1),
+    )
+
+    # (a) Enter edit mode and finish with NO change → no rebuild.
+    window._qt_enter_edit_mode()
+    window._qt_exit_edit_mode(save=False)
+    assert calls["n"] == 0
+    assert window._qt_maps_stale is False
+
+    # (b) Enter, edit, save (stays editing) → flag set, but no rebuild yet …
+    src = tmp_path / "n.md"
+    src.write_text("# Old\n", encoding="utf-8")
+    window.doc.path = str(src)
+    window._qt_enter_edit_mode()
+    window.editor.setPlainText("# New\n\nBody.\n")
+    window._qt_save()
+    assert calls["n"] == 0
+    assert window._qt_maps_stale is True
+    # … finishing rebuilds exactly once and clears the flag.
+    window._qt_exit_edit_mode(save=False)
+    assert calls["n"] == 1
+    assert window._qt_maps_stale is False
+
+
+def test_loading_a_document_clears_the_stale_maps_flag(window, tmp_path):
+    """A fresh load builds its own maps, so a stale flag from a prior edit must
+    not carry over (which would suppress the next legitimate rebuild)."""
+    from star.documents import Document
+
+    window._qt_maps_stale = True   # pretend a prior edit left it stale
+    window._pending_doc = Document(
+        path=str(tmp_path / "x.md"), title="X", markdown="# X\n", plain_text="X",
+    )
+    window._on_doc_loaded()
+    assert window._qt_maps_stale is False
+
+
+def test_word_map_worker_bails_when_window_is_closing(window):
+    """The rebuild worker must skip its work when the window is closing rather
+    than churn a daemon thread against a teardown-in-progress. With _closing set,
+    calling the rebuild leaves the maps untouched."""
+    window._qt_enter_edit_mode()
+    window.editor.setPlainText("# H\n\nsome words here\n")
+    sentinel = ["untouched"]
+    window._qt_word_map = sentinel
+    window._closing = True
+    window._qt_rebuild_word_maps_async()   # spawns a thread that must early-return
+    import time as _t
+    _t.sleep(0.2)                           # give any (wrongly-spawned) work time
+    assert window._qt_word_map is sentinel  # worker bailed, nothing rebuilt

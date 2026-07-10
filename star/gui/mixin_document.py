@@ -133,6 +133,9 @@ class DocumentMixin:
         # transcription results) and must run before the setHtml below so the
         # dirty listener can't fire on the new document.
         self._qt_teardown_edit_state()
+        # A fresh document builds its own word/sentence maps below, so nothing is
+        # carried over as "stale from an edit" (the exit-path rebuild gate).
+        self._qt_maps_stale = False
         # Disarm auto-play up front: if a previous load armed it and THIS load
         # turns out to be an error page (or the welcome doc), a still-pending
         # flag must not read a traceback aloud when the restore signal lands.

@@ -584,6 +584,11 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         # Edit mode state.  False = read-only (normal), True = editable.
         self._qt_edit_mode: bool = False
         self._qt_edit_dirty: bool = False  # unsaved changes in edit mode
+        # True once an edit is persisted, so the read-view word/sentence maps are
+        # out of date and must be rebuilt on exit.  Gating the background rebuild
+        # on this (instead of rebuilding on every exit) keeps the daemon-thread
+        # churn — the Qt-teardown flake's trigger — off the common no-change path.
+        self._qt_maps_stale: bool = False
         # Spell-check syntax highlighter, attached only while editing and
         # only when pyspellchecker (and a Qt QSyntaxHighlighter) is present.
         self._spell_highlighter = None
