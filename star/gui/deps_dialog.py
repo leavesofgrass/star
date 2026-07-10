@@ -29,6 +29,15 @@ class DependencyChooser(QDialog):
         self._win = window
         self.setWindowTitle(tr("star — Optional Features"))
         self.resize(600, 560)
+        # Never open taller than the screen — on a 1080p laptop (or smaller)
+        # the window manager would otherwise push the Install/Not-now buttons
+        # off the bottom.  The feature list + system tools scroll instead.
+        scr = QApplication.primaryScreen()
+        if scr is not None:
+            avail_h = scr.availableGeometry().height()
+            self.setMaximumHeight(avail_h)
+            if self.height() > avail_h - 80:
+                self.resize(self.width(), max(360, avail_h - 80))
         self._boxes: dict[str, QCheckBox] = {}
         self._build()
 
@@ -115,14 +124,16 @@ class DependencyChooser(QDialog):
             self._boxes[key] = cb
             col.addWidget(cb)
             col.addWidget(sub)
+        # The native-tools status list lives INSIDE the scroll area too, so the
+        # dialog stays short on a 1080p (or smaller) screen — otherwise this
+        # section rendered below the scroll and pushed the buttons off-screen.
+        self._build_system_tools(col)
         col.addStretch(1)
         scroll = QScrollArea(self)
         scroll.setWidgetResizable(True)
         scroll.setWidget(inner)
         scroll.setAccessibleName(tr("Optional features"))
         root.addWidget(scroll, 1)
-
-        self._build_system_tools(root)
 
         actions = QHBoxLayout()
         actions.addStretch(1)
@@ -219,7 +230,9 @@ class DependencyChooser(QDialog):
     def _build_system_tools(self, root) -> None:
         """Append a read-only status list of native (non-pip) tools.
 
-        These are separate downloads star cannot install for you (OCR, markup,
+        *root* is the scroll area's inner layout, so these rows scroll with the
+        feature list rather than adding fixed height to the dialog.  These are
+        separate downloads star cannot install for you (OCR, markup,
         audio/video, graph layout, TTS engines). They are *status rows*, never
         checkboxes, and are deliberately kept out of ``self._boxes``.
         """

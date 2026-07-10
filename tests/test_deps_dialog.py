@@ -88,3 +88,30 @@ def test_installed_features_checked_and_disabled(chooser):
         if autodeps.feature_installed(key):
             assert cb.isChecked(), f"installed feature {key!r} not checked"
             assert not cb.isEnabled(), f"installed feature {key!r} not disabled"
+
+
+def test_system_tools_live_inside_the_scroll_area(chooser):
+    """The native-tools status list must be inside the scrollable region (not
+    below it), or it pushes the Install/Not-now buttons off a 1080p screen.
+    Guard: the scroll area's inner widget contains the system-tool rows."""
+    dlg, _win = chooser
+    assert dlg._sys_rows, "no system-tool rows built"
+    # Every system-tool row's ancestry must pass through a QScrollArea.
+    from PyQt6.QtWidgets import QScrollArea
+
+    for key, row in dlg._sys_rows.items():
+        w = row.parent()
+        while w is not None and not isinstance(w, QScrollArea):
+            w = w.parent()
+        assert w is not None, f"system-tool row {key!r} is not inside a scroll area"
+
+
+def test_dialog_is_capped_to_the_screen_height(chooser):
+    """The dialog never opens taller than the available screen (1080p-safe)."""
+    from PyQt6.QtWidgets import QApplication
+
+    dlg, _win = chooser
+    scr = QApplication.primaryScreen()
+    if scr is not None:
+        assert dlg.height() <= scr.availableGeometry().height()
+        assert dlg.maximumHeight() <= scr.availableGeometry().height()

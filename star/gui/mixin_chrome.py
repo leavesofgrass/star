@@ -173,9 +173,9 @@ class ChromeMixin:
             self._edit_toolbar_actions[label] = a
 
         _ea("Bold", "bold", lambda: self._qt_md_wrap("**", "**", "bold text"),
-            "Bold — wrap the selection in **")
+            "Bold — **text** (Ctrl+B)")
         _ea("Italic", "italic", lambda: self._qt_md_wrap("*", "*", "italic text"),
-            "Italic — wrap the selection in *")
+            "Italic — *text* (Ctrl+I)")
         _ea("Inline Code", "md_code", lambda: self._qt_md_wrap("`", "`", "code"),
             "Inline code — `code`")
         tb.addSeparator()
@@ -189,7 +189,8 @@ class ChromeMixin:
         _ea("Quote", "md_quote", lambda: self._qt_md_line_prefix("> "),
             "Block quote — > ")
         tb.addSeparator()
-        _ea("Link", "md_link", self._qt_md_link, "Insert a link — [text](url)")
+        _ea("Link", "md_link", self._qt_md_link,
+            "Insert a link — [text](url) (Ctrl+K)")
         _ea("Horizontal Rule", "md_rule", self._qt_md_insert_rule,
             "Insert a horizontal rule — ---")
         # Hidden until editing; if a language switch rebuilt it mid-edit, keep
@@ -559,18 +560,48 @@ class ChromeMixin:
         )
 
         # Bookmarks menu — named positions per document + a jump list.
-        # Add Bookmark owns Ctrl+B; the named-add and the list dialog carry no
-        # shortcut of their own (they are reachable via the menu and the command
-        # palette) so every binding stays owned by exactly one QAction.
+        # Add Bookmark owns Ctrl+M ("Mark"); Ctrl+B is the standard Bold binding
+        # in the Format menu.  The named-add and list dialog carry no shortcut
+        # of their own so every binding stays owned by exactly one QAction.
         _menu(
             "Bookmarks",
             [
-                ("Add Bookmark", self._qt_bookmark_add, "Ctrl+B",
+                ("Add Bookmark", self._qt_bookmark_add, "Ctrl+M",
                  "Mark the current position in this document"),
                 ("Add Named Bookmark…", self._qt_bookmark_add_named, "",
                  "Bookmark the current position under a name you choose"),
                 ("Bookmarks…", self._qt_bookmarks_dialog, "",
                  "Jump to any saved bookmark"),
+            ],
+        )
+
+        # Format menu — Markdown authoring commands (also on the edit-mode
+        # toolbar).  Bold/Italic/Link carry the standard editor bindings; the
+        # commands no-op with a hint outside edit mode.
+        _menu(
+            "F&ormat",
+            [
+                ("Bold", lambda: self._qt_md_wrap("**", "**", "bold text"),
+                 "Ctrl+B", "Wrap the selection in ** (bold)"),
+                ("Italic", lambda: self._qt_md_wrap("*", "*", "italic text"),
+                 "Ctrl+I", "Wrap the selection in * (italic)"),
+                ("Inline Code", lambda: self._qt_md_wrap("`", "`", "code"),
+                 "", "Wrap the selection in ` (inline code)"),
+                None,
+                ("Heading", lambda: self._qt_md_line_prefix("# "),
+                 "", "Prefix the line with # (heading)"),
+                ("Bullet List", lambda: self._qt_md_line_prefix("- "),
+                 "", "Prefix the selected lines with - "),
+                ("Numbered List",
+                 lambda: self._qt_md_line_prefix("", numbered=True),
+                 "", "Number the selected lines 1., 2., …"),
+                ("Block Quote", lambda: self._qt_md_line_prefix("> "),
+                 "", "Prefix the selected lines with > "),
+                None,
+                ("Insert Link", self._qt_md_link, "Ctrl+K",
+                 "Insert a Markdown link — [text](url)"),
+                ("Horizontal Rule", self._qt_md_insert_rule, "",
+                 "Insert a horizontal rule (---)"),
             ],
         )
 

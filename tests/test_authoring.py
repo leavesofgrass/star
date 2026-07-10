@@ -155,6 +155,34 @@ def test_horizontal_rule_inserts_a_rule(window):
     assert window.editor.toPlainText() == "above\n---\n"
 
 
+def _action_for_shortcut(window, key):
+    from PyQt6.QtGui import QAction, QKeySequence
+
+    seq = QKeySequence(key)
+    return [a for a in window.findChildren(QAction) if a.shortcut() == seq]
+
+
+def test_bold_binding_ctrl_b_is_owned_by_format_not_bookmark(window):
+    """True keyboard formatting: Ctrl+B triggers Bold (exactly one owner — the
+    old Add Bookmark binding was moved to Ctrl+M)."""
+    _edit(window, "word")
+    cur = window.editor.textCursor()
+    cur.setPosition(0)
+    cur.setPosition(4, _KA())
+    window.editor.setTextCursor(cur)
+    acts = _action_for_shortcut(window, "Ctrl+B")
+    assert len(acts) == 1                       # unambiguous single owner
+    acts[0].trigger()
+    assert window.editor.toPlainText() == "**word**"
+
+
+def test_italic_and_link_bindings_exist(window):
+    assert len(_action_for_shortcut(window, "Ctrl+I")) == 1
+    assert len(_action_for_shortcut(window, "Ctrl+K")) == 1
+    # Bookmark relocated to Ctrl+M.
+    assert len(_action_for_shortcut(window, "Ctrl+M")) == 1
+
+
 def test_formatting_is_a_no_op_outside_edit_mode(window):
     # Read mode: the editor holds rendered HTML; formatting must not touch it.
     assert window._qt_edit_mode is False
