@@ -1,24 +1,25 @@
 # 🏗️ Building a Portable Windows Binary
 
-> ## ⚠️ Deprecated — manual fallback only
+> ## ℹ️ Two supported Windows artifacts
 >
-> **The pure-Python wheel is star's primary, stable distribution artifact.** Most
-> users should install from PyPI:
+> **The pure-Python wheel is star's primary PyPI artifact.** Users who already
+> have Python install it from PyPI:
 >
 > ```bash
 > pipx install star-reader      # or: pip install star-reader
 > ```
 >
-> and maintainers should ship releases via the wheel + sdist that `python -m build`
-> produces (CI publishes these to PyPI automatically). See
-> [Building the cross-platform wheel](#building-the-cross-platform-wheel-recommended).
+> and CI publishes the wheel + sdist that `python -m build` produces to PyPI
+> automatically. See [Building the cross-platform wheel](#building-the-cross-platform-wheel-recommended).
 >
-> The self-contained `star.exe` described below is **deprecated**: CI no longer
-> builds it on tag pushes and it is no longer attached to GitHub Releases. The
-> build path is retained only for maintainers who specifically need a single-file
-> Windows binary, and it now requires an explicit opt-in
-> (`tools/build-windows.ps1 -AllowDeprecatedExe`, or `STAR_ALLOW_EXE=1`). Prefer
-> the wheel unless you have a hard requirement for a no-Python-install binary.
+> The self-contained `star.exe` described below is a **supported release
+> artifact**: since 0.1.22 the Release workflow builds it on every `v*` tag and
+> attaches `star-<version>-windows-x64.exe` to the GitHub Release (alongside the
+> Linux AppImage) for the many students who can't install Python. The public exe
+> is built with `tools/build-vendor.py --no-dectalk`, so it deliberately omits the
+> commercial DECtalk voice. The local `tools/build-windows.ps1` build still
+> requires an explicit opt-in (`-AllowDeprecatedExe`, or `STAR_ALLOW_EXE=1`) —
+> which the CI job supplies for you.
 
 This guide produces a **single, self-contained `star.exe`** that runs on Windows
 machines with **no Python and no dependencies installed** — ideal for demoing
@@ -75,9 +76,12 @@ model) so users get it out of the box. For a fast, small build without it, pass
   binary size — see [Dictation](#out-of-the-box-dictation-whisper).
 - **Bundled study & writing aids:** `sumy` (with NLTK's `punkt` tokenizer data
   staged under `build/nltk_data`) for **Tools → Summarize Document**, `genanki`
-  for **File → Export → Anki Flashcards**, and `pyspellchecker` for edit-mode
-  spell checking (**Edit → Check Spelling**). All three, and the data they
-  need, are bundled so the features work offline with no extra install.
+  for **File → Export → Anki Flashcards**, `pyspellchecker` for edit-mode
+  spell checking (**Edit → Check Spelling**), `deep-translator` for **Tools →
+  Translate**, `feedparser` for RSS/Atom feeds, `wordfreq` for the
+  difficult-word overlay, and `pyphen` for Syllable Splitting. All of these,
+  and the data they need, are bundled so the features work offline with no
+  extra install.
 - **Bundled native engines** (when `vendor/` is present — see below):
   - **ffmpeg** → MP3 / OGG / MP4 audio export
   - **Tesseract** + English language data → OCR of images and scanned PDFs
@@ -86,6 +90,9 @@ model) so users get it out of the box. For a fast, small build without it, pass
     AsciiDoc, Textile, LaTeX, legacy `.doc`, …)
   - **DECtalk** → `DECtalk.dll` + dictionary for the classic DECtalk voice,
     driven in-process via ctypes (no separate CLI required)
+  - **eSpeak-NG** → `libespeak-ng.dll` + `espeak-ng-data`, driven in-process
+    via ctypes for audio-position-tagged word events (keeps the reading
+    highlight in sync with playback)
 
   At runtime `star`'s `_vendor_dir()` finds these under `sys._MEIPASS`; each
   lookup falls back to a system install if the bundled copy is missing, so a
@@ -127,8 +134,9 @@ mirrors into the bundle. The `build-vendor.py` helper downloads and assembles
 it for you:
 
 ```powershell
-python build-vendor.py          # fetch anything missing
-python build-vendor.py --force  # re-download everything
+python build-vendor.py               # fetch anything missing
+python build-vendor.py --force       # re-download everything
+python build-vendor.py --no-dectalk  # omit DECtalk — REQUIRED for public-release exes
 ```
 
 It produces (~450 MB):
@@ -146,6 +154,9 @@ vendor/
   dectalk/                          # dectalk 2023-10-30 (vs2022 build)
     amd64/DECtalk.dll + dtalk_us.dic  #   64-bit engine + dictionary
     ia32/DECtalk.dll  + dtalk_us.dic  #   32-bit engine + dictionary
+  espeak-ng/
+    libespeak-ng.dll                # espeak-ng 1.52.0 (win64)
+    espeak-ng-data/                 #   voice + phoneme data
 ```
 
 > **DECtalk note.** star drives DECtalk **in-process** through `DECtalk.dll`
@@ -204,6 +215,9 @@ powershell -ExecutionPolicy Bypass -File build-windows.ps1 -UseCurrentEnv -SkipI
 
 ```powershell
 python -m pip install pyinstaller PyQt6 pyttsx3 comtypes pdfminer.six python-docx python-pptx openpyxl odfpy windows-curses
+# star.spec's copy_metadata("star-reader") needs star's dist-info in the build
+# env, or the frozen app discovers zero TTS backends (a reader that can't speak):
+python -m pip install --no-deps .
 python -m PyInstaller --clean --noconfirm star.spec
 ```
 
@@ -348,15 +362,14 @@ python -m build --wheel                    # writes dist/star_reader-<version>-p
 Install the resulting single file anywhere:
 
 ```bash
-pip install dist/star_reader-0.1.12-py3-none-any.whl          # recommended deps
-pip install "dist/star_reader-0.1.12-py3-none-any.whl[all]"    # every optional feature
+pip install dist/star_reader-0.1.23-py3-none-any.whl          # recommended deps
+pip install "dist/star_reader-0.1.23-py3-none-any.whl[all]"    # every optional feature
 ```
 
 The wheel provides a `star` console command and `python -m star`. Packaging is
-defined by [`pyproject.toml`](pyproject.toml); the package itself is produced
-from the monolithic `star.py` by [`tools/split_star.py`](tools/split_star.py),
-so regenerate the `star/` package (and bundled help docs) before building if
-`star.py` changed.
+defined by [`pyproject.toml`](pyproject.toml); the `star/` package is the
+maintained source tree (there is no longer a monolithic `star.py`, and nothing
+to regenerate before building).
 
 **Native engines for the wheel.** The wheel covers only the Python side. The
 native engines (ffmpeg, Tesseract, liblouis, Pandoc, eSpeak-NG) are not Python

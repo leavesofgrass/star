@@ -9,7 +9,7 @@ dialogs, and flags any control that is reachable only by mouse.
 Scope: the Qt GUI (`star/gui/`). The curses TUI has its own key model — the
 arrow keys move a reading caret, `Enter` (or `Ctrl+Space`) reads aloud from
 it, and `Ctrl+X` / `Esc` stop — documented under **Caret navigation (TUI)**
-in [usage_guide.md](usage_guide.md). Verified against v0.1.22.
+in [usage_guide.md](usage_guide.md). Verified against v0.1.23 (0.1.24-dev on main).
 
 Legend: **[A]** = WCAG 2.1.1 Keyboard · **[F]** = WCAG 2.4.3 Focus Order ·
 ✅ pass · ⚠ recommendation (out of the accessibility-work file scope) ·
@@ -30,6 +30,7 @@ survive a UI-language switch. Source: `star/gui/mixin_chrome.py`.
 
 | Shortcut | Command |
 |---|---|
+| `Ctrl+N` | New — blank document, opens in edit mode |
 | `Ctrl+O` | Open… |
 | `Ctrl+Shift+M` | Open Feed… |
 | `Ctrl+Shift+O` | Open URL… |
@@ -90,8 +91,25 @@ survive a UI-language switch. Source: `star/gui/mixin_chrome.py`.
 | `Ctrl+C` | Copy |
 | `Ctrl+E` | Toggle Edit Mode |
 | `Ctrl+S` | Save |
-| `F7` | Check Spelling |
-| `Ctrl+,` | Preferences… (tabbed settings: Reading / Voice / Display / General) |
+| `Ctrl+Z` | Undo (editor-scoped) |
+| `Ctrl+Y` | Redo (editor-scoped) |
+| *(no shortcut)* | Check Spelling — menu-only; F7 is View ▸ Caret Browsing (an ambiguous binding would fire neither) |
+| `Ctrl+,` | Preferences… (six tabs: Reading / Reading Aids / Voice / Display / Fonts / General) |
+
+### Format (Markdown authoring — edit mode)
+
+| Shortcut | Command |
+|---|---|
+| `Ctrl+B` | Bold — wraps `**text**` |
+| `Ctrl+I` | Italic — wraps `*text*` |
+| `Ctrl+U` | Underline — wraps `<u>text</u>` |
+| `Ctrl+K` | Insert Link — `[text](url)` |
+| *(no shortcut)* | Inline Code, Heading, Bullet List, Numbered List, Block Quote, Horizontal Rule |
+
+These commands no-op with a hint outside edit mode and mirror the edit-mode
+Markdown toolbar (`_build_edit_toolbar`). Undo/Redo also appear on this menu but
+are menu-only here — their shortcut owners are the editor-scoped `Ctrl+Z` /
+`Ctrl+Y` listed under Edit.
 
 ### Highlight / Notes / Bookmarks
 
@@ -104,7 +122,7 @@ survive a UI-language switch. Source: `star/gui/mixin_chrome.py`.
 | `Ctrl+Shift+D` | Delete Selected Note |
 | `Ctrl+Shift+N` | Toggle Notes Panel |
 | `Ctrl+Alt+N` | Export Notes… |
-| `Ctrl+B` | Add Bookmark |
+| `Ctrl+M` | Add Bookmark (moved from Ctrl+B, which is now Bold) |
 
 ### Citations / Graph
 
@@ -148,15 +166,17 @@ The Karaoke Highlight…, Reading Ruler…, and RSVP Position… settings dialog
 left this menu when their settings were centralized in **Edit ▸ Preferences…
 (Ctrl+,)**; the live-tuning dialogs remain reachable from the Command Palette
 (F2) as **Tune Karaoke Highlight… / Tune Reading Ruler… / Tune RSVP
-Position…**. `Ctrl+Alt+K` is now unbound in the Qt GUI (the TUI keeps its own
-`Ctrl+Alt+K` karaoke binding).
+Position…**. `Ctrl+Alt+K` is now bound to **Tools ▸ Voice Typing** in the Qt GUI
+(dictate speech into the document at the cursor — see the Tools table); the TUI
+keeps its own `Ctrl+Alt+K` karaoke binding.
 
 ### Tools / Profiles / Help
 
 | Shortcut | Command |
 |---|---|
 | `Ctrl+Alt+S` | Transcribe Audio File… |
-| `Ctrl+Alt+V` | Dictate Note (record)… |
+| `Ctrl+Alt+V` | Dictate Note (record)… — files a separate annotation |
+| `Ctrl+Alt+K` | Voice Typing — insert dictated speech into the document at the cursor |
 | `Ctrl+Alt+Z` | Toggle Transcript Timestamps |
 | `Ctrl+Shift+U` | Summarize Document… |
 | `Ctrl+Shift+X` | Translate Document… |

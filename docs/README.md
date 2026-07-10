@@ -14,13 +14,17 @@ the project introduction and quick install, see the root
 | [Karaoke Video Export](video-export.md) | Produce a sentence-synchronized karaoke MP4 video from any document |
 | [Configuration](configuration.md) | Every `settings.json` key and its default |
 | [Architecture & Contributing](architecture.md) | Package layout, the `star/gui/` package, distribution artifacts, contributing, and the test suite |
+| [Developing Plugins](plugins-developing.md) | Writing entry-point plugins that add a TTS voice engine, a new document format, or an export target — the plugin API contract, packaging as a pip distribution, and a copy-me template |
+| [Performance & Large Documents](PERFORMANCE.md) | Runtime hot paths, word-map and pagination optimizations for large documents, and how to reproduce the measurements |
+| [Keyboard & Focus Audit](KEYBOARD_AUDIT.md) | Every Qt-GUI shortcut, the tab/focus order through window/docks/dialogs, and WCAG 2.1.1 / 2.4.3 conformance notes |
 
 Maintainer-only:
 
 | Document | What's in it |
 |---|---|
 | [Releasing](RELEASING.md) | The release runbook (tagging, CI, PyPI publishing) |
+| [Packaging & Distribution](PACKAGING.md) | Every way star is packaged and shipped — wheel/sdist, the `.pyz`, GPG signatures, and the optional native Windows/macOS/Linux installer jobs |
 
 Also bundled with the package: [`star/CHANGELOG.md`](../star/CHANGELOG.md) (full
 change history) and [`star/BUILD.md`](../star/BUILD.md) (building the wheel and the
-deprecated Windows `star.exe`).
+self-contained Windows `star.exe`).

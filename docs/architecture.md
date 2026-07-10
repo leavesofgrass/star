@@ -73,10 +73,12 @@ subsequently lifted out of the closure and split into focused responsibility
 | `star/gui/mixin_navigation/` | **`NavigationMixin`** — core keyboard navigation, split into a behaviour-identical **package** (`_core`, `_editing`, `_position`, `_speechcursor`); the public API is unchanged. |
 | `star/gui/mixin_doctools.py` | **`DocToolsMixin`** — document tools & sources (reading statistics, summarize, define word, translate, open feed, folder-as-library / bookshelf), split out of `mixin_navigation/` so `NavigationMixin` keeps just core keyboard navigation. |
 | `star/gui/mixin_find.py` | **`FindMixin`** — the in-document Find bar (Ctrl+F): incremental substring matching, next/prev (F3), a live counter, case toggle, wrap-around, and highlight-all via `QTextEdit.ExtraSelection`. Reuses `star.search.SearchEngine`'s plain-text semantics. |
-| `star/gui/mixin_bookmarks_qt.py` | **`BookmarksQtMixin`** — named bookmarks (Ctrl+B) + back/forward navigation history (Alt+←/→), ported from the TUI `mixin_bookmarks.py` and sharing the same `settings['bookmarks']` schema so a mark set in one UI shows in the other. |
+| `star/gui/mixin_bookmarks_qt.py` | **`BookmarksQtMixin`** — named bookmarks (Ctrl+M) + back/forward navigation history (Alt+←/→), ported from the TUI `mixin_bookmarks.py` and sharing the same `settings['bookmarks']` schema so a mark set in one UI shows in the other. |
 | `star/gui/mixin_voices.py` | **`VoicesMixin`** — the rich **Voice Manager** dialog (F4): lists active-backend voices *and* the downloadable Piper catalog, filters live, previews, sets, keeps a favorites list, and offers one-click Piper download (via `star/tts/piper_models.py`). |
 | `star/gui/mixin_review.py` | **`ReviewMixin`** — the in-app spaced-repetition **review dashboard** (Study ▸ Review Due Cards…): a keyboard-first, accessible walk through cards due today, grading each 1–4 and updating its `sr_state` via the pure scheduler in `star/sr.py` (through `star/annotations.py`). |
 | `star/gui/mixin_tour.py` | **`TourMixin`** — an optional, skippable first-run **guided tour** (Shift+F1): a floating, non-modal, keyboard-navigable popover walking a new user through the key controls; shown once (gated by the `tour_seen` setting) and each step announced to screen readers via `a11y.announce`. |
+| `star/gui/mixin_authoring.py` | **`AuthoringMixin`** — document **creation** & Markdown authoring: File ▸ New (Ctrl+N) opens a blank document straight into edit mode, and the `_qt_md_*` helpers back the edit-mode Markdown formatting toolbar / Format menu (bold, italic, underline, inline code, heading, bullet/numbered list, quote, link, horizontal rule) plus the Ctrl+B/I/U/K formatting shortcuts. No-ops outside edit mode. |
+| `star/gui/mixin_history.py` | **`HistoryMixin`** — editor **undo/redo** (Edit and Format menus, edit-mode toolbar, editor context menu; editor-scoped Ctrl+Z / Ctrl+Y) plus a copyable, timestamped **Command History** log (Help ▸ Command History…) that records every menu/toolbar command and surfaced errors for troubleshooting. |
 | `star/gui/mixin_*.py` | The other `StarWindow` mixins, grouped by responsibility (playback, navigation, export, annotations, citations, graph, display, …); each is a mixin that `StarWindow` inherits. |
 | `star/gui/a11y.py` | Screen-reader **live-region** announcements: a single defensive `announce()` wrapping `QAccessible.updateAccessibility` with an `Announcement` event (the Qt equivalent of an ARIA live region), so a blind user *hears* state changes. A no-op when the accessibility bridge is absent and it never raises; unlike the mixins it imports Qt lazily *inside* the helper, so `import star.gui.a11y` is safe with PyQt absent. |
 | `star/gui/_qtcompat.py` | Shared PyQt5/PyQt6 enum-compatibility constants. |
@@ -171,7 +173,7 @@ no longer lands in one giant class:
 |---|---|
 | `star/tui/__init__.py` | Re-export shim: exposes `StarApp`, `THEMES`, `THEME_NAMES` so `from star.tui import StarApp` (used by `star/app.py` and the tests) keeps working unchanged. |
 | `star/tui/app.py` | `StarApp` — the core: `__init__`, the main `run()` loop, color setup, and `notify`. It inherits the mixins below as base classes. |
-| `star/tui/mixin_*.py` | `StarApp`'s methods grouped by responsibility — `document`, `playback`, `navigation`, `speechcursor`, `bookmarks`, `search`, `voice`, `export`, `display`, `commands`, `graph`, `help`, `docops`, `rsvp`, `annotations`, `keys`, `draw` — each a mixin that `StarApp` inherits. |
+| `star/tui/mixin_*.py` | `StarApp`'s methods grouped by responsibility — `document`, `playback`, `navigation`, `speechcursor`, `bookmarks`, `search`, `voice`, `export`, `display`, `commands`, `graph`, `help`, `docops`, `rsvp`, `annotations`, `transcription`, `caret`, `keys`, `draw` — each a mixin that `StarApp` inherits. |
 | `star/tui/theming.py` | Color-pair roles, the `THEMES` table, and `_setup_colors()`. |
 | `star/tui/_screen.py` | Low-level curses draw primitives (`_addstr`, `_fillrow`, `_fillrow_range`). |
 | `star/tui/text.py` | Static text/data: the M-x command table, the keyboard-shortcut data + renderer, and the embedded help-pager text. |
@@ -186,13 +188,15 @@ position tables live on `RsvpMixin` and remain reachable as `StarApp._RSVP_*`.
 
 | Artifact | How it's built | Status |
 |---|---|---|
-| **Wheel + sdist** (`star_reader-<version>-py3-none-any.whl`) | `python -m build`; published to PyPI by CI | **Primary, stable — the only automated release artifact** |
+| **Wheel + sdist** (`star_reader-<version>-py3-none-any.whl`) | `python -m build`; published to PyPI by CI | **Primary, stable** — the pure-Python artifact; published to PyPI and attached to the GitHub Release |
 | **`star.pyz`** (fat zipapp) | `python build_zipapp.py`; bundles `[all]` extras; platform-specific | Build-it-yourself (not built by CI, not attached to releases) |
-| **`star.exe`** (PyInstaller, Windows) | `tools/build-windows.ps1 -AllowDeprecatedExe` | **Deprecated** manual fallback (not built by CI, not attached to releases) |
+| **`star.exe`** (PyInstaller, Windows — `star-<version>-windows-x64.exe`) | CI `windows-exe` job on every `v*` tag (`STAR_ALLOW_EXE=1 ./tools/build-windows.ps1 -Ocr`); locally `tools/build-windows.ps1 -AllowDeprecatedExe` | **Supported release artifact** — self-contained (Python + PyQt6 + document loaders + offline dictation + vendored native tools; DECtalk excluded), built on every tag and attached to the GitHub Release |
+| **`star.AppImage`** (Linux) | CI `linux-appimage` job (`tools/build-appimage.sh`) on every `v*` tag | **Supported release artifact** — self-contained Linux binary, attached to the GitHub Release (default since 0.1.22) |
 
-The automated release builds and publishes **only the wheel + sdist** (to PyPI,
-plus attached to the GitHub Release). The `.pyz` and `.exe` are build-it-yourself
-artifacts — see [Installation](installation.md#single-file-build-starpyz) and
+The automated release publishes the **wheel + sdist** to PyPI and attaches them to
+the GitHub Release, alongside the **Linux AppImage** and the self-contained Windows
+`star.exe` (both built on every `v*` tag). Only the `.pyz` is build-it-yourself —
+see [Installation](installation.md#single-file-build-starpyz) and
 [`star/BUILD.md`](../star/BUILD.md). The wheel is pure Python (`py3-none-any`) so
 one build serves macOS, Linux, and Windows.
 
@@ -209,7 +213,7 @@ one build serves macOS, Linux, and Windows.
 | [`docs/configuration.md`](configuration.md) | Every `settings.json` key |
 | [`docs/architecture.md`](architecture.md) | This file |
 | [`star/CHANGELOG.md`](../star/CHANGELOG.md) | Full record of changes |
-| [`star/BUILD.md`](../star/BUILD.md) | Building the wheel (primary) and the deprecated `star.exe` |
+| [`star/BUILD.md`](../star/BUILD.md) | Building the wheel (primary) and the self-contained `star.exe` |
 | [`docs/RELEASING.md`](RELEASING.md) | Maintainer release runbook |
 | [`pyproject.toml`](../pyproject.toml) | Wheel packaging metadata (`star` console command, dependency extras) |
 

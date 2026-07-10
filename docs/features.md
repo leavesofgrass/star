@@ -69,7 +69,7 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 | Citation manager | Import/export BibTeX, RIS, and CSL-JSON; link citations to notes |
 | Knowledge graph | Link annotations across documents with typed relations; extract concepts; interactive graph view; export to SVG / PlantUML / DOT / JSON |
 | Obsidian vaults | Import an Obsidian vault (notes + `[[wikilinks]]` + tags) into the knowledge graph, and export the graph back as linked Markdown notes |
-| Voice dictation & transcription | Transcribe audio files and dictate notes by voice via Whisper (optional) |
+| Voice dictation & transcription | Transcribe audio files, dictate notes, and dictate straight into the document (**Voice Typing**, `Ctrl+Alt+K`) by voice via Whisper (optional) |
 | Table of Contents panel | Auto-built from document headings in Qt mode; click any entry to jump there |
 | EPUB NCX / NAV navigation | Parses EPUB 2 NCX and EPUB 3 NAV documents for chapter-level navigation |
 | Async document loading | Documents load in a background thread — the UI never freezes |
@@ -83,8 +83,11 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 | Footnote handling | Markdown / Pandoc footnotes can be read inline, deferred, or skipped |
 | PDF reading order | Multi-column PDFs read column-by-column, top-to-bottom; running headers/footers and page numbers suppressed (toggle: `pdf_reading_order`) |
 | Speed presets | Named presets (skim/normal/study/slow) switchable at runtime |
-| Bookmarks / history | Named per-document bookmarks (`Ctrl+B`) and back/forward navigation history (`Alt+←/→`), in both the Qt GUI and the TUI |
+| Bookmarks / history | Named per-document bookmarks (`Ctrl+M`) and back/forward navigation history (`Alt+←/→`), in both the Qt GUI and the TUI |
 | Document editing | `Ctrl+E` toggles raw-Markdown edit mode; `Ctrl+S` saves back to the original file |
+| Document authoring | Create a new blank document (**File ▸ New**, `Ctrl+N`, or the New toolbar button); first save prompts for a location |
+| Markdown formatting | Edit-mode formatting toolbar and a **Format** menu — Bold (`Ctrl+B`), Italic (`Ctrl+I`), Underline (`Ctrl+U`), inline code, headings, lists, block quote, link (`Ctrl+K`), horizontal rule — with editor Undo (`Ctrl+Z`) / Redo (`Ctrl+Y`) |
+| Command history | **Help ▸ Command History…** — a copyable, timestamped log of commands and errors for troubleshooting |
 | Archive ingestion | Open ZIP, TAR, .7z, and .rar archives; browse members; load any member by format; archive refs persisted in library and annotations |
 | Metadata editor | Edit title, author, year, DOI, ISBN, publisher per document; one-click DOI / ISBN lookup (CrossRef / OpenLibrary) |
 | Library search | AND-combined search over title, author, DOI, ISBN, and annotation full-text |
@@ -658,6 +661,12 @@ With **Whisper** installed, `star` can turn speech into text.
 - **Tools → Dictate Note (record)…** — record a short voice memo; the
   transcribed text is saved as a note (tagged `dictated`) at the current
   position.
+- **Tools → Voice Typing** (`Ctrl+Alt+K`, also the **microphone** toolbar
+  button) — toggle on, speak, then toggle off to insert the transcribed speech
+  directly **into the document** at the cursor (distinct from *Dictate Note*,
+  which files a separate annotation). It enters edit mode automatically and
+  pauses TTS while recording. Whisper isn't a streaming recognizer, so the text
+  lands when you toggle off, not word by word.
 
 ```bash
 pip install openai-whisper          # transcription of audio files
@@ -952,7 +961,7 @@ walkthrough, settings reference, and troubleshooting.
 
 **Quick start:**
 
-- **Qt GUI:** **File ▸ Export ▸ Video (MP4)…** (`Ctrl+Alt+V`) — choose an output
+- **Qt GUI:** **File ▸ Export ▸ Video (MP4)…** — choose an output
   path; the export runs in the background and the status bar confirms the file.
 - **TUI:** `M-x export-video [path]` — same pipeline from the command palette.
 
@@ -1068,7 +1077,7 @@ M-x speed-list
 interfaces from a shared store (`settings['bookmarks']`, keyed by document path,
 so a bookmark set in one UI shows up in the other).
 
-- **Qt GUI:** **`Ctrl+B`** (**Bookmarks ▸ Add Bookmark**) sets a bookmark at the
+- **Qt GUI:** **`Ctrl+M`** (**Bookmarks ▸ Add Bookmark**) sets a bookmark at the
   current reading position (auto-named `mark1`, `mark2`, …); **Add Named
   Bookmark…** prompts for a name; the **Bookmarks…** dialog lists them (ordered by
   position) to jump to or delete.
@@ -1104,6 +1113,39 @@ etc.). `Ctrl+S` writes back to the **original file** for text-based extensions
 As** dialog opens. The editor works on the Markdown representation — for binary
 formats this is a converted approximation, not a round-trip.
 
+### Creating a new document
+
+**File ▸ New** (`Ctrl+N`, or the **New** toolbar button) opens a blank document
+in edit mode so you can compose from scratch. The first **Save** (`Ctrl+S`)
+prompts for a location; after that it behaves like any other file.
+
+### Markdown formatting
+
+In edit mode a second **Formatting** toolbar appears with one-click authoring
+actions, mirrored by a **Format** menu on the menu bar:
+
+| Action | Shortcut |
+|---|---|
+| Bold — `**text**` | `Ctrl+B` |
+| Italic — `*text*` | `Ctrl+I` |
+| Underline — `<u>text</u>` | `Ctrl+U` |
+| Insert Link — `[text](url)` | `Ctrl+K` |
+| Inline Code, Heading, Bullet/Numbered List, Block Quote, Horizontal Rule | (menu / toolbar) |
+
+### Undo / redo
+
+Undo (`Ctrl+Z`) and Redo (`Ctrl+Y`) are available from the **Edit** menu, the
+**Format** menu, the edit-mode toolbar, and the editor's right-click context
+menu (which also offers Cut/Copy/Paste/Select All and a Format submenu). The
+undo shortcuts are scoped to the editor, so they never hijack Ctrl+Z from the
+Find bar or a dialog field.
+
+### Command history
+
+**Help ▸ Command History…** shows a copyable, timestamped log of the commands
+you've run this session together with any errors — handy for troubleshooting or
+filing a bug report.
+
 ---
 
 ## Study & writing aids
@@ -1123,10 +1165,12 @@ type them.
   back). `pip install genanki`.
 - **Spell check** — in edit mode (`Ctrl+E`) misspellings get a red squiggle;
   **Edit ▸ Check Spelling** (`F7`) lists them. `pip install pyspellchecker`.
-- **Translate** — **Tools ▸ Translate Document** (`Ctrl+Shift+X`) translates into
-  15 languages via Google Translate (no API key; input capped at 15,000 chars per
-  request). The one study aid that needs a network connection. `pip install
-  deep-translator`.
+- **Translate** — **Tools ▸ Translate Document** (`Ctrl+Shift+X`) translates the
+  **whole document** into 15 languages via Google Translate (no API key). Long
+  documents are split into chunks automatically (there is no per-request length
+  limit for you to manage), and the translation opens as a new **speakable**
+  document you can read aloud. The one study aid that needs a network
+  connection. `pip install deep-translator`.
 - **Highlight difficult words** — **View ▸ Reading Aids ▸ Highlight Difficult
   Words** (`Ctrl+Alt+O`) tints uncommon/academic vocabulary by frequency
   (non-destructive; persists via `qt_vocab_highlight`). `pip install wordfreq`.

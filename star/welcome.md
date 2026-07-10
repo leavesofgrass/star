@@ -1,6 +1,6 @@
 # Welcome to star
 
-star is an accessible document reader that speaks almost anything aloud and
+<u>**star**</u> is an accessible document reader that speaks almost anything aloud and
 highlights each word as it reads. No cloud account, no internet required.
 
 You are reading this welcome page **as a real document** — so every control

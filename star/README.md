@@ -3,8 +3,9 @@
 [![CI](https://github.com/leavesofgrass/star/actions/workflows/ci.yml/badge.svg)](https://github.com/leavesofgrass/star/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/star-reader.svg)](https://pypi.org/project/star-reader/)
 
-> **star** is an accessible, **GUI-first** document reader with built-in
-> text-to-speech. It opens PDFs, Word/EPUB/PowerPoint, web pages, spreadsheets,
+> **star** is an accessible, **GUI-first** document reader and Markdown
+> authoring tool with built-in text-to-speech. It opens PDFs,
+> Word/EPUB/PowerPoint, web pages, spreadsheets,
 > and more, reads them aloud, and **highlights each word as it is spoken** — with
 > no cloud account and no internet required.
 
@@ -56,6 +57,12 @@ are in the
   eSpeak-NG, Festival, **Piper** (neural, offline, free), Coqui, and DECtalk.
 - **Opens almost anything:** PDF (incl. OCR), DOCX, PPTX, EPUB, HTML, Markdown,
   spreadsheets, DAISY/DTBook, and dozens more formats.
+- **Write, don't just read:** create a document from scratch (**File ▸ New**,
+  **Ctrl+N**), format Markdown from an edit-mode toolbar and a **Format** menu
+  (Bold **Ctrl+B**, Italic **Ctrl+I**, Underline **Ctrl+U**, headings, lists,
+  quotes, links **Ctrl+K**, inline code, rules) with full **Undo/Redo**, and
+  **dictate straight into the text** with **Voice Typing** (**Tools ▸ Voice
+  Typing**, **Ctrl+Alt+K**).
 - **Study tools:** notes & annotations, a citation manager, summarization, Anki
   flashcard export, document translation (15 languages, no API key), RSS/Atom
   feed reading, and a difficult-word overlay.
@@ -85,7 +92,7 @@ The complete documentation is online at
 | [Configuration](https://github.com/leavesofgrass/star/blob/main/docs/configuration.md) | Every `settings.json` key |
 | [Architecture & Contributing](https://github.com/leavesofgrass/star/blob/main/docs/architecture.md) | Package layout, distribution, contributing, tests |
 | [Changelog](CHANGELOG.md) | Full record of changes |
-| [Build guide](https://github.com/leavesofgrass/star/blob/main/BUILD.md) | Building the cross-platform wheel (and the deprecated Windows `star.exe`) |
+| [Build guide](https://github.com/leavesofgrass/star/blob/main/BUILD.md) | Building the cross-platform wheel and the self-contained Windows `star.exe` |
 
 ---
 

@@ -10,7 +10,7 @@
 | macOS | `~/Library/Application Support/star/settings.json` |
 | Windows | `%APPDATA%\star\settings.json` |
 
-Open it from the TUI with `M-x settings`.
+Find its exact path from the TUI with `M-x settings` (it prints the location in the status line).
 
 > **Optional features install themselves.** Most optional capabilities (neural
 > voices, OCR, transcription, richer imports, extra fonts, etc.) fetch what they

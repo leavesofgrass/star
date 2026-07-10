@@ -21,12 +21,27 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 - **Create documents from scratch + a Markdown formatting toolbar.** star is
   now a writing tool, not just a reader. **File ▸ New (Ctrl+N)** opens a blank
   document straight into edit mode, and a second toolbar appears while editing
-  with one-click **Bold, Italic, Inline Code, Heading, Bullet / Numbered list,
-  Quote, Link, and Horizontal rule** — so you can author Markdown without
-  memorising the syntax (and dictate into it with Voice Typing). Saving a new
-  document prompts for a location the first time, then it behaves like any
-  other file (Recents, save-in-place). The formatting toolbar is hidden in
-  reading mode so it never clutters the view.
+  with one-click **Bold, Italic, Underline, Inline Code, Heading, Bullet /
+  Numbered list, Quote, Link, and Horizontal rule** — so you can author
+  Markdown without memorising the syntax (and dictate into it with Voice
+  Typing). Saving a new document prompts for a location the first time, then
+  it behaves like any other file (Recents, save-in-place). The formatting
+  toolbar is hidden in reading mode so it never clutters the view.
+- **Keyboard formatting + a Format menu.** The common authoring commands have
+  standard, single-owner bindings — **Bold Ctrl+B, Italic Ctrl+I, Underline
+  Ctrl+U (wraps `<u>…</u>`), Insert Link Ctrl+K** — gathered under a new
+  **Format** menu (with Undo/Redo, Inline Code, Heading, lists, Block Quote,
+  and Horizontal Rule). They're also on the editor's right-click menu while
+  editing. *Add Bookmark moved from Ctrl+B to **Ctrl+M** ("Mark")* to free
+  Ctrl+B for Bold.
+- **Reading Aids and Fonts tabs in Preferences.** Two convenience tabs for
+  ease of use: **Reading Aids** collects the on/off toggles (spoken-word
+  highlight, current-line tint, auto-scroll, reading ruler, syllable
+  splitting, difficult-word highlight, RSVP) in one place — several now
+  reachable from Preferences for the first time — and **Fonts** gathers the
+  reading font, display font, and line-height / letter / word spacing. The
+  Preferences dialog now has six tabs: Reading, Reading Aids, Voice, Display,
+  Fonts, General.
 - **Voice typing — dictate straight into the document.** Alongside Dictate
   Note (which files a separate annotation), there's now **Tools ▸ Voice
   Typing (Ctrl+Alt+K)**: toggle it on, speak, toggle off, and what you said
@@ -40,7 +55,22 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
   `star-<version>-windows-x64.exe` (the same "download one file and run it"
   story the Linux AppImage already provides) with everything baked in —
   Python, the GUI, all document loaders, offline dictation, and the helper
-  tools for audio export / OCR / braille / extra voices.
+  tools for audio export / OCR / braille / extra voices. DECtalk (a
+  commercial synthesizer) is excluded from the public build.
+
+### 🐛 Fixed
+
+- **Dictation never tells you to run `pip`.** When the speech-to-text stack
+  isn't loaded yet, star used to leak a raw "pip install …" message — the one
+  thing its no-pip design forbids. Voice input now checks availability freshly
+  (so a just-installed mic works without a restart) and any remaining
+  package-not-ready case says "restart star to finish setting up" instead.
+- **The Install Optional Features dialog fits a 1080p screen.** Its contents
+  scroll, it opens near full-screen so many features are visible at once, and
+  it's clamped to the display so the Install / Not-now buttons never fall off
+  the bottom.
+- **The menu bar fits on 1080p.** Tighter per-item spacing keeps all of
+  star's menus visible instead of spilling the last few into a `»` overflow.
 
 ---
 

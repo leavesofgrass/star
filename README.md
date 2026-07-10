@@ -5,10 +5,12 @@
 [![Python](https://img.shields.io/pypi/pyversions/star-reader.svg)](https://pypi.org/project/star-reader/)
 [![License: GPL-3.0-or-later](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
-> **star** is an accessible, **GUI-first** document reader with built-in
-> text-to-speech. It opens PDFs, Word/EPUB/PowerPoint, web pages, spreadsheets,
-> and more, reads them aloud, and **highlights each word as it is spoken** — with
-> no cloud account and no internet required.
+> **star** is an accessible, **GUI-first** document reader and Markdown
+> authoring tool with built-in text-to-speech. It opens PDFs,
+> Word/EPUB/PowerPoint, web pages, spreadsheets, and more, reads them aloud, and
+> **highlights each word as it is spoken** — with no cloud account and no
+> internet required. You can also **write** in it: create documents from
+> scratch, format Markdown, and dictate straight into the text.
 
 `star` is built for students with print disabilities — people who work with
 dense, heavily formatted documents and need a reading tool that gets out of the
@@ -86,8 +88,14 @@ notes) are in the **[Installation guide](docs/installation.md)**.
   download of offline Piper neural voices.
 - **Opens almost anything:** PDF (incl. OCR), DOCX, PPTX, EPUB, HTML, Markdown,
   spreadsheets, DAISY/DTBook, and dozens more formats.
+- **Write, don't just read:** create a document from scratch (**File ▸ New**,
+  **Ctrl+N**), format Markdown from an edit-mode toolbar and a **Format** menu
+  (Bold **Ctrl+B**, Italic **Ctrl+I**, Underline **Ctrl+U**, headings, lists,
+  quotes, links **Ctrl+K**, inline code, rules) with full **Undo/Redo**, and
+  **dictate straight into the text** with **Voice Typing** (**Tools ▸ Voice
+  Typing**, **Ctrl+Alt+K**).
 - **Find, bookmark, and search:** incremental **find in document (Ctrl+F)**, named
-  **bookmarks (Ctrl+B)** with back/forward history (**Alt+←/→**), and **full-text
+  **bookmarks (Ctrl+M)** with back/forward history (**Alt+←/→**), and **full-text
   search inside every document** in your library.
 - **Study & spaced repetition:** turn highlights and notes into a review deck
   (FSRS scheduler), review due cards in-app (**Study ▸ Review Due Cards…**,
@@ -135,9 +143,9 @@ notes) are in the **[Installation guide](docs/installation.md)**.
   downloads it in the background — **no `pip install` step anywhere** — and it
   works right away (only the large speech-to-text pack needs a restart). Driven by
   a first-run chooser or `star --install-optional`.
-- **One tabbed Preferences dialog:** every reader setting — Reading, Voice,
-  Display, General — in **Edit ▸ Preferences…** (**Ctrl+,**), with Apply and
-  **Restore Defaults**.
+- **One tabbed Preferences dialog:** every reader setting — Reading, Reading
+  Aids, Voice, Display, Fonts, General — in **Edit ▸ Preferences…**
+  (**Ctrl+,**), with Apply and **Restore Defaults**.
 - **Clear, consistent UI:** an all-icon toolbar with descriptive tooltips (vector
   glyphs drawn programmatically and tinted to your theme — no image files); a
   **readable welcome page** that reads aloud like any document; and **F1** opens
@@ -158,7 +166,7 @@ See the **[full feature reference](docs/features.md)** for everything.
 | **[Configuration](docs/configuration.md)** | Every `settings.json` key |
 | **[Architecture & Contributing](docs/architecture.md)** | Package layout, distribution artifacts, contributing, tests |
 | [Changelog](star/CHANGELOG.md) | Full record of changes |
-| [Build guide](star/BUILD.md) | Building the cross-platform wheel (and the deprecated Windows `star.exe`) |
+| [Build guide](star/BUILD.md) | Building the cross-platform wheel and the self-contained Windows `star.exe` |
 
 ➡️ Browse all docs in the **[`docs/`](docs/)** directory.
 
@@ -167,12 +175,14 @@ See the **[full feature reference](docs/features.md)** for everything.
 ## 📦 Distribution
 
 The pure-Python **wheel** (`pip install star-reader`) is star's primary, stable
-distribution and the only artifact produced by automated releases; it works on
-macOS, Linux, and Windows alike. A single-file
-[`star.pyz`](docs/installation.md#single-file-build-starpyz) zipapp and the
-self-contained Windows `star.exe` (**deprecated**) are **build-it-yourself** —
-they are no longer shipped with releases. See
-[Installation](docs/installation.md) and [`BUILD.md`](star/BUILD.md).
+distribution; it works on macOS, Linux, and Windows alike. For anyone who can't
+install Python, every GitHub Release also attaches double-click binaries — a
+**Linux AppImage** and a self-contained **Windows
+`star-<version>-windows-x64.exe`** (Python, the GUI, and all loaders baked in;
+DECtalk is excluded from the public exe). A single-file
+[`star.pyz`](docs/installation.md#single-file-build-starpyz) zipapp is
+build-it-yourself. See [Installation](docs/installation.md) and
+[`BUILD.md`](star/BUILD.md).
 
 ---
 

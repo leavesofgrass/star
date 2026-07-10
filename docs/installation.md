@@ -90,16 +90,16 @@ modifies your system Python unless you pass `--no-venv`.
 
 ```bash
 # Linux / macOS
-chmod +x install.sh
-./install.sh                # recommended: GUI + TTS + common formats
-./install.sh --all          # every optional package
-./install.sh --minimal      # GUI + TTS only
+chmod +x tools/install.sh
+tools/install.sh            # recommended: GUI + TTS + common formats
+tools/install.sh --all      # every optional package
+tools/install.sh --minimal  # GUI + TTS only
 ```
 
 ```powershell
 # Windows (PowerShell)
-powershell -ExecutionPolicy Bypass -File .\install.ps1
-powershell -ExecutionPolicy Bypass -File .\install.ps1 -Profile all
+powershell -ExecutionPolicy Bypass -File .\tools\install.ps1
+powershell -ExecutionPolicy Bypass -File .\tools\install.ps1 -Profile all
 ```
 
 The scripts also add the platform-specific pieces automatically — `pyobjc` on
@@ -116,11 +116,11 @@ then copy that one file anywhere and:
 
 ```bash
 # Recommended dependencies (Qt GUI + TTS + common formats) come with the wheel
-pip install star_reader-0.1.21-py3-none-any.whl
+pip install star_reader-0.1.23-py3-none-any.whl
 
 # Or pull in the optional Python features (OCR, ODT/XLSX, Pandoc, Braille,
 # audio conversion, study aids, feeds, vocab, watch):
-pip install "star_reader-0.1.21-py3-none-any.whl[all]"
+pip install "star_reader-0.1.23-py3-none-any.whl[all]"
 ```
 
 > **`[all]` excludes the heavy ML stacks on purpose.** It does **not** install
@@ -247,13 +247,16 @@ aloud, and exports text with nothing but the wheel. star detects each engine
 automatically when it is installed and on your `PATH`; `star --deps` shows which
 are currently found.
 
-> **Note for users coming from the old `star.exe`:** the deprecated
-> self-contained Windows binary *bundled* all of these engines (ffmpeg,
-> Tesseract, liblouis, Pandoc, eSpeak-NG, DECtalk) plus Whisper, so they "just
-> worked." The wheel does **not** bundle them — install only the ones you want,
-> as below. On Windows, the **SAPI5** voices star uses by default (via `pyttsx3`,
-> included with the wheel) need none of this, so most Windows users never have to
-> install a native engine at all.
+> **The self-contained builds bundle these for you.** The download-and-run
+> Windows `star.exe` and Linux AppImage (see [No Python? Download-and-run
+> builds](#no-python-download-and-run-builds)) *ship these engines inside*
+> (ffmpeg, Tesseract, liblouis, Pandoc, eSpeak-NG) plus the offline Whisper
+> dictation stack, so they "just work" with nothing else installed. **Only
+> DECtalk is excluded from the public exe.** The **wheel / pipx** install does
+> **not** bundle any of them — install only the ones you want, as below. On
+> Windows, the **SAPI5** voices star uses by default (via `pyttsx3`, included
+> with the wheel) need none of this, so most Windows users never have to install
+> a native engine at all.
 
 ### macOS / Linux
 
@@ -278,7 +281,7 @@ work too):
 | **Tesseract** | OCR of scanned PDFs / images (also needs `pip install "star-reader[ocr]"`) | `winget install UB-Mannheim.TesseractOCR` |
 | **Pandoc** | Conversion of exotic markup formats | `winget install JohnMacFarlane.Pandoc` |
 | **liblouis** | Contracted **Grade 2** Braille (Grade 1 BRF is built in) | `pip install louis` (ships the binding + library), or install liblouis and set `LOUIS_TABLEPATH` |
-| **DECtalk** | The classic "Perfect Paul" voice | Niche on Windows: point `DECTALK_BIN` at a `dtalk`/`dectalk` CLI. The in-process DECtalk engine was an `exe`-only bundled feature; **SAPI5 is the recommended Windows voice.** |
+| **DECtalk** | The classic "Perfect Paul" voice | Niche on Windows: point `DECTALK_BIN` at a `dtalk`/`dectalk` CLI. The in-process DECtalk engine is deliberately **excluded from the public `star.exe`** (it's a commercial synthesizer); **SAPI5 is the recommended Windows voice.** |
 
 After installing, **restart your terminal** (so the updated `PATH` takes effect)
 and run `star --deps` to confirm star sees the new engine.
@@ -292,8 +295,9 @@ and run `star --deps` to confirm star sees the new engine.
 ### Bundling the engines yourself: `STAR_VENDOR_DIR`
 
 A few engines have no plain "install + PATH" route on Windows — most notably the
-**in-process DECtalk** voice, which needs the per-architecture `DECtalk.dll` the
-old `star.exe` used to bundle. For these, point star at a *vendor tree* with the
+**in-process DECtalk** voice, which needs the per-architecture `DECtalk.dll` that
+the self-contained `star.exe` deliberately excludes (DECtalk is a commercial
+synthesizer). For these, point star at a *vendor tree* with the
 `STAR_VENDOR_DIR` environment variable:
 
 ```powershell

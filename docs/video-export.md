@@ -18,7 +18,7 @@ by sentence through the document.
 ### Qt GUI
 
 1. Open a document.
-2. **File ▸ Export ▸ Video (MP4)…** (`Ctrl+Alt+V`).
+2. **File ▸ Export ▸ Video (MP4)…** — a menu item with no keyboard shortcut (`Ctrl+Alt+V` now opens Tools ▸ Dictate Note).
 3. Choose an output path (`.mp4` extension).
 4. The export runs on a background thread — the status bar shows progress and
    confirms the output path when done.
@@ -26,10 +26,11 @@ by sentence through the document.
 ### TUI
 
 ```
-M-x export-video [/path/to/output.mp4]
+M-x export-video
 ```
 
-If no path is given, star prompts for one.
+star prompts for an output path, pre-filled with a default (`<document-title>.mp4`
+in your last export directory).
 
 ### CLI
 
@@ -151,8 +152,9 @@ first.
 
 **Video is blank / shows only a placeholder** — the Pillow fallback rendered
 frames but could not load a font; the output uses the default PIL bitmap font
-(small, unscaled). Install a system TTF font or set `STAR_VIDEO_FONT_PATH` to
-a `.ttf` file path.
+(small, unscaled). Install a system TrueType font — the Pillow renderer looks
+for `arial.ttf`, then `DejaVuSans.ttf`, before falling back to PIL's built-in
+bitmap font.
 
 **Video has no audio** — the WAV synthesis step failed silently. Check that the
 active TTS backend can produce audio (`M-x export-audio` is a simpler test).

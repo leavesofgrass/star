@@ -138,7 +138,7 @@ terminal UI, so a bookmark set in one interface shows up in the other.
 
 **Add and use bookmarks**
 
-1. Move to the spot you want to remember, then press **Ctrl+B** (or
+1. Move to the spot you want to remember, then press **Ctrl+M** (or
    **Bookmarks ▸ Add Bookmark**). star saves it with an auto-name (`mark1`,
    `mark2`, …) and shows the position percentage in the status bar.
 2. To name it yourself, use **Bookmarks ▸ Add Named Bookmark…** and type a name.
@@ -266,6 +266,17 @@ thin`, or a comma-separated list of feature keys such as
 `star --install-optional ocr,dictionary`. Run it with no value to list every
 feature with its size and install status.
 
+### Type by voice (Voice Typing)
+
+Voice Typing dictates speech straight into the document at the cursor (unlike
+Dictate Note, which files a separate annotation).
+
+1. Choose **Tools ▸ Voice Typing** (**Ctrl+Alt+K**) or click the microphone
+   button on the toolbar. star enters edit mode and starts listening; speech
+   playback pauses while you record.
+2. Speak, then toggle it off (same shortcut/button) to insert the transcribed
+   text at the cursor.
+
 ### Reading aids for comfortable reading
 
 star includes several aids for low-vision, dyslexic, and fatigued readers. All
@@ -368,6 +379,7 @@ trigger it).
 | Feature | GUI menu path | Keyboard shortcut | TUI palette command |
 |---|---|---|---|
 | Open a file | File ▸ Open… | `Ctrl+O` | `M-x open` (`Ctrl+O`) |
+| New document | File ▸ New | `Ctrl+N` | — |
 | Open a URL | File ▸ Open URL… | `Ctrl+Shift+O` | `M-x open-url` |
 | Open an RSS / Atom feed | File ▸ Open Feed… | `Ctrl+Shift+M` | — |
 | Open an archive | File ▸ Open Archive… | — | `M-x open-archive` |
@@ -403,7 +415,7 @@ trigger it).
 | Next / previous table | — | `Ctrl+T` / `Ctrl+Shift+T` | `t` / `T` |
 | Next / previous sentence | (Navigate toolbar) | `Alt+.` / `Alt+,` | `.` / `,` |
 | History: back / forward | Navigate ▸ Back / Forward | `Alt+←` / `Alt+→` | `H` / `L` |
-| Add bookmark | Bookmarks ▸ Add Bookmark | `Ctrl+B` | `M-x bookmark-set` |
+| Add bookmark | Bookmarks ▸ Add Bookmark | `Ctrl+M` | `M-x bookmark-set` |
 | Add named bookmark | Bookmarks ▸ Add Named Bookmark… | — | `M-x bookmark-set <name>` |
 | List / jump to bookmarks | Bookmarks ▸ Bookmarks… | — | `M-x bookmark-list` / `bookmark-goto` |
 | Save settings as a profile | Profiles ▸ Save Current Settings… | `Ctrl+Shift+K` | `M-x profile-save <name>` |
@@ -411,9 +423,11 @@ trigger it).
 | Delete a profile | Profiles ▸ Delete Profile… | `Ctrl+Shift+Y` | `M-x profile-delete <name>` |
 | Toggle edit mode | (Edit toolbar button) | `Ctrl+E` | — |
 | Save document | (Save toolbar button) | `Ctrl+S` | — |
-| Live HTML preview | View ▸ Live HTML Preview | `Ctrl+Shift+L` | — |
+| Bold / italic / underline (edit mode) | Format ▸ Bold / Italic / Underline | `Ctrl+B` / `Ctrl+I` / `Ctrl+U` | — |
+| Insert link (edit mode) | Format ▸ Insert Link | `Ctrl+K` | — |
+| Live HTML preview | View ▸ Live HTML Preview | `Ctrl+Shift+Z` | — |
 | Check spelling | Edit ▸ Check Spelling | `F7` | — |
-| Preferences (Reading / Voice / Display / General) | Edit ▸ Preferences… | `Ctrl+,` | — |
+| Preferences (Reading / Reading Aids / Voice / Display / Fonts / General) | Edit ▸ Preferences… | `Ctrl+,` | — |
 | Find in document (find bar) | Edit ▸ Find… | `Ctrl+F` | `M-x search` (`/`) |
 | Find next / previous match | (find bar Next / Previous) | `Enter`/`F3` · `Shift+Enter`/`Shift+F3` | `n` / `N` |
 | Search backward (TUI) | — | — | `M-x search-backward` (`?`) |
@@ -454,6 +468,7 @@ trigger it).
 | Translate document | Tools ▸ Translate Document | `Ctrl+Shift+X` | — |
 | Transcribe audio file | Tools ▸ Transcribe Audio File… | `Ctrl+Alt+S` | — |
 | Dictate note (record) | Tools ▸ Dictate Note (record)… | `Ctrl+Alt+V` | — |
+| Voice typing (dictate into document) | Tools ▸ Voice Typing | `Ctrl+Alt+K` | — |
 | Toggle transcript timestamps | Tools ▸ Toggle Transcript Timestamps | `Ctrl+Alt+Z` | — |
 | Reading statistics | Tools ▸ Reading Statistics… | `Ctrl+Shift+S` | `M-x reading-stats` |
 | Install optional features | Tools ▸ Install Optional Features… | — | (`star --install-optional` CLI) |
@@ -567,6 +582,7 @@ which the view stays with you instead of snapping back to the speech.
 
 | Action | Qt GUI | TUI |
 |---|---|---|
+| New document | `Ctrl+N` | — |
 | Open a file | `Ctrl+O` | `Ctrl+O` |
 | Open a URL | `Ctrl+Shift+O` | `M-x open-url` |
 | Open an archive | File ▸ Open Archive… | `M-x open-archive` |
@@ -589,8 +605,10 @@ which the view stays with you instead of snapping back to the speech.
 |---|---|
 | `Ctrl+E` | Toggle edit mode (raw Markdown ↔ rendered view) |
 | `Ctrl+S` | Save in edit mode; export as Markdown in read mode |
-| `Ctrl+Shift+L` | Toggle the live HTML preview pane (enters edit mode if needed) |
+| `Ctrl+Shift+Z` | Toggle the live HTML preview pane (enters edit mode if needed) |
 | `Ctrl+Z` / `Ctrl+Y` | Undo / redo |
+| `Ctrl+B` / `Ctrl+I` / `Ctrl+U` | Bold / italic / underline the selection (edit mode) |
+| `Ctrl+K` | Insert a Markdown link — [text](url) (edit mode) |
 | `Ctrl+X` / `Ctrl+C` / `Ctrl+V` | Cut / copy / paste |
 | `Ctrl+C` | Copy selection or current paragraph (read mode) |
 
@@ -617,7 +635,7 @@ and the others in blue.
 
 | Action | Qt GUI | TUI |
 |---|---|---|
-| Add bookmark (auto-named) | `Ctrl+B` | `M-x bookmark-set` |
+| Add bookmark (auto-named) | `Ctrl+M` | `M-x bookmark-set` |
 | Add named bookmark | Bookmarks ▸ Add Named Bookmark… | `M-x bookmark-set <name>` |
 | List / jump to bookmarks | Bookmarks ▸ Bookmarks… | `M-x bookmark-list` / `bookmark-goto` |
 | History: back | `Alt+←` | `H` |
@@ -648,7 +666,7 @@ a bookmark set in one interface appears in the other.
 | Reading ruler (+ height/opacity/color in Preferences) | View ▸ Reading Aids ▸ Reading Ruler / `Ctrl+,` | — |
 | RSVP mode | `Ctrl+Alt+E` | `M-x rsvp-mode` |
 | RSVP position picker | `Ctrl+,` (Preferences) / Command Palette (F2) | `M-x rsvp-position` |
-| Live HTML preview (edit mode) | `Ctrl+Shift+L` | — |
+| Live HTML preview (edit mode) | `Ctrl+Shift+Z` | — |
 | Show reading level | `Ctrl+L` | `M-x reading-level` |
 | Toggle line numbers | — | `F6` |
 | Toggle syntax highlight | — | `F7` |
@@ -700,6 +718,7 @@ Notes and highlights become spaced-repetition cards. See
 |---|---|---|
 | Transcribe audio file | `Ctrl+Alt+S` | — |
 | Dictate note (record) | `Ctrl+Alt+V` | — |
+| Voice typing (dictate into document) | `Ctrl+Alt+K` | — |
 | Toggle transcript timestamps | `Ctrl+Alt+Z` | — |
 | Reading statistics | `Ctrl+Shift+S` | `M-x reading-stats` |
 | Install optional features | Tools ▸ Install Optional Features… | (`star --install-optional`) |
@@ -709,6 +728,7 @@ Notes and highlights become spaced-repetition cards. See
 | Customize shortcuts | `Ctrl+Alt+Q` | — |
 | Guided tour (replay) | `Shift+F1` | — |
 | Check for updates | Help ▸ Check for Updates… | (`star --check-update`) |
+| Command history (session log) | Help ▸ Command History… | — |
 | Open README.md (help) | `F1` | `F1` |
 | About star | `Ctrl+F1` | `M-x about` |
 
@@ -899,7 +919,8 @@ visually without moving the cursor.
 
 ### Qt menus
 
-**File menu** — Open…, Open URL…, Open Archive…, Open Feed…, Edit Document
+**File menu** — New (`Ctrl+N`, opens a blank document in edit mode), Open…, Open
+URL…, Open Archive…, Open Feed…, Edit Document
 Metadata…, Library / Bookshelf…, Batch Convert, Watch Folder, Export ▸
 (Markdown / PDF / Braille (BRF) / Audio / Subtitles / Video (MP4) / **Export
 Audiobook (M4B)…** / Anki Flashcards), Quit. **Export Audiobook (M4B)…** writes
@@ -908,7 +929,13 @@ the go; it is menu-only and needs `ffmpeg` on your PATH.
 
 **Edit menu** — Find… (`Ctrl+F`, the incremental find bar), Copy, Toggle Edit
 Mode, Save, Check Spelling, and **Preferences…** (`Ctrl+,`) — all reader
-settings in one tabbed dialog (Reading / Voice / Display / General).
+settings in one tabbed dialog (Reading, Reading Aids, Voice, Display, Fonts, General).
+
+**Format menu** — Markdown authoring commands (also on the edit-mode formatting
+toolbar): Undo, Redo, Bold (`Ctrl+B`), Italic (`Ctrl+I`), Underline (`Ctrl+U`),
+Inline Code, Heading, Bullet List, Numbered List, Block Quote, Insert Link
+(`Ctrl+K`), and Horizontal Rule. The commands apply to the Markdown source and
+no-op with a hint outside edit mode.
 
 **Highlight menu** — Highlight Yellow / Green / Cyan / Pink / Orange, Clear All
 Highlights. (`Ctrl+H` is the **Next Heading** shortcut, matching NVDA/JAWS
@@ -917,7 +944,7 @@ convention; use the toolbar Highlight button or this menu to apply colors.)
 **Navigate menu** — sentence / paragraph / heading / table moves, plus **Back**
 (`Alt+←`) and **Forward** (`Alt+→`) through your navigation history.
 
-**Bookmarks menu** — Add Bookmark (`Ctrl+B`), Add Named Bookmark…, and
+**Bookmarks menu** — Add Bookmark (`Ctrl+M`), Add Named Bookmark…, and
 Bookmarks… (the jump/delete list).
 
 **Study menu** — Review Due Cards… (`Ctrl+Shift+F5`, spaced-repetition review of
@@ -942,12 +969,13 @@ Choose Voice…, **Voice Manager…** (`F4`, filter / preview / favorite / downl
 voices), Speech Cursor Mode, and the Pronunciation Lexicon.
 
 **Tools menu** — leads with **Install Optional Features…** (the download
-chooser), then Transcribe Audio File…, Dictate Note…, Summarize / Translate,
-Reading Statistics…, and Clear Document Cache.
+chooser), then Transcribe Audio File…, Dictate Note…, **Voice Typing**
+(`Ctrl+Alt+K`), Summarize / Translate, Reading Statistics…, and Clear Document
+Cache.
 
 **Help menu** — Command Palette…, Keyboard Shortcuts…, Customize Shortcuts…,
-**Guided Tour** (`Shift+F1`), Help (`F1`), Open Documentation, **Check for
-Updates…**, and **About star** (`Ctrl+F1`) — a short summary of what star is and
+**Guided Tour** (`Shift+F1`), Help (`F1`), Open Documentation, **Command
+History…**, **Check for Updates…**, and **About star** (`Ctrl+F1`) — a short summary of what star is and
 does, the version and license, and a clickable link to the project on GitHub
 (opens in your browser).
 
@@ -957,12 +985,15 @@ path, and its shortcut.
 
 ### Toolbar
 
-The toolbar is divided into labeled groups separated by dividers: **File** (Open
-· URL), **Playback** (Play/Pause · Stop · − Speed · + Speed), **Navigate**
-(sentence / paragraph / heading moves), **Voice / Mode** (Voice… · SC), **Text**
-(Copy · Highlight · Clear Highlights), **View** (Theme · ToC · Level · Font),
-**Edit** (Edit · Save), and **App** (Help · Quit). Every button shows a tooltip
-describing its action and keyboard shortcut.
+The toolbar is divided into labeled groups separated by dividers: **File** (New
+· Open · URL), **Playback** (Play/Pause · Stop · − Speed · + Speed), **Navigate**
+(sentence / paragraph / heading moves), **Voice / Mode** (Voice… · SC · Voice
+Typing 🎙), **Text** (Copy · Highlight · Clear Highlights), **View** (Theme · ToC
+· Level · Font), **Edit** (Edit · Save), and **App** (Help · Quit). Every button
+shows a tooltip describing its action and keyboard shortcut. In edit mode a
+second **Formatting** toolbar appears (Undo · Redo · Bold · Italic · Underline ·
+Inline Code · Heading · Bullet/Numbered List · Quote · Link · Horizontal Rule);
+it is hidden while reading.
 
 The left-side **Table of Contents** dock lists all headings in the current
 document; click any entry to jump there. Toggle it with `Ctrl+\`.

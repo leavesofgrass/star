@@ -7,11 +7,15 @@ day-to-day "cut a release" procedure) and [`installation.md`](installation.md)
 (the user-facing install instructions).
 
 > **TL;DR for the release model.** The **wheel + sdist published to PyPI** is
-> the one and only *automated* artifact and the primary distribution channel.
-> Everything else on this page — the `.pyz`, GPG signatures, and the native
-> installers (Windows/macOS/Linux) — is **optional and gated off by default**.
-> None of it can fail or block the wheel/PyPI pipeline: each optional job is
-> *skipped* (not failed) when its enabling variable/secret is absent.
+> the primary distribution channel and the canonical artifact. Two more
+> self-contained artifacts also build automatically on every `v*` tag and
+> attach to the GitHub Release: the **Linux AppImage** (default since 0.1.22)
+> and the **self-contained Windows `star.exe`** (default since 0.1.24).
+> Everything else on this page — the `.pyz`, GPG signatures, the Windows NSIS
+> installer, and the macOS `.app`/DMG — is **optional and gated off by
+> default**. None of it can fail or block the wheel/PyPI pipeline: PyPI
+> publishing waits only on the wheel, and every optional job is *skipped* (not
+> failed) when its enabling variable/secret is absent.
 
 ---
 
@@ -36,10 +40,14 @@ configured (details below) — otherwise the job is **skipped**, never failed.
 ## The optional CI jobs (and exactly how they are gated)
 
 All of these live in [`.github/workflows/release.yml`](../.github/workflows/release.yml),
-appended *after* the existing `wheel` / `publish-pypi` / `release` jobs. They are
-**deliberately not in the `release` job's `needs:`** — the GitHub Release does
-not wait on them — but any artifact they *do* produce is swept up by the
-release's download-all step and attached automatically.
+appended *after* the existing `wheel` / `publish-pypi` / `release` jobs. The
+three truly optional ones (`sign-artifacts`, `windows-installer`, `macos-app`)
+are **deliberately not in the `release` job's `needs:`** — the GitHub Release
+does not wait on them — but any artifact they *do* produce is swept up by the
+release's download-all step and attached automatically. (`linux-appimage` and
+`windows-exe` are the exceptions: they are default artifacts and **are** in
+`release`'s `needs:`, so their outputs are guaranteed to be attached — see below
+and the channels table.)
 
 ### 1. `sign-artifacts` — GPG-sign the wheel + sdist
 
@@ -121,6 +129,26 @@ libfontconfig1` on Ubuntu). Bundling `libGL` is deliberately avoided — it must
 match the host's graphics driver. In containers/CI, run the AppImage with
 `--appimage-extract-and-run` (no FUSE needed).
 
+### 5. `windows-exe` — self-contained Windows `star.exe`
+
+- **What it does:** fetches the vendored native tools with
+  `python tools/build-vendor.py --no-dectalk`, then runs
+  [`tools/build-windows.ps1`](../tools/build-windows.ps1) (`-Ocr`, with
+  `STAR_ALLOW_EXE=1`) to PyInstaller-freeze a single `star.exe` bundling Python,
+  PyQt6, every document loader, the offline dictation stack (Whisper + Torch),
+  and the vendored ffmpeg / tesseract / liblouis / pandoc / espeak-ng. The
+  artifact is then version-stamped to `star-<v>-windows-x64.exe`.
+- **Gate:** runs on **every `v*` tag** (a default release artifact since
+  0.1.24), **or** a manual `workflow_dispatch` with `build_exe: true`, **or**
+  `vars.ENABLE_INSTALLERS == 'true'`. It is in the `release` job's `needs:` (so
+  the Release waits for it), but PyPI publishing (`needs: [wheel]`) never does,
+  and a failed exe build still publishes the wheel/sdist.
+- **`lean: true`** (manual runs only) skips the Whisper/Torch dictation stack
+  for a fast, small exe.
+- **DECtalk is excluded** via `--no-dectalk`: it's a commercial synthesizer
+  from a community mirror, unfit for public redistribution.
+- **No secrets required.**
+
 ---
 
 ## Enabling everything: maintainer checklist
@@ -169,9 +197,11 @@ run" in the meantime.
 star ships a best-effort update checker in [`star/update.py`](../star/update.py):
 `check_for_update()` queries the PyPI JSON API for the newest `star-reader`
 release and reports whether a newer version exists (cached briefly, offline-safe,
-never raises). It has no third-party dependencies. Wiring it into a GUI menu item
-or a `--check-update` CLI flag is a follow-up (those modules are owned
-elsewhere); the function is exposed and unit-tested today.
+never raises). It has no third-party dependencies. It is now wired into both a
+**`star --check-update`** CLI flag ([`star/app.py`](../star/app.py)) and a
+**Help ▸ Check for Updates…** menu item in the GUI
+([`star/gui/mixin_chrome.py`](../star/gui/mixin_chrome.py)); the function is
+exposed and unit-tested.
 
 ---
 

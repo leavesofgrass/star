@@ -3,12 +3,13 @@
 star's tests and builds run on GitHub Actions. This document describes how a
 release is cut and what the automation produces.
 
-> **Release model: wheel + PyPI only.** As of 0.1.9 the automated release builds
-> and ships exactly one thing — the pure-Python **wheel + sdist**, published to
-> **PyPI** (and attached to the GitHub Release). The platform `star.pyz` and the
-> deprecated Windows `star.exe` are **not** built on tag pushes and are **not**
-> attached to releases; they are build-it-yourself artifacts (see
-> [Build-it-yourself artifacts](#build-it-yourself-artifacts)).
+> **Release model: wheel + PyPI, plus self-contained downloads.** The automated
+> release publishes the pure-Python **wheel + sdist** to **PyPI** (and attaches
+> them to the GitHub Release). Since 0.1.22 every `v*` tag also builds and
+> attaches two double-click, no-Python-needed downloads: the **Linux AppImage**
+> and (as of 0.1.24) the **self-contained Windows `star.exe`**. Only the platform
+> `star.pyz` is **not** built on tag pushes — it is a build-it-yourself artifact
+> (see [Build-it-yourself artifacts](#build-it-yourself-artifacts)).
 
 ## Continuous integration (every push / PR)
 
@@ -20,9 +21,16 @@ release is cut and what the automation produces.
   packages (`deep-translator`, `feedparser`, `wordfreq`, `sumy`, `genanki`,
   `pyspellchecker`) so the real-behaviour tests run, not just the
   graceful-degradation paths.
-- **`lint`** — `ruff check` (currently **non-blocking**, so a style nit never
-  walls a correctness-green PR). Tightening this into a required check is future
-  work.
+- **`lint`** — `ruff check`, **blocking as of 0.1.14**: the tree is kept
+  ruff-clean, so a new unused import or ambiguous name fails CI and walls the PR.
+- **`full-fat`** — one Linux leg with the *entire* optional-dependency surface
+  (`.[all,test]` plus spaCy + its language model) installed, so every feature's
+  real-behaviour branch runs; the cross-feature integration net.
+- **`coverage`** — enforces **per-module coverage floors** (a ratchet). One suite
+  run collects coverage and each gated module (`tts`, `documents`, `render`,
+  `citations`, `obsidian`, `graph`, `markup`, `ttstext`, `dictionary`,
+  `autodeps`, `library`, `export`, `gui.preferences`) is checked against its own
+  `--fail-under`; dropping below any floor fails CI.
 
 The suite is written to pass with **none** of the optional packages installed —
 checks that need a package `skip` when it is absent. The dependency harness
@@ -41,8 +49,8 @@ is added without registering it in `star.diagnostics`.
 4. **Commit** the version bump on `main` (or via PR).
 5. **Tag and push**:
    ```bash
-   git tag v0.1.12
-   git push origin v0.1.12
+   git tag v0.1.24
+   git push origin v0.1.24
    ```
 
 Pushing a `v*` tag triggers
@@ -56,12 +64,16 @@ auto-generated notes.
 |---|---|---|
 | `wheel` | `star_reader-<version>-py3-none-any.whl` + sdist | **The release.** Pure-Python, universal; one build serves every platform. `twine check` guards the long-description rendering before the PyPI upload. |
 | `publish-testpypi` / `publish-pypi` | (uploads to PyPI) | Publishes the wheel + sdist via trusted publishing — pre-release tags to TestPyPI, final tags to PyPI. See **Publishing to PyPI** below. |
-| `release` | GitHub Release | Attaches the wheel + sdist and auto-generated notes. |
+| `windows-exe` | `star-<version>-windows-x64.exe` | Self-contained double-click Windows binary (Python + GUI + every loader + offline dictation + vendored native tools; **DECtalk excluded** via `--no-dectalk`). Built on every `v*` tag and attached to the Release. It is the long pole (~30-60 min for the Torch + PyInstaller build); PyPI publishing (`needs: [wheel]`) is **not** delayed by it. |
+| `linux-appimage` | `star-*.AppImage` | Self-contained Linux binary. A **default** release artifact since 0.1.22, attached to the Release. |
+| `release` | GitHub Release | Attaches the wheel + sdist, the Windows `.exe`, the Linux AppImage, and auto-generated notes. |
 
-The `windows-pyz` and `windows-exe` jobs **do not run on tag pushes**. They exist
-only as manual `workflow_dispatch` options (`build_pyz: true` / `build_exe:
-true`) for the rare case a maintainer needs one of those artifacts from CI; their
-output is not attached to the release.
+The `windows-exe` job (the self-contained `star.exe`) and the `linux-appimage`
+job **run on every `v*` tag** and their output is attached to the GitHub Release;
+a manual `workflow_dispatch` can also force them (`build_exe: true` /
+`build_installers: true`). Only the `windows-pyz` job stays manual-only — it does
+**not** run on tag pushes and is not attached to the release (`workflow_dispatch`
+with `build_pyz: true`).
 
 ## Publishing to PyPI
 
@@ -69,8 +81,8 @@ The release workflow publishes the wheel and sdist to PyPI using
 [**trusted publishing**](https://docs.pypi.org/trusted-publishers/) (OIDC) — no
 API token is ever stored in the repo. The routing is by tag:
 
-- **Pre-release tag** (contains a hyphen, e.g. `v0.1.12-rc1`) → **TestPyPI**.
-- **Final tag** (e.g. `v0.1.12`) → **PyPI**.
+- **Pre-release tag** (contains a hyphen, e.g. `v0.1.24-rc1`) → **TestPyPI**.
+- **Final tag** (e.g. `v0.1.24`) → **PyPI**.
 
 Manual `workflow_dispatch` runs do not publish (no tag ref).
 
@@ -95,9 +107,9 @@ Variables → `ENABLE_PYPI`* to anything other than `true` (or remove it).
    TestPyPI).
 2. **Create the GitHub environments** `pypi` and `testpypi` (Repo *Settings →
    Environments*).
-3. **Rehearse on TestPyPI first.** Push a pre-release tag (`v0.1.12-rc1`), confirm
+3. **Rehearse on TestPyPI first.** Push a pre-release tag (`v0.1.24-rc1`), confirm
    `pip install -i https://test.pypi.org/simple/ star-reader` works, then push the
-   final `v0.1.12` tag.
+   final `v0.1.24` tag.
 
 ## Build-it-yourself artifacts
 
@@ -107,23 +119,28 @@ specifically need them:
 ```bash
 python -m build                                  # wheel + sdist        -> dist/   (the release)
 python build_zipapp.py                           # fat zipapp (per-OS)  -> dist/star.pyz
-pwsh tools/build-windows.ps1 -AllowDeprecatedExe # DEPRECATED exe       -> dist/star.exe
+pwsh tools/build-windows.ps1 -AllowDeprecatedExe # self-contained exe (same recipe CI ships) -> dist/star.exe
 ```
 
 - **`star.pyz`** — a fat zipapp bundling `star` + the `[all]` extras. It is
   platform-specific (carries compiled extensions), so build it on the OS you
   intend to run it on. See [`docs/installation.md`](installation.md#single-file-build-starpyz).
-- **`star.exe`** — **deprecated.** The PyInstaller binary is retained only as a
-  manual fallback and requires the explicit `-AllowDeprecatedExe` opt-in. By
-  default the build bundles the offline dictation stack (Whisper + Torch + the
-  `base` model), which makes it large and slow; pass `-Lean` to skip it. To make
-  the exe fully self-contained (ffmpeg, Tesseract, liblouis, Pandoc, DECtalk), run
-  `python tools/build-vendor.py` (needs **7-Zip** on PATH) before the build. See
-  [`star/BUILD.md`](../star/BUILD.md).
+- **`star.exe`** — the self-contained Windows binary. This is now a **supported
+  release artifact**: the `windows-exe` CI job builds it on every `v*` tag and
+  attaches it to the GitHub Release (see [What the release workflow
+  builds](#what-the-release-workflow-builds)). To build the *same* binary
+  locally, run `tools/build-windows.ps1`; the script keeps a safety opt-in
+  (`-AllowDeprecatedExe` or `STAR_ALLOW_EXE=1`) so nobody kicks off the slow
+  build by habit. By default it bundles the offline dictation stack (Whisper +
+  Torch + the `base` model), which makes it large and slow; pass `-Lean` to skip
+  it. To vendor the native tools (ffmpeg, Tesseract, liblouis, Pandoc) into the
+  exe, run `python tools/build-vendor.py --no-dectalk` (needs **7-Zip** on PATH)
+  before the build — the public release exe deliberately **excludes** DECtalk.
+  See [`star/BUILD.md`](../star/BUILD.md).
 
 ## Pre-release tags
 
-Use a suffix (e.g. `v0.1.12-rc1`) for a dry run: the workflow still builds the
+Use a suffix (e.g. `v0.1.24-rc1`) for a dry run: the workflow still builds the
 wheel, routes the publish to TestPyPI, and creates a (pre-)release you can inspect
 before cutting the final tag.
 
