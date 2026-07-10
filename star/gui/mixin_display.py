@@ -30,6 +30,11 @@ class DisplayMixin:
             announce(self.editor, msg)
         except Exception:
             pass
+        # Errors join the command history so a bug report shows what failed.
+        try:
+            self._record_command(msg, kind="error")
+        except Exception:
+            pass
 
     # ── Display options ─────────────────────────────────────────────────────
 

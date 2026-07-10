@@ -12,6 +12,12 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ### ✨ Added
 
+- **Undo/Redo and a command history.** Made a formatting mistake? **Undo** and
+  **Redo** buttons lead the editing toolbar (and the Format menu), and the
+  editor's own **Ctrl+Z / Ctrl+Y** still work — each formatting action is a
+  single undo step. **Help ▸ Command History…** shows a timestamped log of the
+  commands you've run this session (and any errors that came up), with a
+  **Copy** button so you can paste it straight into a bug report.
 - **Create documents from scratch + a Markdown formatting toolbar.** star is
   now a writing tool, not just a reader. **File ▸ New (Ctrl+N)** opens a blank
   document straight into edit mode, and a second toolbar appears while editing

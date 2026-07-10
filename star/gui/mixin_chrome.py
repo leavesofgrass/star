@@ -62,6 +62,7 @@ class ChromeMixin:
             if checkable:
                 a.setCheckable(True)
             a.triggered.connect(fn)
+            a.triggered.connect(lambda *_a, _L=label: self._record_command(_L))
             tb.addAction(a)
             # Key on the untranslated label so the tour can find a control by a
             # stable name regardless of the active UI language.
@@ -169,8 +170,16 @@ class ChromeMixin:
             a = QAction(make_icon(icon), tr(label), self)
             a.setToolTip(tr(tip) if tip else tr(label))
             a.triggered.connect(fn)
+            a.triggered.connect(lambda *_a, _L=label: self._record_command(_L))
             tb.addAction(a)
             self._edit_toolbar_actions[label] = a
+
+        # Undo / redo lead the formatting toolbar (edit operations).  No global
+        # shortcut — the editor keeps its native Ctrl+Z/Y, and every dialog
+        # field's undo stays intact.
+        _ea("Undo", "undo", self._qt_undo, "Undo the last change (Ctrl+Z)")
+        _ea("Redo", "redo", self._qt_redo, "Redo (Ctrl+Y)")
+        tb.addSeparator()
 
         _ea("Bold", "bold", lambda: self._qt_md_wrap("**", "**", "bold text"),
             "Bold — **text** (Ctrl+B)")
@@ -234,6 +243,7 @@ class ChromeMixin:
             if tip:
                 a.setToolTip(tr(tip))
             a.triggered.connect(lambda _checked=False, f=fn: f())
+            a.triggered.connect(lambda *_a, _L=label: self._record_command(_L))
             if shortcut:
                 a.setShortcut(self._resolve_shortcut(shortcut))
                 self._shortcut_actions.append((label, a, shortcut))
@@ -584,6 +594,9 @@ class ChromeMixin:
         _menu(
             "F&ormat",
             [
+                ("Undo", self._qt_undo, "", "Undo the last edit (Ctrl+Z)"),
+                ("Redo", self._qt_redo, "", "Redo (Ctrl+Y)"),
+                None,
                 ("Bold", lambda: self._qt_md_wrap("**", "**", "bold text"),
                  "Ctrl+B", "Wrap the selection in ** (bold)"),
                 ("Italic", lambda: self._qt_md_wrap("*", "*", "italic text"),
@@ -1093,6 +1106,8 @@ class ChromeMixin:
                 ("Open Documentation", self._open_documentation, "",
                  "Browse the bundled guides (usage, configuration, features)"),
                 None,
+                ("Command History…", self._qt_show_command_history, "",
+                 "See the commands you've run this session (for troubleshooting)"),
                 ("Check for Updates…", self._qt_check_for_updates, "",
                  "Check PyPI for a newer star release (manual, one-off)"),
                 None,
