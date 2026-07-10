@@ -468,9 +468,9 @@ def test_word_map_worker_bails_when_window_is_closing(window):
     """The rebuild worker must skip its work when the window is closing rather
     than churn a daemon thread against a teardown-in-progress. With _closing set,
     calling the rebuild leaves the maps untouched."""
-    window._qt_enter_edit_mode()
-    window.editor.setPlainText("# H\n\nsome words here\n")
-    sentinel = ["untouched"]
+    # A valid word map is List[int] (char offsets); use ints so any incidental
+    # highlight/caret event that touches it during the test can't type-error.
+    sentinel = [0, 1, 2]
     window._qt_word_map = sentinel
     window._closing = True
     window._qt_rebuild_word_maps_async()   # spawns a thread that must early-return
