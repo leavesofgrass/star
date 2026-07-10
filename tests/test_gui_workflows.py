@@ -242,6 +242,107 @@ def test_edit_mode_save_round_trip(window, qtbot, tmp_path):
     assert "Edited twice." in window.editor.toPlainText()
 
 
+# ── edit-mode word-map rebuild: only when content changed, marshalled safely ──
+#
+# Leaving edit mode used to unconditionally spawn a daemon thread to rebuild the
+# TTS/Qt word maps.  That thread — firing into a window whose C++ object may be
+# gone — is the documented Qt-teardown flake (v0.1.24 CI hang).  The rebuild now
+# (a) only runs when the maps are actually stale, (b) bails if the window is
+# closing, and (c) marshals results to the GUI thread via a queued signal.
+
+
+def _open_md(window, qtbot, tmp_path, name, text):
+    src = tmp_path / name
+    src.write_text(text, encoding="utf-8")
+    window._open_path(str(src))
+    _pump_until(qtbot, window, lambda w: (w.doc.path or "").endswith(name))
+    return src
+
+
+def test_clean_finish_does_not_rebuild_word_maps(window, qtbot, tmp_path, monkeypatch):
+    """Enter edit mode, change nothing, finish (Ctrl+E): the word maps built at
+    load are still valid, so no rebuild thread is spawned."""
+    _open_md(window, qtbot, tmp_path, "clean.md", "alpha beta gamma delta\n")
+
+    calls = []
+    monkeypatch.setattr(
+        window, "_qt_rebuild_word_maps_async", lambda *a, **k: calls.append(1)
+    )
+
+    window._qt_enter_edit_mode()
+    # Fully-rendered (unpaginated) doc, nothing typed → maps are not stale.
+    assert window._qt_word_maps_stale is False
+    window._qt_exit_edit_mode(save=False)
+    assert window._qt_edit_mode is False
+    assert calls == [], "a clean finish must not spawn a word-map rebuild"
+
+
+def test_discard_finish_does_not_rebuild_word_maps(window, qtbot, tmp_path, monkeypatch):
+    """Type then discard on the way out: doc.markdown is unchanged, the read
+    view re-renders it verbatim, so the load-time maps still match → no rebuild."""
+    from PyQt6.QtWidgets import QMessageBox
+
+    _open_md(window, qtbot, tmp_path, "discard.md", "alpha beta gamma delta\n")
+
+    window._qt_enter_edit_mode()
+    window.editor.setPlainText("totally different unsaved text here")
+    assert window._qt_edit_dirty is True
+
+    calls = []
+    monkeypatch.setattr(
+        window, "_qt_rebuild_word_maps_async", lambda *a, **k: calls.append(1)
+    )
+    monkeypatch.setattr(
+        QMessageBox,
+        "question",
+        staticmethod(lambda *a, **k: QMessageBox.StandardButton.Discard),
+    )
+    window._qt_finish_editing()
+    assert window._qt_edit_mode is False
+    assert calls == [], "discarding unsaved typing must not spawn a rebuild"
+
+
+def test_save_then_finish_rebuilds_word_maps(window, qtbot, tmp_path):
+    """Ctrl+S keeps you editing WITHOUT rebuilding maps, so the eventual Ctrl+E
+    must rebuild — and the result is applied on the GUI thread (queued signal)."""
+    _open_md(window, qtbot, tmp_path, "save.md", "alpha beta gamma delta\n")
+
+    window._qt_enter_edit_mode()
+    window.editor.setPlainText("one two three four five\n")
+    window._qt_save()  # Ctrl+S: persists, stays in edit mode, does NOT rebuild
+    assert window._qt_edit_mode is True
+    assert window._qt_word_maps_stale is True, "a save marks the maps stale"
+
+    window._qt_exit_edit_mode(save=False)  # Ctrl+E finishes → rebuild
+    # The rebuild runs on a worker and applies via a queued signal — pump the
+    # event loop until it lands on the GUI thread.
+    assert _pump_until(
+        qtbot, window, lambda w: len(w.doc.word_map) == 5
+    ), "word map should be rebuilt from the saved 5-word text"
+    assert len(window._qt_word_map) == len(window.doc.word_map)
+
+
+def test_rebuild_bails_when_window_closing(window, qtbot, tmp_path):
+    """The rebuild worker must not marshal results back into a closing window —
+    the exact race behind the exit-139 flake."""
+    _open_md(window, qtbot, tmp_path, "closing.md", "alpha beta gamma\n")
+
+    sentinel = ["<stale>"]
+    window.doc.word_map = sentinel
+
+    # Closing → the worker bails before emitting; nothing touches the maps.
+    window._closing = True
+    window._qt_rebuild_word_maps_async()
+    qtbot.wait(200)
+    assert window.doc.word_map is sentinel, "closing worker must not rebuild maps"
+
+    # Not closing → the rebuild applies (proves the sentinel check is meaningful).
+    window._closing = False
+    window._qt_rebuild_word_maps_async()
+    assert _pump_until(qtbot, window, lambda w: w.doc.word_map is not sentinel)
+    assert len(window.doc.word_map) == 3  # alpha beta gamma
+
+
 # ── archive open (File ▸ Open Archive…) ──────────────────────────────────────
 
 

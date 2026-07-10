@@ -139,6 +139,18 @@ class EditNavMixin:
         self.editor.document().setModified(False)
         self._qt_edit_mode = True
         self._qt_edit_dirty = False
+        # Whether the read-view word maps will need rebuilding on exit.  They
+        # stay valid across a clean, no-save round trip *only* when the whole
+        # document was rendered at load: a paginated / provisional doc has
+        # *windowed* maps, but exiting edit mode re-renders the WHOLE document,
+        # so those maps are already stale and must be rebuilt even on a clean
+        # exit.  A save (see _qt_persist_edits) sets this too.  Tracking it lets
+        # a plain discard / finish-clean exit skip the rebuild entirely — no
+        # background thread spawned to race Qt teardown.
+        self._qt_word_maps_stale = (
+            getattr(self, "_paginator", None) is not None
+            or bool(getattr(self, "_page_provisional", False))
+        )
         self.editor.document().contentsChanged.connect(
             self._qt_on_edit_contents_changed
         )
@@ -210,7 +222,16 @@ class EditNavMixin:
         self._qt_build_toc()
         self._qt_build_annotations()
         self._qt_refresh_vocab_highlight()
-        self._qt_rebuild_word_maps_async()
+        # Only rebuild the word maps when they are actually stale — a clean,
+        # fully-rendered exit (no save, no pagination) keeps the maps built at
+        # load, so there's nothing to rebuild and no daemon thread to spawn
+        # (fewer background threads racing Qt teardown; see
+        # _qt_rebuild_word_maps_async).  Save-then-Ctrl+E DOES rebuild: Ctrl+S
+        # stays in edit mode without rebuilding maps, so _qt_persist_edits marks
+        # them stale and the eventual exit picks that up.
+        if getattr(self, "_qt_word_maps_stale", True):
+            self._qt_rebuild_word_maps_async()
+        self._qt_word_maps_stale = False
         self.statusBar().showMessage("Read mode")
 
     def _qt_check_spelling(self) -> None:
@@ -353,6 +374,13 @@ class EditNavMixin:
             table_mode=str(self.settings.get("table_reading_mode", "structured")),
         )
         self._qt_edit_dirty = False
+        # The persisted edit changed doc.markdown / doc.plain_text, so the
+        # read-view word maps are now stale.  Flag it so _qt_exit_edit_mode
+        # rebuilds them even though Ctrl+S keeps us in edit mode and does not
+        # rebuild maps itself.  (Unsaved typing does NOT set this: a clean exit
+        # re-renders the *unchanged* doc.markdown, discarding the typing, so the
+        # load-time maps still match — only a save actually moves the read view.)
+        self._qt_word_maps_stale = True
         # Adopt the chosen path after ANY Save-As — a brand-new document (File ▸
         # New, no path) OR a converted document whose source was a non-text file
         # (report.pdf → report.md).  Without this, doc.path stays the .pdf, so
@@ -373,46 +401,91 @@ class EditNavMixin:
         """Rebuild the TTS + Qt word maps off the UI thread from the editor.
 
         Must be called with the editor showing the *rendered* read-mode text
-        (the maps correlate ``doc.plain_text`` with visible editor lines)."""
+        (the maps correlate ``doc.plain_text`` with visible editor lines).
+
+        The heavy tokenisation runs on a daemon thread, but the *results* are
+        handed back to the GUI thread via ``_word_maps_ready_signal`` (a queued
+        connection) — the worker never mutates window / manager state itself.
+        A rebuild thread can outlive the window that spawned it, so applying
+        from the worker risks firing into a half-torn-down window (the
+        Qt-teardown flake in tests/conftest.py).  As a first guard the worker
+        also bails the moment the window starts closing.
+        """
         if not self.doc:
             return
         qt_plain = self.editor.document().toPlainText()
         doc_ref = self.doc
 
         def _rebuild() -> None:
+            # The window may have begun closing between leaving edit mode and
+            # this thread being scheduled — skip the now-pointless work.
+            if getattr(self, "_closing", False):
+                return
             try:
                 plain = doc_ref.plain_text or ""
                 flat = qt_plain.splitlines()
-                doc_ref.word_map = _build_word_map(plain, flat)
-                self.tts_manager.set_word_map(doc_ref.word_map)
-                self._build_qt_word_map(plain, qt_plain)
+                word_map = _build_word_map(plain, flat)
                 # Sentence map — same algorithm as _on_doc_loaded_impl's _build()
                 # so next/prev-sentence nav + sentence-granularity highlighting
                 # track the edited text instead of the pre-edit boundaries.
-                wm = doc_ref.word_map
-                if wm and plain:
+                sentence_starts = [0]
+                if word_map and plain:
                     char_starts = [0]
                     for _m in _SENTENCE_SPLIT_RE.finditer(plain):
                         char_starts.append(_m.end())
                     _wi = 0
                     word_starts = []
                     for cs in char_starts:
-                        while _wi < len(wm) and wm[_wi].tts_offset < cs:
+                        while _wi < len(word_map) and word_map[_wi].tts_offset < cs:
                             _wi += 1
-                        word_starts.append(min(_wi, len(wm) - 1))
+                        word_starts.append(min(_wi, len(word_map) - 1))
                     seen: set = set()
                     result = []
                     for ws in word_starts:
                         if ws not in seen:
                             seen.add(ws)
                             result.append(ws)
-                    self._qt_sentence_starts = result if result else [0]
+                    if result:
+                        sentence_starts = result
+                # Re-check right before handing back: no point marshalling into
+                # a window that has since started tearing down.
+                if getattr(self, "_closing", False):
+                    return
+                self._word_maps_ready_signal.emit(
+                    doc_ref, word_map, sentence_starts, plain, qt_plain
+                )
             except Exception:
                 pass
 
         import threading as _threading
 
         _threading.Thread(target=_rebuild, daemon=True).start()
+
+    def _qt_apply_rebuilt_word_maps(
+        self,
+        doc_ref: Any,
+        word_map: Any,
+        sentence_starts: Any,
+        plain: str,
+        qt_plain: str,
+    ) -> None:
+        """Apply edit-mode-rebuilt word maps on the GUI thread (queued slot).
+
+        Guarded so a result that lands after the user switched documents — or
+        after the window began closing — is dropped instead of scribbling stale
+        maps onto the live view.  ``_build_qt_word_map`` is pure Python; running
+        it here (rather than in the worker) keeps every map assignment on the
+        thread that owns these objects.
+        """
+        if getattr(self, "_closing", False) or self.doc is not doc_ref:
+            return
+        try:
+            doc_ref.word_map = word_map
+            self.tts_manager.set_word_map(word_map)
+            self._build_qt_word_map(plain, qt_plain)
+            self._qt_sentence_starts = sentence_starts if sentence_starts else [0]
+        except Exception:
+            pass
 
     def _qt_save(self) -> None:
         """Save the current document — and keep the user in the flow.

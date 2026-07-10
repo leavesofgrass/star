@@ -349,6 +349,14 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
     # pagination, so the initial page-window render (a Qt call) happens on the
     # GUI thread.  Carries nothing; the paginator state is read from self.
     _paginate_signal = pyqtSignal()
+    # Emitted from the edit-mode word-map REBUILD thread (leaving edit mode)
+    # once the maps are recomputed, so they are applied on the GUI thread
+    # rather than mutated from the worker.  The rebuild thread can outlive the
+    # window that spawned it; applying via a queued signal (plus a _closing
+    # guard) keeps it from scribbling into a half-torn-down window — the
+    # Qt-teardown flake documented in tests/conftest.py.  Carries
+    # (doc, word_map, sentence_starts, plain_text, qt_plain_text).
+    _word_maps_ready_signal = pyqtSignal(object, object, object, str, str)
     # Emitted from the background OpenDyslexic prefetch thread once the font files
     # are downloaded, so registration + (re)application happen on the GUI thread.
     _font_ready_signal = pyqtSignal()
@@ -494,6 +502,11 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         self._restore_signal.connect(self._qt_maybe_auto_play, _QUEUED)
         # Wire the pagination initial-window render → main thread.
         self._paginate_signal.connect(self._page_render_initial_window, _QUEUED)
+        # Wire the edit-mode word-map rebuild results → main thread (queued):
+        # the worker never touches window/manager state itself.
+        self._word_maps_ready_signal.connect(
+            self._qt_apply_rebuilt_word_maps, _QUEUED
+        )
         # Wire the OpenDyslexic prefetch-complete callback → main thread.
         self._font_ready_signal.connect(self._on_dyslexia_font_ready, _QUEUED)
         # Wire the feature-install completion callback → main thread.
