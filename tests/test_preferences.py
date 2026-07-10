@@ -49,11 +49,70 @@ def _dialog(window):
     return PreferencesDialog(window)
 
 
-def test_dialog_builds_with_four_tabs(window):
+def test_dialog_builds_with_six_tabs(window):
     dlg = _dialog(window)
-    assert dlg.tabs.count() == 4
+    assert dlg.tabs.count() == 6
     titles = [dlg.tabs.tabText(i) for i in range(dlg.tabs.count())]
-    assert titles == ["Reading", "Voice", "Display", "General"]
+    assert titles == ["Reading", "Reading Aids", "Voice", "Display",
+                      "Fonts", "General"]
+
+
+def test_reading_aids_tab_mirrors_stay_in_sync(window):
+    """The Reading Aids tab duplicates a few Reading-tab toggles (accessibility:
+    more than one way in); the copies must mirror each other both directions."""
+    dlg = _dialog(window)
+    dlg.hl_master.setChecked(False)
+    assert dlg.aid_highlight.isChecked() is False       # Reading -> Aids
+    dlg.aid_highlight.setChecked(True)
+    assert dlg.hl_master.isChecked() is True            # Aids -> Reading
+    dlg.autoscroll.setChecked(False)
+    assert dlg.aid_autoscroll.isChecked() is False
+
+
+def test_reading_aids_tab_writes_the_new_toggles(window, monkeypatch):
+    from PyQt6.QtWidgets import QDialog
+    monkeypatch.setattr(QDialog, "exec", lambda self: 0, raising=False)
+    dlg = _dialog(window)
+    dlg.aid_ruler.setChecked(True)
+    dlg.aid_syllables.setChecked(True)
+    dlg.aid_vocab.setChecked(True)
+    dlg.aid_rsvp.setChecked(True)
+    dlg._on_ok()
+    s = window.settings
+    assert s.get("qt_reading_ruler") is True
+    assert s.get("qt_syllable_split") is True
+    assert s.get("qt_vocab_highlight") is True
+    assert s.get("qt_rsvp_mode") is True
+
+
+def test_fonts_tab_writes_spacing_and_mirrors_reading_font(window, monkeypatch):
+    from PyQt6.QtWidgets import QDialog
+    monkeypatch.setattr(QDialog, "exec", lambda self: 0, raising=False)
+    dlg = _dialog(window)
+    # Reading-font combo mirrors the Display tab's.
+    dlg.reading_font.setCurrentText("atkinson")
+    assert dlg.font_reading.currentText() == "atkinson"
+    dlg.font_reading.setCurrentText("opendyslexic")
+    assert dlg.reading_font.currentText() == "opendyslexic"
+    # Spacing controls write through.
+    dlg.line_height.setValue(2.0)
+    dlg.letter_spacing.setValue(5.0)
+    dlg.word_spacing.setValue(3.0)
+    dlg._on_ok()
+    s = window.settings
+    assert abs(float(s.get("qt_line_height")) - 2.0) < 1e-9
+    assert abs(float(s.get("qt_letter_spacing")) - 5.0) < 1e-9
+    assert abs(float(s.get("qt_word_spacing")) - 3.0) < 1e-9
+
+
+def test_restore_defaults_resets_the_new_tabs(window):
+    dlg = _dialog(window)
+    dlg.aid_ruler.setChecked(True)
+    dlg.line_height.setValue(2.5)
+    dlg._restore_defaults()
+    from star.settings import DEFAULTS
+    assert dlg.aid_ruler.isChecked() is bool(DEFAULTS["qt_reading_ruler"])
+    assert abs(dlg.line_height.value() - float(DEFAULTS["qt_line_height"])) < 1e-9
 
 
 def test_ok_writes_changed_settings(window, monkeypatch):

@@ -49,6 +49,33 @@ def _std_button(box, name: str):
         return getattr(box, name)  # type: ignore[attr-defined]
 
 
+def _link_checkboxes(a, b) -> None:
+    """Keep two checkboxes mirroring each other.
+
+    The convenience tabs deliberately duplicate a few controls (accessibility:
+    more than one way to reach the same setting), so the copies must stay in
+    lock-step — and Restore Defaults, which sets the canonical widget, then
+    propagates to the mirror through these signals."""
+    def _mk(dst):
+        def _f(v):
+            if dst.isChecked() != v:
+                dst.setChecked(v)
+        return _f
+    a.toggled.connect(_mk(b))
+    b.toggled.connect(_mk(a))
+
+
+def _link_combos(a, b) -> None:
+    """Keep two combo boxes mirroring each other (see _link_checkboxes)."""
+    def _mk(dst):
+        def _f(i):
+            if dst.currentIndex() != i:
+                dst.setCurrentIndex(i)
+        return _f
+    a.currentIndexChanged.connect(_mk(b))
+    b.currentIndexChanged.connect(_mk(a))
+
+
 class PreferencesDialog(QDialog):
     """One tabbed dialog for every reader preference (apply-on-OK)."""
 
@@ -69,8 +96,10 @@ class PreferencesDialog(QDialog):
         self._ruler_color = {"v": str(self.settings.get("qt_ruler_color", "") or "")}
 
         self._build_reading_tab()
+        self._build_reading_aids_tab()   # convenience: pick your aid combination
         self._build_voice_tab()
         self._build_display_tab()
+        self._build_fonts_tab()          # convenience: all font + spacing options
         self._build_general_tab()
 
         # OK / Cancel / Apply / Restore Defaults — apply-on-OK; Cancel writes
@@ -292,6 +321,60 @@ class PreferencesDialog(QDialog):
 
         self.tabs.addTab(w, tr("Reading"))
 
+    # ── Reading Aids tab (convenience: pick your combination) ─────────────────
+
+    def _build_reading_aids_tab(self) -> None:
+        """A friendly one-stop panel of on/off reading aids.
+
+        Some (highlight, current-line, auto-scroll) mirror the Reading tab —
+        redundant on purpose, since many users benefit from more than one way
+        to reach a setting.  Others (reading ruler, syllable splitting,
+        difficult-word highlight, RSVP) are surfaced here in Preferences for
+        the first time, having previously lived only in the View menu."""
+        w = QWidget()
+        form = QFormLayout(w)
+        intro = QLabel(tr(
+            "Turn on the reading aids you find helpful — mix and match freely. "
+            "Each is also available from the Reading tab or the View menu."
+        ))
+        intro.setWordWrap(True)
+        form.addRow(intro)
+
+        # Mirrors of the Reading tab (kept in sync).
+        self.aid_highlight = QCheckBox(tr("Highlight the word being spoken"))
+        self.aid_highlight.setChecked(self.hl_master.isChecked())
+        _link_checkboxes(self.hl_master, self.aid_highlight)
+        form.addRow(self.aid_highlight)
+
+        self.aid_current_line = QCheckBox(tr("Tint the line being read"))
+        self.aid_current_line.setChecked(self.current_line.isChecked())
+        _link_checkboxes(self.current_line, self.aid_current_line)
+        form.addRow(self.aid_current_line)
+
+        self.aid_autoscroll = QCheckBox(tr("Auto-scroll to follow the spoken word"))
+        self.aid_autoscroll.setChecked(self.autoscroll.isChecked())
+        _link_checkboxes(self.autoscroll, self.aid_autoscroll)
+        form.addRow(self.aid_autoscroll)
+
+        # New in Preferences — canonical here (previously View-menu only).
+        self.aid_ruler = QCheckBox(tr("Reading ruler (a movable focus band)"))
+        self.aid_ruler.setChecked(bool(self.settings.get("qt_reading_ruler", False)))
+        form.addRow(self.aid_ruler)
+
+        self.aid_syllables = QCheckBox(tr("Syllable splitting (read·a·bil·i·ty)"))
+        self.aid_syllables.setChecked(bool(self.settings.get("qt_syllable_split", False)))
+        form.addRow(self.aid_syllables)
+
+        self.aid_vocab = QCheckBox(tr("Highlight difficult words"))
+        self.aid_vocab.setChecked(bool(self.settings.get("qt_vocab_highlight", False)))
+        form.addRow(self.aid_vocab)
+
+        self.aid_rsvp = QCheckBox(tr("RSVP speed-reading overlay"))
+        self.aid_rsvp.setChecked(bool(self.settings.get("qt_rsvp_mode", False)))
+        form.addRow(self.aid_rsvp)
+
+        self.tabs.addTab(w, tr("Reading Aids"))
+
     # ── Voice tab ────────────────────────────────────────────────────────────
 
     def _engine_choices(self) -> list:
@@ -408,9 +491,70 @@ class PreferencesDialog(QDialog):
 
         self.tabs.addTab(w, tr("Display"))
 
+    # ── Fonts tab (convenience: fonts + text spacing in one place) ────────────
+
+    def _build_fonts_tab(self) -> None:
+        """All font and text-spacing options together — reading font and
+        display font mirror the Display tab; line height and letter/word
+        spacing are surfaced here (previously settings-file only)."""
+        w = QWidget()
+        form = QFormLayout(w)
+        intro = QLabel(tr(
+            "Fonts and text spacing in one place. The reading and display fonts "
+            "are also on the Display tab."
+        ))
+        intro.setWordWrap(True)
+        form.addRow(intro)
+
+        # Reading font (mirror of the Display tab).
+        self.font_reading = QComboBox()
+        self.font_reading.addItems(_READING_FONTS)
+        self.font_reading.setCurrentIndex(self.reading_font.currentIndex())
+        _link_combos(self.reading_font, self.font_reading)
+        form.addRow(tr("Reading font:"), self.font_reading)
+
+        # Display font — a second "Choose…" button sharing the same staged
+        # family/size state (_refresh_font_btn updates both buttons).
+        self.font_btn2 = QPushButton()
+        self.font_btn2.setAccessibleName(tr("Display font"))
+        self.font_btn2.clicked.connect(self._choose_font)
+        form.addRow(tr("Display font:"), self.font_btn2)
+        self._refresh_font_btn()
+
+        # Text spacing (accessibility) — new in Preferences.
+        self.line_height = QDoubleSpinBox()
+        self.line_height.setRange(1.0, 3.0)
+        self.line_height.setSingleStep(0.1)
+        self.line_height.setDecimals(1)
+        self.line_height.setValue(float(self.settings.get("qt_line_height", 1.5) or 1.5))
+        form.addRow(tr("Line height (×):"), self.line_height)
+
+        self.letter_spacing = QDoubleSpinBox()
+        self.letter_spacing.setRange(-5.0, 30.0)
+        self.letter_spacing.setSingleStep(0.5)
+        self.letter_spacing.setDecimals(1)
+        self.letter_spacing.setSuffix(" %")
+        self.letter_spacing.setValue(
+            float(self.settings.get("qt_letter_spacing", 0.0) or 0.0))
+        form.addRow(tr("Letter spacing:"), self.letter_spacing)
+
+        self.word_spacing = QDoubleSpinBox()
+        self.word_spacing.setRange(0.0, 40.0)
+        self.word_spacing.setSingleStep(1.0)
+        self.word_spacing.setDecimals(1)
+        self.word_spacing.setSuffix(" px")
+        self.word_spacing.setValue(
+            float(self.settings.get("qt_word_spacing", 0.0) or 0.0))
+        form.addRow(tr("Word spacing:"), self.word_spacing)
+
+        self.tabs.addTab(w, tr("Fonts"))
+
     def _refresh_font_btn(self) -> None:
         fam = self._font_family or tr("(default)")
-        self.font_btn.setText(f"{fam}  {self._font_size}pt  —  " + tr("Choose…"))
+        txt = f"{fam}  {self._font_size}pt  —  " + tr("Choose…")
+        self.font_btn.setText(txt)
+        if getattr(self, "font_btn2", None) is not None:
+            self.font_btn2.setText(txt)
 
     def _choose_font(self) -> None:
         current = QFont(self._font_family or "", self._font_size)
@@ -500,6 +644,15 @@ class PreferencesDialog(QDialog):
         self.current_line.setChecked(bool(D["qt_current_line_highlight"]))
         self.autoscroll.setChecked(bool(D["qt_autoscroll"]))
         self.syllable_sep.setText(str(D["qt_syllable_sep"]))
+        # Reading Aids tab (mirrors of the above follow via _link_checkboxes).
+        self.aid_ruler.setChecked(bool(D["qt_reading_ruler"]))
+        self.aid_syllables.setChecked(bool(D["qt_syllable_split"]))
+        self.aid_vocab.setChecked(bool(D["qt_vocab_highlight"]))
+        self.aid_rsvp.setChecked(bool(D["qt_rsvp_mode"]))
+        # Fonts tab (reading/display font mirror the Display resets below).
+        self.line_height.setValue(float(D["qt_line_height"]))
+        self.letter_spacing.setValue(float(D["qt_letter_spacing"]))
+        self.word_spacing.setValue(float(D["qt_word_spacing"]))
         # Voice.  "auto" is always first in the engine combo.
         self.engine_box.setCurrentIndex(0)
         self.rate_spin.setValue(int(D["tts_rate"]))
@@ -547,6 +700,15 @@ class PreferencesDialog(QDialog):
         d["qt_current_line_highlight"] = self.current_line.isChecked()
         d["qt_autoscroll"] = self.autoscroll.isChecked()
         d["qt_syllable_sep"] = self.syllable_sep.text() or "·"
+        # Reading Aids tab (on/off toggles surfaced there).
+        d["qt_reading_ruler"] = self.aid_ruler.isChecked()
+        d["qt_syllable_split"] = self.aid_syllables.isChecked()
+        d["qt_vocab_highlight"] = self.aid_vocab.isChecked()
+        d["qt_rsvp_mode"] = self.aid_rsvp.isChecked()
+        # Fonts tab (text spacing).
+        d["qt_line_height"] = self.line_height.value()
+        d["qt_letter_spacing"] = self.letter_spacing.value()
+        d["qt_word_spacing"] = self.word_spacing.value()
         # Voice.
         chosen_engine = self.engine_box.currentText()
         d["tts_backend"] = "silent" if chosen_engine == "none" else chosen_engine
@@ -684,6 +846,52 @@ class PreferencesDialog(QDialog):
             win._qt_refresh_vocab_highlight()
         except Exception:
             pass
+
+        # Reading ruler — show/hide the overlay to match the toggle, and keep
+        # the View-menu check in sync.
+        try:
+            ruler_on = bool(self.settings.get("qt_reading_ruler", False))
+            win._apply_reading_ruler(ruler_on)
+            if hasattr(win, "_ruler_act"):
+                win._ruler_act.setChecked(ruler_on)
+        except Exception:
+            pass
+
+        # RSVP overlay — show/hide to match the toggle (mirrors _qt_toggle_rsvp).
+        try:
+            rsvp_on = bool(self.settings.get("qt_rsvp_mode", False))
+            if rsvp_on:
+                ov = win._qt_ensure_rsvp_overlay()
+                ov.show()
+                ov.raise_()
+            elif getattr(win, "_rsvp_overlay", None) is not None:
+                win._rsvp_overlay.hide()
+            if hasattr(win, "_rsvp_act"):
+                win._rsvp_act.setChecked(rsvp_on)
+        except Exception:
+            pass
+
+        # Text spacing — rebuild the editor font (letter/word spacing live in
+        # QFont) and re-apply the line-height block format.
+        try:
+            win.editor.setFont(win._make_editor_font())
+            win._apply_block_spacing()
+        except Exception:
+            pass
+
+        # Keep the View-menu checkmarks for the other aids in sync with the
+        # values just written from the Reading Aids tab.
+        for _attr, _key in (
+            ("_syllable_act", "qt_syllable_split"),
+            ("_vocab_act", "qt_vocab_highlight"),
+            ("_current_line_act", "qt_current_line_highlight"),
+        ):
+            act = getattr(win, _attr, None)
+            if act is not None:
+                try:
+                    act.setChecked(bool(self.settings.get(_key, False)))
+                except Exception:
+                    pass
 
         # Persist everything.
         try:
