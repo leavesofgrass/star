@@ -28,21 +28,24 @@ class DependencyChooser(QDialog):
         super().__init__(window)
         self._win = window
         self.setWindowTitle(tr("star — Optional Features"))
-        # A roomy default so several features and their descriptions are
-        # visible at once without scrolling on a typical display.
-        self.resize(760, 780)
-        # …but never open taller (or wider) than the screen — on a 1080p laptop
-        # (or smaller) the window manager would otherwise push the Install /
-        # Not-now buttons off the bottom.  The list scrolls to make up the
-        # difference.
+        # The list is long and each feature carries a wrapped description, and
+        # the intro/help text takes a fixed chunk at the top — so open LARGE:
+        # nearly the full screen height (and a comfortable width), centred, so
+        # many features are visible at once.  Always kept within the screen so
+        # the Install / Not-now buttons can never fall off the bottom.
         scr = QApplication.primaryScreen()
         if scr is not None:
             avail = scr.availableGeometry()
+            w = min(820, avail.width() - 60)
+            h = max(500, avail.height() - 60)
             self.setMaximumHeight(avail.height())
-            w = min(self.width(), avail.width() - 40)
-            h = self.height() if self.height() <= avail.height() - 80 \
-                else max(360, avail.height() - 80)
             self.resize(w, h)
+            self.move(
+                avail.x() + (avail.width() - w) // 2,
+                avail.y() + max(0, (avail.height() - h) // 2),
+            )
+        else:
+            self.resize(760, 820)
         self._boxes: dict[str, QCheckBox] = {}
         self._build()
 
