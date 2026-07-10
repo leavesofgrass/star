@@ -6,6 +6,7 @@
 package below unlocks additional file formats or features. Install only what you
 need.
 
+- [No Python? Download-and-run builds](#no-python-download-and-run-builds)
 - [Easiest: install from PyPI](#easiest-install-from-pypi)
 - [From a source checkout: the installer scripts](#from-a-source-checkout-the-installer-scripts)
 - [Install from the wheel](#install-from-the-wheel-macos--linux--windows)
@@ -13,6 +14,29 @@ need.
 - [Optional packages](#optional-packages)
 - [External binary dependencies](#external-binary-dependencies)
 - [Platform notes](#platform-notes)
+
+---
+
+## No Python? Download-and-run builds
+
+Don't have Python, or find installing it and its dependencies a hassle? Every
+release ships **self-contained binaries** on the
+[GitHub Releases page](https://github.com/leavesofgrass/star/releases/latest) —
+download one file and run it, nothing else to install:
+
+| Platform | File | How to run |
+|---|---|---|
+| **Windows** | `star-<version>-windows-x64.exe` | Double-click it. |
+| **Linux** | `star-<version>-x86_64.AppImage` | `chmod +x` it, then run it. |
+
+Both bundle Python, the GUI, every document loader, offline voice dictation, and
+the helper tools (audio export, OCR, braille, extra voices) — so text-to-speech,
+reading, and note-taking all work out of the box. They're large (the Windows
+build is ~800 MB) because everything is inside; if you already have Python,
+`pip install star-reader` is much smaller.
+
+> On Windows, SmartScreen may warn about an unrecognized publisher the first
+> time (the binary isn't code-signed yet) — choose **More info → Run anyway**.
 
 ---
 
@@ -167,16 +191,15 @@ What the fat zipapp does and does not remove:
   Windows only on Windows, and so on. Build a separate `star.pyz` for each
   platform you target.
 
-> A **deprecated** self-contained Windows `star.exe` (PyInstaller) also exists as
-> a manual fallback for maintainers who need a no-Python-install binary. It is no
-> longer built by CI or attached to releases — prefer the wheel. See
-> [`star/BUILD.md`](../star/BUILD.md).
+> Prefer a no-Python-install binary? The self-contained Windows `star.exe` and
+> Linux AppImage are attached to every release — see
+> [No Python? Download-and-run builds](#no-python-download-and-run-builds) above.
 
 > **Native installers (opt-in).** The release workflow can additionally build a
-> Windows NSIS installer, a macOS `.app`/DMG, and a Linux AppImage — all
-> off-by-default and produced only when a maintainer enables them. Maintainers:
-> see [`PACKAGING.md`](PACKAGING.md) for the full channel matrix, the optional
-> CI jobs, and which signing certificates/secrets each one needs.
+> Windows NSIS installer and a macOS `.app`/DMG — both off-by-default and
+> produced only when a maintainer enables them. Maintainers: see
+> [`PACKAGING.md`](PACKAGING.md) for the full channel matrix, the optional CI
+> jobs, and which signing certificates/secrets each one needs.
 
 ## Optional Packages
 

@@ -38,8 +38,16 @@ the dictionary is kept beside each ``DECtalk.dll``.
 
 Usage::
 
-    python build-vendor.py            # fetch anything missing
-    python build-vendor.py --force    # re-fetch everything
+    python build-vendor.py               # fetch anything missing
+    python build-vendor.py --force       # re-fetch everything
+    python build-vendor.py --no-dectalk  # omit DECtalk (public-release builds)
+
+DECtalk is a commercial synthesizer mirrored on a community GitHub release; it
+is fine for a private/personal build but must NOT be redistributed in a public
+GitHub Release artifact — pass ``--no-dectalk`` for the CI/public exe.  The
+whole ``vendor/`` tree is bundled by ``star.spec`` via a directory walk, so
+simply not fetching DECtalk keeps it out of the frozen app (star's DECtalk
+backend then reports itself unavailable, exactly as on any machine without it).
 
 Requirements: internet access, and **7-Zip** (``7z.exe``) to unpack the
 Tesseract installer (its NSIS installer otherwise demands UAC elevation).
@@ -340,12 +348,17 @@ def fetch_espeak(force: bool) -> None:
 
 
 def main() -> None:
-    force = "--force" in sys.argv[1:]
+    args = sys.argv[1:]
+    force = "--force" in args
+    include_dectalk = "--no-dectalk" not in args
     fetch_ffmpeg(force)
     fetch_tesseract(force)
     fetch_liblouis(force)
     fetch_pandoc(force)
-    fetch_dectalk(force)
+    if include_dectalk:
+        fetch_dectalk(force)
+    else:
+        print("dectalk: skipped (--no-dectalk; excluded from public builds)")
     fetch_espeak(force)
     total = sum(f.stat().st_size for f in VENDOR.rglob("*") if f.is_file())
     print(f"\nvendor/ ready at {VENDOR}  ({total // (1024 * 1024)} MB)")

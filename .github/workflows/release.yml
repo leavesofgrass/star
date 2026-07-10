@@ -12,11 +12,11 @@ on:
         type: boolean
         default: false
       build_exe:
-        description: "Also build the DEPRECATED self-contained Windows star.exe (manual fallback only)"
+        description: "Force-build the self-contained Windows star.exe on a manual run (it already builds on every v* tag)"
         type: boolean
         default: false
       lean:
-        description: "If building the deprecated exe, make it LEAN (skip the Whisper + Torch dictation stack) — fast/small"
+        description: "Build the exe LEAN (skip the Whisper + Torch dictation stack) — fast/small"
         type: boolean
         default: false
       build_installers:
@@ -98,9 +98,21 @@ jobs:
   # Tesseract, liblouis, Pandoc, DECtalk).  To ship a fully self-contained exe,
   # run `python tools/build-vendor.py` before the build step (needs 7-Zip on
   # PATH) — see docs/RELEASING.md.
+  # ── Self-contained Windows star.exe ────────────────────────────────────────
+  # A single double-click .exe with Python, PyQt6, every document loader, the
+  # offline dictation stack (Whisper + Torch), and the vendored native tools
+  # (ffmpeg / tesseract / liblouis / pandoc / espeak-ng) baked in — for the many
+  # students who can't install Python or its dependencies.  Built on every `v*`
+  # tag and attached to the GitHub Release.  DECtalk is deliberately EXCLUDED
+  # from this public artifact (--no-dectalk): it's a commercial synthesizer from
+  # a community mirror, unfit for public redistribution.  A manual run can pass
+  # `lean: true` for a fast, small exe without the Whisper/Torch stack.
   windows-exe:
-    name: Build Windows star.exe (deprecated)
-    if: github.event_name == 'workflow_dispatch' && inputs.build_exe
+    name: Windows star.exe (self-contained)
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'workflow_dispatch' && inputs.build_exe) ||
+      vars.ENABLE_INSTALLERS == 'true'
     runs-on: windows-latest
     timeout-minutes: 120
     steps:
@@ -109,20 +121,32 @@ jobs:
         with:
           python-version: "3.13"
           cache: pip
-      - name: Build star.exe (deprecated manual fallback)
+      - name: Fetch vendored native tools (no DECtalk)
         shell: pwsh
+        run: python tools/build-vendor.py --no-dectalk
+      - name: Build star.exe
+        shell: pwsh
+        env:
+          STAR_ALLOW_EXE: "1"   # opt in to the big self-contained build
         run: |
           if ('${{ inputs.lean }}' -eq 'true') {
             Write-Host 'Building LEAN star.exe (no Torch/Whisper)'
-            ./tools/build-windows.ps1 -Lean -AllowDeprecatedExe
+            ./tools/build-windows.ps1 -Lean -Ocr
           } else {
             Write-Host 'Building full star.exe with offline dictation (Torch/Whisper)'
-            ./tools/build-windows.ps1 -AllowDeprecatedExe
+            ./tools/build-windows.ps1 -Ocr
           }
+      - name: Version-stamp the artifact
+        shell: pwsh
+        run: |
+          $ver = (Select-String -Path pyproject.toml -Pattern '^version = "([^"]+)"').Matches[0].Groups[1].Value
+          Move-Item dist/star.exe "dist/star-$ver-windows-x64.exe"
+          Get-ChildItem dist/*.exe | ForEach-Object { "{0}  {1:N0} MB" -f $_.Name, ($_.Length/1MB) }
       - uses: actions/upload-artifact@v4
         with:
           name: exe-windows
-          path: dist/star.exe
+          path: dist/star-*-windows-x64.exe
+          if-no-files-found: error
 
   # ── Publish to TestPyPI (pre-release tags: vX.Y.Z-rcN) ─────────────────────
   # Uses PyPI trusted publishing (OIDC) — no API token is stored.  The repo must
@@ -326,21 +350,23 @@ jobs:
           if-no-files-found: ignore
 
   # ── Publish the GitHub Release ─────────────────────────────────────────────
-  # The automated release is wheel + sdist + the Linux AppImage.  Neither the
-  # star.pyz nor the deprecated star.exe is a dependency or attached to releases
-  # — build those manually if you need them (see windows-pyz / windows-exe above
-  # and docs/installation.md).
+  # The automated release is wheel + sdist + the Linux AppImage + the
+  # self-contained Windows star.exe.  The star.pyz is not attached (build it
+  # manually — see windows-pyz above and docs/installation.md).
   #
-  # ``linux-appimage`` IS in ``needs``: without it, the ~5-minute AppImage build
-  # races this job and its artifact silently misses the sweep-up below.  The
-  # ``if: always()`` + explicit wheel check keeps the release from being held
-  # hostage — a failed AppImage build still publishes wheel + sdist.  The other
-  # signing / installer jobs stay out of ``needs`` (best-effort, skipped by
-  # default); when they finish in time their artifacts are still swept up by
+  # ``linux-appimage`` and ``windows-exe`` are in ``needs`` so their artifacts
+  # are finished before the sweep-up below (without it a slow build races this
+  # job and its artifact silently misses the release).  The exe is the long
+  # pole (~30-60 min for the Torch + PyInstaller build), so the Release appears
+  # once it finishes; PyPI publishing (needs: [wheel] only) is NOT delayed by
+  # it.  ``if: always()`` + the explicit wheel check keeps the release from
+  # being held hostage — a failed exe or AppImage build still publishes wheel +
+  # sdist + whatever else succeeded.  Best-effort signing / installer jobs stay
+  # out of ``needs``; their artifacts are still swept up by
   # ``download-artifact@v4`` (it downloads *every* uploaded artifact).
   release:
     name: Publish GitHub Release
-    needs: [wheel, linux-appimage]
+    needs: [wheel, linux-appimage, windows-exe]
     if: always() && needs.wheel.result == 'success'
     runs-on: ubuntu-latest
     steps:

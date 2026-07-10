@@ -24,8 +24,8 @@ day-to-day "cut a release" procedure) and [`installation.md`](installation.md)
 | **Windows installer** | `star-setup-<v>.exe` | `windows-installer` job (optional) | 🔒 opt-in | NSIS click-through installer around `star.pyz`; Authenticode-signed when a cert is provided. |
 | **macOS app / DMG** | `star.app.zip` + `star-<v>.dmg` | `macos-app` job (optional) | 🔒 opt-in | briefcase-built `.app`/`.dmg`; codesigned + notarized when an Apple Developer ID is provided. |
 | **Linux AppImage** | `star-<v>-x86_64.AppImage` | `linux-appimage` job | ✅ | Self-contained via python-appimage; built on every `v*` tag and attached to the GitHub Release (default since 0.1.22). |
+| **Windows exe** | `star-<v>-windows-x64.exe` | `windows-exe` job | ✅ | Self-contained PyInstaller onefile — Python, PyQt6, all loaders, offline dictation (Whisper/Torch), and vendored ffmpeg/tesseract/liblouis/pandoc/espeak-ng baked in. Built on every `v*` tag and attached to the Release (default since 0.1.24). **DECtalk is excluded** from this public build (`--no-dectalk`). Double-click to run — no Python needed. |
 | **GPG signatures** | `*.whl.asc`, `*.tar.gz.asc` | `sign-artifacts` job (optional) | 🔒 opt-in | Detached armored signatures for the wheel + sdist. |
-| **Deprecated exe** | `star.exe` | `windows-exe` job (manual) | ⚠️ deprecated | PyInstaller onefile; manual fallback only. See [RELEASING.md](RELEASING.md). |
 
 "Default? ✅" runs on every `v*` tag. "⚙️ manual" runs only via
 `workflow_dispatch`. "🔒 opt-in" runs only when its enabling variable/secret is
