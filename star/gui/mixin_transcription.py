@@ -118,6 +118,23 @@ class TranscriptionMixin:
         self.statusBar().showMessage(msg, duration)
         announce(self.editor, msg)
 
+    def _speech_failure_message(self, raw: str, phase: str = "result") -> str:
+        """A student-friendly message for a speech-feature failure.
+
+        star installs features FOR the user, so a backend "pip install …"
+        string must never reach them — it means a just-installed package needs
+        a fresh process (numpy/sounddevice now load without one, but Whisper +
+        Torch may not).  *phase* is "start" (opening the mic) or "result"
+        (transcription)."""
+        raw = str(raw or "")
+        if "pip install" in raw:
+            return tr("Voice features need a restart to finish setting up — "
+                      "please close and reopen star.")
+        if phase == "start":
+            return tr("Couldn't start the microphone — check it's connected "
+                      "and that star is allowed to use it.")
+        return tr("Voice input failed: {error}").format(error=raw)
+
     def _qt_transcribe_file(self) -> None:
         """Transcribe an audio file with Whisper and open it as a document."""
         if not self._qt_require_optional_feature("transcribe", tr("Speech recognition")):
@@ -163,7 +180,7 @@ class TranscriptionMixin:
         """Main-thread handler for a completed transcription."""
         if src.startswith("ERROR: "):
             # Say what failed, not just the naked exception text.
-            self._status_error(f"Transcription failed: {src[7:]}")
+            self._status_error(self._speech_failure_message(src[7:]))
             return
         if not text:
             msg = tr("Transcription produced no text")
@@ -220,7 +237,7 @@ class TranscriptionMixin:
             recorder = StreamRecorder()
             recorder.start()
         except Exception as exc:  # noqa: BLE001 — no mic / no sounddevice
-            self._status_error(f"Could not start recording: {exc}")
+            self._status_error(self._speech_failure_message(str(exc), "start"))
             return
 
         char_pos, anchor = self._qt_current_anchor()
@@ -282,7 +299,7 @@ class TranscriptionMixin:
         try:
             samples = recorder.stop_samples()
         except Exception as exc:  # noqa: BLE001
-            self._status_error(f"Recording failed: {exc}")
+            self._status_error(self._speech_failure_message(str(exc), "start"))
             return
         if samples is None or len(samples) == 0:
             msg = tr("No audio was recorded — check your microphone")
@@ -322,7 +339,7 @@ class TranscriptionMixin:
         one happens to be open when Whisper finishes.
         """
         if char_pos_s == "ERROR":
-            msg = tr("Dictation failed: {error}").format(error=anchor)
+            msg = self._speech_failure_message(anchor)
             self.statusBar().showMessage(msg)
             announce(self.editor, msg)
             return
@@ -402,7 +419,7 @@ class TranscriptionMixin:
             self._qt_vt_recorder = StreamRecorder()
             self._qt_vt_recorder.start()
         except Exception as exc:  # noqa: BLE001 — no mic / no sounddevice
-            self._status_error(f"Could not start voice typing: {exc}")
+            self._status_error(self._speech_failure_message(str(exc), "start"))
             self._qt_vt_recorder = None
             self._qt_vt_sync_action()
             return
@@ -441,7 +458,7 @@ class TranscriptionMixin:
         try:
             samples = rec.stop_samples()
         except Exception as exc:  # noqa: BLE001
-            self._status_error(f"Voice typing failed: {exc}")
+            self._status_error(self._speech_failure_message(str(exc), "start"))
             return
         if samples is None or len(samples) == 0:
             msg = tr("No audio was recorded — check your microphone")
@@ -467,7 +484,7 @@ class TranscriptionMixin:
         """Main-thread handler: insert the recognized speech at the cursor."""
         self._qt_vt_busy = False
         if error:
-            msg = tr("Voice typing failed: {error}").format(error=error)
+            msg = self._speech_failure_message(error)
             self.statusBar().showMessage(msg)
             announce(self.editor, msg)
             return

@@ -288,6 +288,27 @@ def test_voice_typing_error_is_surfaced_not_inserted(window):
     assert window._qt_vt_busy is False
 
 
+def test_speech_errors_never_show_a_pip_command(window):
+    """The 'no pip ever' promise: a backend RuntimeError that mentions pip is
+    rewritten to a restart hint before it ever reaches the student."""
+    pip_err = "Microphone capture requires sounddevice + numpy:\n  pip install sounddevice numpy"
+    for phase in ("start", "result"):
+        out = window._speech_failure_message(pip_err, phase)
+        assert "pip" not in out.lower()
+        assert "restart" in out.lower()
+    # A real device error (no pip) still reaches the user in the start phase.
+    dev = window._speech_failure_message("PortAudioError: no default device", "start")
+    assert "pip" not in dev.lower() and "microphone" in dev.lower()
+
+
+def test_voice_typing_result_pip_error_becomes_a_restart_hint(window):
+    window._qt_enter_edit_mode()
+    window._qt_vt_busy = True
+    window._qt_on_voice_typed("", "Speech recognition requires Whisper:\n  pip install openai-whisper")
+    msg = window.statusBar().currentMessage()
+    assert "pip" not in msg.lower() and "restart" in msg.lower()
+
+
 def test_voice_typing_toggle_is_ignored_while_transcribing(window, monkeypatch):
     """A toggle press while a transcription is still running must not start a
     second recorder — it just reminds the user to wait."""
@@ -427,9 +448,23 @@ def test_stream_recorder_cancel_releases_the_mic_and_discards(monkeypatch):
 def test_stream_recorder_refuses_without_audio_stack(monkeypatch):
     import star.transcribe as t
 
-    monkeypatch.setattr(t, "_AUDIO_IN", False)
+    # Availability is now checked FRESH (not the import-time _AUDIO_IN
+    # snapshot), so a same-session install works and the GUI gate can never
+    # disagree with the recorder.  Simulate the stack being unavailable.
+    monkeypatch.setattr(t, "_audio_in_now", lambda: False)
     with pytest.raises(RuntimeError, match="sounddevice"):
         t.StreamRecorder()
+
+
+def test_stream_recorder_available_check_is_fresh_not_stale(monkeypatch):
+    """A stale import-time _AUDIO_IN=False must NOT block a recorder once the
+    packages are actually importable — this is the bug that surfaced a raw
+    'pip install' message after a same-session install."""
+    import star.transcribe as t
+
+    monkeypatch.setattr(t, "_AUDIO_IN", False)          # stale snapshot
+    monkeypatch.setattr(t, "_module_available", lambda name: True)  # really present
+    assert t._audio_in_now() is True                    # fresh check wins
 
 
 @pytest.mark.skipif(not _HAS_NUMPY, reason="numpy not installed (audio extra)")

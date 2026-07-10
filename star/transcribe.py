@@ -82,9 +82,18 @@ def _transcribe_samples(
     )
 
 
+def _audio_in_now() -> bool:
+    """Whether microphone capture is available, checked FRESH (not the import-
+    time ``_AUDIO_IN`` snapshot).  numpy + sounddevice import cleanly mid-run,
+    so a same-session install works without a restart — and the GUI's install
+    gate and this check then always agree, so a stale flag can never surface a
+    ``pip install`` message the user was told they'd never see."""
+    return _module_available("numpy") and _module_available("sounddevice")
+
+
 def _record_audio_to_wav(seconds: float, samplerate: int = 16000) -> str:
     """Record *seconds* of mono microphone audio to a temp WAV; return its path."""
-    if not _AUDIO_IN:
+    if not _audio_in_now():
         raise RuntimeError(
             "Microphone capture requires sounddevice + numpy:\n"
             "  pip install sounddevice numpy"
@@ -117,7 +126,7 @@ class StreamRecorder:
     """
 
     def __init__(self, samplerate: int = 16000) -> None:
-        if not _AUDIO_IN:
+        if not _audio_in_now():  # fresh check — same-session install works
             raise RuntimeError(
                 "Microphone capture requires sounddevice + numpy:\n"
                 "  pip install sounddevice numpy"
