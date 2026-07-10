@@ -277,25 +277,35 @@ jobs:
           path: dist/star-setup*.exe
           if-no-files-found: ignore
 
-  # ── OPTIONAL: macOS .app / DMG (+ codesign & notarize) ─────────────────────
-  # Builds a double-clickable ``star.app`` and a ``.dmg`` with briefcase.
-  # codesign + notarization run only when an Apple Developer ID cert + an App
-  # Store Connect API key / app-specific password are supplied.
+  # ── macOS .app / DMG (+ codesign & notarize) ───────────────────────────────
+  # Builds a double-clickable ``star.app`` and a ``.dmg`` with PyInstaller via
+  # the shared star.spec (darwin → ONEDIR .app bundle).  Speech comes from the OS
+  # (NSSpeechSynthesizer via pyttsx3 + the /usr/bin/say backend), so no vendored
+  # binaries are bundled.  Developer-ID codesign + notarization run only when an
+  # Apple Developer ID cert + notary credentials are supplied; otherwise the .app
+  # is AD-HOC signed (runs after the user clears Gatekeeper quarantine).
   #
-  # GATING: same trigger as the Windows installer (manual ``build_installers`` or
-  # ``vars.ENABLE_INSTALLERS=true``).  codesign/notarize inside the script is a
-  # no-op when ``MACOS_CERTIFICATE_BASE64`` is absent — an unsigned .app/.dmg is
-  # still produced (Gatekeeper will warn, but the artifact builds).  Maintainer
-  # secrets to enable signing/notarization:
+  # RUNNER: macos-latest is Apple Silicon, so this produces an arm64-only .app
+  # (stamped ``…-macos-arm64``).  Intel Macs would need a separate x86_64 runner.
+  #
+  # GATING: builds on every ``v*`` tag — a DEFAULT release artifact, attached to
+  # the GitHub Release — plus the manual ``build_installers`` /
+  # ``vars.ENABLE_INSTALLERS`` triggers.  Signing/notarization is a no-op when
+  # ``MACOS_CERTIFICATE_BASE64`` is absent (ad-hoc .app/.dmg still produced).
+  # Maintainer secrets to enable Developer-ID signing + notarization:
   #   ``MACOS_CERTIFICATE_BASE64`` (base64 .p12) + ``MACOS_CERTIFICATE_PASSWORD``,
   #   ``MACOS_NOTARY_APPLE_ID`` + ``MACOS_NOTARY_PASSWORD`` + ``MACOS_NOTARY_TEAM_ID``.
+  # Set ``STAR_MACOS_FULL=1`` in the job env to also bundle the offline dictation
+  # stack (Whisper + Torch); by default the macOS .app ships lean.
   # See docs/PACKAGING.md → "macOS app / DMG".
   macos-app:
-    name: macOS .app / DMG (optional)
+    name: macOS .app / DMG
     if: >-
+      startsWith(github.ref, 'refs/tags/v') ||
       (github.event_name == 'workflow_dispatch' && inputs.build_installers) ||
       vars.ENABLE_INSTALLERS == 'true'
     runs-on: macos-latest
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -316,7 +326,7 @@ jobs:
           path: |
             dist/*.dmg
             dist/*.app.zip
-          if-no-files-found: ignore
+          if-no-files-found: error
 
   # ── Linux AppImage ─────────────────────────────────────────────────────────
   # Bundles a Python runtime + star into a single self-contained ``star.AppImage``
@@ -351,22 +361,22 @@ jobs:
 
   # ── Publish the GitHub Release ─────────────────────────────────────────────
   # The automated release is wheel + sdist + the Linux AppImage + the
-  # self-contained Windows star.exe.  The star.pyz is not attached (build it
-  # manually — see windows-pyz above and docs/installation.md).
+  # self-contained Windows star.exe + the macOS .app/DMG.  The star.pyz is not
+  # attached (build it manually — see windows-pyz above and docs/installation.md).
   #
-  # ``linux-appimage`` and ``windows-exe`` are in ``needs`` so their artifacts
-  # are finished before the sweep-up below (without it a slow build races this
-  # job and its artifact silently misses the release).  The exe is the long
-  # pole (~30-60 min for the Torch + PyInstaller build), so the Release appears
-  # once it finishes; PyPI publishing (needs: [wheel] only) is NOT delayed by
-  # it.  ``if: always()`` + the explicit wheel check keeps the release from
-  # being held hostage — a failed exe or AppImage build still publishes wheel +
-  # sdist + whatever else succeeded.  Best-effort signing / installer jobs stay
-  # out of ``needs``; their artifacts are still swept up by
+  # ``linux-appimage``, ``windows-exe`` and ``macos-app`` are in ``needs`` so
+  # their artifacts are finished before the sweep-up below (without it a slow
+  # build races this job and its artifact silently misses the release).  The exe
+  # is the long pole (~30-60 min for the Torch + PyInstaller build), so the
+  # Release appears once it finishes; PyPI publishing (needs: [wheel] only) is
+  # NOT delayed by it.  ``if: always()`` + the explicit wheel check keeps the
+  # release from being held hostage — a failed exe, AppImage or .app build still
+  # publishes wheel + sdist + whatever else succeeded.  Best-effort signing /
+  # installer jobs stay out of ``needs``; their artifacts are still swept up by
   # ``download-artifact@v4`` (it downloads *every* uploaded artifact).
   release:
     name: Publish GitHub Release
-    needs: [wheel, linux-appimage, windows-exe]
+    needs: [wheel, linux-appimage, windows-exe, macos-app]
     if: always() && needs.wheel.result == 'success'
     runs-on: ubuntu-latest
     steps:

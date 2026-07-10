@@ -6,10 +6,11 @@ release is cut and what the automation produces.
 > **Release model: wheel + PyPI, plus self-contained downloads.** The automated
 > release publishes the pure-Python **wheel + sdist** to **PyPI** (and attaches
 > them to the GitHub Release). Since 0.1.22 every `v*` tag also builds and
-> attaches two double-click, no-Python-needed downloads: the **Linux AppImage**
-> and (as of 0.1.24) the **self-contained Windows `star.exe`**. Only the platform
-> `star.pyz` is **not** built on tag pushes — it is a build-it-yourself artifact
-> (see [Build-it-yourself artifacts](#build-it-yourself-artifacts)).
+> attaches double-click, no-Python-needed downloads: the **Linux AppImage**, and
+> (as of 0.1.24) the **self-contained Windows `star.exe`** and the **macOS
+> `star.app`/DMG** (Apple Silicon). Only the platform `star.pyz` is **not** built
+> on tag pushes — it is a build-it-yourself artifact (see
+> [Build-it-yourself artifacts](#build-it-yourself-artifacts)).
 
 ## Continuous integration (every push / PR)
 
@@ -65,15 +66,16 @@ auto-generated notes.
 | `wheel` | `star_reader-<version>-py3-none-any.whl` + sdist | **The release.** Pure-Python, universal; one build serves every platform. `twine check` guards the long-description rendering before the PyPI upload. |
 | `publish-testpypi` / `publish-pypi` | (uploads to PyPI) | Publishes the wheel + sdist via trusted publishing — pre-release tags to TestPyPI, final tags to PyPI. See **Publishing to PyPI** below. |
 | `windows-exe` | `star-<version>-windows-x64.exe` | Self-contained double-click Windows binary (Python + GUI + every loader + offline dictation + vendored native tools; **DECtalk excluded** via `--no-dectalk`). Built on every `v*` tag and attached to the Release. It is the long pole (~30-60 min for the Torch + PyInstaller build); PyPI publishing (`needs: [wheel]`) is **not** delayed by it. |
+| `macos-app` | `star-<version>-macos-arm64.dmg` + `.app.zip` | Self-contained macOS app, PyInstaller-built from the same `star.spec` (darwin → `.app` bundle). Speech uses the built-in Apple voices, so no native engines are bundled; ad-hoc-signed by default, Developer-ID codesigned + notarized when the `MACOS_*` secrets are set. **Apple-Silicon (arm64) only.** Built on every `v*` tag (default since 0.1.24) and attached to the Release. |
 | `linux-appimage` | `star-*.AppImage` | Self-contained Linux binary. A **default** release artifact since 0.1.22, attached to the Release. |
-| `release` | GitHub Release | Attaches the wheel + sdist, the Windows `.exe`, the Linux AppImage, and auto-generated notes. |
+| `release` | GitHub Release | Attaches the wheel + sdist, the Windows `.exe`, the macOS `.app`/DMG, the Linux AppImage, and auto-generated notes. |
 
-The `windows-exe` job (the self-contained `star.exe`) and the `linux-appimage`
-job **run on every `v*` tag** and their output is attached to the GitHub Release;
-a manual `workflow_dispatch` can also force them (`build_exe: true` /
-`build_installers: true`). Only the `windows-pyz` job stays manual-only — it does
-**not** run on tag pushes and is not attached to the release (`workflow_dispatch`
-with `build_pyz: true`).
+The `windows-exe` (self-contained `star.exe`), `macos-app` (`.app`/DMG) and
+`linux-appimage` jobs **run on every `v*` tag** and their output is attached to
+the GitHub Release; a manual `workflow_dispatch` can also force them
+(`build_exe: true` / `build_installers: true`). Only the `windows-pyz` job stays
+manual-only — it does **not** run on tag pushes and is not attached to the release
+(`workflow_dispatch` with `build_pyz: true`).
 
 ## Publishing to PyPI
 

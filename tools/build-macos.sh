@@ -1,19 +1,31 @@
 #!/usr/bin/env bash
 # =============================================================================
-# build-macos.sh — build a macOS star.app / .dmg, optionally codesigned +
-# notarized.
+# build-macos.sh — build a macOS star.app + .dmg with PyInstaller, optionally
+# Developer-ID codesigned + notarized.
 # =============================================================================
 #
 # OPTIONAL packaging helper, invoked by the `macos-app` job in
-# .github/workflows/release.yml (and runnable locally on a Mac).  It uses
-# briefcase (from the BeeWare project) to wrap the pure-Python `star` package
-# into a double-clickable .app and a .dmg.  The wheel remains the primary
-# distribution channel; this is a convenience artifact for macOS users.
+# .github/workflows/release.yml (and runnable locally on a Mac).  It drives
+# PyInstaller through the shared star.spec — the SAME spec that builds the
+# Windows star.exe — which on macOS (sys.platform == "darwin") packages the
+# Analysis as a ONEDIR ``star.app`` bundle instead of a onefile .exe.  The wheel
+# remains the primary distribution channel; this is a convenience artifact for
+# macOS users who can't install Python.
 #
-# Signing + notarization are best-effort and OFF by default: when
-# MACOS_CERTIFICATE_BASE64 is empty/absent the .app/.dmg are produced UNSIGNED
-# (Gatekeeper will warn on first launch) and this script still exits 0, so CI
-# never fails for lack of an Apple Developer ID.  To enable, provide:
+# Speech on macOS comes from the OS, not from vendored binaries: the star.app
+# ships pyttsx3 (→ NSSpeechSynthesizer) and star's AppleSay backend (/usr/bin/
+# say), so no vendor/ tree is bundled (star.spec skips it on darwin).
+#
+# Dictation (Whisper + Torch, multi-GB) is NOT bundled by default on macOS — the
+# .app stays small and quick to build.  Set STAR_MACOS_FULL=1 to bundle the
+# offline dictation stack (mirrors the Windows exe's default).
+#
+# Signing + notarization are best-effort and OFF by default: with no
+# MACOS_CERTIFICATE_BASE64 the .app is AD-HOC signed (``codesign -s -``) so it
+# runs locally after the user clears Gatekeeper quarantine (right-click ▸ Open,
+# or ``xattr -dr com.apple.quarantine star.app``), and this script still exits 0
+# — CI never fails for lack of an Apple Developer ID.  To ship a Gatekeeper-clean
+# artifact, provide:
 #
 #   MACOS_CERTIFICATE_BASE64   base64 of a "Developer ID Application" .p12
 #   MACOS_CERTIFICATE_PASSWORD its export password
@@ -24,43 +36,142 @@
 # See docs/PACKAGING.md → "macOS app / DMG".
 set -euo pipefail
 
-mkdir -p dist
+# This script lives in tools/, but the build (star.spec, dist/) is rooted at the
+# project directory one level up.  Operate from there.
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+mkdir -p dist build
 
-echo "==> Installing briefcase"
-python -m pip install --upgrade pip briefcase >/dev/null
+info() { printf '==> %s\n' "$*"; }
 
-# briefcase reads its config from pyproject.toml ([tool.briefcase]).  We do NOT
-# edit pyproject.toml here (owned elsewhere); instead we run briefcase with a
-# generated minimal template if no config is present, so this script is
-# self-contained and never mutates tracked project files.
-if ! python -c "import tomllib,sys; d=tomllib.load(open('pyproject.toml','rb')); sys.exit(0 if 'briefcase' in d.get('tool',{}) else 1)" 2>/dev/null; then
-  echo "==> No [tool.briefcase] in pyproject.toml — using a standalone build config"
-  # briefcase can be driven from an isolated config directory; keep it in build/.
-  BRIEFCASE_CONFIG_DIR="build/briefcase"
-  mkdir -p "$BRIEFCASE_CONFIG_DIR"
-  cat > "$BRIEFCASE_CONFIG_DIR/pyproject.toml" <<'TOML'
-[tool.briefcase]
-project_name = "star"
-bundle = "org.star-reader"
-version = "0.0.0"
-license = "GPL-3.0-or-later"
+VERSION="$(python -c "import tomllib,sys; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")"
+ARCH="$(uname -m)"   # arm64 on Apple-Silicon runners, x86_64 on Intel
+info "Building star $VERSION for macOS ($ARCH)"
 
-[tool.briefcase.app.star]
-formal_name = "star"
-description = "Speaking Terminal Access Reader"
-sources = ["src/star"]
-requires = ["star-reader[all]"]
-TOML
-  echo "::warning::briefcase config was synthesized; wire [tool.briefcase] into pyproject.toml for a first-class build."
+# ── Isolated build venv ──────────────────────────────────────────────────────
+VENV="$ROOT/.venv-build-macos"
+if [ ! -d "$VENV" ]; then
+  info "Creating build virtual environment (.venv-build-macos)"
+  python -m venv "$VENV"
+fi
+PY="$VENV/bin/python"
+"$PY" -m pip install --upgrade pip >/dev/null
+
+# ── Dependencies ─────────────────────────────────────────────────────────────
+# Mirrors the Windows exe's runtime set, minus the Windows-only bits
+# (windows-curses, comtypes/SAPI) and plus nothing Mac-specific beyond pyttsx3,
+# which resolves to the NSSpeechSynthesizer driver at runtime.
+info "Installing PyInstaller + runtime dependencies"
+DEPS=(
+  pyinstaller
+  PyQt6
+  pyttsx3
+  # pyobjc lets pyttsx3's nsss driver drive NSSpeechSynthesizer for accurate
+  # word-boundary highlighting; without it star still speaks via the `say`
+  # backend, but highlighting falls back to timing estimates.
+  pyobjc-core
+  pyobjc-framework-Cocoa
+  pdfminer.six
+  python-docx
+  python-pptx
+  openpyxl
+  odfpy
+  watchdog
+  # Study & writing aids (bundled so they work in the .app with no extra install)
+  sumy
+  genanki
+  pyspellchecker
+  deep-translator
+  feedparser
+  wordfreq
+  pyphen
+  # Small pure-Python fillers so nothing obvious is dark in `star --deps`
+  pydub
+  pyperclip
+  py7zr
+  rarfile
+  # OCR wrappers (the Tesseract engine itself comes from Homebrew if present)
+  pytesseract
+  PyMuPDF
+  Pillow
+)
+# Dictation stack — opt-in on macOS (Torch is multi-GB); see STAR_MACOS_FULL.
+if [ -n "${STAR_MACOS_FULL:-}" ]; then
+  info "STAR_MACOS_FULL set — bundling offline dictation stack (openai-whisper + Torch)"
+  DEPS+=(openai-whisper sounddevice)
+else
+  info "Lean macOS build: skipping the dictation stack (set STAR_MACOS_FULL=1 to include it)"
+  export STAR_LEAN=1   # star.spec: don't pull in / bundle Torch/Whisper
+fi
+"$PY" -m pip install "${DEPS[@]}"
+
+# Install star itself so its dist-info (entry-point metadata) exists for
+# star.spec's copy_metadata("star-reader").  Without it the frozen app's plugin
+# registry discovers ZERO TTS backends — a reader that can't speak.
+info "Installing star-reader itself (entry-point metadata for the TTS registry)"
+"$PY" -m pip install --no-deps --force-reinstall .
+
+# ── Stage NLTK data (offline summarize + Define Word) ────────────────────────
+# sumy's tokenizer needs punkt; Define Word needs wordnet + cmudict.  star.spec
+# bundles build/nltk_data when present so both features work with no download.
+if [ ! -f "$ROOT/build/nltk_data/corpora/wordnet.zip" ]; then
+  info "Staging NLTK data (punkt + wordnet + cmudict) for offline summarize / Define Word"
+  STAR_NLTK_DIR="$ROOT/build/nltk_data" "$PY" - <<'PY'
+import os, nltk
+d = os.environ["STAR_NLTK_DIR"]
+os.makedirs(d, exist_ok=True)
+for pkg in ("punkt", "punkt_tab", "wordnet", "omw-1.4", "cmudict"):
+    nltk.download(pkg, download_dir=d)
+print("NLTK data staged")
+PY
 fi
 
-# ── Optional signing setup ──────────────────────────────────────────────────
+# ── Stage the Whisper model (only when bundling the full dictation stack) ────
+if [ -n "${STAR_MACOS_FULL:-}" ] && [ ! -f "$ROOT/build/whisper_cache/whisper/base.pt" ]; then
+  info "Staging Whisper 'base' model for offline dictation (~140 MB)"
+  STAR_MODEL_ROOT="$ROOT/build/whisper_cache/whisper" "$PY" - <<'PY'
+import os, whisper
+r = os.environ["STAR_MODEL_ROOT"]
+os.makedirs(r, exist_ok=True)
+whisper._download(whisper._MODELS["base"], r, False)
+print("Whisper base model staged")
+PY
+fi
+
+# ── Build the .app ───────────────────────────────────────────────────────────
+info "Running PyInstaller (star.spec → dist/star.app)"
+"$PY" -m PyInstaller --clean --noconfirm star.spec
+
+APP="dist/star.app"
+if [ ! -d "$APP" ]; then
+  echo "ERR PyInstaller finished but $APP was not produced." >&2
+  exit 1
+fi
+info "Built $APP"
+
+# ── Codesign ─────────────────────────────────────────────────────────────────
+# Entitlements: the hardened runtime blocks the microphone unless we grant the
+# audio-input entitlement (dictation) — write a minimal plist for signing.
+ENTITLEMENTS="build/star-entitlements.plist"
+cat > "$ENTITLEMENTS" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>com.apple.security.cs.allow-jit</key><true/>
+  <key>com.apple.security.cs.allow-unsigned-executable-memory</key><true/>
+  <key>com.apple.security.cs.disable-library-validation</key><true/>
+  <key>com.apple.security.device.audio-input</key><true/>
+</dict>
+</plist>
+PLIST
+
 SIGN_IDENTITY=""
 if [ -n "${MACOS_CERTIFICATE_BASE64:-}" ]; then
-  echo "==> Signing certificate present — importing into a temp keychain"
-  KEYCHAIN="$RUNNER_TEMP/star-signing.keychain-db"
+  info "Signing certificate present — importing into a temp keychain"
+  KEYCHAIN="${RUNNER_TEMP:-$TMPDIR}/star-signing.keychain-db"
   KEYCHAIN_PW="$(openssl rand -base64 24)"
-  CERT_P12="$RUNNER_TEMP/star-cert.p12"
+  CERT_P12="${RUNNER_TEMP:-$TMPDIR}/star-cert.p12"
   echo "$MACOS_CERTIFICATE_BASE64" | base64 --decode > "$CERT_P12"
   security create-keychain -p "$KEYCHAIN_PW" "$KEYCHAIN"
   security set-keychain-settings -lut 21600 "$KEYCHAIN"
@@ -71,46 +182,54 @@ if [ -n "${MACOS_CERTIFICATE_BASE64:-}" ]; then
   security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
   SIGN_IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN" | awk -F'"' 'NR==1{print $2}')"
   rm -f "$CERT_P12"
-  echo "==> Will codesign with: $SIGN_IDENTITY"
-else
-  echo "==> MACOS_CERTIFICATE_BASE64 not set — building UNSIGNED (no-op signing)."
 fi
 
-echo "==> briefcase create + build"
-briefcase create macOS app || true
-briefcase build macOS app || true
-
-# briefcase packages (and signs, if an identity is passed) the .app into a .dmg.
 if [ -n "$SIGN_IDENTITY" ]; then
-  briefcase package macOS app --identity "$SIGN_IDENTITY" || true
+  info "Developer-ID signing with hardened runtime: $SIGN_IDENTITY"
+  # Sign inside-out: nested code first, then the bundle.  --deep is deprecated
+  # but reliable here for the many bundled dylibs; the outer sign pins options.
+  codesign --force --deep --timestamp --options runtime \
+    --entitlements "$ENTITLEMENTS" --sign "$SIGN_IDENTITY" "$APP"
+  codesign --verify --strict --verbose=2 "$APP"
 else
-  # --adhoc-sign avoids Gatekeeper hard-fails on an unsigned build in CI.
-  briefcase package macOS app --adhoc-sign || true
+  info "No signing cert — AD-HOC signing (runs locally after clearing quarantine)."
+  codesign --force --deep --sign - "$APP"
 fi
 
-# Collect artifacts into dist/.
-find . -name "*.dmg" -exec cp {} dist/ \; 2>/dev/null || true
-# Also zip the .app so it survives artifact upload (upload flattens symlinks).
-APP_PATH="$(find . -name '*.app' -type d | head -n1 || true)"
-if [ -n "$APP_PATH" ]; then
-  (cd "$(dirname "$APP_PATH")" && zip -qry "$OLDPWD/dist/$(basename "$APP_PATH").zip" "$(basename "$APP_PATH")")
+# ── Package a DMG ────────────────────────────────────────────────────────────
+DMG="dist/star-$VERSION-macos-$ARCH.dmg"
+info "Packaging $DMG"
+STAGE="$(mktemp -d)"
+cp -R "$APP" "$STAGE/"
+ln -s /Applications "$STAGE/Applications"   # drag-to-install affordance
+rm -f "$DMG"
+hdiutil create -volname "star $VERSION" -srcfolder "$STAGE" -ov -format UDZO "$DMG"
+rm -rf "$STAGE"
+
+# Sign the DMG too when we have an identity (notarization staples to the DMG).
+if [ -n "$SIGN_IDENTITY" ]; then
+  codesign --force --timestamp --sign "$SIGN_IDENTITY" "$DMG"
 fi
 
-# ── Optional notarization ───────────────────────────────────────────────────
+# Also zip the .app so it survives artifact upload intact (symlinks/bundle).
+info "Zipping $APP for artifact upload"
+( cd dist && ditto -c -k --sequesterRsrc --keepParent "star.app" "star-$VERSION-macos-$ARCH.app.zip" )
+
+# ── Notarize (only with a Developer-ID identity + notary credentials) ────────
 if [ -n "$SIGN_IDENTITY" ] && [ -n "${MACOS_NOTARY_APPLE_ID:-}" ]; then
-  echo "==> Notarizing the .dmg with notarytool"
-  for dmg in dist/*.dmg; do
-    [ -e "$dmg" ] || continue
-    xcrun notarytool submit "$dmg" \
+  info "Notarizing $DMG with notarytool (waits for Apple)"
+  if xcrun notarytool submit "$DMG" \
       --apple-id "$MACOS_NOTARY_APPLE_ID" \
       --password "${MACOS_NOTARY_PASSWORD:-}" \
       --team-id "${MACOS_NOTARY_TEAM_ID:-}" \
-      --wait || echo "::warning::notarization failed for $dmg (artifact still produced)"
-    xcrun stapler staple "$dmg" || true
-  done
+      --wait; then
+    xcrun stapler staple "$DMG" || echo "::warning::stapler failed for $DMG"
+  else
+    echo "::warning::notarization failed for $DMG (unsigned-equivalent artifact still produced)"
+  fi
 else
-  echo "==> Skipping notarization (no cert or no notary credentials) — no-op."
+  info "Skipping notarization (no Developer-ID cert or no notary credentials)."
 fi
 
-echo "==> macOS build complete:"
-ls -l dist/ || true
+info "macOS build complete:"
+ls -lh dist/*.dmg dist/*.app.zip 2>/dev/null || true

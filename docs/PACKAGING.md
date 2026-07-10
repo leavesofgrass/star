@@ -26,7 +26,7 @@ day-to-day "cut a release" procedure) and [`installation.md`](installation.md)
 | **PyPI wheel + sdist** | `star_reader-<v>-py3-none-any.whl` + `.tar.gz` | `wheel` job (tag push) | ✅ automated | Pure-Python, universal. Install: `pipx install star-reader`. The canonical release. |
 | **Fat zipapp** | `star.pyz` | `python build_zipapp.py` / `windows-pyz` job (manual) | ⚙️ manual | Bundles `star` + `[all]` extras; platform-specific (carries compiled wheels). See [installation.md](installation.md#single-file-build-starpyz). |
 | **Windows installer** | `star-setup-<v>.exe` | `windows-installer` job (optional) | 🔒 opt-in | NSIS click-through installer around `star.pyz`; Authenticode-signed when a cert is provided. |
-| **macOS app / DMG** | `star.app.zip` + `star-<v>.dmg` | `macos-app` job (optional) | 🔒 opt-in | briefcase-built `.app`/`.dmg`; codesigned + notarized when an Apple Developer ID is provided. |
+| **macOS app / DMG** | `star-<v>-macos-arm64.app.zip` + `.dmg` | `macos-app` job | ✅ | PyInstaller-built `star.app` (via the shared `star.spec`) + a drag-to-`/Applications` `.dmg`; ad-hoc-signed by default, Developer-ID codesigned + notarized when an Apple Developer ID is provided. Apple-Silicon (arm64) only. Built on every `v*` tag and attached to the Release (default since 0.1.24). |
 | **Linux AppImage** | `star-<v>-x86_64.AppImage` | `linux-appimage` job | ✅ | Self-contained via python-appimage; built on every `v*` tag and attached to the GitHub Release (default since 0.1.22). |
 | **Windows exe** | `star-<v>-windows-x64.exe` | `windows-exe` job | ✅ | Self-contained PyInstaller onefile — Python, PyQt6, all loaders, offline dictation (Whisper/Torch), and vendored ffmpeg/tesseract/liblouis/pandoc/espeak-ng baked in. Built on every `v*` tag and attached to the Release (default since 0.1.24). **DECtalk is excluded** from this public build (`--no-dectalk`). Double-click to run — no Python needed. |
 | **GPG signatures** | `*.whl.asc`, `*.tar.gz.asc` | `sign-artifacts` job (optional) | 🔒 opt-in | Detached armored signatures for the wheel + sdist. |
@@ -40,12 +40,12 @@ configured (details below) — otherwise the job is **skipped**, never failed.
 ## The optional CI jobs (and exactly how they are gated)
 
 All of these live in [`.github/workflows/release.yml`](../.github/workflows/release.yml),
-appended *after* the existing `wheel` / `publish-pypi` / `release` jobs. The
-three truly optional ones (`sign-artifacts`, `windows-installer`, `macos-app`)
-are **deliberately not in the `release` job's `needs:`** — the GitHub Release
-does not wait on them — but any artifact they *do* produce is swept up by the
-release's download-all step and attached automatically. (`linux-appimage` and
-`windows-exe` are the exceptions: they are default artifacts and **are** in
+appended *after* the existing `wheel` / `publish-pypi` / `release` jobs. The two
+truly optional ones (`sign-artifacts`, `windows-installer`) are **deliberately
+not in the `release` job's `needs:`** — the GitHub Release does not wait on them
+— but any artifact they *do* produce is swept up by the release's download-all
+step and attached automatically. (`linux-appimage`, `windows-exe` and
+`macos-app` are the exceptions: they are default artifacts and **are** in
 `release`'s `needs:`, so their outputs are guaranteed to be attached — see below
 and the channels table.)
 
@@ -81,21 +81,33 @@ and the channels table.)
 ### 3. `macos-app` — `.app` / DMG (+ codesign & notarize)
 
 - **What it does:** runs [`tools/build-macos.sh`](../tools/build-macos.sh),
-  which uses **briefcase** to build `star.app` and a `.dmg`. codesigns with a
-  Developer ID and notarizes with `notarytool` **only if** the cert +
-  credentials are present; otherwise ad-hoc-signs (Gatekeeper will warn).
-- **Gate:** manual `build_installers: true`, **or** `vars.ENABLE_INSTALLERS == 'true'`.
-- **Maintainer secrets to enable signing/notarization** (unsigned build still
+  which drives **PyInstaller** through the shared [`star.spec`](../star.spec).
+  On `sys.platform == "darwin"` the spec packages the Analysis as a ONEDIR
+  `star.app` bundle (`EXE(exclude_binaries=True)` → `COLLECT` → `BUNDLE`) instead
+  of the Windows onefile `.exe`. The script then wraps the `.app` in a
+  drag-to-`/Applications` `.dmg`, **ad-hoc-signs** by default (so it runs locally
+  after the user clears Gatekeeper quarantine), and Developer-ID codesigns +
+  notarizes with `notarytool` **only if** the cert + credentials are present.
+- **Speech on macOS** comes from the OS — `pyttsx3` → NSSpeechSynthesizer and
+  star's `AppleSay` backend (`/usr/bin/say`) — so **no `vendor/` binaries are
+  bundled** (the spec skips the Windows vendor tree on darwin). ffmpeg / pandoc /
+  Tesseract are picked up from Homebrew if the user has them.
+- **Lean by default:** the offline dictation stack (Whisper + Torch, multi-GB) is
+  **not** bundled on macOS. Set `STAR_MACOS_FULL=1` in the job env to include it.
+- **Architecture:** `macos-latest` runners are Apple Silicon, so this produces an
+  **arm64-only** `.app` (stamped `star-<v>-macos-arm64`). Intel Macs would need a
+  separate `x86_64` runner + a second artifact.
+- **Gate:** runs on **every `v*` tag** (default release artifact since 0.1.24 —
+  the publish job waits for it via `needs`, but a failed `.app` build never blocks
+  the wheel/sdist release). Also runs via manual `build_installers: true` or
+  `vars.ENABLE_INSTALLERS == 'true'`.
+- **Maintainer secrets to enable signing/notarization** (ad-hoc build still
   produced without them):
   - `MACOS_CERTIFICATE_BASE64` — base64 of a "Developer ID Application" `.p12`
   - `MACOS_CERTIFICATE_PASSWORD` — the `.p12` password
   - `MACOS_NOTARY_APPLE_ID` — Apple ID email for notarization
   - `MACOS_NOTARY_PASSWORD` — an **app-specific password** for that Apple ID
   - `MACOS_NOTARY_TEAM_ID` — your Apple Developer Team ID
-- **Note:** briefcase reads `[tool.briefcase]` from `pyproject.toml`. That file
-  is owned outside this packaging work, so the script **synthesizes a minimal
-  config** if none exists (and warns). For a first-class macOS build, a
-  maintainer should add a `[tool.briefcase]` section to `pyproject.toml`.
 
 ### 4. `linux-appimage` — self-contained AppImage
 

@@ -57,6 +57,14 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
   Python, the GUI, all document loaders, offline dictation, and the helper
   tools for audio export / OCR / braille / extra voices. DECtalk (a
   commercial synthesizer) is excluded from the public build.
+- **macOS `star.app` + `.dmg` on every release.** Mac users get a
+  double-clickable app too: each Release now attaches a
+  `star-<version>-macos-arm64.dmg` (drag star to Applications) built with
+  PyInstaller from the same build recipe as the Windows exe. Speech uses the
+  built-in macOS voices, so nothing extra to install. It's ad-hoc-signed, so
+  the first launch needs a right-click ▸ **Open** to get past Gatekeeper
+  (a one-time step); a fully notarized build follows once signing is set up.
+  Apple-Silicon Macs for now.
 
 ### 🐛 Fixed
 

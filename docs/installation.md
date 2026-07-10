@@ -27,16 +27,24 @@ download one file and run it, nothing else to install:
 | Platform | File | How to run |
 |---|---|---|
 | **Windows** | `star-<version>-windows-x64.exe` | Double-click it. |
+| **macOS** (Apple Silicon) | `star-<version>-macos-arm64.dmg` | Open the `.dmg`, drag **star** to Applications, then **right-click ▸ Open** the first time. |
 | **Linux** | `star-<version>-x86_64.AppImage` | `chmod +x` it, then run it. |
 
-Both bundle Python, the GUI, every document loader, offline voice dictation, and
-the helper tools (audio export, OCR, braille, extra voices) — so text-to-speech,
-reading, and note-taking all work out of the box. They're large (the Windows
-build is ~800 MB) because everything is inside; if you already have Python,
-`pip install star-reader` is much smaller.
+The Windows and Linux builds bundle Python, the GUI, every document loader,
+offline voice dictation, and the helper tools (audio export, OCR, braille, extra
+voices) — so text-to-speech, reading, and note-taking all work out of the box.
+They're large (the Windows build is ~800 MB) because everything is inside; if you
+already have Python, `pip install star-reader` is much smaller. The macOS `.app`
+uses the built-in Apple voices for speech and stays lean (offline dictation is a
+quick `pip install` away if you want it).
 
 > On Windows, SmartScreen may warn about an unrecognized publisher the first
 > time (the binary isn't code-signed yet) — choose **More info → Run anyway**.
+>
+> On macOS, the `.app` isn't notarized yet, so the first launch needs a
+> **right-click ▸ Open** (or `xattr -dr com.apple.quarantine /Applications/star.app`)
+> to get past Gatekeeper. This is a one-time step. The build is Apple-Silicon
+> only for now; on an Intel Mac, install from PyPI instead.
 
 ---
 
@@ -191,15 +199,15 @@ What the fat zipapp does and does not remove:
   Windows only on Windows, and so on. Build a separate `star.pyz` for each
   platform you target.
 
-> Prefer a no-Python-install binary? The self-contained Windows `star.exe` and
-> Linux AppImage are attached to every release — see
-> [No Python? Download-and-run builds](#no-python-download-and-run-builds) above.
+> Prefer a no-Python-install binary? The self-contained Windows `star.exe`, the
+> macOS `star.app`/DMG, and the Linux AppImage are attached to every release —
+> see [No Python? Download-and-run builds](#no-python-download-and-run-builds) above.
 
 > **Native installers (opt-in).** The release workflow can additionally build a
-> Windows NSIS installer and a macOS `.app`/DMG — both off-by-default and
-> produced only when a maintainer enables them. Maintainers: see
-> [`PACKAGING.md`](PACKAGING.md) for the full channel matrix, the optional CI
-> jobs, and which signing certificates/secrets each one needs.
+> Windows NSIS installer — off-by-default and produced only when a maintainer
+> enables it. Maintainers: see [`PACKAGING.md`](PACKAGING.md) for the full
+> channel matrix, the optional CI jobs, and which signing certificates/secrets
+> each one needs.
 
 ## Optional Packages
 
@@ -252,7 +260,10 @@ are currently found.
 > builds](#no-python-download-and-run-builds)) *ship these engines inside*
 > (ffmpeg, Tesseract, liblouis, Pandoc, eSpeak-NG) plus the offline Whisper
 > dictation stack, so they "just work" with nothing else installed. **Only
-> DECtalk is excluded from the public exe.** The **wheel / pipx** install does
+> DECtalk is excluded from the public exe.** The macOS `.app` is the exception:
+> it uses the **built-in Apple voices** and picks up ffmpeg / Pandoc / Tesseract
+> from Homebrew if you have them, rather than bundling native engines. The
+> **wheel / pipx** install does
 > **not** bundle any of them — install only the ones you want, as below. On
 > Windows, the **SAPI5** voices star uses by default (via `pyttsx3`, included
 > with the wheel) need none of this, so most Windows users never have to install

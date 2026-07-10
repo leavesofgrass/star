@@ -8,19 +8,23 @@
 # directly — use `tools/build-windows.ps1 -AllowDeprecatedExe`, which sets up the
 # environment and stages the offline data this spec expects.  See BUILD.md.
 #
-# PyInstaller build spec for a portable, single-file Windows binary of star.
+# PyInstaller build spec for a portable, self-contained binary of star.
 #
-#   Build:   pyinstaller --clean star.spec
-#   Output:  dist/star.exe   (onefile, windowed GUI)
+#   Windows:  pyinstaller --clean star.spec   -> dist/star.exe   (onefile GUI)
+#   macOS:    pyinstaller --clean star.spec   -> dist/star.app   (ONEDIR bundle)
 #
-# See BUILD.md for the full, step-by-step instructions (including how to make
-# a console build that also supports the --tui terminal interface).
+# The platform is auto-detected (sys.platform); see the EXE/COLLECT/BUNDLE branch
+# at the end.  On macOS use tools/build-macos.sh (it stages deps + signs/packages
+# the .dmg); on Windows use tools/build-windows.ps1.  See BUILD.md for the full,
+# step-by-step instructions (including how to make a console build that also
+# supports the --tui terminal interface).
 #
 # star is now packaged as the ``star/`` package (generated from star-monolith.py
 # by tools/split_star.py); the frozen entry point is the thin ``run_star.py``
 # wrapper, which imports ``star.app.main``.
 
 import os as _os
+import sys as _sys
 
 from PyInstaller.utils.hooks import (
     collect_all,
@@ -28,6 +32,11 @@ from PyInstaller.utils.hooks import (
     collect_submodules,
     copy_metadata,
 )
+
+# Target platform.  The Windows path (the historical purpose of this spec)
+# produces a onefile ``star.exe``; on macOS the same Analysis is packaged as a
+# ONEDIR ``star.app`` bundle (see the EXE/COLLECT/BUNDLE branch at the end).
+_is_mac = _sys.platform == "darwin"
 
 block_cipher = None
 
@@ -84,9 +93,11 @@ binaries = []
 
 hiddenimports = [
     # pyttsx3 loads its platform driver dynamically at runtime; PyInstaller's
-    # static analysis cannot see the SAPI5 (Windows) driver import, so name it.
+    # static analysis cannot see the driver import, so name both the SAPI5
+    # (Windows) and NSSpeechSynthesizer (macOS) drivers.
     "pyttsx3.drivers",
     "pyttsx3.drivers.sapi5",
+    "pyttsx3.drivers.nsss",
     # The SAPI5 driver talks to Windows speech through COM via comtypes.
     "comtypes",
     "comtypes.client",
@@ -189,8 +200,11 @@ if _os.path.isdir(_nltk_data):
 # in-process via ctypes).  The whole ``vendor/`` tree is mirrored at the bundle
 # root so star's _vendor_dir() finds each tool under sys._MEIPASS at runtime.
 # Guarded so the spec still builds if a tool has not been downloaded.
+# vendor/ holds WINDOWS binaries (fetched by tools/build-vendor.py); never
+# bundle them into a macOS .app.  macOS gets speech from the native ``say`` /
+# NSSpeechSynthesizer backends, and ffmpeg/pandoc from Homebrew if present.
 _vendor_root = _os.path.join(_here, "vendor")
-if _os.path.isdir(_vendor_root):
+if not _is_mac and _os.path.isdir(_vendor_root):
     for _root, _dirs, _files in _os.walk(_vendor_root):
         for _f in _files:
             # Skip the downloaded installer archive if it lingers.
@@ -242,26 +256,84 @@ a = Analysis(
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
-exe = EXE(
-    pyz,
-    a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    [],
-    name=_exe_name,
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=False,
-    runtime_tmpdir=None,
-    # Windowed GUI build by default (no console window flashes on launch).  Set
-    # STAR_CONSOLE=1 for a console build that also supports the curses --tui mode
-    # and prints CLI output (see BUILD.md).
-    console=_console,
-    disable_windowed_traceback=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
-    icon=None,
-)
+if _is_mac:
+    # macOS: a ONEDIR .app bundle (idiomatic + Gatekeeper-friendly — onefile's
+    # temp extraction plays badly with signing/notarization).  Read the version
+    # for the Info.plist from pyproject.toml.
+    _mac_version = "0.0.0"
+    try:
+        import tomllib as _tomllib
+
+        with open(_os.path.join(_here, "pyproject.toml"), "rb") as _fp:
+            _mac_version = _tomllib.load(_fp)["project"]["version"]
+    except Exception:
+        pass
+    exe = EXE(
+        pyz,
+        a.scripts,
+        [],
+        exclude_binaries=True,
+        name="star",
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=False,
+        upx=False,
+        console=False,          # windowed .app
+        disable_windowed_traceback=False,
+        target_arch=None,       # native (arm64 on Apple-Silicon runners)
+        codesign_identity=None,  # signed later by tools/build-macos.sh
+        entitlements_file=None,
+        icon=None,
+    )
+    coll = COLLECT(
+        exe,
+        a.binaries,
+        a.zipfiles,
+        a.datas,
+        strip=False,
+        upx=False,
+        name="star",
+    )
+    app = BUNDLE(
+        coll,
+        name="star.app",
+        icon=None,
+        bundle_identifier="org.star-reader.star",
+        version=_mac_version,
+        info_plist={
+            "CFBundleName": "star",
+            "CFBundleDisplayName": "star",
+            "CFBundleShortVersionString": _mac_version,
+            "CFBundleVersion": _mac_version,
+            "NSHighResolutionCapable": True,
+            "LSMinimumSystemVersion": "11.0",
+            # Voice dictation records the microphone; macOS requires a usage
+            # string or the app is killed when it first accesses the mic.
+            "NSMicrophoneUsageDescription":
+                "star uses the microphone for voice dictation.",
+        },
+    )
+else:
+    exe = EXE(
+        pyz,
+        a.scripts,
+        a.binaries,
+        a.zipfiles,
+        a.datas,
+        [],
+        name=_exe_name,
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=False,
+        upx=False,
+        runtime_tmpdir=None,
+        # Windowed GUI build by default (no console window flashes on launch).
+        # Set STAR_CONSOLE=1 for a console build that also supports the curses
+        # --tui mode and prints CLI output (see BUILD.md).
+        console=_console,
+        disable_windowed_traceback=False,
+        target_arch=None,
+        codesign_identity=None,
+        entitlements_file=None,
+        icon=None,
+    )
