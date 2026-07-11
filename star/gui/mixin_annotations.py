@@ -9,6 +9,7 @@ from .._runtime import *  # noqa: F401,F403
 from ..annotations import _annotation_matches, _format_annotations, _parse_tags
 from ..flashcards import export_anki_deck
 from ..i18n import tr
+from .a11y import announce
 from ._qtcompat import _USER_ROLE
 
 
@@ -113,7 +114,9 @@ class AnnotationsMixin:
     def _qt_add_annotation(self) -> None:
         """Prompt for note text and attach it at the current position."""
         if not self.doc:
-            self.statusBar().showMessage("Open a document before adding notes")
+            msg = "Open a document before adding notes"
+            self.statusBar().showMessage(msg)
+            announce(self.editor, msg)
             return
         char_pos, anchor = self._qt_current_anchor()
         text, ok = QInputDialog.getMultiLineText(

@@ -215,7 +215,9 @@ class TranscriptionMixin:
         before.
         """
         if not self.doc:
-            self.statusBar().showMessage("Open a document before dictating a note")
+            msg = "Open a document before dictating a note"
+            self.statusBar().showMessage(msg)
+            announce(self.editor, msg)
             return
         if not self._qt_require_optional_feature("transcribe", tr("Voice dictation")):
             return
@@ -399,7 +401,9 @@ class TranscriptionMixin:
 
     def _qt_voice_typing_start(self) -> None:
         if not self.doc:
-            self.statusBar().showMessage(tr("Open a document before voice typing"))
+            msg = tr("Open a document before voice typing")
+            self.statusBar().showMessage(msg)
+            announce(self.editor, msg)
             self._qt_vt_sync_action()
             return
         if not self._qt_require_optional_feature("transcribe", tr("Voice typing")):
