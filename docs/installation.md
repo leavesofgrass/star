@@ -134,11 +134,11 @@ then copy that one file anywhere and:
 
 ```bash
 # Recommended dependencies (Qt GUI + TTS + common formats) come with the wheel
-pip install star_reader-0.1.24-py3-none-any.whl
+pip install star_reader-0.1.25-py3-none-any.whl
 
 # Or pull in the optional Python features (OCR, ODT/XLSX, Pandoc, Braille,
 # audio conversion, study aids, feeds, vocab, watch):
-pip install "star_reader-0.1.24-py3-none-any.whl[all]"
+pip install "star_reader-0.1.25-py3-none-any.whl[all]"
 ```
 
 > **`[all]` excludes the heavy ML stacks on purpose.** It does **not** install

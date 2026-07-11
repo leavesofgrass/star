@@ -27,8 +27,8 @@ machines with **no Python and no dependencies installed** — ideal for demoing
 star as a tool. The binary bundles the Python interpreter, the Qt GUI, the
 text-to-speech driver, the document loaders, the study & writing aids (summarize,
 Anki export, spell check, translation, feeds, the difficult-word overlay),
-**out-of-the-box offline voice dictation & transcription (Whisper + the bundled
-`base` model)**, and — when the `vendor/` tree is present — the native engines
+**out-of-the-box offline voice dictation & transcription (faster-whisper + the
+bundled `base` model)**, and — when the `vendor/` tree is present — the native engines
 for MP3 export (ffmpeg), OCR (Tesseract + English data), Grade 2 Braille
 (liblouis), markup conversion (Pandoc), and the classic DECtalk synthesizer.
 
@@ -56,7 +56,7 @@ powershell -ExecutionPolicy Bypass -File tools\build-windows.ps1 -AllowDeprecate
 The result is **`dist\star.exe`**. Copy it anywhere and double-click to launch
 the GUI. (Skip the first line for a lean build without the native engines.)
 
-By default this bundles **offline voice dictation** (PyTorch/Whisper + the `base`
+By default this bundles **offline voice dictation** (faster-whisper + the `base`
 model) so users get it out of the box. For a fast, small build without it, pass
 `-Lean`; see [Dictation](#out-of-the-box-dictation-whisper).
 
@@ -106,8 +106,8 @@ The build is defined by these files:
 |---|---|
 | [`star.spec`](../star.spec) | PyInstaller build recipe (entry point, hidden imports, bundled data + `vendor/` tree, dictation stack, runtime hook, excludes) |
 | [`run_star.py`](../run_star.py) | Frozen entry point — imports `star.app.main` from the generated `star/` package |
-| [`tools/rthook_star.py`](../tools/rthook_star.py) | PyInstaller runtime hook: puts the bundled ffmpeg on `PATH`, points Whisper's model cache at the bundled `base` model, and points `NLTK_DATA` at the bundled `punkt` data |
-| [`tools/build-windows.ps1`](../tools/build-windows.ps1) | Convenience wrapper: sets up an env, installs deps (study/writing aids + the dictation stack by default; `-Lean` skips dictation), stages the NLTK `punkt` data and the Whisper model, runs PyInstaller |
+| [`tools/rthook_star.py`](../tools/rthook_star.py) | PyInstaller runtime hook: puts the bundled ffmpeg on `PATH`, forces Hugging Face offline for the bundled faster-whisper model, and points `NLTK_DATA` at the bundled `punkt` data |
+| [`tools/build-windows.ps1`](../tools/build-windows.ps1) | Convenience wrapper: sets up an env, installs deps (study/writing aids + the dictation stack by default; `-Lean` skips dictation), stages the NLTK `punkt` data and the faster-whisper model, runs PyInstaller |
 | [`tools/build-vendor.py`](../tools/build-vendor.py) | Downloads & lays out the native engines (ffmpeg, Tesseract, liblouis, Pandoc, DECtalk) into `vendor/` |
 
 ---
@@ -365,8 +365,8 @@ python -m build --wheel                    # writes dist/star_reader-<version>-p
 Install the resulting single file anywhere:
 
 ```bash
-pip install dist/star_reader-0.1.24-py3-none-any.whl          # recommended deps
-pip install "dist/star_reader-0.1.24-py3-none-any.whl[all]"    # every optional feature
+pip install dist/star_reader-0.1.25-py3-none-any.whl          # recommended deps
+pip install "dist/star_reader-0.1.25-py3-none-any.whl[all]"    # every optional feature
 ```
 
 The wheel provides a `star` console command and `python -m star`. Packaging is

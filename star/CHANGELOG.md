@@ -8,7 +8,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [Unreleased]
+## [0.1.25] 2026-07-11
 
 ### 🔧 Changed
 
@@ -23,6 +23,16 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
   Nothing changes in how you dictate. `pip install "star-reader[transcribe]"`
   now installs faster-whisper; power users can force either backend with
   `STAR_WHISPER_BACKEND=openai|faster`.
+
+### 🐛 Fixed
+
+- **New Document no longer forces you to throw away unsaved work.** Starting a
+  new document (File ▸ New / Ctrl+N) while you have unsaved edits now offers
+  **Save / Discard / Cancel** — the same choice as finishing editing — instead
+  of a discard-or-cancel-only prompt.
+- **Screen readers hear the "open a document first" prompts.** The voice-typing,
+  dictate-note, and add-annotation guards now speak their message, matching the
+  rest of star's spoken feedback.
 
 ---
 
