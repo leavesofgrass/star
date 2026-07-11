@@ -669,7 +669,7 @@ With **Whisper** installed, `star` can turn speech into text.
   lands when you toggle off, not word by word.
 
 ```bash
-pip install openai-whisper          # transcription of audio files
+pip install faster-whisper          # transcription of audio files (no PyTorch)
 pip install sounddevice numpy       # plus this for microphone dictation
 ```
 

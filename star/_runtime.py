@@ -541,15 +541,41 @@ def _load_faster_whisper():
     return WhisperModel
 
 
+def _faster_whisper_model_dir() -> Optional[str]:
+    """The bundled CTranslate2 model directory in a frozen build, else None.
+
+    star.spec stages ``Systran/faster-whisper-base`` at
+    ``<bundle>/faster_whisper_model`` so dictation runs fully offline with no HF
+    download.  A source / pip install returns None and downloads the model by
+    name on first use."""
+    base = getattr(sys, "_MEIPASS", None)
+    if base:
+        d = os.path.join(base, "faster_whisper_model")
+        if os.path.isdir(d):
+            return d
+    return None
+
+
 def _new_faster_model(model_name: str = "base"):
     """Construct a faster-whisper (CTranslate2) model for CPU-int8 inference.
 
     int8 is the quantised CPU path that gives CTranslate2 its speed and memory
     win over Torch fp32; device is pinned to CPU because star's frozen builds
     ship no CUDA.  STAR_WHISPER_COMPUTE overrides the compute type for testing
-    (e.g. ``int8_float32`` / ``float32``)."""
+    (e.g. ``int8_float32`` / ``float32``).
+
+    In a frozen build the bundled model directory is loaded with
+    ``local_files_only=True`` (+ ``HF_HUB_OFFLINE``) so no network is touched;
+    otherwise the named model is downloaded/cached by faster-whisper as usual."""
     compute = os.environ.get("STAR_WHISPER_COMPUTE", "int8").strip() or "int8"
-    return _load_faster_whisper()(model_name, device="cpu", compute_type=compute)
+    WhisperModel = _load_faster_whisper()
+    bundled = _faster_whisper_model_dir()
+    if bundled:
+        os.environ.setdefault("HF_HUB_OFFLINE", "1")
+        return WhisperModel(
+            bundled, device="cpu", compute_type=compute, local_files_only=True
+        )
+    return WhisperModel(model_name, device="cpu", compute_type=compute)
 
 
 # Microphone capture (numpy + sounddevice).  Detected without importing; the

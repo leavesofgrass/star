@@ -67,7 +67,7 @@ formats = ["odfpy", "openpyxl"]
 markup = ["pypandoc"]
 braille = ["louis"]
 audio = ["pydub"]
-transcribe = ["openai-whisper", "sounddevice", "numpy"]
+transcribe = ["faster-whisper", "sounddevice", "numpy"]
 # Extractive document summarization (Tools ▸ Summarize Document) via sumy.
 summarize = ["sumy"]
 # Syllable splitting decoding aid (View ▸ Reading Aids ▸ Syllable Splitting) via

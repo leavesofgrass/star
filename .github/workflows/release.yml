@@ -281,8 +281,8 @@ jobs:
   # Maintainer secrets to enable Developer-ID signing + notarization:
   #   ``MACOS_CERTIFICATE_BASE64`` (base64 .p12) + ``MACOS_CERTIFICATE_PASSWORD``,
   #   ``MACOS_NOTARY_APPLE_ID`` + ``MACOS_NOTARY_PASSWORD`` + ``MACOS_NOTARY_TEAM_ID``.
-  # Set ``STAR_MACOS_FULL=1`` in the job env to also bundle the offline dictation
-  # stack (Whisper + Torch); by default the macOS .app ships lean.
+  # Offline dictation (faster-whisper / CTranslate2, ~140 MB) is bundled by
+  # default now; set ``STAR_MACOS_LEAN=1`` in the job env for a small build.
   # See docs/PACKAGING.md → "macOS app / DMG".
   macos-app:
     name: macOS .app / DMG

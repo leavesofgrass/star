@@ -32,10 +32,10 @@ Anki export, spell check, translation, feeds, the difficult-word overlay),
 for MP3 export (ffmpeg), OCR (Tesseract + English data), Grade 2 Braille
 (liblouis), markup conversion (Pandoc), and the classic DECtalk synthesizer.
 
-> Size note: the **full default build is large** (~700+ MB onefile `.exe`). The
-> biggest single contributor is the dictation stack — **openai-whisper pulls in
-> PyTorch** (multiple hundred MB) plus the ~140 MB Whisper `base` model — on top
-> of the bundled `vendor/` engines. Because onefile extracts everything to a temp
+> Size note: the default build is moderate (~250–300 MB onefile `.exe`). The
+> dictation stack is now **faster-whisper (CTranslate2)** — roughly 140 MB
+> including the `base` model and **no PyTorch** — so the biggest contributors are
+> the bundled `vendor/` engines (ffmpeg/Tesseract/…). Because onefile extracts everything to a temp
 > folder on each launch, the **first start takes noticeably longer**. For a fast,
 > small build, pass `-Lean` to skip the dictation stack (see
 > [Dictation](#out-of-the-box-dictation-whisper)) and/or omit the `vendor/` step.
@@ -71,9 +71,9 @@ model) so users get it out of the box. For a fast, small build without it, pass
   `pdfminer.six` (PDF text), `python-docx`, `python-pptx`, `openpyxl`, `odfpy`,
   and the `windows-curses` runtime, plus the `star/README.md` / `LICENSE` /
   `CHANGELOG.md` help docs so the in-app **Help (F1)** works.
-- **Bundled dictation stack (default; skip with `-Lean`):** `openai-whisper`
-  (and its PyTorch backend), `sounddevice` for microphone capture, and the
-  Whisper **`base` model**, so **Tools → Dictate Note** and **Transcribe Audio
+- **Bundled dictation stack (default; skip with `-Lean`):** `faster-whisper`
+  (CTranslate2 — no PyTorch), `sounddevice` for microphone capture, and the
+  **`base` model** (CTranslate2 dir), so **Tools → Dictate Note** and **Transcribe Audio
   File** work offline on a clean machine. This is the largest contributor to the
   binary size — see [Dictation](#out-of-the-box-dictation-whisper).
 - **Bundled study & writing aids:** `sumy` (with NLTK's `punkt` tokenizer data
@@ -279,7 +279,7 @@ These three features depend on native engines (not Python packages):
 | Grade 2 (contracted) Braille | liblouis + tables | **bundled** (works anywhere) | falls back to the built-in Grade 1 translator |
 | Markup conversion (RST, Org, LaTeX, …) | Pandoc | **bundled** (works anywhere) | needs `pandoc` on the target's `PATH`; otherwise built-in converters |
 | DECtalk voice | `DECtalk.dll` (ctypes) | **bundled** (in-process engine + dictionary) | needs DECtalk on the target's `PATH` / `DECTALK_BIN`, or a system DECtalk |
-| Voice dictation / transcription | Whisper + PyTorch + `base` model | **bundled** (works offline) | needs `pip install openai-whisper sounddevice` and a downloaded model |
+| Voice dictation / transcription | faster-whisper (CTranslate2) + `base` model | **bundled** (works offline) | needs `pip install faster-whisper sounddevice` and a downloaded model |
 
 Run `python tools\build-vendor.py` before building to bundle the native
 engines (see [Vendoring the native engines](#vendoring-the-native-engines-vendor)
@@ -302,18 +302,19 @@ portable binary these are **bundled by default** so they work with **no install
 and no network** — Windows users can't reasonably set up the recognition stack
 themselves, so it ships in the exe:
 
-- **`openai-whisper` + PyTorch** — the recognition engine. `star` prefers
-  `openai-whisper` (falling back to `faster-whisper` if that is what's
-  installed); `build-windows.ps1` installs `openai-whisper`, which pulls in
-  PyTorch, numba, and tiktoken. `star.spec` bundles the whole stack via
-  `collect_all`.
+- **`faster-whisper` (CTranslate2)** — the recognition engine (no PyTorch).
+  `star` uses whichever backend is installed, preferring `faster-whisper`;
+  `build-windows.ps1` installs it (which pulls in `ctranslate2`, `av`/PyAV, and
+  `tokenizers`). `star.spec` bundles the whole stack via `collect_all` +
+  `collect_dynamic_libs` (for the native libs), forcing the frozen app to select
+  the faster backend by excluding openai-whisper/Torch.
 - **`sounddevice`** — microphone capture (ships the PortAudio DLL).
-- **The Whisper `base` model** (~140 MB) — staged to
-  `build\whisper_cache\whisper\base.pt` by `build-windows.ps1` and bundled by
-  `star.spec`. At runtime [`tools/rthook_star.py`](../tools/rthook_star.py)
-  points Whisper's cache (`XDG_CACHE_HOME`) at the bundled copy, so
-  `load_model("base")` loads it offline instead of downloading.
-- **ffmpeg on `PATH`** — Whisper shells out to `ffmpeg` to decode audio. The
+- **The `base` model** (~145 MB, CTranslate2 directory) — staged to
+  `build\faster_whisper_model\` by `build-windows.ps1` and bundled by
+  `star.spec`. `_runtime._new_faster_model` loads it from the bundle with
+  `local_files_only=True` (rthook forces `HF_HUB_OFFLINE`), so it loads offline
+  instead of downloading.
+- **ffmpeg on `PATH`** — audio export shells out to `ffmpeg`. The
   runtime hook prepends the bundled `vendor\ffmpeg` folder to `PATH`, so the
   vendored ffmpeg satisfies both audio export and Whisper.
 

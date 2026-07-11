@@ -155,7 +155,7 @@ match the host's graphics driver. In containers/CI, run the AppImage with
   `vars.ENABLE_INSTALLERS == 'true'`. It is in the `release` job's `needs:` (so
   the Release waits for it), but PyPI publishing (`needs: [wheel]`) never does,
   and a failed exe build still publishes the wheel/sdist.
-- **`lean: true`** (manual runs only) skips the Whisper/Torch dictation stack
+- **`lean: true`** (manual runs only) skips the faster-whisper dictation stack
   for a fast, small exe.
 - **DECtalk is excluded** via `--no-dectalk`: it's a commercial synthesizer
   from a community mirror, unfit for public redistribution.

@@ -36,8 +36,8 @@
     Do not run pip install; just run PyInstaller (deps assumed present).
 
 .PARAMETER Lean
-    Skip the offline dictation / transcription stack (openai-whisper + Torch +
-    the Whisper "base" model).  Dictation is bundled BY DEFAULT so Windows users
+    Skip the offline dictation / transcription stack (faster-whisper / CTranslate2
+    + the "base" model).  Dictation is bundled BY DEFAULT so Windows users
     get it out of the box; -Lean produces a small, fast build (handy for quick
     test builds / CI iteration), and star simply reports dictation as
     unavailable in `star --deps` while every other feature works unchanged.
@@ -154,13 +154,14 @@ if (-not $SkipInstall) {
     if ($Ocr) { $deps += @("pytesseract", "PyMuPDF", "Pillow") }
 
     # Dictation / transcription is bundled BY DEFAULT (Windows users can't set it
-    # up themselves): openai-whisper pulls in torch, numba, tiktoken, etc. — a
-    # multi-GB install.  -Lean skips it for a fast, small build.
+    # up themselves).  star migrated from openai-whisper + Torch (multi-GB) to
+    # faster-whisper (CTranslate2) — the whole stack is ~140 MB, so the exe drops
+    # from ~700 MB toward ~250 MB.  -Lean skips it for a fast, small build.
     if (-not $Lean) {
-        Info "Bundling offline dictation stack (openai-whisper + Torch) -- large/slow build"
-        $deps += @("openai-whisper", "sounddevice")
+        Info "Bundling offline dictation stack (faster-whisper / CTranslate2)"
+        $deps += @("faster-whisper", "sounddevice")
     } else {
-        Info "Lean build: skipping the dictation stack (openai-whisper + Torch)"
+        Info "Lean build: skipping the dictation stack (faster-whisper)"
     }
 
     # When the Tesseract engine has been vendored for the self-contained
@@ -182,15 +183,16 @@ if (-not $SkipInstall) {
     Ok "Dependencies installed"
 }
 
-# ── Stage the Whisper model (offline dictation) — skipped only with -Lean ───
-# Bundle the "base" model so transcription/dictation needs no first-run
-# download.  star.spec picks it up from build\whisper_cache\whisper\base.pt.
+# ── Stage the CTranslate2 'base' model directory — skipped only with -Lean ───
+# Bundle the faster-whisper "base" model (CTranslate2 dir: model.bin + config +
+# tokenizer + vocab) so dictation needs no first-run download.  star.spec picks
+# it up from build\faster_whisper_model\ and loads it with local_files_only.
 if (-not $Lean) {
-    $model = Join-Path $root "build\whisper_cache\whisper\base.pt"
+    $model = Join-Path $root "build\faster_whisper_model\model.bin"
     if (-not (Test-Path $model)) {
-        Info "Staging Whisper 'base' model for offline dictation (~140 MB)"
-        $env:STAR_MODEL_ROOT = Join-Path $root "build\whisper_cache\whisper"
-        & $py -c "import os,whisper; r=os.environ['STAR_MODEL_ROOT']; os.makedirs(r,exist_ok=True); whisper._download(whisper._MODELS['base'], r, False); print('Whisper base model staged')" | Out-Host
+        Info "Staging faster-whisper 'base' CTranslate2 model for offline dictation"
+        $env:STAR_FW_DIR = Join-Path $root "build\faster_whisper_model"
+        & $py -c "import os; from huggingface_hub import snapshot_download; snapshot_download(repo_id='Systran/faster-whisper-base', local_dir=os.environ['STAR_FW_DIR']); print('faster-whisper base model staged')" | Out-Host
     }
 }
 

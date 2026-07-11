@@ -31,18 +31,19 @@ download one file and run it, nothing else to install:
 | **Linux** | `star-<version>-x86_64.AppImage` | `chmod +x` it, then run it. |
 
 All three bundle Python, the GUI, and every document loader, so reading and
-note-taking work out of the box. What differs is the extras:
+note-taking work out of the box. **Offline voice dictation (faster-whisper) is
+now bundled on Windows and macOS alike** — the switch from Whisper+PyTorch to
+faster-whisper (CTranslate2) made the dictation stack small enough (~140 MB) to
+ship everywhere. What still differs:
 
-- The **Windows `star.exe`** is the fully-loaded one — it also bakes in offline
-  voice dictation (Whisper) and the native helper tools (ffmpeg for audio export,
-  Tesseract for OCR, liblouis for braille, eSpeak-NG for extra voices). It's large
-  (~800 MB) because everything is inside.
-- The **macOS `.app`** uses the built-in Apple voices for speech and stays lean —
-  offline Whisper dictation is **not** bundled (install from PyPI with
-  `pip install "star-reader[transcribe]"` if you want it).
-- The **Linux AppImage** carries the pure-Python feature set but **not** the
-  offline Whisper stack or the native engines; OCR, audio export, and braille use
-  your distro's `tesseract` / `ffmpeg` / `liblouis` when present.
+- The **Windows `star.exe`** is the fully-loaded one — it also bakes in the
+  native helper tools (ffmpeg for audio export, Tesseract for OCR, liblouis for
+  braille, eSpeak-NG for extra voices), so it's the largest (~250 MB).
+- The **macOS `.app`** uses the built-in Apple voices for speech and **bundles
+  offline dictation**, but relies on Homebrew for ffmpeg / Pandoc / Tesseract
+  rather than vendoring native engines.
+- The **Linux AppImage** carries the pure-Python feature set; OCR, audio export,
+  and braille use your distro's `tesseract` / `ffmpeg` / `liblouis` when present.
 
 If you already have Python, `pip install star-reader` is much smaller than any of
 them.
@@ -145,7 +146,7 @@ pip install "star_reader-0.1.24-py3-none-any.whl[all]"
 > TTS. Add those explicitly only if you want them:
 >
 > ```bash
-> pip install "star-reader[transcribe]"   # Whisper + sounddevice (pulls PyTorch)
+> pip install "star-reader[transcribe]"   # faster-whisper + sounddevice (no PyTorch)
 > pip install TTS                          # Coqui neural TTS
 > ```
 
@@ -240,7 +241,7 @@ What the fat zipapp does and does not remove:
 | `pypandoc` | Pandoc conversion for formats without a native loader | `pip install pypandoc` |
 | `louis` | **Optional** contracted Grade 2 Braille (Grade 1 BRF export is built in and needs nothing) | `pip install louis` |
 | `pydub` | Audio format conversion fallback (MP3 / OGG / MP4) when ffmpeg is absent | `pip install pydub` |
-| `openai-whisper` *or* `faster-whisper` | Speech recognition for audio transcription and voice dictation of notes | `pip install openai-whisper` |
+| `faster-whisper` (or `openai-whisper`) | Speech recognition for audio transcription and voice dictation of notes; star prefers whichever is installed | `pip install faster-whisper` |
 | `sounddevice` + `numpy` | Microphone capture for voice dictation (transcription of files needs only Whisper) | `pip install sounddevice numpy` |
 | `windows-curses` | Windows terminal (curses) support for `--tui` mode | `pip install windows-curses` |
 | `watchdog` | Hot-folder watching (`--watch` / GUI Watch Folder); falls back to directory polling if absent | `pip install watchdog` |
@@ -264,17 +265,18 @@ aloud, and exports text with nothing but the wheel. star detects each engine
 automatically when it is installed and on your `PATH`; `star --deps` shows which
 are currently found.
 
-> **Only the Windows `star.exe` bundles these for you.** The download-and-run
-> Windows `star.exe` (see [No Python? Download-and-run
-> builds](#no-python-download-and-run-builds)) *ships these engines inside*
-> (ffmpeg, Tesseract, liblouis, Pandoc, eSpeak-NG) plus the offline Whisper
-> dictation stack, so it "just works" with nothing else installed. **Only
-> DECtalk is excluded from that public exe.** The **Linux AppImage** and **macOS
-> `.app`** do **not** bundle these native engines or the Whisper stack: the
-> AppImage carries only the pure-Python feature set and uses your distro's
-> `ffmpeg` / `tesseract` / `liblouis` when present; the `.app` uses the built-in
-> Apple voices and picks up ffmpeg / Pandoc / Tesseract from Homebrew if you have
-> them. The **wheel / pipx** install does **not** bundle any of them — install
+> **Offline dictation ships on Windows + macOS; the native engines are
+> Windows-only.** The download-and-run Windows `star.exe` (see [No Python?
+> Download-and-run builds](#no-python-download-and-run-builds)) *ships the native
+> engines inside* (ffmpeg, Tesseract, liblouis, Pandoc, eSpeak-NG), so it "just
+> works" with nothing else installed. **Only DECtalk is excluded from that public
+> exe.** **Offline voice dictation** (faster-whisper) is bundled in **both** the
+> Windows exe and the **macOS `.app`** now. The **Linux AppImage** and the macOS
+> `.app` do **not** bundle the *native* engines: the AppImage carries the
+> pure-Python feature set and uses your distro's `ffmpeg` / `tesseract` /
+> `liblouis` when present; the `.app` uses the built-in Apple voices and picks up
+> ffmpeg / Pandoc / Tesseract from Homebrew if you have them. The **wheel / pipx**
+> install does **not** bundle any of them — install
 > only the ones you want, as below. On Windows, the **SAPI5** voices star uses by
 > default (via `pyttsx3`, included with the wheel) need none of this, so most
 > Windows users never have to install a native engine at all.

@@ -30,6 +30,7 @@ import sys as _sys
 from PyInstaller.utils.hooks import (
     collect_all,
     collect_data_files,
+    collect_dynamic_libs,
     collect_submodules,
     copy_metadata,
 )
@@ -53,14 +54,15 @@ _here = _os.path.dirname(_os.path.abspath(SPEC))
 _console = bool(_os.environ.get("STAR_CONSOLE"))
 _exe_name = "star-console" if _console else "star"
 
-# Whether to bundle the offline dictation / transcription stack (openai-whisper
-# + Torch + numba/llvmlite/tiktoken/sounddevice + the Whisper model).  Windows
-# users can't reasonably set this up themselves, so it is bundled BY DEFAULT for
-# out-of-the-box voice dictation & transcription.  The stack is large (multiple
-# GB), so set ``STAR_LEAN=1`` to skip it for a fast, small build (quick test
-# builds, CI iteration); see ``tools/build-windows.ps1 -Lean``.  star's code
-# guards the whisper/sounddevice imports, so a lean exe simply reports dictation
-# as unavailable in ``star --deps`` and every other feature works unchanged.
+# Whether to bundle the offline dictation / transcription stack (faster-whisper /
+# CTranslate2 + av + tokenizers + sounddevice + the CTranslate2 model dir).
+# Users can't reasonably set this up themselves, so it is bundled BY DEFAULT for
+# out-of-the-box voice dictation & transcription.  The stack is now ~140 MB (down
+# from multiple GB with the old Torch stack), so it ships on every platform incl.
+# the macOS .app; set ``STAR_LEAN=1`` to skip it for a fast, small build (quick
+# test builds, CI iteration); see ``tools/build-windows.ps1 -Lean``.  star's code
+# guards the faster_whisper/sounddevice imports, so a lean exe simply reports
+# dictation as unavailable in ``star --deps`` and every other feature works.
 _bundle_dictation = not _os.environ.get("STAR_LEAN")
 
 # ── Bundled data files ──────────────────────────────────────────────────────
@@ -119,20 +121,34 @@ for _pkg in ("pdfminer", "docx", "pptx", "odf", "openpyxl"):
     except Exception:
         pass
 
-# ── Dictation / transcription stack (Whisper + Torch) — bundled by default ──
-# Bundle openai-whisper and its full dependency stack so the dictation and
-# audio-transcription features work out of the box on a clean Windows machine
-# (no pip, no model download).  This is large (Torch alone is multiple GB);
-# collect_all pulls each package's submodules, data files, and native libraries
-# (the Torch DLLs, the llvmlite LLVM DLL, the sounddevice PortAudio DLL).
-# Skipped only for a lean build (STAR_LEAN=1) — see _bundle_dictation above.
+# ── Dictation / transcription stack (faster-whisper / CTranslate2) ──────────
+# Offline dictation + audio transcription, bundled by default so it works on a
+# clean machine with no pip and no model download.  star migrated OFF
+# openai-whisper + Torch (a ~2.5 GB dependency that made the exe ~700 MB and was
+# too heavy for the macOS .app) to **faster-whisper** (CTranslate2): the whole
+# stack is ~140 MB, so dictation now ships on every platform, macOS included.
+# collect_all pulls each package's submodules + data; collect_dynamic_libs
+# explicitly grabs the compiled native libs — libctranslate2 + OpenMP, PyAV's
+# bundled ffmpeg DLLs, sounddevice's PortAudio — which a frozen transcription
+# needs (validated by a standalone PyInstaller probe).  Skipped for a lean build
+# (STAR_LEAN=1) — see _bundle_dictation above.
 if _bundle_dictation:
-    for _pkg in ("whisper", "torch", "numba", "llvmlite", "tiktoken", "sounddevice"):
+    for _pkg in (
+        "faster_whisper", "ctranslate2", "av", "tokenizers",
+        "onnxruntime", "huggingface_hub", "sounddevice",
+    ):
         try:
             _d, _b, _h = collect_all(_pkg)
             datas += _d
             binaries += _b
             hiddenimports += _h
+        except Exception:
+            pass
+    # Native libs are the thing a frozen build most often drops — collect them
+    # explicitly for the two packages that carry compiled extensions + DLLs.
+    for _pkg in ("ctranslate2", "av"):
+        try:
+            binaries += collect_dynamic_libs(_pkg)
         except Exception:
             pass
 
@@ -169,15 +185,25 @@ for _pkg in (
     except Exception:
         pass
 
-# Bundle the Whisper "base" model so transcription/dictation runs offline on
-# first launch.  tools/build-windows.ps1 (or build-vendor flow) stages it under
-# build/whisper_cache/whisper/base.pt; the runtime hook points Whisper's cache
-# (XDG_CACHE_HOME) at <bundle>/whisper_cache so load_model("base") finds it.
-# Only meaningful when the dictation stack is bundled (opt-in).
+# Bundle the CTranslate2 "base" model DIRECTORY (model.bin + config.json +
+# tokenizer.json + vocabulary.txt, from Systran/faster-whisper-base, MIT) so
+# dictation runs fully offline on first launch — no HF download.  The build
+# scripts stage it under build/faster_whisper_model/; it lands at the bundle
+# root as faster_whisper_model/, and _runtime._new_faster_model() loads it with
+# local_files_only=True (HF_HUB_OFFLINE) when frozen.  (CTranslate2 uses a model
+# directory, not openai-whisper's single .pt file.)  Bundled dictation only.
 if _bundle_dictation:
-    _whisper_model = _os.path.join(_here, "build", "whisper_cache", "whisper", "base.pt")
-    if _os.path.isfile(_whisper_model):
-        datas.append((_whisper_model, "whisper_cache/whisper"))
+    _fw_model_dir = _os.path.join(_here, "build", "faster_whisper_model")
+    if _os.path.isdir(_fw_model_dir):
+        for _root, _dirs, _files in _os.walk(_fw_model_dir):
+            for _f in _files:
+                _src = _os.path.join(_root, _f)
+                _rel = _os.path.relpath(_root, _fw_model_dir)
+                _dest = (
+                    "faster_whisper_model/" + _rel.replace("\\", "/")
+                    if _rel != "." else "faster_whisper_model"
+                )
+                datas.append((_src, _dest))
 
 # Bundle NLTK's punkt sentence-tokenizer data so document summarization works
 # offline (sumy's Tokenizer needs it, and otherwise downloads it on first use).
@@ -231,13 +257,25 @@ _excludes = [
     # Only one Qt binding is needed; star prefers PyQt6.  Excluding PyQt5
     # avoids bundling a second, unused Qt.
     "PyQt5",
+    # star migrated dictation to faster-whisper (CTranslate2), so openai-whisper
+    # + Torch are NEVER bundled now — exclude them always so a build venv that
+    # happens to have them installed can't drag ~2.5 GB of Torch back into the
+    # exe via star's guarded ``import whisper`` fallback.  At runtime the frozen
+    # app then sees no ``whisper`` module and selects the faster backend.
+    "whisper",
+    "torch",
+    "numba",
+    "llvmlite",
+    "tiktoken",
 ]
 if not _bundle_dictation:
-    # Lean build (STAR_LEAN=1): explicitly exclude the dictation stack so it is
-    # never pulled in transitively — star imports whisper/sounddevice under
-    # guarded try/except, and PyInstaller would otherwise follow those imports
-    # and bundle multi-GB Torch if it happened to be installed in the build env.
-    _excludes += ["whisper", "torch", "numba", "llvmlite", "tiktoken", "sounddevice"]
+    # Lean build (STAR_LEAN=1): also exclude the faster-whisper stack so it is
+    # never pulled in transitively; star imports faster_whisper/sounddevice under
+    # guarded try/except, and a lean build wants none of it.
+    _excludes += [
+        "faster_whisper", "ctranslate2", "av", "tokenizers",
+        "onnxruntime", "sounddevice",
+    ]
 
 a = Analysis(
     ["run_star.py"],

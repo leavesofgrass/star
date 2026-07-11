@@ -16,9 +16,10 @@
 # ships pyttsx3 (→ NSSpeechSynthesizer) and star's AppleSay backend (/usr/bin/
 # say), so no vendor/ tree is bundled (star.spec skips it on darwin).
 #
-# Dictation (Whisper + Torch, multi-GB) is NOT bundled by default on macOS — the
-# .app stays small and quick to build.  Set STAR_MACOS_FULL=1 to bundle the
-# offline dictation stack (mirrors the Windows exe's default).
+# Offline dictation (faster-whisper / CTranslate2, ~140 MB) IS bundled by default
+# now — the old openai-whisper + Torch stack was too heavy for a .app, but the
+# CTranslate2 stack is light enough to ship out of the box.  Set STAR_MACOS_LEAN=1
+# to skip it for a small/quick build.
 #
 # Signing + notarization are best-effort and OFF by default: with no
 # MACOS_CERTIFICATE_BASE64 the .app is AD-HOC signed (``codesign -s -``) so it
@@ -95,13 +96,16 @@ DEPS=(
   PyMuPDF
   Pillow
 )
-# Dictation stack — opt-in on macOS (Torch is multi-GB); see STAR_MACOS_FULL.
-if [ -n "${STAR_MACOS_FULL:-}" ]; then
-  info "STAR_MACOS_FULL set — bundling offline dictation stack (openai-whisper + Torch)"
-  DEPS+=(openai-whisper sounddevice)
+# Offline dictation via faster-whisper (CTranslate2) — bundled BY DEFAULT now.
+# The old openai-whisper + Torch stack was multi-GB and too heavy for a .app;
+# faster-whisper's whole stack is ~140 MB, so macOS finally ships dictation out
+# of the box.  STAR_MACOS_LEAN=1 skips it for a small/quick build.
+if [ -n "${STAR_MACOS_LEAN:-}" ]; then
+  info "STAR_MACOS_LEAN set — skipping the dictation stack (small build)"
+  export STAR_LEAN=1   # star.spec: don't pull in / bundle the dictation stack
 else
-  info "Lean macOS build: skipping the dictation stack (set STAR_MACOS_FULL=1 to include it)"
-  export STAR_LEAN=1   # star.spec: don't pull in / bundle Torch/Whisper
+  info "Bundling offline dictation (faster-whisper / CTranslate2)"
+  DEPS+=(faster-whisper sounddevice)
 fi
 "$PY" -m pip install "${DEPS[@]}"
 
@@ -126,15 +130,17 @@ print("NLTK data staged")
 PY
 fi
 
-# ── Stage the Whisper model (only when bundling the full dictation stack) ────
-if [ -n "${STAR_MACOS_FULL:-}" ] && [ ! -f "$ROOT/build/whisper_cache/whisper/base.pt" ]; then
-  info "Staging Whisper 'base' model for offline dictation (~140 MB)"
-  STAR_MODEL_ROOT="$ROOT/build/whisper_cache/whisper" "$PY" - <<'PY'
-import os, whisper
-r = os.environ["STAR_MODEL_ROOT"]
-os.makedirs(r, exist_ok=True)
-whisper._download(whisper._MODELS["base"], r, False)
-print("Whisper base model staged")
+# ── Stage the CTranslate2 'base' model directory (offline dictation) ─────────
+# star.spec bundles build/faster_whisper_model/ so dictation runs with no HF
+# download.  Skipped for a lean build (no dictation stack installed).
+if [ -z "${STAR_MACOS_LEAN:-}" ] && [ ! -f "$ROOT/build/faster_whisper_model/model.bin" ]; then
+  info "Staging faster-whisper 'base' CTranslate2 model for offline dictation"
+  STAR_FW_DIR="$ROOT/build/faster_whisper_model" "$PY" - <<'PY'
+import os
+from huggingface_hub import snapshot_download
+d = os.environ["STAR_FW_DIR"]
+snapshot_download(repo_id="Systran/faster-whisper-base", local_dir=d)
+print("faster-whisper base model staged")
 PY
 fi
 
