@@ -36,16 +36,14 @@ def _mic_action(window):
     return window._toolbar_actions.get("Voice Typing")
 
 
-def test_mic_toolbar_action_exists_and_is_checkable(window):
+def test_mic_toolbar_action_exists_checkable_and_tracks_state(window):
+    """One window (fewer teardowns = less Qt-teardown-flake surface): the mic
+    action exists, is checkable, starts idle, and its checked state mirrors
+    ``_qt_vt_active`` via ``_qt_vt_sync_action``."""
     act = _mic_action(window)
     assert act is not None, "Voice Typing toolbar action missing"
     assert act.isCheckable() is True
     assert act.isChecked() is False  # idle at startup
-
-
-def test_mic_action_tracks_voice_typing_active_state(window):
-    """The button's checked state mirrors _qt_vt_active via _qt_vt_sync_action."""
-    act = _mic_action(window)
 
     window._qt_vt_active = True
     window._qt_vt_sync_action()

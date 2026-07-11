@@ -27,33 +27,36 @@ def window(qapp):
     win.close()
 
 
-def _dialog(window):
+@pytest.fixture
+def dlg(window):
+    """A Preferences dialog that is explicitly closed + scheduled for deletion
+    on teardown — a leaked dialog lingers into the conftest drain phase and adds
+    Qt-teardown-flake surface on the CI Linux legs."""
     from star.gui.preferences import PreferencesDialog
 
-    return PreferencesDialog(window)
+    d = PreferencesDialog(window)
+    yield d
+    d.close()
+    d.deleteLater()
 
 
-def test_reading_aids_toggles_round_trip_through_apply(window):
-    dlg = _dialog(window)
+def test_reading_aids_and_fonts_round_trip_through_apply(dlg, window):
+    """Both new tabs in one dialog/window (fewer teardowns): the Apply hook
+    writes+applies the Reading-Aids toggles and the Fonts spacing without
+    closing, and every value round-trips into the window settings."""
     dlg.aid_ruler.setChecked(True)
     dlg.aid_syllables.setChecked(True)
     dlg.aid_vocab.setChecked(True)
     dlg.aid_rsvp.setChecked(True)
+    dlg.line_height.setValue(1.8)
+    dlg.letter_spacing.setValue(2.5)
+    dlg.word_spacing.setValue(4.0)
     dlg._apply()  # Apply button: writes + applies without closing
     s = window.settings
     assert s.get("qt_reading_ruler") is True
     assert s.get("qt_syllable_split") is True
     assert s.get("qt_vocab_highlight") is True
     assert s.get("qt_rsvp_mode") is True
-
-
-def test_fonts_spacing_round_trips_through_apply(window):
-    dlg = _dialog(window)
-    dlg.line_height.setValue(1.8)
-    dlg.letter_spacing.setValue(2.5)
-    dlg.word_spacing.setValue(4.0)
-    dlg._apply()
-    s = window.settings
     assert abs(float(s.get("qt_line_height")) - 1.8) < 1e-9
     assert abs(float(s.get("qt_letter_spacing")) - 2.5) < 1e-9
     assert abs(float(s.get("qt_word_spacing")) - 4.0) < 1e-9
