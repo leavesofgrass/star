@@ -57,7 +57,6 @@ jobs:
           # legs — chiefly windows-latest 3.11 installing PyQt6 — reuse wheels
           # instead of re-downloading every run.
           cache: pip
-          cache: pip
 
       - name: Install Qt + media runtime libraries (Linux)
         if: runner.os == 'Linux'
