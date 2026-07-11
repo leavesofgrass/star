@@ -509,7 +509,17 @@ _PANDOC_BIN = (
 # startup.  Detect which backend is installed (cheap), and defer the real import
 # to _load_whisper() / _load_faster_whisper(), called only when a transcription
 # or dictation actually runs.
-if _module_available("whisper"):
+# Backend selection.  Auto-detect by default (prefer openai-whisper when both
+# are installed, so existing installs are untouched), but honour an explicit
+# STAR_WHISPER_BACKEND=openai|faster override — the spike/faster-whisper switch
+# that lets a user with both stacks installed force the CTranslate2 path without
+# uninstalling Torch.  Unknown/empty value falls through to auto-detect.
+_WHISPER_OVERRIDE = os.environ.get("STAR_WHISPER_BACKEND", "").strip().lower()
+if _WHISPER_OVERRIDE == "openai" and _module_available("whisper"):
+    _WHISPER = "openai"
+elif _WHISPER_OVERRIDE == "faster" and _module_available("faster_whisper"):
+    _WHISPER = "faster"
+elif _module_available("whisper"):
     _WHISPER = "openai"
 elif _module_available("faster_whisper"):
     _WHISPER = "faster"
@@ -529,6 +539,17 @@ def _load_faster_whisper():
     from faster_whisper import WhisperModel  # type: ignore
 
     return WhisperModel
+
+
+def _new_faster_model(model_name: str = "base"):
+    """Construct a faster-whisper (CTranslate2) model for CPU-int8 inference.
+
+    int8 is the quantised CPU path that gives CTranslate2 its speed and memory
+    win over Torch fp32; device is pinned to CPU because star's frozen builds
+    ship no CUDA.  STAR_WHISPER_COMPUTE overrides the compute type for testing
+    (e.g. ``int8_float32`` / ``float32``)."""
+    compute = os.environ.get("STAR_WHISPER_COMPUTE", "int8").strip() or "int8"
+    return _load_faster_whisper()(model_name, device="cpu", compute_type=compute)
 
 
 # Microphone capture (numpy + sounddevice).  Detected without importing; the

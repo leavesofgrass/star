@@ -39,7 +39,7 @@ def _transcribe_audio(
             )
         return str(result.get("text", "")).strip()
     if _WHISPER == "faster":
-        model = _load_faster_whisper()(model_name)
+        model = _new_faster_model(model_name)
         segments, _info = model.transcribe(path)
         if timestamps:
             return "\n".join(
@@ -73,7 +73,7 @@ def _transcribe_samples(
         model = _load_whisper().load_model(model_name)
         return str(model.transcribe(audio).get("text", "")).strip()
     if _WHISPER == "faster":
-        model = _load_faster_whisper()(model_name)
+        model = _new_faster_model(model_name)
         segments, _info = model.transcribe(audio)
         return " ".join(seg.text for seg in segments).strip()
     raise RuntimeError(
