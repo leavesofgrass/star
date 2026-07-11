@@ -211,11 +211,13 @@ testpaths = ["tests"]
 #   what killed the flaky exit-139 Qt-teardown segfault AND cut the suite ~3×.
 #   Escape hatch for single-test TDD runs / debugging:  pytest -n0 <target>
 addopts = "-q -n auto --dist loadgroup"
-# Hang tripwire: any single test stuck for 2 minutes dumps every thread's
-# traceback to stderr (pytest's built-in faulthandler plugin — a dump, not a
-# kill).  The suite normally finishes whole in ~30 s, so a trigger IS the bug;
-# paired with the CI jobs' timeout-minutes so a wedged worker costs minutes,
-# not a runner's 6-hour ceiling.
+# Hang DIAGNOSTICS: any single test stuck for 2 minutes dumps every thread's
+# traceback to stderr (pytest's built-in faulthandler — a dump, not a kill).
+# The actual KILL for a wedged run is the wall-clock `timeout` in
+# tools/ci-pytest.sh: it bounds pytest to STAR_PYTEST_TIMEOUT (480 s) and retries
+# the flaky Qt-teardown hang, catching even the xdist-controller shutdown wedge
+# that faulthandler can't see (it's outside any test).  The suite finishes whole
+# in ~30 s, so a faulthandler trigger here IS the bug.
 faulthandler_timeout = 120
 pythonpath = ["."]
 markers = [

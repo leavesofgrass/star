@@ -27,7 +27,10 @@ jobs:
     # faulthandler_timeout in pyproject) must fail fast, not burn the
     # runner's 6-hour default.  The extras leg installs Torch, so give
     # setup generous headroom.
-    timeout-minutes: 30
+    # Room for tools/ci-pytest.sh's wall-clock retry: up to 3 × the 480 s cap
+    # (~24 min) plus install, so a transient teardown hang is killed + retried
+    # to green rather than eating the timeout as a "cancelled" leg.
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       # star is pure-Python and cross-platform.  The matrix covers the min and
@@ -50,6 +53,10 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
+          # Cache the pip download cache (keyed on pyproject.toml) so the slow
+          # legs — chiefly windows-latest 3.11 installing PyQt6 — reuse wheels
+          # instead of re-downloading every run.
+          cache: pip
           cache: pip
 
       - name: Install Qt + media runtime libraries (Linux)
@@ -89,7 +96,7 @@ jobs:
   full-fat:
     name: full-fat (all optional deps, py3.13)
     runs-on: ubuntu-latest
-    timeout-minutes: 40  # hang tripwire (see the test job); Torch install is slow
+    timeout-minutes: 45  # room for the ci-pytest.sh wall-clock retry (see test job)
     # Installs the entire optional-dependency surface (`.[all,test]`) so the
     # real-behaviour branches of every feature run instead of their skip paths —
     # this is the integration-regression net.  The base `test` matrix legs run
@@ -139,7 +146,7 @@ jobs:
   coverage:
     name: coverage gate (per-module floors)
     runs-on: ubuntu-latest
-    timeout-minutes: 30  # hang tripwire (see the test job)
+    timeout-minutes: 45  # room for the ci-pytest.sh wall-clock retry (see test job)
     steps:
       - uses: actions/checkout@v4
 
