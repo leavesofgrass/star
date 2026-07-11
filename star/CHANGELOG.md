@@ -16,9 +16,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
   downloads are far smaller.** star's speech-to-text moved from openai-whisper +
   PyTorch to **faster-whisper (CTranslate2)**. The whole dictation stack drops
   from multiple gigabytes to about 140 MB, so the self-contained **Windows
-  `star.exe` shrinks from ~700 MB toward ~250 MB**, and the **macOS `.app` now
-  bundles offline dictation out of the box** (it previously couldn't — Torch was
-  too heavy). Transcription is the same or faster, uses less memory, and no
+  `star.exe` drops from ~700 MB to ~580 MB** (the vendored ffmpeg/Tesseract/…
+  engines are now the bulk; a `-Lean` build without them is ~250 MB), and the
+  **macOS `.app` now bundles offline dictation out of the box** at ~380 MB (it
+  previously couldn't — Torch was too heavy). Transcription is the same or faster, uses less memory, and no
   longer needs `ffmpeg` on your PATH (faster-whisper decodes audio itself).
   Nothing changes in how you dictate. `pip install "star-reader[transcribe]"`
   now installs faster-whisper; power users can force either backend with

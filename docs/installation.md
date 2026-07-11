@@ -38,7 +38,8 @@ ship everywhere. What still differs:
 
 - The **Windows `star.exe`** is the fully-loaded one — it also bakes in the
   native helper tools (ffmpeg for audio export, Tesseract for OCR, liblouis for
-  braille, eSpeak-NG for extra voices), so it's the largest (~250 MB).
+  braille, eSpeak-NG for extra voices), so it's the largest (~580 MB, most of
+  which is those vendored engines).
 - The **macOS `.app`** uses the built-in Apple voices for speech and **bundles
   offline dictation**, but relies on Homebrew for ffmpeg / Pandoc / Tesseract
   rather than vendoring native engines.

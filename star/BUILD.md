@@ -32,10 +32,11 @@ bundled `base` model)**, and — when the `vendor/` tree is present — the nati
 for MP3 export (ffmpeg), OCR (Tesseract + English data), Grade 2 Braille
 (liblouis), markup conversion (Pandoc), and the classic DECtalk synthesizer.
 
-> Size note: the default build is moderate (~250–300 MB onefile `.exe`). The
-> dictation stack is now **faster-whisper (CTranslate2)** — roughly 140 MB
-> including the `base` model and **no PyTorch** — so the biggest contributors are
-> the bundled `vendor/` engines (ffmpeg/Tesseract/…). Because onefile extracts everything to a temp
+> Size note: the full default build is ~580 MB onefile `.exe` (down from ~700 MB
+> before the Torch→faster-whisper switch). The dictation stack is now
+> **faster-whisper (CTranslate2)** — roughly 140 MB including the `base` model
+> and **no PyTorch** — so the biggest contributors are now the bundled `vendor/`
+> engines (ffmpeg/Tesseract/…, ~450 MB); a `-Lean` build without them is ~250 MB. Because onefile extracts everything to a temp
 > folder on each launch, the **first start takes noticeably longer**. For a fast,
 > small build, pass `-Lean` to skip the dictation stack (see
 > [Dictation](#out-of-the-box-dictation-whisper)) and/or omit the `vendor/` step.
