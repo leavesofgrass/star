@@ -88,7 +88,6 @@ Find its exact path from the TUI with `M-x settings` (it prints the location in 
 | `pronunciations` | `{}` | Pronunciation lexicon: `{term: spoken form}` applied before other TTS normalization |
 | `use_pronunciations` | `true` | Apply the pronunciation lexicon while reading |
 | `dictionary_file` | `""` | Path to a custom JSON dictionary for Define Word (`{term: definition}` or `{term: {pos, definition, pronunciation, examples}}`); checked before WordNet |
-| `qt_show_toc` | `true` | Show the Contents panel at startup |
 | `qt_line_height` | `1.5` | Qt line-height multiplier (WCAG 1.4.12). Adjust via **View → Reading Aids → Text Spacing…** |
 | `qt_letter_spacing` | `0.0` | Qt extra letter spacing, percent of font size (`0` = normal) |
 | `qt_word_spacing` | `0.0` | Qt extra word spacing in pixels (`0` = normal) |

@@ -48,12 +48,16 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ### 🐛 Fixed
 
-- **The Notes pane no longer sits open and empty, stealing reading space.** Its
-  visibility is now derived per-document: it appears automatically for a document
-  that has notes and stays hidden for the welcome page and any note-free document
-  (you can still toggle it with `Ctrl+Shift+N`, and adding a note reveals it).
-  Previously, once you'd ever added a note the pane was pinned open on every
-  launch. The `qt_show_notes` setting is retired (any saved value is ignored).
+- **The Notes and Contents panes no longer sit open and empty, stealing reading
+  space.** Both docks now derive their visibility per-document: the **Notes**
+  pane appears only for a document that has notes, and the **Contents** pane only
+  for a document that has headings — so the welcome page (which has headings)
+  shows its outline, while a new/blank document keeps the full width for text.
+  You can still toggle either (`Ctrl+Shift+N` for Notes, `Ctrl+\` for Contents),
+  and adding a note reveals the Notes pane. Previously the Notes pane was pinned
+  open on every launch after you'd added any note, and the Contents pane was
+  always shown. The `qt_show_notes` and `qt_show_toc` settings are retired (any
+  saved values are ignored).
 - **The docs no longer say offline dictation is missing on macOS.** A cluster of
   packaging/installation docs still described the old Whisper + PyTorch,
   “multi-GB”, “not bundled on macOS” dictation stack; they now match the 0.1.25

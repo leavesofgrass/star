@@ -876,8 +876,10 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         self._toc_list.itemDoubleClicked.connect(self._qt_toc_play)
         self._toc_dock.setWidget(self._toc_list)
         self.addDockWidget(_LEFT_DOCK, self._toc_dock)
-        show_toc = bool(self.settings.get("qt_show_toc", True))
-        self._toc_dock.setVisible(show_toc)
+        # Start hidden: an empty Contents pane must not steal reading space.
+        # _qt_auto_toc_visibility() (run on each document load / edit finish)
+        # reveals it only for documents that actually have headings.
+        self._toc_dock.setVisible(False)
 
         # ── Annotations / Notes dock ─────────────────────────────────────
         # Mirrors the Contents dock: a list of notes anchored at character

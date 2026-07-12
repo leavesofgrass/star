@@ -219,6 +219,9 @@ class EditNavMixin:
         # aids from it (the TOC / annotations map onto visible lines, so they can
         # only be built here).  These are cheap and main-thread, so run always.
         self._qt_build_toc()
+        # A document may have gained/lost headings while editing — re-derive the
+        # Contents pane's visibility from the rebuilt ToC.
+        self._qt_auto_toc_visibility()
         self._qt_build_annotations()
         self._qt_refresh_vocab_highlight()
         # The word + sentence maps only change when the text did — rebuild them

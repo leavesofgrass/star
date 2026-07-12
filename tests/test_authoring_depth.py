@@ -291,6 +291,49 @@ def test_notes_pane_manual_toggle_is_transient(window):
     assert window._annot_dock.isHidden() is True
 
 
+# ── Contents (ToC) pane visibility (only when the doc has headings) ───────────
+
+
+def test_toc_pane_visibility_matches_heading_presence_at_launch(window):
+    """At launch the Contents pane is shown iff the loaded document has
+    headings (the welcome page has headings; a heading-free doc would not)."""
+    assert window._toc_dock.isHidden() is (window._toc_list.count() == 0)
+
+
+def test_toc_pane_auto_shows_for_a_doc_with_headings(window):
+    from star.documents import Document
+
+    window._pending_doc = Document(path="", title="Doc", markdown="# Heading\n\nbody",
+                                   plain_text="Heading body", format="markdown")
+    window._on_doc_loaded()
+    assert window._toc_list.count() > 0
+    assert window._toc_dock.isHidden() is False
+    # A heading-free document hides the pane again.
+    window._pending_doc = Document(path="", title="Flat", markdown="just prose here",
+                                   plain_text="just prose here", format="markdown")
+    window._on_doc_loaded()
+    assert window._toc_list.count() == 0
+    assert window._toc_dock.isHidden() is True
+
+
+def test_toc_pane_manual_toggle_is_transient(window):
+    from star.documents import Document
+
+    # Start on a heading-free doc → hidden.
+    window._pending_doc = Document(path="", title="Flat", markdown="no headings",
+                                   plain_text="no headings", format="markdown")
+    window._on_doc_loaded()
+    assert window._toc_dock.isHidden() is True
+    # Toggle it on…
+    window._qt_toggle_toc()
+    assert window._toc_dock.isHidden() is False
+    # …but loading another heading-free doc re-derives and hides it.
+    window._pending_doc = Document(path="", title="Flat2", markdown="still none",
+                                   plain_text="still none", format="markdown")
+    window._on_doc_loaded()
+    assert window._toc_dock.isHidden() is True
+
+
 def test_startup_recovery_declined_drops_the_snapshot(window, monkeypatch, tmp_path):
     monkeypatch.setattr(A, "_CFG_ROOT", tmp_path)
     snap = tmp_path / "recovery" / "untitled-x.json"

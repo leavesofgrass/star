@@ -112,11 +112,11 @@ DEFAULTS: Dict[str, Any] = {
     "footnote_mode": "inline",  # "inline" | "deferred" | "skip"
     "epub_show_chapters": True,
     "document_cache": True,
-    "qt_show_toc": True,
-    # (Removed 0.1.26: qt_show_notes.  The Notes dock's visibility is now
-    # derived per-document from whether it has notes — see
-    # StarWindow._qt_auto_notes_visibility — so an empty pane never steals
-    # reading space.  Any stale saved value is simply ignored.)
+    # (Removed 0.1.26: qt_show_toc / qt_show_notes.  The Contents and Notes
+    # docks now derive their visibility per-document — shown only when the
+    # document has headings / notes respectively (see _qt_auto_toc_visibility
+    # and _qt_auto_notes_visibility) — so an empty pane never steals reading
+    # space.  Any stale saved values are simply ignored.)
     "annotations": {},  # {path: [{"char_pos", "word_idx", "anchor", "note", "tags", "cite", "ts", "id", "relations"}]}
     "annotation_filter_presets": {},  # {name: filter-query} saved note filters
     # Knowledge graph: typed relations between annotations across documents.

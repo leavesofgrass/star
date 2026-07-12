@@ -194,9 +194,28 @@ class TocMixin:
         self._tts_play_from_word(word_idx)
         self.statusBar().showMessage(f"▶  Reading from: {title}")
 
+    def _qt_auto_toc_visibility(self) -> None:
+        """Show the Contents dock only when the document has headings.
+
+        Called after every ToC rebuild (document load, and on finishing an
+        edit) so the pane appears automatically for a document with headings
+        and stays out of the way for a heading-free document (a new/blank
+        document, plain notes) — the reading space is never taken by an empty
+        Contents pane.  An explicit toggle (``_qt_toggle_toc``) overrides this
+        until the next rebuild."""
+        dock = getattr(self, "_toc_dock", None)
+        if dock is None:
+            return
+        dock.setVisible(self._toc_list.count() > 0)
+
     def _qt_toggle_toc(self) -> None:
-        """Toggle the visibility of the Contents dock panel."""
-        visible = not self._toc_dock.isVisible()
-        self._toc_dock.setVisible(visible)
-        self.settings["qt_show_toc"] = visible
+        """Toggle the visibility of the Contents dock panel (Ctrl+\\).
+
+        A transient, per-view action: the next ToC rebuild re-derives the
+        pane's visibility from whether the document has headings
+        (_qt_auto_toc_visibility), so toggling an empty pane on never makes it
+        stick open across documents."""
+        # isHidden() (not isVisible()) so the toggle is correct even before the
+        # window is shown (isVisible() is False for a child of a hidden window).
+        self._toc_dock.setVisible(self._toc_dock.isHidden())
 

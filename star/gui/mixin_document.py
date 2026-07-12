@@ -161,8 +161,10 @@ class DocumentMixin:
             self.editor.setHtml(self._md_to_html(doc.markdown or ""))
             self._apply_block_spacing()  # line-height (reset by setHtml)
         self.editor.setExtraSelections([])  # clear leftover TTS highlights
-        # Build the ToC panel from the new document's headings.
+        # Build the ToC panel from the new document's headings, and show it only
+        # when there are headings (an empty Contents pane never steals space).
         self._qt_build_toc()
+        self._qt_auto_toc_visibility()
         # Populate the Notes panel from saved annotations for this document, and
         # show the pane only when this document actually has notes (an empty pane
         # never steals reading space at launch or on a note-free document).
