@@ -505,7 +505,9 @@ def test_transcribe_samples_needs_no_ffmpeg(monkeypatch):
         captured["audio"] = audio
         return {"text": " hi "}
 
-    monkeypatch.setattr(t, "_WHISPER", "openai")
+    # _transcribe_samples detects the backend fresh, so patch the detector (the
+    # _WHISPER snapshot it used to read is no longer consulted).
+    monkeypatch.setattr(t, "_whisper_backend_now", lambda: "openai")
     monkeypatch.setattr(
         t, "_load_whisper",
         lambda: type("W", (), {"load_model": staticmethod(

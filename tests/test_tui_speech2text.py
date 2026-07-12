@@ -218,8 +218,11 @@ def _patch_dictate(monkeypatch, transcript="note text"):
     _FakeRecorder.instances = []
     monkeypatch.setattr(mod, "StreamRecorder", _FakeRecorder)
     monkeypatch.setattr(mod, "_transcribe_samples", lambda *a, **k: transcript)
-    monkeypatch.setattr(mod, "_AUDIO_IN", True, raising=False)
-    monkeypatch.setattr(mod, "_WHISPER", "openai", raising=False)
+    # The dictate gate detects the mic + backend FRESH (not the import-time
+    # _AUDIO_IN / _WHISPER snapshots), so patch those detectors — otherwise the
+    # command bails with "requires Whisper" wherever no backend is installed (CI).
+    monkeypatch.setattr(mod, "_audio_in_now", lambda: True, raising=False)
+    monkeypatch.setattr(mod, "_whisper_backend_now", lambda: "openai", raising=False)
 
 
 def test_tui_dictate_records_until_enter_then_attaches_note(monkeypatch):
