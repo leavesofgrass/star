@@ -222,6 +222,11 @@ class FindMixin:
             )
             return
         self._find_set_replace_visible(True)
+        # Focus the *find* field first so the user types what to search for;
+        # _find_set_replace_visible parks focus on the replace box, which is the
+        # right default only when a query is already in the bar.
+        if not self._find_input.text():
+            self._find_input.setFocus()
 
     def _find_replace_one(self) -> None:
         """Replace the current match with the replacement, then advance.

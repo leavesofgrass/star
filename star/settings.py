@@ -171,6 +171,12 @@ DEFAULTS: Dict[str, Any] = {
     # When True, edit mode shows a split pane with a live-rendered HTML
     # preview of the Markdown source beside the editor (debounced).
     "qt_edit_preview": False,
+    # ── Autosave / crash recovery (Qt GUI) ────────────────────────
+    # When True, star snapshots unsaved edit-mode changes to
+    # <config>/recovery/ every ~20 s and offers to recover them on the next
+    # launch after a crash or unexpected quit. Set False to disable both the
+    # snapshotting and the startup recovery prompt.
+    "autosave_recovery": True,
     # ── Large-document pagination (Qt GUI) — see docs/PERFORMANCE.md ───────
     # QTextEdit lays out a whole document's HTML at once; for very large
     # documents that one-shot layout (and every later scroll/repaint) is slow.

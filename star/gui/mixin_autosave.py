@@ -152,6 +152,8 @@ class AutosaveMixin:
         """Write a recovery snapshot when editing with unsaved changes."""
         if getattr(self, "_closing", False):
             return
+        if not self.settings.get("autosave_recovery", True):
+            return
         if not getattr(self, "_qt_edit_mode", False):
             return
         if not getattr(self, "_qt_edit_dirty", False):
@@ -177,6 +179,8 @@ class AutosaveMixin:
         Presents one prompt per recoverable snapshot; on accept the text opens
         as a document (in edit mode) so the user can save it properly."""
         if getattr(self, "_closing", False):
+            return
+        if not self.settings.get("autosave_recovery", True):
             return
         try:
             snaps = _scan_snapshots(_recovery_dir())

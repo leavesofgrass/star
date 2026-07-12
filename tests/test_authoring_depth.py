@@ -210,3 +210,52 @@ def test_autosave_tick_writes_only_when_dirty(window, monkeypatch, tmp_path):
     window._qt_edit_dirty = False
     window._autosave_tick()
     assert not snap.exists()
+
+
+def test_autosave_opt_out_setting_disables_snapshots(window, monkeypatch, tmp_path):
+    monkeypatch.setattr(A, "_CFG_ROOT", tmp_path)
+    window.settings["autosave_recovery"] = False
+    _enter_edit_with(window, "should not be snapshotted")
+    window._qt_edit_dirty = True
+    window._autosave_tick()
+    assert not window._autosave_snapshot_path().exists()
+
+
+def test_startup_recovery_offer_loads_the_snapshot(window, monkeypatch, tmp_path):
+    """Accepting the recovery prompt opens the snapshot as an editable doc."""
+    monkeypatch.setattr(A, "_CFG_ROOT", tmp_path)
+    # Seed a recovery snapshot as if a prior session crashed mid-edit.
+    A._write_snapshot(
+        tmp_path / "recovery" / "untitled-crashed.json",
+        {"path": "", "title": "Draft", "markdown": "recovered body",
+         "ts": "2026-07-11T09:00:00"},
+    )
+    # Auto-answer the prompt "Yes".
+    from star.gui import mixin_autosave as MA
+
+    monkeypatch.setattr(
+        MA.QMessageBox, "question",
+        staticmethod(lambda *a, **k: MA.QMessageBox.StandardButton.Yes),
+    )
+    window._autosave_check_on_startup()
+    assert window._qt_edit_mode is True
+    assert window._qt_edit_dirty is True
+    assert window.editor.toPlainText() == "recovered body"
+    # The consumed snapshot is removed so it isn't offered again.
+    assert not (tmp_path / "recovery" / "untitled-crashed.json").exists()
+
+
+def test_startup_recovery_declined_drops_the_snapshot(window, monkeypatch, tmp_path):
+    monkeypatch.setattr(A, "_CFG_ROOT", tmp_path)
+    snap = tmp_path / "recovery" / "untitled-x.json"
+    A._write_snapshot(
+        snap, {"path": "", "title": "D", "markdown": "x", "ts": "t"}
+    )
+    from star.gui import mixin_autosave as MA
+
+    monkeypatch.setattr(
+        MA.QMessageBox, "question",
+        staticmethod(lambda *a, **k: MA.QMessageBox.StandardButton.No),
+    )
+    window._autosave_check_on_startup()
+    assert not snap.exists()  # declined → removed, never offered again

@@ -33,7 +33,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
   **recover** it. This matters most for brand-new **Untitled** documents that
   have no file to fall back on. Snapshots are cleared the moment the work is
   saved or you deliberately leave edit mode, so a recovery prompt only ever
-  appears for genuinely lost work.
+  appears for genuinely lost work. Turn it off with the `autosave_recovery`
+  setting.
 
 ### 🔧 Changed
 
