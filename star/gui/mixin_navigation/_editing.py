@@ -164,6 +164,7 @@ class EditNavMixin:
         if self.settings.get("qt_edit_preview", False):
             self._preview.setVisible(True)
             self._qt_render_preview()
+            self._qt_equalize_edit_split()
             self.statusBar().showMessage(
                 "✏  EDIT MODE — Markdown source + live preview  ·  "
                 "Ctrl+S: save (keep editing)  ·  Ctrl+E: finish"
@@ -265,6 +266,23 @@ class EditNavMixin:
 
     # ─ live HTML preview (edit mode) ──────────────────────────────────
 
+    def _qt_equalize_edit_split(self) -> None:
+        """Split the edit area evenly between the Markdown source and preview.
+
+        A ``QSplitter``'s stretch factors only govern how *extra* space is
+        distributed on resize, not the initial sizes — so when the preview is
+        revealed the editor tends to keep nearly all the width.  Set explicit
+        50/50 sizes so source and preview each get half.  A no-op before the
+        splitter has a width (e.g. a headless test)."""
+        split = getattr(self, "_edit_split", None)
+        if split is None:
+            return
+        total = split.width() or sum(split.sizes())
+        if total <= 0:
+            return
+        half = total // 2
+        split.setSizes([half, total - half])
+
     def _qt_render_preview(self) -> None:
         """Render the current editor source into the live preview pane."""
         if not self._preview.isVisible():
@@ -301,6 +319,7 @@ class EditNavMixin:
             else:
                 self._preview.setVisible(True)
                 self._qt_render_preview()
+                self._qt_equalize_edit_split()
             self.statusBar().showMessage("Live HTML preview: ON")
         else:
             self._preview.setVisible(False)

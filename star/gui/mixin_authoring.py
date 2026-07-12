@@ -38,9 +38,19 @@ class AuthoringMixin:
             plain_text="",
             format="markdown",
         )
+        # A new document is authored from scratch, so open it in edit mode with
+        # the live preview on and the space shared evenly with the source.  Turn
+        # the preview on *before* entering edit mode (which reads the setting)
+        # and keep the toggle action in sync.
+        self.settings["qt_edit_preview"] = True
+        if hasattr(self, "_preview_act"):
+            self._preview_act.setChecked(True)
         self._on_doc_loaded()
         if not getattr(self, "_qt_edit_mode", False):
             self._qt_enter_edit_mode()
+        # Even 50/50 split of editor | preview (enter-edit sizes it, but do it
+        # again here in case edit mode was already active).
+        self._qt_equalize_edit_split()
         self.editor.setFocus()
         self.statusBar().showMessage(tr("New document — start typing or dictate"))
         announce(self.editor, tr("New document ready for editing"))

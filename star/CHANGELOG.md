@@ -38,6 +38,12 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ### 🔧 Changed
 
+- **New Document opens ready to write.** File ▸ New (`Ctrl+N`) now drops you
+  straight into edit mode with the **live HTML preview on** and the space
+  **split evenly** between the Markdown source and the preview, so you can
+  author against a rendered view from the first keystroke. (The 50/50 split also
+  applies whenever the preview is turned on — `Ctrl+Shift+Z` — instead of the
+  editor keeping nearly all the width.)
 - **Voice dictation installs and works in the same session — no restart.** Now
   that speech-to-text is faster-whisper (no PyTorch), the in-app installer pulls
   **faster-whisper (~150 MB)** instead of openai-whisper + PyTorch (~2 GB), and

@@ -74,6 +74,29 @@ def test_replace_is_noop_outside_edit_mode(window):
     assert window.editor.toPlainText() == before
 
 
+# ── New document: edit mode + live preview, evenly split ─────────────────────
+
+
+def test_new_document_opens_in_edit_mode_with_preview(window):
+    window._qt_new_document()
+    assert window._qt_edit_mode is True
+    assert window.settings.get("qt_edit_preview") is True
+    # The preview pane is revealed (isHidden tracks the explicit show).
+    assert window._preview.isHidden() is False
+
+
+def test_equalize_edit_split_halves_the_space(window):
+    # The helper only runs while the preview is shown (a hidden splitter pane
+    # collapses to 0); reveal it, seed a lopsided split, then even it out via
+    # the size-sum fallback used before the window has a real width.
+    window._preview.setVisible(True)
+    window._edit_split.setSizes([700, 100])
+    window._qt_equalize_edit_split()
+    a, b = window._edit_split.sizes()
+    assert a > 0 and b > 0
+    assert abs(a - b) <= 2  # evenly split
+
+
 # ── Tables ───────────────────────────────────────────────────────────────────
 
 
