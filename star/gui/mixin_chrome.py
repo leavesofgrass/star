@@ -210,6 +210,11 @@ class ChromeMixin:
             "Insert a link — [text](url) (Ctrl+K)")
         _ea("Horizontal Rule", "md_rule", self._qt_md_insert_rule,
             "Insert a horizontal rule — ---")
+        tb.addSeparator()
+        _ea("Insert Table", "md_table", self._qt_md_insert_table,
+            "Insert a Markdown table")
+        _ea("Insert Image", "md_image", self._qt_md_insert_image,
+            "Insert an image — ![alt](path)")
         # Hidden until editing; if a language switch rebuilt it mid-edit, keep
         # it shown.
         tb.setVisible(bool(getattr(self, "_qt_edit_mode", False)))
@@ -636,6 +641,13 @@ class ChromeMixin:
                  "Insert a Markdown link — [text](url)"),
                 ("Horizontal Rule", self._qt_md_insert_rule, "",
                  "Insert a horizontal rule (---)"),
+                None,
+                ("Insert Table…", self._qt_md_insert_table, "",
+                 "Insert a Markdown table of a chosen size"),
+                ("Add Table Row", self._qt_md_table_add_row, "",
+                 "Append a row to the table the cursor is in"),
+                ("Insert Image…", self._qt_md_insert_image, "",
+                 "Insert an image reference — ![alt](path)"),
             ],
         )
 
@@ -645,6 +657,8 @@ class ChromeMixin:
             [
                 ("Find…", self._find_show, "Ctrl+F",
                  "Find in the document — Enter jumps, Ctrl+Enter reads aloud"),
+                ("Find & Replace…", self._replace_show, "",
+                 "Find and replace text (edit mode) — replace one or all"),
                 ("Copy", self._qt_copy, "Ctrl+C",
                  "Copy the selection — or the current paragraph when nothing "
                  "is selected"),

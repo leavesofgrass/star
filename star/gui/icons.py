@@ -230,6 +230,20 @@ def _md_rule(p):
     p.drawLine(QPointF(4, 11), QPointF(18, 11))          # horizontal rule
 
 
+def _md_table(p):
+    p.drawRect(QRectF(3.5, 5.5, 15, 11))                 # outer border
+    p.drawLine(QPointF(3.5, 9.5), QPointF(18.5, 9.5))    # header rule
+    p.drawLine(QPointF(3.5, 13), QPointF(18.5, 13))      # row rule
+    p.drawLine(QPointF(8.5, 5.5), QPointF(8.5, 16.5))    # column 1
+    p.drawLine(QPointF(13.5, 5.5), QPointF(13.5, 16.5))  # column 2
+
+
+def _md_image(p):
+    p.drawRect(QRectF(3.5, 5.5, 15, 11))                 # frame
+    p.drawEllipse(QPointF(8, 9), 1.6, 1.6)               # sun
+    _poly(p, [(4.5, 15.5), (9, 10.5), (12, 13.5), (14.5, 11), (17.5, 15.5)])  # peaks
+
+
 def _undo(p):
     p.drawArc(QRectF(6, 7, 11, 10), 25 * 16, 200 * 16)   # curved shaft
     _poly(p, [(4, 8), (10, 6), (9, 12)], fill=True)      # left arrowhead
@@ -342,7 +356,8 @@ _GLYPHS = {
     "heading": _heading,
     "md_bullet_list": _md_bullet_list, "md_number_list": _md_number_list,
     "md_quote": _md_quote, "md_code": _md_code, "md_link": _md_link,
-    "md_rule": _md_rule, "undo": _undo, "redo": _redo,
+    "md_rule": _md_rule, "md_table": _md_table, "md_image": _md_image,
+    "undo": _undo, "redo": _redo,
     "copy": _copy, "highlight": _highlight, "clear_highlight": _clear_highlight,
     "edit": _edit, "save": _save,
     "theme": _theme, "contents": _contents, "notes": _notes, "add_note": _add_note,

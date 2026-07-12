@@ -161,7 +161,7 @@ class ExportMixin:
         if not dest:
             return
         try:
-            Path(dest).write_text(self.doc.markdown, encoding="utf-8")
+            Path(dest).write_text(self._qt_live_markdown(), encoding="utf-8")
             self.statusBar().showMessage(f"Exported Markdown → {dest}")
         except OSError as e:
             self._status_error(f"Export error: {e}")
@@ -204,6 +204,22 @@ class ExportMixin:
         printer.setOutputFormat(_pdf_format)
         printer.setOutputFileName(dest)
 
+        # While editing, the editor shows raw Markdown source, not the rendered
+        # HTML — so print a freshly-rendered throwaway document built from the
+        # live buffer instead of the editor's own document.  (Read-mode user
+        # highlights don't apply to an in-progress draft, so they're skipped in
+        # that branch.)
+        if getattr(self, "_qt_edit_mode", False):
+            try:
+                from PyQt6.QtGui import QTextDocument  # type: ignore
+            except ImportError:
+                from PyQt5.QtGui import QTextDocument  # type: ignore
+            draft = QTextDocument()
+            draft.setHtml(self._md_to_html(self._qt_live_markdown()))
+            draft.print_(printer)
+            self.statusBar().showMessage(f"Exported PDF (draft) → {dest}")
+            return
+
         # Apply user highlights to the document temporarily so they
         # are baked into the PDF output.
         doc_obj = self.editor.document()
@@ -240,7 +256,7 @@ class ExportMixin:
             return
         table = str(self.settings.get("braille_table", "en-ueb-g2.ctb"))
         brf = _export_braille(
-            self.doc.plain_text,
+            self._qt_live_plain(),
             table,
             use_liblouis=bool(self.settings.get("braille_grade2", False)),
         )
@@ -261,7 +277,7 @@ class ExportMixin:
         if not self.doc:
             self.statusBar().showMessage("No document loaded")
             return
-        if not (self.doc.plain_text or "").strip():
+        if not (self._qt_live_plain() or "").strip():
             self.statusBar().showMessage("Document has no readable text")
             return
         p = Path(self.doc.path) if self.doc.path else Path("export")
@@ -275,7 +291,7 @@ class ExportMixin:
         )
         if not dest:
             return
-        text = _preprocess_tts_text(self.doc.plain_text, self.settings)
+        text = _preprocess_tts_text(self._qt_live_plain(), self.settings)
         fmt = Path(dest).suffix.upper().lstrip(".") or "MP3"
         # Optionally emit a synchronized caption track next to the audio.
         sub_path: Optional[str] = None
@@ -315,7 +331,7 @@ class ExportMixin:
         if not self.doc:
             self.statusBar().showMessage("No document loaded")
             return
-        if not (self.doc.plain_text or "").strip():
+        if not (self._qt_live_plain() or "").strip():
             self.statusBar().showMessage("Document has no readable text")
             return
         p = Path(self.doc.path) if self.doc.path else Path("export")
@@ -371,7 +387,7 @@ class ExportMixin:
         if not self.doc:
             self.statusBar().showMessage("No document loaded")
             return
-        if not (self.doc.plain_text or "").strip():
+        if not (self._qt_live_plain() or "").strip():
             self.statusBar().showMessage("Document has no readable text")
             return
         if not find_ffmpeg():
@@ -391,7 +407,9 @@ class ExportMixin:
         if not dest:
             return
 
-        doc = self.doc
+        # Export the live editor buffer when editing (a copy — self.doc is left
+        # untouched so Discard still reverts).
+        doc = self._qt_live_doc()
         backend = getattr(self.tts_manager, "_backend", None)
         # Shared worker/UI state.  Only the worker writes progress fields; only the
         # GUI timer reads them.  ``cancel`` is set by the GUI, read by the worker.
@@ -506,7 +524,8 @@ class ExportMixin:
         if not dest:
             return
         self.statusBar().showMessage(f"Exporting {label} … this may take a while")
-        doc = self.doc
+        # Export the live editor buffer when editing (a copy; self.doc untouched).
+        doc = self._qt_live_doc()
         backend = getattr(self.tts_manager, "_backend", None)
 
         def _work() -> None:

@@ -104,7 +104,9 @@ class SpeechCursorNavMixin:
         # Find bar input: Escape closes it; F3 / Shift+F3 and Shift+Enter walk
         # matches even while the line edit holds focus.  Handled before the
         # editor branch because the find input is a different widget.
-        if obj is getattr(self, "_find_input", None):
+        if obj is getattr(self, "_find_input", None) or obj is getattr(
+            self, "_replace_input", None
+        ):
             if self._find_input_key(event):
                 return True
             return super().eventFilter(obj, event)

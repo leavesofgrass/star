@@ -47,6 +47,7 @@ from .mixin_document import DocumentMixin
 from .mixin_annotations import AnnotationsMixin
 from .mixin_export import ExportMixin
 from .mixin_authoring import AuthoringMixin
+from .mixin_autosave import AutosaveMixin
 from .mixin_history import HistoryMixin
 from .mixin_transcription import TranscriptionMixin
 from .mixin_citations import CitationsMixin
@@ -313,7 +314,7 @@ class _ReadingRulerOverlay(QWidget):
 
 # =========================================================================
 
-class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, HighlightsMixin, PresetsMixin, DocOpsMixin, DisplayMixin, DocToolsMixin, NavigationMixin, PlaybackMixin, FontSpacingMixin, DocumentMixin, AnnotationsMixin, ExportMixin, TranscriptionMixin, AuthoringMixin, HistoryMixin, CitationsMixin, GraphMixin, FindMixin, BookmarksQtMixin, VoicesMixin, ReviewMixin, TourMixin, QMainWindow):
+class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, HighlightsMixin, PresetsMixin, DocOpsMixin, DisplayMixin, DocToolsMixin, NavigationMixin, PlaybackMixin, FontSpacingMixin, DocumentMixin, AnnotationsMixin, ExportMixin, TranscriptionMixin, AuthoringMixin, AutosaveMixin, HistoryMixin, CitationsMixin, GraphMixin, FindMixin, BookmarksQtMixin, VoicesMixin, ReviewMixin, TourMixin, QMainWindow):
     """Qt GUI window for star.
 
     Word-level highlight pipeline
@@ -627,6 +628,11 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         if self.settings.get("qt_reading_ruler", False):
             self._apply_reading_ruler(True)
 
+        # Autosave / crash recovery for in-progress edits (see AutosaveMixin).
+        # Create the timer before any document loads so entering edit mode can
+        # start it.
+        self._autosave_init()
+
         if initial_path:
             self._open_path(initial_path)
         else:
@@ -645,6 +651,8 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         # test that merely constructs the window is unaffected.
         QTimer.singleShot(0, self._maybe_run_first_run_tour)
         QTimer.singleShot(0, self._maybe_startup_update_check)
+        # Offer to recover any unsaved work a previous session left behind.
+        QTimer.singleShot(0, self._autosave_check_on_startup)
         # If the settings file was corrupt, _load reset to defaults and saved a
         # backup — tell the user once instead of resetting invisibly.
         if getattr(self.settings, "load_error", ""):
@@ -1109,7 +1117,7 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         # Stop the periodic timers so a closed window can never fire _stats_poll /
         # the preview refresh into a half-destroyed object during teardown (a
         # source of Qt shutdown segfaults, e.g. the pytest-qt CI legs).
-        for _tname in ("_stats_timer", "_preview_timer"):
+        for _tname in ("_stats_timer", "_preview_timer", "_autosave_timer"):
             _t = getattr(self, _tname, None)
             if _t is not None:
                 try:

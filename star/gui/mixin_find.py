@@ -39,9 +39,16 @@ class FindMixin:
 
         bar = QWidget(self)
         bar.setObjectName("find_bar")
-        layout = QHBoxLayout(bar)
-        layout.setContentsMargins(6, 3, 6, 3)
+        # A vertical container holds the find row and (in edit mode) the replace
+        # row beneath it, so one bar serves both Find and Find & Replace.
+        outer = QVBoxLayout(bar)
+        outer.setContentsMargins(6, 3, 6, 3)
+        outer.setSpacing(3)
+        find_row = QWidget(bar)
+        layout = QHBoxLayout(find_row)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(6)
+        outer.addWidget(find_row)
 
         lbl = QLabel(tr("Find:"))
         layout.addWidget(lbl)
@@ -81,12 +88,48 @@ class FindMixin:
         self._find_case.toggled.connect(lambda _c: self._find_run(self._find_query))
         layout.addWidget(self._find_case)
 
+        # Toggle that reveals the replace row (only useful while editing).
+        self._replace_toggle = QPushButton(tr("Replace ▾"))
+        self._replace_toggle.setCheckable(True)
+        self._replace_toggle.setAccessibleDescription(
+            tr("Show the replace field (edit mode only)")
+        )
+        self._replace_toggle.toggled.connect(self._find_set_replace_visible)
+        layout.addWidget(self._replace_toggle)
+
         close_btn = QPushButton(tr("×"))
         close_btn.setAccessibleName(tr("Close find bar"))
         close_btn.setAccessibleDescription(tr("Close the find bar (Escape)"))
         close_btn.setMaximumWidth(28)
         close_btn.clicked.connect(self._find_close)
         layout.addWidget(close_btn)
+
+        # ── replace row (hidden until Find & Replace or the toggle) ──────────
+        self._replace_row = QWidget(bar)
+        rlayout = QHBoxLayout(self._replace_row)
+        rlayout.setContentsMargins(0, 0, 0, 0)
+        rlayout.setSpacing(6)
+        rlayout.addWidget(QLabel(tr("Replace:")))
+        self._replace_input = QLineEdit()
+        self._replace_input.setObjectName("replace_input")
+        self._replace_input.setAccessibleName(tr("Replace with"))
+        self._replace_input.setAccessibleDescription(
+            tr("Type the replacement text. Enter replaces the current match.")
+        )
+        self._replace_input.setClearButtonEnabled(True)
+        self._replace_input.returnPressed.connect(self._find_replace_one)
+        rlayout.addWidget(self._replace_input, 1)
+        rep_btn = QPushButton(tr("Replace"))
+        rep_btn.setAccessibleDescription(tr("Replace the current match"))
+        rep_btn.clicked.connect(self._find_replace_one)
+        rlayout.addWidget(rep_btn)
+        rep_all_btn = QPushButton(tr("Replace All"))
+        rep_all_btn.setAccessibleDescription(tr("Replace every match"))
+        rep_all_btn.clicked.connect(self._find_replace_all)
+        rlayout.addWidget(rep_all_btn)
+        outer.addWidget(self._replace_row)
+        self._replace_row.setVisible(False)
+        self._replace_input.installEventFilter(self)
 
         # An event filter on the input lets Escape close and F3/Shift+F3 and
         # Shift+Enter navigate even while the line edit has focus.
@@ -136,6 +179,9 @@ class FindMixin:
         if getattr(self, "_find_bar", None) is None:
             return
         self._find_bar.setVisible(False)
+        # Collapse the replace row too so the next plain Find opens compact.
+        if getattr(self, "_replace_toggle", None) is not None:
+            self._replace_toggle.setChecked(False)
         self._find_matches = []
         self._find_idx = -1
         # Repaint without the find highlights (keeps user/TTS highlights).
@@ -151,6 +197,93 @@ class FindMixin:
             self._find_close()
         else:
             self._find_show()
+
+    # ── replace ────────────────────────────────────────────────────────
+    def _find_set_replace_visible(self, show: bool) -> None:
+        """Show/hide the replace row (driven by the Replace ▾ toggle)."""
+        self._ensure_find_bar()
+        self._replace_row.setVisible(bool(show))
+        if getattr(self, "_replace_toggle", None) is not None:
+            # Keep the toggle in sync when called programmatically.
+            if self._replace_toggle.isChecked() != bool(show):
+                self._replace_toggle.setChecked(bool(show))
+        if show:
+            self._replace_input.setFocus()
+
+    def _replace_show(self) -> None:
+        """Open Find & Replace (Edit ▸ Find & Replace…).
+
+        Replace edits the source, so it only makes sense while editing — outside
+        edit mode we show Find and hint how to enable replacing."""
+        self._find_show()
+        if not getattr(self, "_qt_edit_mode", False):
+            self.statusBar().showMessage(
+                tr("Turn on Edit Mode (Ctrl+E) to replace text")
+            )
+            return
+        self._find_set_replace_visible(True)
+
+    def _find_replace_one(self) -> None:
+        """Replace the current match with the replacement, then advance.
+
+        A no-op outside edit mode (the document is read-only) or with no active
+        match.  Recomputes matches afterwards since offsets shift."""
+        if not getattr(self, "_qt_edit_mode", False):
+            self.statusBar().showMessage(
+                tr("Turn on Edit Mode (Ctrl+E) to replace text")
+            )
+            return
+        if not (0 <= self._find_idx < len(self._find_matches)):
+            return
+        replacement = self._replace_input.text() if getattr(
+            self, "_replace_input", None) else ""
+        start = self._find_matches[self._find_idx]
+        n = len(self._find_query)
+        cursor = QTextCursor(self.editor.document())
+        cursor.setPosition(start)
+        try:
+            _keep = QTextCursor.MoveMode.KeepAnchor
+        except AttributeError:  # PyQt5
+            _keep = QTextCursor.KeepAnchor  # type: ignore[attr-defined]
+        cursor.setPosition(start + n, _keep)
+        cursor.insertText(replacement)
+        # Offsets shifted by (len(replacement) - n); recompute from the point
+        # just past the inserted text so the next match is found forward.
+        self.editor.setTextCursor(cursor)
+        self._find_run(self._find_query)
+        self.statusBar().showMessage(tr("Replaced 1 match"))
+
+    def _find_replace_all(self) -> None:
+        """Replace every match in one undo step; report the count."""
+        if not getattr(self, "_qt_edit_mode", False):
+            self.statusBar().showMessage(
+                tr("Turn on Edit Mode (Ctrl+E) to replace text")
+            )
+            return
+        if not self._find_matches:
+            self.statusBar().showMessage(tr("No matches"))
+            return
+        replacement = self._replace_input.text() if getattr(
+            self, "_replace_input", None) else ""
+        n = len(self._find_query)
+        doc = self.editor.document()
+        try:
+            _keep = QTextCursor.MoveMode.KeepAnchor
+        except AttributeError:  # PyQt5
+            _keep = QTextCursor.KeepAnchor  # type: ignore[attr-defined]
+        count = len(self._find_matches)
+        cursor = QTextCursor(doc)
+        cursor.beginEditBlock()
+        # Replace back-to-front so earlier offsets stay valid as text shifts.
+        for start in reversed(self._find_matches):
+            cursor.setPosition(start)
+            cursor.setPosition(start + n, _keep)
+            cursor.insertText(replacement)
+        cursor.endEditBlock()
+        self._find_run(self._find_query)
+        msg = tr("Replaced {n} matches").format(n=count)
+        self.statusBar().showMessage(msg)
+        announce(self._find_input if getattr(self, "_find_input", None) else self.editor, msg)
 
     # ── keyboard handling on the find input ────────────────────────────
     def _find_input_key(self, event: Any) -> bool:

@@ -102,6 +102,10 @@ class EditNavMixin:
             self._spell_highlighter = None
         self._qt_edit_mode = False
         self._qt_edit_dirty = False
+        # Leaving edit mode: stop autosaving and drop the recovery snapshot (the
+        # work is on disk or was deliberately discarded — no false recovery).
+        if hasattr(self, "_autosave_stop"):
+            self._autosave_stop(clear=True)
         if getattr(self, "_edit_toolbar", None) is not None:
             self._edit_toolbar.setVisible(False)
         if getattr(self, "_preview", None) is not None:
@@ -145,6 +149,9 @@ class EditNavMixin:
         # Reveal the Markdown formatting toolbar for authoring.
         if getattr(self, "_edit_toolbar", None) is not None:
             self._edit_toolbar.setVisible(True)
+        # Begin autosaving the in-progress edits (crash recovery).
+        if hasattr(self, "_autosave_start"):
+            self._autosave_start()
         # Attach the red-squiggle spell highlighter while editing (only when
         # pyspellchecker and a Qt QSyntaxHighlighter are both available).
         if _SPELL and SpellHighlighter is not None:
@@ -362,6 +369,11 @@ class EditNavMixin:
             table_mode=str(self.settings.get("table_reading_mode", "structured")),
         )
         self._qt_edit_dirty = False
+        # Now safely on disk — drop any recovery snapshot so a later crash can't
+        # resurrect an already-saved version.  (A fresh snapshot is written on
+        # the next tick if the user keeps editing and dirties the buffer again.)
+        if hasattr(self, "_autosave_clear"):
+            self._autosave_clear()
         # The saved text differs from what the read-view maps were built against,
         # so the next return to read mode must rebuild them.
         self._qt_maps_stale = True
@@ -380,6 +392,46 @@ class EditNavMixin:
                 pass
         self._qt_last_saved_path = saved_path
         return True
+
+    def _qt_live_markdown(self) -> str:
+        """The Markdown to act on right now — the live editor buffer while
+        editing, else the saved document source.
+
+        Lets exports and previews include *unsaved* edits without mutating
+        ``self.doc`` (so a later Discard still reverts cleanly)."""
+        if getattr(self, "_qt_edit_mode", False):
+            return self.editor.toPlainText()
+        return (self.doc.markdown if self.doc else "") or ""
+
+    def _qt_live_plain(self) -> str:
+        """The TTS/plain text matching :meth:`_qt_live_markdown` — recomputed
+        from the live buffer while editing, else the saved plain text."""
+        if getattr(self, "_qt_edit_mode", False):
+            return _strip_markdown_for_tts(
+                self.editor.toPlainText(),
+                skip_code=bool(self.settings.get("tts_skip_code", True)),
+                table_mode=str(self.settings.get("table_reading_mode", "structured")),
+            )
+        return (self.doc.plain_text if self.doc else "") or ""
+
+    def _qt_live_doc(self):
+        """``self.doc``, or — while editing — a copy carrying the live buffer.
+
+        For exporters that consume the whole Document object on a worker thread
+        (audiobook, plugin exporters), this hands them the unsaved text without
+        touching ``self.doc`` itself, so Export-from-editor works mid-edit and
+        Discard still reverts."""
+        import dataclasses
+
+        if not self.doc:
+            return None
+        if not getattr(self, "_qt_edit_mode", False):
+            return self.doc
+        return dataclasses.replace(
+            self.doc,
+            markdown=self._qt_live_markdown(),
+            plain_text=self._qt_live_plain(),
+        )
 
     def _qt_rebuild_word_maps_async(self) -> None:
         """Rebuild the TTS + Qt word maps off the UI thread from the editor.

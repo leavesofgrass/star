@@ -135,3 +135,109 @@ class AuthoringMixin:
         self.editor.setTextCursor(cur)
         self.editor.setFocus()
         self._md_refresh_preview_now()
+
+    # ── Tables ─────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _md_table_skeleton(rows: int, cols: int) -> str:
+        """Build a Markdown table skeleton with *rows* body rows and *cols*
+        columns (header + separator + blank body rows)."""
+        cols = max(1, cols)
+        rows = max(1, rows)
+        header = "| " + " | ".join(f"Column {c + 1}" for c in range(cols)) + " |"
+        sep = "| " + " | ".join("---" for _ in range(cols)) + " |"
+        body = "\n".join(
+            "| " + " | ".join(" " for _ in range(cols)) + " |" for _ in range(rows)
+        )
+        return f"{header}\n{sep}\n{body}\n"
+
+    def _qt_md_insert_table(self) -> None:
+        """Insert a Markdown table, asking for its size (Format ▸ Insert Table).
+
+        The table is placed on its own lines (blank line before/after) so it
+        renders, with the first body cell selected for immediate typing."""
+        if not self._md_editing():
+            return
+        cols, ok = QInputDialog.getInt(
+            self, tr("Insert Table"), tr("Number of columns:"), 2, 1, 20, 1
+        )
+        if not ok:
+            return
+        rows, ok = QInputDialog.getInt(
+            self, tr("Insert Table"), tr("Number of rows (excluding header):"),
+            2, 1, 100, 1
+        )
+        if not ok:
+            return
+        cur = self.editor.textCursor()
+        # Ensure the table starts on its own line.
+        at_line_start = cur.atBlockStart()
+        prefix = "" if at_line_start else "\n"
+        cur.insertText(prefix + "\n" + self._md_table_skeleton(rows, cols) + "\n")
+        self.editor.setTextCursor(cur)
+        self.editor.setFocus()
+        self._md_refresh_preview_now()
+        announce(self.editor, tr("Inserted a {r}×{c} table").format(r=rows, c=cols))
+
+    def _qt_md_table_add_row(self) -> None:
+        """Append a blank row to the Markdown table the cursor is in.
+
+        Matches the column count of the current table row; a no-op with a
+        friendly hint when the cursor isn't on a ``|``-delimited table line."""
+        if not self._md_editing():
+            return
+        cur = self.editor.textCursor()
+        block = cur.block()
+        line = block.text()
+        if "|" not in line or not line.strip().startswith("|"):
+            self.statusBar().showMessage(
+                tr("Put the cursor inside a table row to add a row")
+            )
+            return
+        # Column count = number of cells between the outer pipes.
+        cols = max(1, line.strip().strip("|").count("|") + 1)
+        new_row = "| " + " | ".join(" " for _ in range(cols)) + " |"
+        # Insert after the current line.
+        end = self.editor.textCursor()
+        end.setPosition(block.position() + block.length() - 1)
+        end.insertText("\n" + new_row)
+        self.editor.setFocus()
+        self._md_refresh_preview_now()
+
+    # ── Images ─────────────────────────────────────────────────────────────
+
+    def _qt_md_insert_image(self) -> None:
+        """Insert a Markdown image reference (Format ▸ Insert Image…).
+
+        Picks an image file; when the document has been saved, offers to write
+        a path relative to it (so the reference survives a move of the pair);
+        otherwise inserts the absolute path.  Alt text defaults to the file
+        stem and is left selected for editing."""
+        if not self._md_editing():
+            return
+        src, _flt = QFileDialog.getOpenFileName(
+            self,
+            tr("Insert Image"),
+            "",
+            tr("Images (*.png *.jpg *.jpeg *.gif *.webp *.bmp *.svg);;All Files (*)"),
+        )
+        if not src:
+            return
+        ref = src
+        doc_path = getattr(self.doc, "path", "") if self.doc else ""
+        if doc_path:
+            try:
+                rel = os.path.relpath(src, str(Path(doc_path).parent))
+                # Only prefer the relative path when it doesn't climb out with a
+                # long ../../ chain (keep references readable and portable).
+                if not rel.startswith(".." + os.sep + ".." + os.sep):
+                    ref = rel.replace(os.sep, "/")
+            except (ValueError, OSError):
+                ref = src  # different drive on Windows, etc. — keep absolute
+        alt = Path(src).stem
+        cur = self.editor.textCursor()
+        cur.insertText(f"![{alt}]({ref})")
+        self.editor.setTextCursor(cur)
+        self.editor.setFocus()
+        self._md_refresh_preview_now()
+        announce(self.editor, tr("Inserted image {name}").format(name=Path(src).name))
