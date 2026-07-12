@@ -56,6 +56,24 @@ def _isolate_settings_file(monkeypatch, tmp_path):
     monkeypatch.setattr(_settings_mod, "SETTINGS_FILE", tmp_path / "settings.json")
 
 
+@pytest.fixture(autouse=True)
+def _isolate_recovery_dir(monkeypatch, tmp_path):
+    """Point the autosave recovery dir at a per-test temp path.
+
+    A StarWindow schedules ``_autosave_check_on_startup`` on a ``singleShot(0)``;
+    pytest-qt processes events between tests, so that callback can fire for a
+    window built in an earlier test.  If it scanned the developer's real
+    ``<config>/recovery/`` and found a stray snapshot it would pop a **blocking**
+    QMessageBox and hang the suite.  Redirecting the dir keeps every test reading
+    an empty temp folder (importing the GUI mixin needs Qt, so this is a no-op
+    when Qt is absent for the pure-logic legs)."""
+    try:
+        import star.gui.mixin_autosave as _autosave_mod
+    except Exception:  # noqa: BLE001 — no Qt on the non-GUI matrix legs
+        return
+    monkeypatch.setattr(_autosave_mod, "_CFG_ROOT", tmp_path, raising=False)
+
+
 def _drain(app) -> None:
     """Flush pending Qt events + deferred deletions, then GC, then flush again."""
     import gc
