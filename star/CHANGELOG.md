@@ -8,6 +8,52 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.26] 2026-07-11
+
+### ✨ Added
+
+- **Authoring depth: the editor grew real writing tools.** In edit mode you can
+  now:
+  - **Find & Replace** — the Find bar (Ctrl+F) gained a **Replace ▾** row (also
+    on **Edit ▸ Find & Replace…**), with Replace and Replace All (a single undo
+    step). Replacing is edit-mode only; the row is hidden while reading.
+  - **Insert tables** — **Format ▸ Insert Table…** (and a toolbar button) drops
+    in a Markdown table of a size you choose, and **Add Table Row** appends a row
+    matching the current table's columns.
+  - **Insert images** — **Format ▸ Insert Image…** (and a toolbar button) picks
+    an image and inserts `![alt](path)`, preferring a path relative to the saved
+    document so the reference survives moving the pair.
+  - **Export straight from the editor** — Markdown / PDF / Braille / audio /
+    subtitle / audiobook / plugin exports now use the **live editor buffer**, so
+    you can export a draft mid-edit without saving first (and without losing a
+    later Discard — `self.doc` is never mutated).
+- **Autosave & crash recovery for in-progress edits.** While you edit with
+  unsaved changes, star snapshots the buffer to `<config>/recovery/` every few
+  seconds; if star is quit or crashes before you save, the next launch offers to
+  **recover** it. This matters most for brand-new **Untitled** documents that
+  have no file to fall back on. Snapshots are cleared the moment the work is
+  saved or you deliberately leave edit mode, so a recovery prompt only ever
+  appears for genuinely lost work.
+
+### 🔧 Changed
+
+- **Voice dictation installs and works in the same session — no restart.** Now
+  that speech-to-text is faster-whisper (no PyTorch), the in-app installer pulls
+  **faster-whisper (~150 MB)** instead of openai-whisper + PyTorch (~2 GB), and
+  the feature becomes usable immediately after it downloads (star re-detects the
+  backend live) instead of asking you to close and reopen. Transcribing an audio
+  file no longer requires `ffmpeg` on your PATH when using faster-whisper — it
+  decodes audio itself.
+
+### 🐛 Fixed
+
+- **The docs no longer say offline dictation is missing on macOS.** A cluster of
+  packaging/installation docs still described the old Whisper + PyTorch,
+  “multi-GB”, “not bundled on macOS” dictation stack; they now match the 0.1.25
+  faster-whisper reality.
+
+---
+
 ## [0.1.25] 2026-07-11
 
 ### 🔧 Changed
