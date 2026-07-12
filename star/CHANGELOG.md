@@ -54,6 +54,13 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ### 🐛 Fixed
 
+- **Typing in edit mode no longer looks like a rendered heading.** The editor is
+  the same widget the read view renders styled HTML into, so switching to the
+  Markdown source view could leave the typing format carrying the heading's
+  **bold** weight — text typed on the first line of a new document showed up
+  bold, as if it were a heading, even without a leading `#`. Entering edit mode
+  now strips all block/character formatting so the source is uniformly plain
+  text; rendering stays in the live preview where it belongs.
 - **The Notes and Contents panes no longer sit open and empty, stealing reading
   space.** Both docks now derive their visibility per-document: the **Notes**
   pane appears only for a document that has notes, and the **Contents** pane only

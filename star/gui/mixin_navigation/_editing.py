@@ -130,6 +130,30 @@ class EditNavMixin:
         self._qt_teardown_edit_state()
         return True
 
+    def _qt_reset_editor_formatting(self) -> None:
+        """Reset the editor to unstyled plain text for source editing.
+
+        Selects the whole document, clears every block + character format to
+        default, then resets the *current* typing format — so neither the loaded
+        source nor newly-typed text carries heading/bold styling left over from
+        the read view's rendered HTML."""
+        try:
+            _doc = QTextCursor.SelectionType.Document
+            _start = QTextCursor.MoveOperation.Start
+        except AttributeError:  # PyQt5
+            _doc = QTextCursor.Document          # type: ignore[attr-defined]
+            _start = QTextCursor.Start           # type: ignore[attr-defined]
+        cur = self.editor.textCursor()
+        cur.select(_doc)
+        cur.setBlockFormat(QTextBlockFormat())
+        cur.setCharFormat(QTextCharFormat())
+        cur.clearSelection()
+        cur.movePosition(_start)
+        self.editor.setTextCursor(cur)
+        # The format applied to text the user types next (setPlainText/select do
+        # not always reset this) — force it back to a clean default.
+        self.editor.setCurrentCharFormat(QTextCharFormat())
+
     def _qt_enter_edit_mode(self) -> None:
         """Switch the editor to editable Markdown source view."""
         if not self.doc:
@@ -140,6 +164,12 @@ class EditNavMixin:
         self.editor.setCursorWidth(2)  # visible text cursor
         # Show raw Markdown so the user edits the source, not HTML.
         self.editor.setPlainText(self.doc.markdown or "")
+        # The editor is the same widget the read view renders styled HTML into,
+        # so the first block — and the format used for newly-typed text — can
+        # inherit heading/bold styling from that render (typing on line 1 of a
+        # new document showed up as a rendered H1).  Strip all rich formatting so
+        # the source is uniformly plain text; rendering belongs to the preview.
+        self._qt_reset_editor_formatting()
         self.editor.document().setModified(False)
         self._qt_edit_mode = True
         self._qt_edit_dirty = False

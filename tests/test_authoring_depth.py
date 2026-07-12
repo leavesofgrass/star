@@ -85,6 +85,34 @@ def test_new_document_opens_in_edit_mode_with_preview(window):
     assert window._preview.isHidden() is False
 
 
+def test_reset_editor_formatting_clears_leaked_heading_style(window):
+    """The read view renders headings bold/large into the *shared* editor widget,
+    so switching to the source view can leave the typing format styled as a
+    heading — on the real platform, typing line 1 of a new document came out
+    **bold** (inheriting the welcome page's H1 weight).  The offscreen test QPA
+    doesn't reproduce that leak, so validate the fix logic directly: an
+    explicitly bold/large typing format must be stripped back to plain."""
+    from star._runtime import QTextCharFormat
+
+    fmt = QTextCharFormat()
+    f = fmt.font()
+    f.setBold(True)
+    f.setPointSizeF(48.0)
+    fmt.setFont(f)
+    window.editor.setReadOnly(False)
+    window.editor.setCurrentCharFormat(fmt)
+    assert window.editor.currentCharFormat().font().bold() is True  # leaked
+
+    window._qt_reset_editor_formatting()
+
+    assert window.editor.currentCharFormat().font().bold() is False
+    # And text typed afterwards is plain, not a heading.
+    cur = window.editor.textCursor()
+    cur.insertText("plain source")
+    assert cur.charFormat().font().bold() is False
+    assert cur.blockFormat().headingLevel() == 0
+
+
 def test_equalize_edit_split_halves_the_space(window):
     # The helper only runs while the preview is shown (a hidden splitter pane
     # collapses to 0); reveal it, seed a lopsided split, then even it out via
