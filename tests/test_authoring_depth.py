@@ -245,6 +245,52 @@ def test_startup_recovery_offer_loads_the_snapshot(window, monkeypatch, tmp_path
     assert not (tmp_path / "recovery" / "untitled-crashed.json").exists()
 
 
+# ── Notes pane visibility (only when the doc has notes, or on toggle) ─────────
+
+
+# Offscreen tests never .show() the window, so a child dock's isVisible() is
+# always False; isHidden() tracks the explicit hide state we actually set.
+
+
+def test_notes_pane_hidden_at_launch(window):
+    """The welcome document has no notes, so the pane must not steal space."""
+    assert window._annot_dock.isHidden() is True
+
+
+def test_notes_pane_auto_shows_for_a_doc_with_notes(window):
+    from star.documents import Document
+
+    # A document that carries a saved note.
+    window._pending_doc = Document(path="", title="HasNotes", markdown="body",
+                                   plain_text="body", format="markdown")
+    window._on_doc_loaded()
+    key = window._annot_key()
+    window.settings.set("annotations", {key: [
+        {"char_pos": 0, "anchor": "body", "note": "a note", "tags": [],
+         "cite": "", "ts": "t"}
+    ]})
+    window._qt_auto_notes_visibility()
+    assert window._annot_dock.isHidden() is False
+    # Re-loading a note-free document hides it again.
+    window._pending_doc = Document(path="", title="NoNotes", markdown="x",
+                                   plain_text="x", format="markdown")
+    window._on_doc_loaded()
+    assert window._annot_dock.isHidden() is True
+
+
+def test_notes_pane_manual_toggle_is_transient(window):
+    # Toggle the (empty) pane on…
+    window._qt_toggle_annotations()
+    assert window._annot_dock.isHidden() is False
+    # …but loading a note-free document re-derives visibility and hides it.
+    from star.documents import Document
+
+    window._pending_doc = Document(path="", title="Fresh", markdown="y",
+                                   plain_text="y", format="markdown")
+    window._on_doc_loaded()
+    assert window._annot_dock.isHidden() is True
+
+
 def test_startup_recovery_declined_drops_the_snapshot(window, monkeypatch, tmp_path):
     monkeypatch.setattr(A, "_CFG_ROOT", tmp_path)
     snap = tmp_path / "recovery" / "untitled-x.json"

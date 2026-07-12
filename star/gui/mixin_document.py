@@ -163,8 +163,11 @@ class DocumentMixin:
         self.editor.setExtraSelections([])  # clear leftover TTS highlights
         # Build the ToC panel from the new document's headings.
         self._qt_build_toc()
-        # Populate the Notes panel from saved annotations for this document.
+        # Populate the Notes panel from saved annotations for this document, and
+        # show the pane only when this document actually has notes (an empty pane
+        # never steals reading space at launch or on a note-free document).
         self._qt_build_annotations()
+        self._qt_auto_notes_visibility()
         # Restore any saved user highlights for this document.
         self._qt_apply_user_highlights()
         # Rebuild the difficult-word overlay for the new document (no-op

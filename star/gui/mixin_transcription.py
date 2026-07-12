@@ -377,9 +377,9 @@ class TranscriptionMixin:
         # document that is currently open (the user may have moved on).
         if key == self._annot_key():
             self._qt_build_annotations()
+            # The document now has a note — reveal the pane if it was hidden.
             if not self._annot_dock.isVisible():
                 self._annot_dock.setVisible(True)
-                self.settings["qt_show_notes"] = True
         self.statusBar().showMessage(f"Dictated note added ({len(text)} chars)")
         announce(self.editor, tr("Dictated note added"))
 

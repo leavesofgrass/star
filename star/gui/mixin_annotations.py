@@ -94,6 +94,20 @@ class AnnotationsMixin:
                 f"Notes ({len(items)})" if items else "Notes"
             )
 
+    def _qt_auto_notes_visibility(self) -> None:
+        """Show the Notes dock only when the current document has notes.
+
+        Called on every document load so the pane appears automatically for a
+        document that carries pre-existing notes and stays out of the way for
+        the welcome page and any document without notes — the reading space is
+        never taken by an empty pane.  Adding a note (``_qt_add_annotation``) or
+        an explicit toggle (``_qt_toggle_annotations``) overrides this until the
+        next document loads."""
+        dock = getattr(self, "_annot_dock", None)
+        if dock is None:
+            return
+        dock.setVisible(bool(self._qt_load_annotations()))
+
     def _qt_current_anchor(self) -> Tuple[int, str]:
         """Return (char_pos, anchor_text) for a new note.
 
@@ -146,9 +160,9 @@ class AnnotationsMixin:
         )
         self._qt_store_annotations(items)
         self._qt_build_annotations()
+        # The document now has a note, so reveal the pane (if it wasn't already).
         if not self._annot_dock.isVisible():
             self._annot_dock.setVisible(True)
-            self.settings["qt_show_notes"] = True
         self.statusBar().showMessage(
             f"Note added{(' with tags: ' + ', '.join(tags)) if tags else ''}"
         )
@@ -236,10 +250,16 @@ class AnnotationsMixin:
         self._tts_play_from_word(self._qt_char_to_word(char_pos))
 
     def _qt_toggle_annotations(self) -> None:
-        """Toggle the visibility of the Notes dock panel."""
-        visible = not self._annot_dock.isVisible()
-        self._annot_dock.setVisible(visible)
-        self.settings["qt_show_notes"] = visible
+        """Toggle the visibility of the Notes dock panel (Ctrl+Shift+N).
+
+        A transient, per-view action: the next document load re-derives the
+        pane's visibility from whether that document has notes
+        (_qt_auto_notes_visibility), so toggling the empty pane on here never
+        makes it stick open across documents."""
+        # isHidden() (not isVisible()) so the toggle is correct even before the
+        # window is shown: isVisible() is False for a child whenever the parent
+        # window is hidden, which would otherwise wedge the toggle to always-on.
+        self._annot_dock.setVisible(self._annot_dock.isHidden())
 
     def _qt_export_annotations(self) -> None:
         """Export the current document's notes to Markdown / JSON / BibTeX / RIS.

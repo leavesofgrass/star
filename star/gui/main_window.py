@@ -931,7 +931,11 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         _annot_layout.addLayout(_btn_row)
         self._annot_dock.setWidget(_annot_panel)
         self.addDockWidget(_RIGHT_DOCK, self._annot_dock)
-        self._annot_dock.setVisible(bool(self.settings.get("qt_show_notes", False)))
+        # Start hidden: an empty Notes pane must not steal reading space at
+        # launch.  _qt_auto_notes_visibility() (run on each document load)
+        # reveals it only for documents that actually carry notes; the user can
+        # also toggle it on (Ctrl+Shift+N) or it opens when a note is added.
+        self._annot_dock.setVisible(False)
 
         # All keyboard shortcuts are owned by their menu QActions above
         # (see _mi / _menu).  Menu actions added to the menu bar use
