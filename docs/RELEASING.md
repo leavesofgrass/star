@@ -82,7 +82,7 @@ auto-generated notes plus the three platform binaries above.
 |---|---|---|
 | `wheel` | `star_reader-<version>-py3-none-any.whl` + sdist | **The release.** Pure-Python, universal; one build serves every platform. `twine check` guards the long-description rendering before the PyPI upload. |
 | `publish-testpypi` / `publish-pypi` | (uploads to PyPI) | Publishes the wheel + sdist via trusted publishing — pre-release tags to TestPyPI, final tags to PyPI. See **Publishing to PyPI** below. |
-| `windows-exe` | `star-<version>-windows-x64.exe` | Self-contained double-click Windows binary (Python + GUI + every loader + offline dictation + vendored native tools; **DECtalk excluded** via `--no-dectalk`). Built on every `v*` tag and attached to the Release. It is the long pole (~30-60 min for the Torch + PyInstaller build); PyPI publishing (`needs: [wheel]`) is **not** delayed by it. |
+| `windows-exe` | `star-<version>-windows-x64.exe` | Self-contained double-click Windows binary (Python + GUI + every loader + offline dictation + vendored native tools; **DECtalk excluded** via `--no-dectalk`). Built on every `v*` tag and attached to the Release. It is the long pole (~5-10 min for the PyInstaller build now that the dictation stack is faster-whisper, not Torch); PyPI publishing (`needs: [wheel]`) is **not** delayed by it. |
 | `macos-app` | `star-<version>-macos-arm64.dmg` + `.app.zip` | Self-contained macOS app, PyInstaller-built from the same `star.spec` (darwin → `.app` bundle). Speech uses the built-in Apple voices, so no native engines are bundled; ad-hoc-signed by default, Developer-ID codesigned + notarized when the `MACOS_*` secrets are set. **Apple-Silicon (arm64) only.** Built on every `v*` tag (default since 0.1.24) and attached to the Release. |
 | `linux-appimage` | `star-*.AppImage` | Self-contained Linux binary. A **default** release artifact since 0.1.22, attached to the Release. |
 | `release` | GitHub Release | Attaches the wheel + sdist, the Windows `.exe`, the macOS `.app`/DMG, the Linux AppImage, and auto-generated notes. |
@@ -150,9 +150,9 @@ pwsh tools/build-windows.ps1 -AllowDeprecatedExe # self-contained exe (same reci
   builds](#what-the-release-workflow-builds)). To build the *same* binary
   locally, run `tools/build-windows.ps1`; the script keeps a safety opt-in
   (`-AllowDeprecatedExe` or `STAR_ALLOW_EXE=1`) so nobody kicks off the slow
-  build by habit. By default it bundles the offline dictation stack (Whisper +
-  Torch + the `base` model), which makes it large and slow; pass `-Lean` to skip
-  it. To vendor the native tools (ffmpeg, Tesseract, liblouis, Pandoc) into the
+  build by habit. By default it bundles the offline dictation stack
+  (faster-whisper + the `base` CTranslate2 model, ~140 MB — no Torch); pass
+  `-Lean` to skip it. To vendor the native tools (ffmpeg, Tesseract, liblouis, Pandoc) into the
   exe, run `python tools/build-vendor.py --no-dectalk` (needs **7-Zip** on PATH)
   before the build — the public release exe deliberately **excludes** DECtalk.
   See [`star/BUILD.md`](../star/BUILD.md).

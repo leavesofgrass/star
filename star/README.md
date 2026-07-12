@@ -41,8 +41,9 @@ star --deps          # show which optional features are installed
 ```
 
 Add optional features with extras — `pip install "star-reader[all]"` for the
-full feature set (everything except the multi-GB Whisper/Torch dictation stack,
-which is `[transcribe]`), or groups like `star-reader[translate,vocab]`. Full
+full feature set (everything except the speech-to-text dictation stack, which is
+`[transcribe]` — faster-whisper, ~140 MB), or groups like
+`star-reader[translate,vocab]`. Full
 instructions (wheel, single-file `star.pyz`, native engines, per-platform notes)
 are in the
 [Installation guide](https://github.com/leavesofgrass/star/blob/main/docs/installation.md).

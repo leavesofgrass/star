@@ -74,7 +74,8 @@ document loaders — and from there **star grows on demand with no further `pip`
 step.** The first time you reach for a capability that needs an add-on (OCR,
 offline dictionary, summarize, translate, knowledge-graph extras, …), star offers
 to **download it in the background**, and the feature works in the same session
-(only the large speech-to-text pack asks for a restart). A first-run chooser lets
+— including voice dictation now that it's faster-whisper (no restart needed since
+0.1.25). A first-run chooser lets
 you pick a **Thin** or **All** preset up front, and you can re-open it any time
 from **Tools → Install Optional Features…**. **"All" now means literally
 everything** — including the large speech-to-text and named-entity packs — with
@@ -94,9 +95,10 @@ star --check-update                # check PyPI for a newer release (offline-saf
 **Advanced users can still install extras the classic way** — `pip install
 "star-reader[all]"` for the full feature set, or individual groups such as
 `star-reader[translate,vocab]`. Note that `[all]` deliberately **excludes** the
-multi-GB Whisper/PyTorch dictation stack (`[transcribe]`), Coqui TTS, and the
-spaCy NER backend (`[ner]`, which also needs a language model); install those
-separately if you want them — but the normal path is one click, in-app.
+speech-to-text dictation stack (`[transcribe]` — faster-whisper, ~140 MB), Coqui
+TTS, and the spaCy NER backend (`[ner]`, which also needs a language model);
+install those separately if you want them — but the normal path is one click,
+in-app.
 
 The **pure-Python wheel** behind this install is star's primary, stable
 distribution artifact.
@@ -135,16 +137,17 @@ then copy that one file anywhere and:
 
 ```bash
 # Recommended dependencies (Qt GUI + TTS + common formats) come with the wheel
-pip install star_reader-0.1.25-py3-none-any.whl
+pip install star_reader-0.1.26-py3-none-any.whl
 
 # Or pull in the optional Python features (OCR, ODT/XLSX, Pandoc, Braille,
 # audio conversion, study aids, feeds, vocab, watch):
-pip install "star_reader-0.1.25-py3-none-any.whl[all]"
+pip install "star_reader-0.1.26-py3-none-any.whl[all]"
 ```
 
-> **`[all]` excludes the heavy ML stacks on purpose.** It does **not** install
-> voice dictation/transcription (Whisper + PyTorch — multi-GB) or Coqui neural
-> TTS. Add those explicitly only if you want them:
+> **`[all]` excludes the speech-to-text and neural-TTS stacks on purpose.** It
+> does **not** install voice dictation/transcription (`[transcribe]` —
+> faster-whisper, ~140 MB) or Coqui neural TTS. Add those explicitly only if you
+> want them:
 >
 > ```bash
 > pip install "star-reader[transcribe]"   # faster-whisper + sounddevice (no PyTorch)

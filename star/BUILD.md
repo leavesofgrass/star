@@ -298,10 +298,11 @@ To add more OCR languages, drop extra `*.traineddata` files into
 ## Out-of-the-box dictation (Whisper)
 
 star's **Tools → Dictate Note** (record a voice memo) and **Transcribe Audio
-File** features use [OpenAI Whisper](https://github.com/openai/whisper). For the
-portable binary these are **bundled by default** so they work with **no install
-and no network** — Windows users can't reasonably set up the recognition stack
-themselves, so it ships in the exe:
+File** features use [faster-whisper](https://github.com/SYSTRAN/faster-whisper)
+(a CTranslate2 reimplementation of Whisper — no PyTorch). For the portable binary
+these are **bundled by default** so they work with **no install and no network** —
+Windows users can't reasonably set up the recognition stack themselves, so it
+ships in the exe:
 
 - **`faster-whisper` (CTranslate2)** — the recognition engine (no PyTorch).
   `star` uses whichever backend is installed, preferring `faster-whisper`;
@@ -315,21 +316,23 @@ themselves, so it ships in the exe:
   `star.spec`. `_runtime._new_faster_model` loads it from the bundle with
   `local_files_only=True` (rthook forces `HF_HUB_OFFLINE`), so it loads offline
   instead of downloading.
-- **ffmpeg on `PATH`** — audio export shells out to `ffmpeg`. The
-  runtime hook prepends the bundled `vendor\ffmpeg` folder to `PATH`, so the
-  vendored ffmpeg satisfies both audio export and Whisper.
+- **ffmpeg on `PATH`** — audio *export* shells out to `ffmpeg`; the runtime hook
+  prepends the bundled `vendor\ffmpeg` folder to `PATH`. Transcription itself no
+  longer needs ffmpeg — faster-whisper decodes audio through the bundled PyAV, so
+  dictation works even without the vendored ffmpeg.
 
-The Whisper `base` model is a good speed/accuracy balance for dictation. To
-bundle a different model, stage it under `build\whisper_cache\whisper\` and set
-the default `whisper_model` setting accordingly (read from the `whisper_model`
-setting, default `base`).
+The `base` model is a good speed/accuracy balance for dictation. To bundle a
+different model, stage its CTranslate2 directory under
+`build\faster_whisper_model\` and set the default `whisper_model` setting
+accordingly (read from the `whisper_model` setting, default `base`).
 
-**The dictation stack is what makes the binary large** (PyTorch is multiple
-hundred MB). For a fast, small build that leaves dictation to an optional user
-install, pass `-Lean` to `build-windows.ps1` (it sets the `STAR_LEAN`
-environment variable that `star.spec` reads) — `star.spec`'s `collect_all` calls
-are guarded, so the lean build still succeeds and the feature simply shows its
-“requires Whisper” hint at runtime.
+**The vendored native engines are now what make the binary large** (~450 MB);
+the faster-whisper dictation stack is only ~140 MB (PyTorch is gone). For a fast,
+small build that leaves dictation to an optional user install, pass `-Lean` to
+`build-windows.ps1` (it sets the `STAR_LEAN` environment variable that
+`star.spec` reads) — `star.spec`'s `collect_all` calls are guarded, so the lean
+build still succeeds and the feature simply shows its “requires faster-whisper”
+hint at runtime.
 
 ---
 
@@ -403,8 +406,9 @@ runs exactly this on every `v*` tag (the `macos-app` job) and attaches
 `star-<version>-macos-arm64.dmg` to the Release — it is **Apple-Silicon only**,
 since `macos-latest` runners are arm64. Speech uses the built-in Apple voices
 (`say` / NSSpeechSynthesizer), so no native engines are vendored into the bundle;
-ffmpeg / Pandoc / Tesseract are picked up from Homebrew if present. It ships lean
-by default (no Whisper/Torch dictation) — set `STAR_MACOS_FULL=1` to include it.
+ffmpeg / Pandoc / Tesseract are picked up from Homebrew if present. Offline
+dictation (faster-whisper) **is bundled by default** since 0.1.25 — set
+`STAR_MACOS_LEAN=1` to skip it for a smaller, dictation-less build.
 
 ## Notes for other platforms
 

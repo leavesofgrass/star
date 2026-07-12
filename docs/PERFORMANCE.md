@@ -18,8 +18,8 @@ scaling is the point.
 
 `import star` pulls in `star._runtime`, which wires the vendored native tools,
 detects optional dependencies (cheaply, via `importlib.util.find_spec` — the
-heavy packages such as PyMuPDF, Whisper/PyTorch, and Coqui are **not** imported
-at startup), and imports the Qt bindings when present.
+heavy packages such as PyMuPDF, faster-whisper (CTranslate2), and Coqui are
+**not** imported at startup), and imports the Qt bindings when present.
 
 Measured with `python -X importtime -c "import star"` and a wall-clock harness:
 

@@ -126,8 +126,12 @@ demand.
   invalidates the import caches and flips the stale flags listed in
   `_FEATURE_FLAGS` (`summarize`, `translate`, `feeds`, `vocab`, `spellcheck`,
   `flashcards`) so the gate and the feature code agree and the deferred `import`
-  succeeds. It returns `False` for features that genuinely need a fresh process
-  (`transcribe` is intentionally absent — Whisper/PyTorch load into `_runtime`).
+  succeeds. `transcribe` is special-cased: its availability snapshot lives in
+  `_runtime` (`_WHISPER` / `_AUDIO_IN`), so `refresh_feature("transcribe")` calls
+  `_runtime.refresh_whisper_backend()` to re-detect it. Since 0.1.25 the stack is
+  faster-whisper (CTranslate2, **no Torch**), which imports cleanly into a
+  running process — so dictation, too, is usable **in-session with no restart**
+  (the transcription call sites detect fresh via `_whisper_backend_now()`).
 - **Opt-out:** `enabled()` returns `False` when `STAR_NO_AUTOINSTALL` is set or
   when `set_enabled(False)` (driven by the `auto_install` setting) has been
   called; the install function and marker dir are injectable so the tests never

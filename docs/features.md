@@ -87,6 +87,10 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 | Document editing | `Ctrl+E` enters raw-Markdown edit mode; `Ctrl+S` saves back to the original file and keeps you editing; `Ctrl+E` again finishes (offering to save) |
 | Document authoring | Create a new blank document (**File ▸ New**, `Ctrl+N`, or the New toolbar button); first save prompts for a location |
 | Markdown formatting | Edit-mode formatting toolbar and a **Format** menu — Bold (`Ctrl+B`), Italic (`Ctrl+I`), Underline (`Ctrl+U`), inline code, headings, lists, block quote, link (`Ctrl+K`), horizontal rule — with editor Undo (`Ctrl+Z`) / Redo (`Ctrl+Y`) |
+| Tables & images | **Format ▸ Insert Table…** (choose size) and **Add Table Row**; **Format ▸ Insert Image…** inserts `![alt](path)` (relative to the saved doc when possible). Both are on the edit-mode toolbar |
+| Find & Replace | The Find bar (`Ctrl+F`) has a **Replace ▾** row (also **Edit ▸ Find & Replace…**) with Replace and Replace All (one undo step); replacing is edit-mode only |
+| Autosave & recovery | While editing with unsaved changes, star snapshots the buffer every few seconds; if it's quit or crashes before you save, the next launch offers to **recover** — especially useful for new **Untitled** documents |
+| Export from the editor | Markdown / PDF / Braille / audio / subtitle / audiobook exports use the **live editor buffer**, so you can export an in-progress draft without saving first |
 | Command history | **Help ▸ Command History…** — a copyable, timestamped log of commands and errors for troubleshooting |
 | Archive ingestion | Open ZIP, TAR, .7z, and .rar archives; browse members; load any member by format; archive refs persisted in library and annotations |
 | Metadata editor | Edit title, author, year, DOI, ISBN, publisher per document; one-click DOI / ISBN lookup (CrossRef / OpenLibrary) |

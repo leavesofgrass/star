@@ -28,7 +28,7 @@ day-to-day "cut a release" procedure) and [`installation.md`](installation.md)
 | **Windows installer** | `star-setup-<v>.exe` | `windows-installer` job (optional) | 🔒 opt-in | NSIS click-through installer around `star.pyz`; Authenticode-signed when a cert is provided. |
 | **macOS app / DMG** | `star-<v>-macos-arm64.app.zip` + `.dmg` | `macos-app` job | ✅ | PyInstaller-built `star.app` (via the shared `star.spec`) + a drag-to-`/Applications` `.dmg`; ad-hoc-signed by default, Developer-ID codesigned + notarized when an Apple Developer ID is provided. Apple-Silicon (arm64) only. Built on every `v*` tag and attached to the Release (default since 0.1.24). |
 | **Linux AppImage** | `star-<v>-x86_64.AppImage` | `linux-appimage` job | ✅ | Self-contained via python-appimage; built on every `v*` tag and attached to the GitHub Release (default since 0.1.22). |
-| **Windows exe** | `star-<v>-windows-x64.exe` | `windows-exe` job | ✅ | Self-contained PyInstaller onefile — Python, PyQt6, all loaders, offline dictation (Whisper/Torch), and vendored ffmpeg/tesseract/liblouis/pandoc/espeak-ng baked in. Built on every `v*` tag and attached to the Release (default since 0.1.24). **DECtalk is excluded** from this public build (`--no-dectalk`). Double-click to run — no Python needed. |
+| **Windows exe** | `star-<v>-windows-x64.exe` | `windows-exe` job | ✅ | Self-contained PyInstaller onefile — Python, PyQt6, all loaders, offline dictation (faster-whisper / CTranslate2), and vendored ffmpeg/tesseract/liblouis/pandoc/espeak-ng baked in. Built on every `v*` tag and attached to the Release (default since 0.1.24). **DECtalk is excluded** from this public build (`--no-dectalk`). Double-click to run — no Python needed. |
 | **GPG signatures** | `*.whl.asc`, `*.tar.gz.asc` | `sign-artifacts` job (optional) | 🔒 opt-in | Detached armored signatures for the wheel + sdist. |
 
 "Default? ✅" runs on every `v*` tag. "⚙️ manual" runs only via
@@ -92,8 +92,11 @@ and the channels table.)
   star's `AppleSay` backend (`/usr/bin/say`) — so **no `vendor/` binaries are
   bundled** (the spec skips the Windows vendor tree on darwin). ffmpeg / pandoc /
   Tesseract are picked up from Homebrew if the user has them.
-- **Lean by default:** the offline dictation stack (Whisper + Torch, multi-GB) is
-  **not** bundled on macOS. Set `STAR_MACOS_FULL=1` in the job env to include it.
+- **Offline dictation is bundled by default** (since 0.1.25). The switch from
+  openai-whisper + PyTorch to **faster-whisper (CTranslate2)** shrank the
+  speech-to-text stack enough (~140 MB) to ship it in the `.app` — the base
+  CTranslate2 model is staged into the bundle and loaded offline. Set
+  `STAR_MACOS_LEAN=1` in the job env to skip it for a smaller, dictation-less build.
 - **Architecture:** `macos-latest` runners are Apple Silicon, so this produces an
   **arm64-only** `.app` (stamped `star-<v>-macos-arm64`). Intel Macs would need a
   separate `x86_64` runner + a second artifact.
@@ -147,8 +150,8 @@ match the host's graphics driver. In containers/CI, run the AppImage with
   `python tools/build-vendor.py --no-dectalk`, then runs
   [`tools/build-windows.ps1`](../tools/build-windows.ps1) (`-Ocr`, with
   `STAR_ALLOW_EXE=1`) to PyInstaller-freeze a single `star.exe` bundling Python,
-  PyQt6, every document loader, the offline dictation stack (Whisper + Torch),
-  and the vendored ffmpeg / tesseract / liblouis / pandoc / espeak-ng. The
+  PyQt6, every document loader, the offline dictation stack (faster-whisper /
+  CTranslate2), and the vendored ffmpeg / tesseract / liblouis / pandoc / espeak-ng. The
   artifact is then version-stamped to `star-<v>-windows-x64.exe`.
 - **Gate:** runs on **every `v*` tag** (a default release artifact since
   0.1.24), **or** a manual `workflow_dispatch` with `build_exe: true`, **or**
