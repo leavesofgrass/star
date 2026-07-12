@@ -77,6 +77,7 @@ Find its exact path from the TUI with `M-x settings` (it prints the location in 
 | `qt_hidpi` | `true` | Enable high-DPI scaling in the Qt GUI |
 | `qt_ctrl_pause` | `true` | Tap the `Ctrl` key alone to play/pause speech (JAWS habit); chords like `Ctrl+O` never trigger it |
 | `qt_edit_preview` | `false` | Show a live-rendered HTML preview beside the editor in edit mode (toggle with `Ctrl+Shift+Z`) |
+| `autosave_recovery` | `true` | Snapshot unsaved edit-mode changes to `<config>/recovery/` every ~20 s and offer to recover them on the next launch after a crash or unexpected quit. Set `false` to disable snapshotting and the recovery prompt |
 | `qt_caret_browsing` | `true` | Show a movable text caret in the read-only document view for keyboard navigation, passage selection, and Define Word (toggle with `F7` or **View ▸ Caret Browsing**) |
 | `qt_autoscroll` | `true` | Auto-scroll the reading view to keep the spoken/highlighted word visible; set `false` to scroll manually |
 | `reading_stats` | `{}` | Per-document reading time, progress, and session counts (populated automatically) |

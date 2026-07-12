@@ -617,6 +617,28 @@ can keep typing and formatting without being bounced to read mode. Formatting
 actions update the live preview immediately. When you're done, `Ctrl+E` finishes
 editing — and if anything is unsaved it asks whether to save, discard, or cancel.
 
+**Find & Replace:** while editing, the find bar (`Ctrl+F`, or **Edit ▸ Find &
+Replace…**) has a **Replace ▾** toggle that reveals a replacement field. Use
+**Replace** to change the current match and advance, or **Replace All** to change
+every match at once (a single undo step). Replacing is available only in edit
+mode; in read mode the bar is find-only.
+
+**Tables & images:** **Format ▸ Insert Table…** (also a toolbar button) drops in
+a Markdown table of the size you choose, and **Add Table Row** appends a row to
+the table your cursor is in. **Format ▸ Insert Image…** picks an image and
+inserts `![alt](path)` — using a path relative to the saved document when it can,
+so the reference keeps working if you move the pair together.
+
+**Autosave & crash recovery:** while you edit with unsaved changes, star quietly
+snapshots your work every few seconds. If star is quit or crashes before you
+save, the next launch offers to **recover** it — handy for brand-new **Untitled**
+documents that have no file to fall back on. Turn it off with the
+`autosave_recovery` setting (see [Configuration](configuration.md)).
+
+**Export a draft mid-edit:** the **File ▸ Export** commands (Markdown, PDF,
+Braille, audio, subtitles, audiobook) act on the **live editor buffer**, so you
+can export what you're working on without saving or leaving edit mode first.
+
 ### Search
 
 In the Qt GUI, `Ctrl+F` opens an incremental **find bar** at the bottom of the
@@ -932,15 +954,17 @@ Audiobook (M4B)…** / Anki Flashcards), Quit. **Export Audiobook (M4B)…** wri
 a chaptered `.m4b` (chapters come from the document's headings) for listening on
 the go; it is menu-only and needs `ffmpeg` on your PATH.
 
-**Edit menu** — Find… (`Ctrl+F`, the incremental find bar), Copy, Toggle Edit
+**Edit menu** — Find… (`Ctrl+F`, the incremental find bar), **Find & Replace…**
+(the find bar with the replace row shown; edit mode), Copy, Toggle Edit
 Mode, Save, Check Spelling, and **Preferences…** (`Ctrl+,`) — all reader
 settings in one tabbed dialog (Reading, Reading Aids, Voice, Display, Fonts, General).
 
 **Format menu** — Markdown authoring commands (also on the edit-mode formatting
 toolbar): Undo, Redo, Bold (`Ctrl+B`), Italic (`Ctrl+I`), Underline (`Ctrl+U`),
 Inline Code, Heading, Bullet List, Numbered List, Block Quote, Insert Link
-(`Ctrl+K`), and Horizontal Rule. The commands apply to the Markdown source and
-no-op with a hint outside edit mode.
+(`Ctrl+K`), Horizontal Rule, **Insert Table…**, **Add Table Row**, and **Insert
+Image…**. The commands apply to the Markdown source and no-op with a hint outside
+edit mode.
 
 **Highlight menu** — Highlight Yellow / Green / Cyan / Pink / Orange, Clear All
 Highlights. (`Ctrl+H` is the **Next Heading** shortcut, matching NVDA/JAWS
