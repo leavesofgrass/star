@@ -515,16 +515,32 @@ _PANDOC_BIN = (
 # that lets a user with both stacks installed force the CTranslate2 path without
 # uninstalling Torch.  Unknown/empty value falls through to auto-detect.
 _WHISPER_OVERRIDE = os.environ.get("STAR_WHISPER_BACKEND", "").strip().lower()
-if _WHISPER_OVERRIDE == "openai" and _module_available("whisper"):
-    _WHISPER = "openai"
-elif _WHISPER_OVERRIDE == "faster" and _module_available("faster_whisper"):
-    _WHISPER = "faster"
-elif _module_available("whisper"):
-    _WHISPER = "openai"
-elif _module_available("faster_whisper"):
-    _WHISPER = "faster"
-else:
-    _WHISPER = ""
+
+
+def _whisper_backend_now() -> str:
+    """Pick the speech-to-text backend from what's importable *right now*.
+
+    Prefer openai-whisper when both are installed (so existing Torch installs
+    are untouched), but honour ``STAR_WHISPER_BACKEND=openai|faster``.  Returns
+    ``""`` when neither is present.  Checked fresh rather than trusting the
+    import-time ``_WHISPER`` snapshot so a same-session ``transcribe`` install
+    works without a restart — faster-whisper (CTranslate2, no Torch) imports
+    cleanly into a running process, so nothing forces a fresh process anymore.
+    Mirrors :func:`_audio_in_now` for the microphone half."""
+    if _WHISPER_OVERRIDE == "openai" and _module_available("whisper"):
+        return "openai"
+    if _WHISPER_OVERRIDE == "faster" and _module_available("faster_whisper"):
+        return "faster"
+    if _module_available("whisper"):
+        return "openai"
+    if _module_available("faster_whisper"):
+        return "faster"
+    return ""
+
+
+# Import-time snapshot (kept for diagnostics + cheap gating); the transcription
+# call sites use _whisper_backend_now() so a runtime install needs no restart.
+_WHISPER = _whisper_backend_now()
 
 
 def _load_whisper():
@@ -581,6 +597,24 @@ def _new_faster_model(model_name: str = "base"):
 # Microphone capture (numpy + sounddevice).  Detected without importing; the
 # sounddevice module is loaded lazily by _load_sounddevice() at record time.
 _AUDIO_IN = _module_available("numpy") and _module_available("sounddevice")
+
+
+def refresh_whisper_backend() -> bool:
+    """Re-detect the dictation stack after a runtime install; no restart needed.
+
+    Refreshes the import-time ``_WHISPER`` / ``_AUDIO_IN`` snapshots (which
+    diagnostics and the cheap gates read) so they agree with reality once
+    faster-whisper + sounddevice land mid-session.  Returns True when a
+    speech-to-text backend is now importable.  The transcription call sites
+    already detect fresh via :func:`_whisper_backend_now`, so this is really
+    about the GUI reporting "you can use it now" instead of "restart"."""
+    global _WHISPER, _AUDIO_IN
+    import importlib
+
+    importlib.invalidate_caches()
+    _WHISPER = _whisper_backend_now()
+    _AUDIO_IN = _module_available("numpy") and _module_available("sounddevice")
+    return bool(_WHISPER)
 
 
 def _load_sounddevice():

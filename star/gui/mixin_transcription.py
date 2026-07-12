@@ -122,14 +122,15 @@ class TranscriptionMixin:
         """A student-friendly message for a speech-feature failure.
 
         star installs features FOR the user, so a backend "pip install …"
-        string must never reach them — it means a just-installed package needs
-        a fresh process (numpy/sounddevice now load without one, but Whisper +
-        Torch may not).  *phase* is "start" (opening the mic) or "result"
-        (transcription)."""
+        string must never reach them — historically it meant a just-installed
+        package needed a fresh process.  Since 0.1.25 the whole stack
+        (faster-whisper + sounddevice, no Torch) loads in-session, so this is now
+        a rare fallback — usually the download itself failed.  *phase* is "start"
+        (opening the mic) or "result" (transcription)."""
         raw = str(raw or "")
         if "pip install" in raw:
-            return tr("Voice features need a restart to finish setting up — "
-                      "please close and reopen star.")
+            return tr("Couldn't finish setting up voice features — check your "
+                      "connection and try again.")
         if phase == "start":
             return tr("Couldn't start the microphone — check it's connected "
                       "and that star is allowed to use it.")
@@ -139,12 +140,15 @@ class TranscriptionMixin:
         """Transcribe an audio file with Whisper and open it as a document."""
         if not self._qt_require_optional_feature("transcribe", tr("Speech recognition")):
             return
-        # Whisper decodes audio through ffmpeg; without it the failure is a
-        # baffling "[WinError 2] The system cannot find the file specified"
-        # AFTER the model loads.  Pre-check like the M4B exporter does.
+        # openai-whisper decodes audio through ffmpeg; without it the failure is
+        # a baffling "[WinError 2] The system cannot find the file specified"
+        # AFTER the model loads.  Pre-check like the M4B exporter does.  The
+        # faster-whisper backend decodes via bundled PyAV, so it needs no ffmpeg
+        # — only gate the check on the openai path.
+        from .. import _runtime
         from ..audiobook import find_ffmpeg
 
-        if not find_ffmpeg():
+        if _runtime._whisper_backend_now() == "openai" and not find_ffmpeg():
             QMessageBox.warning(
                 self,
                 "Transcribe Audio",

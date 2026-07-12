@@ -290,23 +290,27 @@ def test_voice_typing_error_is_surfaced_not_inserted(window):
 
 def test_speech_errors_never_show_a_pip_command(window):
     """The 'no pip ever' promise: a backend RuntimeError that mentions pip is
-    rewritten to a restart hint before it ever reaches the student."""
+    rewritten to a friendly message before it ever reaches the student.  Since
+    0.1.25 the stack (faster-whisper, no Torch) installs in-session, so the
+    rewrite no longer tells the user to restart — it points at the download."""
     pip_err = "Microphone capture requires sounddevice + numpy:\n  pip install sounddevice numpy"
     for phase in ("start", "result"):
         out = window._speech_failure_message(pip_err, phase)
         assert "pip" not in out.lower()
-        assert "restart" in out.lower()
+        # A friendly, actionable message — never the raw pip command.
+        assert "voice" in out.lower()
     # A real device error (no pip) still reaches the user in the start phase.
     dev = window._speech_failure_message("PortAudioError: no default device", "start")
     assert "pip" not in dev.lower() and "microphone" in dev.lower()
 
 
-def test_voice_typing_result_pip_error_becomes_a_restart_hint(window):
+def test_voice_typing_result_pip_error_is_rewritten(window):
+    """A backend pip-install RuntimeError never surfaces raw to the user."""
     window._qt_enter_edit_mode()
     window._qt_vt_busy = True
-    window._qt_on_voice_typed("", "Speech recognition requires Whisper:\n  pip install openai-whisper")
+    window._qt_on_voice_typed("", "Speech recognition requires Whisper:\n  pip install faster-whisper")
     msg = window.statusBar().currentMessage()
-    assert "pip" not in msg.lower() and "restart" in msg.lower()
+    assert "pip" not in msg.lower() and "voice" in msg.lower()
 
 
 def test_voice_typing_toggle_is_ignored_while_transcribing(window, monkeypatch):

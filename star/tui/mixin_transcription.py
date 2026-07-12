@@ -10,7 +10,12 @@ through ``_load_queue`` (documents) or ``_bg_queue`` (everything else).
 """
 from .._runtime import *  # noqa: F401,F403
 from ..documents import Document
-from ..transcribe import StreamRecorder, _transcribe_audio, _transcribe_samples
+from ..transcribe import (
+    StreamRecorder,
+    _audio_in_now,
+    _transcribe_audio,
+    _transcribe_samples,
+)
 
 
 class TuiTranscriptionMixin:
@@ -45,14 +50,14 @@ class TuiTranscriptionMixin:
         if not self.doc or not self.doc.word_map:
             self.notify("Open a document before dictating a note.", error=True)
             return
-        if not _AUDIO_IN:
+        if not _audio_in_now():
             self._missing_feature_notify(
                 "voice dictation", "pip install sounddevice numpy"
             )
             return
-        if not _WHISPER:
+        if not _whisper_backend_now():
             self._missing_feature_notify(
-                "voice dictation", "pip install openai-whisper"
+                "voice dictation", "pip install faster-whisper"
             )
             return
         # Pause the reading voice BEFORE the mic opens (on a laptop the mic
@@ -169,17 +174,19 @@ class TuiTranscriptionMixin:
 
     def _transcribe_file_cmd(self, arg: str = "") -> None:
         """Transcribe an audio file with Whisper and open it as a document."""
-        if not _WHISPER:
+        if not _whisper_backend_now():
             self._missing_feature_notify(
-                "audio transcription", "pip install openai-whisper"
+                "audio transcription", "pip install faster-whisper"
             )
             return
-        # Whisper decodes audio FILES through ffmpeg; without it the failure
-        # is a baffling WinError long after the model loads (the GUI has the
-        # same pre-check).  Dictation is exempt — it feeds samples directly.
+        # openai-whisper decodes audio FILES through ffmpeg; without it the
+        # failure is a baffling WinError long after the model loads (the GUI has
+        # the same pre-check).  faster-whisper decodes via bundled PyAV, so it
+        # needs no ffmpeg — only gate the check on the openai backend.  Dictation
+        # is exempt either way — it feeds samples directly.
         from ..audiobook import find_ffmpeg
 
-        if not find_ffmpeg():
+        if _whisper_backend_now() == "openai" and not find_ffmpeg():
             self.notify(
                 "Transcribing a file needs ffmpeg on your PATH to decode it.",
                 error=True,

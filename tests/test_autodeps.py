@@ -140,8 +140,13 @@ def test_refresh_feature_flips_stale_availability_flag():
         assert sm._SUMY is True
     finally:
         sm._SUMY = orig
-    # A feature not in the in-session-refreshable set needs a restart.
-    assert autodeps.refresh_feature("transcribe") is False
+    # transcribe is refreshable in-session too now (faster-whisper, no Torch):
+    # its snapshot lives in _runtime, so refresh_feature mirrors whether a
+    # speech-to-text backend is importable right now — never a forced restart.
+    from star import _runtime
+
+    assert autodeps.refresh_feature("transcribe") == bool(_runtime._whisper_backend_now())
+    # An unknown feature has nothing to refresh.
     assert autodeps.refresh_feature("nope") is False
 
 

@@ -65,7 +65,7 @@ FEATURES: dict[str, list[tuple[str, str]]] = {
     "graph": [("graphviz", "graphviz"), ("plantuml", "plantuml"), ("pyyaml", "yaml")],
     "archive": [("py7zr", "py7zr"), ("rarfile", "rarfile")],
     "ocr": [("pytesseract", "pytesseract"), ("pymupdf", "fitz"), ("Pillow", "PIL")],
-    "transcribe": [("openai-whisper", "whisper"), ("sounddevice", "sounddevice"),
+    "transcribe": [("faster-whisper", "faster_whisper"), ("sounddevice", "sounddevice"),
                    ("numpy", "numpy")],
     "ner": [("spacy", "spacy"), ("nltk", "nltk")],
 }
@@ -106,9 +106,9 @@ FEATURE_INFO: dict[str, tuple[str, str, int]] = {
                 "py7zr + rarfile — ZIP and TAR are built in", 6),
     "ocr": ("OCR for scanned PDFs & images",
             "pytesseract + PyMuPDF + Pillow (also needs the Tesseract binary on PATH)", 60),
-    "transcribe": ("Speech-to-text dictation (very large)",
-                   "openai-whisper + PyTorch + sounddevice + numpy — offline "
-                   "transcription; downloads roughly 2 GB", 2000),
+    "transcribe": ("Speech-to-text dictation",
+                   "faster-whisper (CTranslate2 — no PyTorch) + sounddevice + "
+                   "numpy — offline transcription; downloads roughly 150 MB", 150),
     "ner": ("Named-entity concept extraction (large)",
             "spaCy + a language model — richer knowledge-graph concepts; a regex "
             "fallback is used otherwise", 500),
@@ -302,8 +302,10 @@ def install_feature_now(key: str) -> bool:
 # flag (e.g. star.summarize._SUMY).  After a *runtime* install those flags are
 # stale-False, so the feature still refuses to run ("pip install …") even though
 # the package is now present.  This maps each feature to the flags to flip so it
-# works immediately, no restart.  transcribe is intentionally absent: its flags
-# live in _runtime and Whisper/PyTorch generally need a fresh process.
+# works immediately, no restart.  transcribe is handled specially in
+# refresh_feature() (its snapshot lives in _runtime): since 0.1.25 the stack is
+# faster-whisper (CTranslate2, no Torch), which imports cleanly into a running
+# process, so it too works in-session with no restart.
 _FEATURE_FLAGS: dict[str, list[tuple[str, str]]] = {
     "summarize": [("star.summarize", "_SUMY")],
     "syllables": [("star.syllables", "_PYPHEN")],
@@ -320,12 +322,17 @@ def refresh_feature(key: str) -> bool:
 
     Clears import caches and flips the stale module-level availability flags so
     the gate and the feature code agree and the deferred ``import`` succeeds.
-    Returns True when the feature is ready to use in-session; False when a restart
-    is needed (e.g. transcribe → PyTorch)."""
+    Returns True when the feature is ready to use in-session; False when a
+    restart is needed."""
     import importlib
     import sys
 
     importlib.invalidate_caches()
+    # transcribe's availability snapshot lives in _runtime, not a feature module.
+    # faster-whisper imports cleanly mid-session, so re-detecting is enough.
+    if key == "transcribe":
+        from . import _runtime
+        return _runtime.refresh_whisper_backend()
     flags = _FEATURE_FLAGS.get(key)
     if not flags:
         return False

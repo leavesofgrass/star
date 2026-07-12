@@ -80,3 +80,60 @@ def test_new_faster_model_compute_override(monkeypatch):
     )
     r._new_faster_model("base")
     assert captured["kw"]["compute_type"] == "float32"
+
+
+# ── In-session backend detection (no restart after a runtime install) ────────
+
+
+def _fake_available(present):
+    """Return a _module_available stand-in that reports only *present* modules."""
+    return lambda name: name in present
+
+
+def test_whisper_backend_now_none_when_neither(monkeypatch):
+    monkeypatch.setattr(r, "_WHISPER_OVERRIDE", "")
+    monkeypatch.setattr(r, "_module_available", _fake_available(set()))
+    assert r._whisper_backend_now() == ""
+
+
+def test_whisper_backend_now_faster_only(monkeypatch):
+    monkeypatch.setattr(r, "_WHISPER_OVERRIDE", "")
+    monkeypatch.setattr(r, "_module_available", _fake_available({"faster_whisper"}))
+    assert r._whisper_backend_now() == "faster"
+
+
+def test_whisper_backend_now_prefers_openai_when_both(monkeypatch):
+    monkeypatch.setattr(r, "_WHISPER_OVERRIDE", "")
+    monkeypatch.setattr(
+        r, "_module_available", _fake_available({"whisper", "faster_whisper"})
+    )
+    assert r._whisper_backend_now() == "openai"
+
+
+def test_whisper_backend_now_override_forces_faster(monkeypatch):
+    monkeypatch.setattr(r, "_WHISPER_OVERRIDE", "faster")
+    monkeypatch.setattr(
+        r, "_module_available", _fake_available({"whisper", "faster_whisper"})
+    )
+    assert r._whisper_backend_now() == "faster"
+
+
+def test_refresh_whisper_backend_flips_snapshot_in_session(monkeypatch):
+    """Simulate a mid-session transcribe install: refresh re-detects the backend
+    and updates the _WHISPER snapshot with no restart."""
+    monkeypatch.setattr(r, "_WHISPER_OVERRIDE", "")
+    monkeypatch.setattr(r, "_WHISPER", "")  # as if nothing was installed at startup
+    monkeypatch.setattr(
+        r, "_module_available",
+        _fake_available({"faster_whisper", "numpy", "sounddevice"}),
+    )
+    assert r.refresh_whisper_backend() is True
+    assert r._WHISPER == "faster"
+    assert r._AUDIO_IN is True
+
+
+def test_refresh_whisper_backend_false_when_absent(monkeypatch):
+    monkeypatch.setattr(r, "_WHISPER_OVERRIDE", "")
+    monkeypatch.setattr(r, "_module_available", _fake_available(set()))
+    assert r.refresh_whisper_backend() is False
+    assert r._WHISPER == ""

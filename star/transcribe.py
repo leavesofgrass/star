@@ -25,7 +25,8 @@ def _transcribe_audio(
     ``[hh:mm:ss]`` on its own line, producing a navigable transcript.
     Raises RuntimeError with install guidance when no backend is available.
     """
-    if _WHISPER == "openai":
+    backend = _whisper_backend_now()
+    if backend == "openai":
         model = _load_whisper().load_model(model_name)
         result = model.transcribe(path)
         if timestamps:
@@ -38,7 +39,7 @@ def _transcribe_audio(
                 or str(result.get("text", "")).strip()
             )
         return str(result.get("text", "")).strip()
-    if _WHISPER == "faster":
+    if backend == "faster":
         model = _new_faster_model(model_name)
         segments, _info = model.transcribe(path)
         if timestamps:
@@ -49,7 +50,7 @@ def _transcribe_audio(
         return " ".join(seg.text for seg in segments).strip()
     raise RuntimeError(
         "Speech recognition requires Whisper:\n"
-        "  pip install openai-whisper   (or: pip install faster-whisper)"
+        "  pip install faster-whisper   (or: pip install openai-whisper)"
     )
 
 
@@ -69,16 +70,17 @@ def _transcribe_samples(
     if samples is None or len(samples) == 0:
         return ""
     audio = np.asarray(samples, dtype=np.float32).flatten() / 32768.0
-    if _WHISPER == "openai":
+    backend = _whisper_backend_now()
+    if backend == "openai":
         model = _load_whisper().load_model(model_name)
         return str(model.transcribe(audio).get("text", "")).strip()
-    if _WHISPER == "faster":
+    if backend == "faster":
         model = _new_faster_model(model_name)
         segments, _info = model.transcribe(audio)
         return " ".join(seg.text for seg in segments).strip()
     raise RuntimeError(
         "Speech recognition requires Whisper:\n"
-        "  pip install openai-whisper   (or: pip install faster-whisper)"
+        "  pip install faster-whisper   (or: pip install openai-whisper)"
     )
 
 
