@@ -185,6 +185,8 @@ files render as Markdown tables; only cell values are spoken. **Code block
 skipping:** Fenced code blocks are skipped during TTS by default
 (`tts_skip_code`).
 
+Worked example: [`docs/examples/library/load-a-document`](examples/library/load-a-document) opens a file and reads its text from Python.
+
 ---
 
 ## TTS backends
@@ -269,6 +271,8 @@ neural-voice catalog — into one searchable list.
 Every control carries an accessible name/description, and the list is fully
 keyboard-drivable.
 
+Worked example: [`docs/examples/cli/list-voices`](examples/cli/list-voices) shows every voice from the command line.
+
 ### One-click Piper neural voices
 
 Piper gives natural, offline neural speech, but its voice *models* (a `.onnx`
@@ -341,6 +345,8 @@ SAPI5 callbacks can arrive 1–3 words late or stop entirely, so the guard has a
 **Word-position map:** at load time star builds a map linking every TTS word to
 its display line and column, using a monotonically advancing, column-aware search
 so repeated words match in document order and the highlight never appears stuck.
+
+Walkthrough: [`docs/examples/gui/read-aloud`](examples/gui/read-aloud).
 
 ---
 
@@ -1045,6 +1051,8 @@ The backend always produces a WAV first; non-WAV formats are converted via ffmpe
 neither is available. Audio export can also emit a synchronized SRT/VTT track —
 see [Subtitle export](#subtitle-export-srt--vtt).
 
+Worked example: [`docs/examples/cli/export-audio`](examples/cli/export-audio).
+
 ### Audiobook export (M4B)
 
 For listening on the go, star can export a whole document as a chaptered `.m4b`
@@ -1155,6 +1163,8 @@ Find bar or a dialog field.
 you've run this session together with any errors — handy for troubleshooting or
 filing a bug report.
 
+Walkthrough: [`docs/examples/gui/write-and-export`](examples/gui/write-and-export).
+
 ---
 
 ## Study & writing aids
@@ -1169,6 +1179,7 @@ type them.
 - **Summarize a document** — **Tools ▸ Summarize Document** (`Ctrl+Shift+U`)
   condenses the document to its most important sentences via the extractive
   **LexRank** algorithm (`summary_sentences`, default 7). `pip install sumy`.
+  Worked example: [`docs/examples/library/summarize-document`](examples/library/summarize-document).
 - **Anki flashcards** — **File ▸ Export ▸ Anki Flashcards…** (`Ctrl+Alt+H`) turns
   notes into an `.apkg` deck (highlighted passage on the front, your note on the
   back). `pip install genanki`.
@@ -1180,6 +1191,7 @@ type them.
   limit for you to manage), and the translation opens as a new **speakable**
   document you can read aloud. The one study aid that needs a network
   connection. `pip install deep-translator`.
+  Worked example: [`docs/examples/library/translate-document`](examples/library/translate-document).
 - **Highlight difficult words** — **View ▸ Reading Aids ▸ Highlight Difficult
   Words** (`Ctrl+Alt+O`) tints uncommon/academic vocabulary by frequency
   (non-destructive; persists via `qt_vocab_highlight`). `pip install wordfreq`.
@@ -1506,6 +1518,8 @@ star --plugins list                 # every registered plugin, by group
 star --plugins info <group> <name>  # details for one plugin
 star --plugins api                  # the ABC contracts a plugin must implement
 ```
+
+Worked example: [`docs/examples/cli/list-plugins`](examples/cli/list-plugins).
 
 There is a complete, working, copy-me example in
 [`docs/examples/plugin-template/`](examples/plugin-template/) — a ~40-line package

@@ -11,6 +11,7 @@
 | Windows | `%APPDATA%\star\settings.json` |
 
 Find its exact path from the TUI with `M-x settings` (it prints the location in the status line).
+Many of these settings are exercised in the [`docs/examples/`](examples/).
 
 > **Optional features install themselves.** Most optional capabilities (neural
 > voices, OCR, transcription, richer imports, extra fonts, etc.) fetch what they

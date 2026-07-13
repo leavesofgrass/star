@@ -92,6 +92,9 @@ star --plugins list                # registered backends / format handlers / exp
 star --check-update                # check PyPI for a newer release (offline-safe)
 ```
 
+Worked examples: [`docs/examples/cli/check-dependencies`](examples/cli/check-dependencies) ·
+[`docs/examples/cli/list-plugins`](examples/cli/list-plugins).
+
 **Advanced users can still install extras the classic way** — `pip install
 "star-reader[all]"` for the full feature set, or individual groups such as
 `star-reader[translate,vocab]`. Note that `[all]` deliberately **excludes** the

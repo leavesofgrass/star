@@ -197,6 +197,8 @@ languages) appear in the list marked with a ⬇ download tag.
 2. When it finishes, star switches to the Piper engine and selects the new
    voice automatically — it works right away, fully offline from then on.
 
+Worked example: [`docs/examples/cli/list-voices`](examples/cli/list-voices) shows every voice star can see.
+
 ### Pick a speech engine (system and cloud voices)
 
 Beyond the built-in engines, star can also speak with your operating system's
@@ -330,6 +332,8 @@ live under **View ▸ Reading Aids** unless noted.
   to jump to the note; a ↩ backlink jumps you back to where you were reading.
 - **Math rendering.** Inline LaTeX math is rendered as readable Unicode, so
   equations are spoken and shown as text rather than raw `\command` markup.
+
+Walkthrough: [`docs/examples/gui/reading-aids`](examples/gui/reading-aids).
 
 <a id="build-a-library"></a>
 ### Build a library
@@ -526,6 +530,8 @@ off with the `qt_ctrl_pause` setting.
 | Toggle SSML prosody | `Ctrl+Alt+Y` | `M-x ssml` |
 | Cycle speed preset | `F8` | `F8` |
 
+Walkthrough: [`docs/examples/gui/read-aloud`](examples/gui/read-aloud).
+
 The default reading rate is **265 wpm**. New users should start at 150–180 wpm
 and increase gradually.
 
@@ -638,6 +644,8 @@ documents that have no file to fall back on. Turn it off with the
 **Export a draft mid-edit:** the **File ▸ Export** commands (Markdown, PDF,
 Braille, audio, subtitles, audiobook) act on the **live editor buffer**, so you
 can export what you're working on without saving or leaving edit mode first.
+
+Walkthrough: [`docs/examples/gui/write-and-export`](examples/gui/write-and-export).
 
 ### Search
 
@@ -1043,6 +1051,8 @@ text the TTS engine would receive. Useful for:
 - **Word counting** — `star --plain thesis.pdf | wc -w`
 - **Headless server use** — where no display is available
 
+Worked example: [`docs/examples/cli/extract-text`](examples/cli/extract-text).
+
 ---
 
 ## Command-line options
@@ -1074,6 +1084,8 @@ star [OPTIONS] [FILE_OR_URL]
 | `--help` | Print help summary and exit |
 
 ---
+
+Worked examples for many of these options are in [`docs/examples/`](examples/).
 
 See also: [Installation](installation.md) · [Features](features.md) ·
 [Configuration](configuration.md) · [Architecture](architecture.md).

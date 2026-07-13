@@ -56,6 +56,8 @@ that ships in every distribution form.
 | `star/autodeps.py` | On-demand optional-dependency installer: the `FEATURES` registry, `FEATURE_INFO`/`PRESETS`, and the best-effort `ensure()` engine behind the first-run chooser and `star --install-optional`. |
 | `star/__main__.py` · `run_star.py` | `python -m star`, and the source-tree entry script. |
 
+Worked examples using these modules from Python: [`docs/examples/library/`](examples/library/) (load a document, translate, summarize).
+
 ### The `star/gui/` package
 
 The Qt GUI began as a single ~5,600-line `star/gui.py` whose entire contents were
