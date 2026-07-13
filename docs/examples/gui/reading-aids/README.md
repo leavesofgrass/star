@@ -34,4 +34,4 @@ turn them on (star offers this automatically).
 ## Next steps
 
 - Hear it read while you use these: [`../read-aloud`](../read-aloud).
-- Deep dive: [Features ▸ Reading aids](../../../docs/features.md).
+- Deep dive: [Features ▸ Reading aids](../../../features.md).

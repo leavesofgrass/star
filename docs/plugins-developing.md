@@ -16,7 +16,7 @@ way its own built-ins are registered.
 - [Introspecting the plugin system](#introspecting-the-plugin-system)
 
 There is a complete, working, copy-me example in
-[`examples/plugin-template/`](../examples/plugin-template/) — a ~40-line package
+[`docs/examples/plugin-template/`](examples/plugin-template/) — a ~40-line package
 that adds a toy `.demo` format. Read this guide, then start from that template.
 
 ---
@@ -238,7 +238,7 @@ Install the plugin editable, next to star, and let entry-point discovery do the
 rest:
 
 ```bash
-cd examples/plugin-template
+cd docs/examples/plugin-template
 pip install -e .
 
 star --plugins list                    # your plugin appears in its group

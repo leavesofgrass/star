@@ -1508,7 +1508,7 @@ star --plugins api                  # the ABC contracts a plugin must implement
 ```
 
 There is a complete, working, copy-me example in
-[`examples/plugin-template/`](../examples/plugin-template/) — a ~40-line package
+[`docs/examples/plugin-template/`](examples/plugin-template/) — a ~40-line package
 that adds a toy `.demo` format. For the full walkthrough — the API contract, all
 three groups, packaging, and local testing — see the dedicated
 **[Developing star plugins](plugins-developing.md)** guide.

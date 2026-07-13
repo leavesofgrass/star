@@ -8,7 +8,7 @@ counts, or another tool.
 
 ## Run it
 
-    cd examples/cli/extract-text
+    cd docs/examples/cli/extract-text
     python run.py
 
 ## What you should see
@@ -48,4 +48,4 @@ counts, or another tool.
   install can open.
 - Prefer code? [`../../library/load-a-document`](../../library/load-a-document)
   does the same thing through star's Python API.
-- Full CLI reference: [Usage guide](../../../docs/usage_guide.md).
+- Full CLI reference: [Usage guide](../../../usage_guide.md).

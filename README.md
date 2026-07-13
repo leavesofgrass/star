@@ -56,7 +56,7 @@ star --tui           # force the terminal UI (headless / text-only)
 
 **Where next:**
 
-- Worked examples: **[`examples/`](examples/)** — extract text on the CLI, load
+- Worked examples: **[`docs/examples/`](docs/examples/)** — extract text on the CLI, load
   documents from Python, and read-aloud / authoring walkthroughs.
 - Full docs: **[Usage guide](docs/usage_guide.md)** ·
   **[Features](docs/features.md)** · **[Installation](docs/installation.md)**.
@@ -176,7 +176,7 @@ See the **[full feature reference](docs/features.md)** for everything.
 
 | Guide | What's in it |
 |---|---|
-| **[Examples](examples/)** | Runnable, task-focused examples (CLI text extraction, the Python library, read-aloud & authoring walkthroughs) with a catalog mapping every area |
+| **[Examples](docs/examples/)** | Runnable, task-focused examples (CLI text extraction, the Python library, read-aloud & authoring walkthroughs) with a catalog mapping every area |
 | **[Installation](docs/installation.md)** | PyPI / wheel / zipapp install, optional packages, native engines, platform notes |
 | **[Usage Guide](docs/usage_guide.md)** | Running star, the **quick command reference**, full keyboard map, M-x commands, CLI options |
 | **[Features](docs/features.md)** | The complete feature reference |

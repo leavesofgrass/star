@@ -8,7 +8,7 @@ and what each missing piece unlocks — a zero-setup health check for your insta
 
 ## Run it
 
-    cd examples/cli/check-dependencies
+    cd docs/examples/cli/check-dependencies
     python run.py
 
 ## What you should see
@@ -44,4 +44,4 @@ and what each missing piece unlocks — a zero-setup health check for your insta
 - Install everything up front:  `star --install-optional` (or a preset:
   `star --install-optional thin`).
 - [`../list-plugins`](../list-plugins) — the pluggable backends/formats/exporters.
-- [Installation guide](../../../docs/installation.md) for the full extras matrix.
+- [Installation guide](../../../installation.md) for the full extras matrix.

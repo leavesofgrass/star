@@ -4,7 +4,7 @@
 star discovers TTS backends, document-format handlers, and exporters through
 ``importlib.metadata`` entry points, so third-party packages can add their own.
 This prints every registered plugin — the same mechanism the bundled
-``examples/plugin-template`` extends.
+``docs/examples/plugin-template`` extends.
 """
 import subprocess
 import sys

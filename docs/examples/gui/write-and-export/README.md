@@ -34,5 +34,5 @@ it, and export it to PDF, audio, Braille, and more. This is a GUI walkthrough �
 ## Next steps
 
 - Reading the result aloud: [`../read-aloud`](../read-aloud).
-- Authoring reference: [Usage guide](../../../docs/usage_guide.md) ·
-  [Features](../../../docs/features.md).
+- Authoring reference: [Usage guide](../../../usage_guide.md) ·
+  [Features](../../../features.md).

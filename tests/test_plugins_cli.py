@@ -5,9 +5,9 @@ Covers:
 * ``star.plugins.list_plugins`` / ``describe_plugin`` / ``describe_api`` return
   well-shaped, sane structured data for the built-in plugins.
 * ``star.formats.__api_version__`` exists and is a MAJOR.MINOR string.
-* The bundled example plugin under ``examples/plugin-template/`` imports, parses,
-  and satisfies the FormatHandler contract — i.e. the template a third party
-  would copy actually works.
+* The bundled example plugin under ``docs/examples/plugin-template/`` imports,
+  parses, and satisfies the FormatHandler contract — i.e. the template a third
+  party would copy actually works.
 
 These exercise the helpers directly (fast, no subprocess); the CLI wiring in
 ``star/app.py`` is a thin renderer over them.
@@ -36,7 +36,7 @@ from star.plugins import (
 from star.tts.base import TTSBackend
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
-_TEMPLATE_DIR = _REPO_ROOT / "examples" / "plugin-template"
+_TEMPLATE_DIR = _REPO_ROOT / "docs" / "examples" / "plugin-template"
 
 
 @pytest.fixture(autouse=True)

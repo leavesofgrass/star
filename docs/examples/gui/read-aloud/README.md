@@ -34,5 +34,5 @@ follow the steps in the app.
 
 - Reading aids for dyslexia and decoding: [`../reading-aids`](../reading-aids).
 - Write and export your own documents: [`../write-and-export`](../write-and-export).
-- Full key map: [Usage guide](../../../docs/usage_guide.md) ·
-  [Features](../../../docs/features.md).
+- Full key map: [Usage guide](../../../usage_guide.md) ·
+  [Features](../../../features.md).

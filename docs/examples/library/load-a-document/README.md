@@ -9,7 +9,7 @@ detected format, and a title.
 
 ## Run it
 
-    cd examples/library/load-a-document
+    cd docs/examples/library/load-a-document
     python run.py
 
 ## What you should see
@@ -44,5 +44,5 @@ detected format, and a title.
 
 - The CLI one-liner equivalent: [`../../cli/extract-text`](../../cli/extract-text)
   (`star --plain`).
-- [Architecture](../../../docs/architecture.md) — how loaders, the word map, and
+- [Architecture](../../../architecture.md) — how loaders, the word map, and
   TTS fit together.

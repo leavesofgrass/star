@@ -12,15 +12,15 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ### ✨ Added
 
-- **A runnable `examples/` tree and a Quick start at the top of the README.**
-  New task-focused examples — extract a document's text on the CLI
-  (`star --plain`), check dependencies and list plugins, and load a document
-  from Python — each with its own README and real output, plus GUI walkthroughs
-  for reading aloud, the reading aids, and authoring/exporting. A catalog
-  (`examples/README.md`) maps every area to an example or a guide, and a smoke
-  test (`tests/test_examples_smoke.py`) executes every runnable so they can't
-  rot. The README now opens with an install → run → **first 60 seconds** → where-next
-  Quick start.
+- **A runnable `docs/examples/` tree and a Quick start at the top of the README.**
+  12 task-focused examples — CLI (extract text, export to audio, list voices,
+  check dependencies, list plugins), library (load a document, translate,
+  summarize), and GUI walkthroughs (read-aloud, reading aids, write-and-export)
+  — each with its own README and real output. A catalog
+  (`docs/examples/README.md`) maps every area to an example or a guide, and a
+  smoke test (`tests/test_examples_smoke.py`) executes every runnable so they
+  can't rot. The README now opens with an install → run → **first 60 seconds** →
+  where-next Quick start.
 
 ---
 

@@ -9,7 +9,7 @@ plugin star can see.
 
 ## Run it
 
-    cd examples/cli/list-plugins
+    cd docs/examples/cli/list-plugins
     python run.py
 
 ## What you should see
@@ -44,4 +44,4 @@ plugin star can see.
 
 - Write your own voice/format/exporter: start from
   [`../../plugin-template`](../../plugin-template).
-- [Developing plugins](../../../docs/plugins-developing.md) — the full guide.
+- [Developing plugins](../../../plugins-developing.md) — the full guide.

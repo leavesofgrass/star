@@ -1,6 +1,6 @@
-"""Smoke test for the runnable examples under ``examples/``.
+"""Smoke test for the runnable examples under ``docs/examples/``.
 
-Every ``examples/<category>/<name>/run.py`` is executed in a clean working
+Every ``docs/examples/<category>/<name>/run.py`` is executed in a clean working
 directory and must exit 0.  Examples that can rot silently, will — this gate
 keeps the ones shipped in the repo honest (they degrade gracefully and print
 guidance rather than raising when an optional dependency is absent, so they stay
@@ -13,8 +13,8 @@ from pathlib import Path
 import pytest
 
 _REPO = Path(__file__).resolve().parent.parent
-_EXAMPLES = _REPO / "examples"
-# Examples are exactly two levels deep: examples/<category>/<name>/run.py
+_EXAMPLES = _REPO / "docs" / "examples"
+# Examples are exactly two levels deep: docs/examples/<category>/<name>/run.py
 _RUNNERS = sorted(_EXAMPLES.glob("*/*/run.py"))
 
 
@@ -24,7 +24,7 @@ def _example_id(path: Path) -> str:
 
 def test_examples_are_discovered() -> None:
     """Guard the discovery glob so a broken path can't make this pass vacuously."""
-    assert len(_RUNNERS) >= 4, f"expected several example runners, found {_RUNNERS}"
+    assert len(_RUNNERS) >= 8, f"expected several example runners, found {_RUNNERS}"
 
 
 @pytest.mark.parametrize("runner", _RUNNERS, ids=[_example_id(p) for p in _RUNNERS])
