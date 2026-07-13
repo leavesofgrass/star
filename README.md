@@ -26,40 +26,57 @@ It draws design inspiration from [Emacspeak](https://emacspeak.sourceforge.net/)
 
 ---
 
-## 🚀 Install
+## 🚀 Quick start
 
-On any platform with **Python 3.11+**:
-
-```bash
-pipx install star-reader      # isolated app install (recommended)
-# or
-pip install star-reader       # into the current environment
-```
-
-Then run it:
+**Install** on any platform with **Python 3.11+**:
 
 ```bash
-star                          # launch the Qt GUI
-star document.pdf             # open a file
-star --tui                    # force the terminal UI
-star --deps                   # show which optional features are installed
-star --install-optional       # fetch optional features from the command line
-star --plugins list           # list registered backends / formats / exporters
-star --check-update           # check PyPI for a newer release (offline-safe)
+pipx install star-reader        # isolated app install (recommended)
+# or:  pip install star-reader  # into the current environment
 ```
+
+star **grows on demand** — it fetches optional features the first time you use
+them, so you don't need to pick extras up front. Want everything available
+offline right away? `pipx install "star-reader[all]"`.
+
+**Run it:**
+
+```bash
+star                 # launch the Qt GUI (the primary interface)
+star document.pdf    # open a document
+star --tui           # force the terminal UI (headless / text-only)
+```
+
+**Your first 60 seconds** (in the GUI):
+
+- Press **`Ctrl+O`** to open a document — or just read the welcome page it opens on.
+- Press **`Space`** to hear it read aloud, with **each word highlighted** as it's spoken.
+- Put the caret on a word and press **`Ctrl+D`** for an offline definition.
+- Press **`Ctrl+N`** to start writing your own document; **`Ctrl+E`** toggles edit mode.
+
+**Where next:**
+
+- Worked examples: **[`examples/`](examples/)** — extract text on the CLI, load
+  documents from Python, and read-aloud / authoring walkthroughs.
+- Full docs: **[Usage guide](docs/usage_guide.md)** ·
+  **[Features](docs/features.md)** · **[Installation](docs/installation.md)**.
 
 ### Optional features
 
 **star runs out of the box** on nothing but the Python standard library, and
 **grows on demand — no `pip install` step anywhere.** Whenever you reach for a
 feature that needs an add-on (OCR, offline dictionary, summarize, translate,
-knowledge-graph extras, …), star offers to **download it in the background** and
-the feature then works in the same session — only the large speech-to-text pack
-asks for a restart. On first launch the GUI also shows a short **optional-features
-chooser**: pick the **Thin** or **All** preset, or tick exactly the capabilities
-you want. Re-open it any time from **Tools → Install Optional Features…**. **"All"
-now means literally everything** (including the large speech-to-text and
-named-entity packs); the download size is shown upfront.
+knowledge-graph extras, dictation, …), star offers to **download it in the
+background** and the feature then works **in the same session** — no restart. On
+first launch the GUI also shows a short **optional-features chooser**: pick the
+**Thin** or **All** preset, or tick exactly the capabilities you want. Re-open it
+any time from **Tools → Install Optional Features…**. **"All" now means literally
+everything** (including the large speech-to-text and named-entity packs); the
+download size is shown upfront.
+
+Prefer the command line? `star --deps` shows what's installed,
+`star --install-optional` fetches features, `star --plugins list` lists the
+pluggable backends/formats/exporters, and `star --check-update` checks PyPI.
 
 Prefer the command line or a scripted setup? `star --install-optional` installs
 the `all` preset; `star --install-optional thin` or
@@ -159,6 +176,7 @@ See the **[full feature reference](docs/features.md)** for everything.
 
 | Guide | What's in it |
 |---|---|
+| **[Examples](examples/)** | Runnable, task-focused examples (CLI text extraction, the Python library, read-aloud & authoring walkthroughs) with a catalog mapping every area |
 | **[Installation](docs/installation.md)** | PyPI / wheel / zipapp install, optional packages, native engines, platform notes |
 | **[Usage Guide](docs/usage_guide.md)** | Running star, the **quick command reference**, full keyboard map, M-x commands, CLI options |
 | **[Features](docs/features.md)** | The complete feature reference |
