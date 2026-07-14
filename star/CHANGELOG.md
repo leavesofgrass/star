@@ -10,6 +10,19 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### 🐛 Fixed
+
+- **The spoken-word highlight stays in sync — even in documents with
+  tables.** The map that ties each spoken word to its place in the rendered
+  view was built with a rolling text search, and the structured table
+  narration ("Table with 3 columns… Row 1…") derailed it: narration-only
+  words matched unrelated text further down the page, and from the first
+  table to the end of the document the highlight no longer tracked the
+  voice. The map is now built by aligning the spoken and rendered word
+  streams as sequences, so tables, skipped code blocks, and any other place
+  where what is *said* differs from what is *shown* stay in sync — narration
+  words simply park the highlight on the content they describe.
+
 ### ⚠️ Deprecated
 
 - **The legacy openai-whisper (PyTorch) dictation backend.** faster-whisper

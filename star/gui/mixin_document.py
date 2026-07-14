@@ -5,6 +5,8 @@ on StarWindow instance state and other methods via ``self``, holding no
 state of its own.  IMPORT SAFETY: references Qt at module scope — imported
 lazily by main_window.py (itself imported by runner.py after the _QT guard).
 """
+import difflib
+
 from .._runtime import *  # noqa: F401,F403
 from ..documents import Document, _build_word_map, load_document
 from ..i18n import is_rtl, tr
@@ -12,6 +14,68 @@ from ..mathrender import has_math, render_math_to_unicode
 from ..pagination import Paginator, paginate
 from ..stats import _record_library
 from .a11y import announce
+
+# Same tokenizer as documents.model._WORD_TOKEN_RE — the qt word map must stay
+# index-parallel with doc.word_map, so both must tokenize identically.
+_QT_TOKEN_RE = re.compile(r"\b\w[\w'-]*")
+
+
+def _align_word_offsets(
+    spoken: List[str], rendered: List[Tuple[str, int]]
+) -> List[int]:
+    """Map each spoken word to the character offset of its rendered occurrence.
+
+    *spoken* is the lower-cased TTS word stream; *rendered* is
+    ``(word_lower, char_offset)`` for every token of the rendered editor text.
+    Returns one offset per spoken word, ``-1`` where no occurrence was found.
+
+    This is a real sequence alignment (difflib), not a rolling substring
+    search.  The spoken stream and the rendered text diverge legitimately in
+    both directions — structured table narration adds spoken-only words
+    ("Table with 3 columns", "Row 1", "… is …"), and skipped code blocks are
+    rendered-only — and a rolling ``find`` derails on either: a spoken-only
+    word like "with" matches some *later* rendered occurrence, drags the
+    cursor forward past real content, and every word after that is pinned to
+    a stale fallback position (the table-onward highlight breakage).
+    Alignment instead matches the two token streams as sequences, so
+    divergent runs are simply left unmatched and everything around them
+    stays exact.
+
+    Runs in re-anchored chunks: each chunk is aligned independently and the
+    cursor resumes at the end of the last *matched* block, keeping the cost
+    ~O(n · CHUNK) instead of difflib's worst-case O(n²) on book-sized text
+    while remaining exact for local divergences (tables, code blocks, figure
+    narration are all far smaller than a chunk).
+    """
+    n, m = len(spoken), len(rendered)
+    r_words = [w for w, _ in rendered]
+    offsets = [-1] * n
+    CHUNK = 2000
+    PAD = 500
+    si = ri = 0
+    while si < n and ri < m:
+        s_hi = min(n, si + CHUNK)
+        r_hi = min(m, ri + CHUNK + PAD)
+        sm = difflib.SequenceMatcher(
+            None, spoken[si:s_hi], r_words[ri:r_hi], autojunk=False
+        )
+        blocks = [b for b in sm.get_matching_blocks() if b.size]
+        if not blocks:
+            # Pathological chunk (no single common token): skip half a chunk
+            # on both sides rather than stall — later chunks re-anchor.
+            si += CHUNK // 2
+            ri += CHUNK // 2
+            continue
+        for a, b, size in blocks:
+            for k in range(size):
+                offsets[si + a + k] = rendered[ri + b + k][1]
+        last = blocks[-1]
+        new_si = si + last.a + last.size
+        new_ri = ri + last.b + last.size
+        if new_si <= si:  # guarantee forward progress
+            new_si = s_hi
+        si, ri = new_si, new_ri
+    return offsets
 
 
 class DocumentMixin:
@@ -279,40 +343,35 @@ class DocumentMixin:
         absolute character offset of the i-th TTS word inside the Qt
         document text.
 
-        Uses a rolling forward search so that repeated words match in
-        document order.  Runs in a background thread (no Qt calls).
-
-        Words whose only occurrence in the document text is *before*
-        search_from (e.g. column-header names repeated in structured
-        table-row narration) are assigned last_good_pos so the highlight
-        advances linearly rather than jumping backward to the header row.
+        Built by sequence-aligning the spoken token stream against the
+        rendered token stream (see :func:`_align_word_offsets`), so
+        spoken-only narration (structured tables) and rendered-only content
+        (skipped code blocks) cannot derail the mapping.  Spoken words with
+        no rendered counterpart borrow the offset of the next aligned word —
+        the highlight parks at the content the narration describes — falling
+        back to the previous one at the tail.  Runs in a background thread
+        (no Qt calls).
         """
-        result: List[int] = []
-        qt_lower = qt_text.lower()
-        token_re = re.compile(r"\b\w[\w'-]*")
-        search_from = 0
-        last_good_pos = 0  # last position from a forward-matched word
-
-        for m in token_re.finditer(plain_text):
-            word = m.group().lower()
-            pos = qt_lower.find(word, search_from)
-            if pos >= 0:
-                result.append(pos)
-                search_from = pos + 1  # advance past this occurrence
-                last_good_pos = pos
+        spoken = [m.group().lower() for m in _QT_TOKEN_RE.finditer(plain_text)]
+        rendered = [
+            (m.group().lower(), m.start())
+            for m in _QT_TOKEN_RE.finditer(qt_text)
+        ]
+        offsets = _align_word_offsets(spoken, rendered)
+        nxt = -1
+        for i in range(len(offsets) - 1, -1, -1):
+            if offsets[i] >= 0:
+                nxt = offsets[i]
+            elif nxt >= 0:
+                offsets[i] = nxt
+        prev = 0
+        for i, off in enumerate(offsets):
+            if off >= 0:
+                prev = off
             else:
-                # Forward search failed.  Check if the word exists at all.
-                global_pos = qt_lower.find(word, 0)
-                if global_pos >= 0:
-                    # Only a backward match exists (e.g. a table column
-                    # header repeated in row narration).  Use last_good_pos
-                    # so the highlight doesn't jump back to the header.
-                    result.append(last_good_pos)
-                else:
-                    result.append(0)  # not found anywhere
-                # Don't update search_from; we haven't moved forward.
+                offsets[i] = prev
 
-        self._qt_word_map = result
+        self._qt_word_map = offsets
 
     def _build_qt_word_map_windowed(
         self, word_start: int, word_end: int, qt_text: str
@@ -328,8 +387,8 @@ class DocumentMixin:
         is unchanged: the only new rule is "an entry of -1 means that word is not
         on screen yet — advance the window first" (see _page_ensure_word_visible).
 
-        Uses the same rolling forward-search as :meth:`_build_qt_word_map`, but
-        anchored to just the window's words, so it stays O(window size) rather
+        Uses the same sequence alignment as :meth:`_build_qt_word_map`, but
+        over just the window's words, so it stays O(window size) rather
         than O(document).
         """
         wm = self.doc.word_map if self.doc else []
@@ -340,22 +399,29 @@ class DocumentMixin:
             return
         word_start = max(0, word_start)
         word_end = min(n, word_end)
-        qt_lower = qt_text.lower()
-        search_from = 0
-        last_good_pos = 0
-        for i in range(word_start, word_end):
-            word = wm[i].word.lower()
-            if not word:
-                result[i] = last_good_pos
-                continue
-            pos = qt_lower.find(word, search_from)
-            if pos >= 0:
-                result[i] = pos
-                search_from = pos + 1
-                last_good_pos = pos
-            else:
-                global_pos = qt_lower.find(word, 0)
-                result[i] = last_good_pos if global_pos >= 0 else 0
+        spoken = [wm[i].word.lower() for i in range(word_start, word_end)]
+        rendered = [
+            (m.group().lower(), m.start())
+            for m in _QT_TOKEN_RE.finditer(qt_text)
+        ]
+        offsets = _align_word_offsets(spoken, rendered)
+        # Gap-fill within the window only (outside stays -1 = "not on screen"):
+        # unaligned narration words borrow the next aligned offset, then the
+        # previous one at the window tail.
+        nxt = -1
+        for k in range(len(offsets) - 1, -1, -1):
+            if offsets[k] >= 0:
+                nxt = offsets[k]
+            elif nxt >= 0:
+                offsets[k] = nxt
+        prev = -1
+        for k, off in enumerate(offsets):
+            if off >= 0:
+                prev = off
+            elif prev >= 0:
+                offsets[k] = prev
+        for k, off in enumerate(offsets):
+            result[word_start + k] = off
         self._qt_word_map = result
 
     # ── Large-document pagination ─────────────────────────────────────
