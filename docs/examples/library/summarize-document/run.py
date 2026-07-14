@@ -38,7 +38,13 @@ def main() -> int:
     print(f"Words:    {len(doc.plain_text.split())}")
     print()
 
-    summary = summarize_document(doc.plain_text, sentence_count=3)
+    try:
+        summary = summarize_document(doc.plain_text, sentence_count=3)
+    except RuntimeError as exc:
+        # sumy is installed but NLTK's punkt tokenizer data is missing and
+        # auto-installs are disabled (e.g. STAR_NO_AUTOINSTALL on CI).
+        print(exc)
+        return 0
 
     print("Summary (3 sentences):")
     print("-" * 40)
