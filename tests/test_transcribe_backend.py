@@ -52,6 +52,70 @@ def test_new_faster_model_uses_bundled_dir_offline(monkeypatch, tmp_path):
     assert os.environ.get("HF_HUB_OFFLINE") == "1"
 
 
+def test_new_faster_model_named_size_overrides_bundle(monkeypatch, tmp_path):
+    """Frozen with a bundled base model, but the user picked another size:
+    construct by NAME (download/cache as usual), lifting the rthook's offline
+    default so the one-time download can actually happen."""
+    (tmp_path / "faster_whisper_model").mkdir()
+    monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path), raising=False)
+    # As the rthook leaves things: offline forced, marked as star's default.
+    monkeypatch.setenv("HF_HUB_OFFLINE", "1")
+    monkeypatch.setenv("TRANSFORMERS_OFFLINE", "1")
+    monkeypatch.setenv(
+        "_STAR_HF_OFFLINE_DEFAULT", "HF_HUB_OFFLINE,TRANSFORMERS_OFFLINE"
+    )
+
+    captured = {}
+
+    def fake_model(path, **kw):
+        captured["path"] = path
+        captured["kw"] = kw
+        return "M"
+
+    monkeypatch.setattr(r, "_load_faster_whisper", lambda: fake_model)
+    r._new_faster_model("small")
+    assert captured["path"] == "small"
+    assert "local_files_only" not in captured["kw"]
+    assert "HF_HUB_OFFLINE" not in os.environ
+    assert "TRANSFORMERS_OFFLINE" not in os.environ
+
+
+def test_new_faster_model_respects_user_offline_env(monkeypatch, tmp_path):
+    """A user-set HF_HUB_OFFLINE (no star marker) is never lifted — the
+    named-model construction proceeds and hub's own offline error surfaces."""
+    (tmp_path / "faster_whisper_model").mkdir()
+    monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path), raising=False)
+    monkeypatch.setenv("HF_HUB_OFFLINE", "1")
+    monkeypatch.delenv("_STAR_HF_OFFLINE_DEFAULT", raising=False)
+
+    monkeypatch.setattr(r, "_load_faster_whisper", lambda: lambda p, **kw: "M")
+    r._new_faster_model("small")
+    assert os.environ.get("HF_HUB_OFFLINE") == "1"
+
+
+def test_new_faster_model_size_toggle_stays_consistent(monkeypatch, tmp_path):
+    """base → small → base → small: the offline default is re-lifted every
+    time a named size is requested (the marker is not consumed)."""
+    md = tmp_path / "faster_whisper_model"
+    md.mkdir()
+    monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path), raising=False)
+    monkeypatch.setenv("HF_HUB_OFFLINE", "1")
+    monkeypatch.setenv("_STAR_HF_OFFLINE_DEFAULT", "HF_HUB_OFFLINE")
+
+    paths = []
+    monkeypatch.setattr(
+        r, "_load_faster_whisper",
+        lambda: lambda p, **kw: paths.append(p) or "M",
+    )
+    r._new_faster_model("small")
+    assert "HF_HUB_OFFLINE" not in os.environ
+    r._new_faster_model("base")  # bundled again, offline re-defaulted
+    assert os.environ.get("HF_HUB_OFFLINE") == "1"
+    r._new_faster_model("small")
+    assert "HF_HUB_OFFLINE" not in os.environ
+    assert paths == ["small", str(md), "small"]
+
+
 def test_new_faster_model_downloads_by_name_when_not_frozen(monkeypatch):
     """Source / pip install (no bundle): pass the model NAME and don't force
     local-only, so faster-whisper downloads/caches it as usual."""

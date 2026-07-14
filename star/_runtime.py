@@ -580,17 +580,26 @@ def _new_faster_model(model_name: str = "base"):
     ship no CUDA.  STAR_WHISPER_COMPUTE overrides the compute type for testing
     (e.g. ``int8_float32`` / ``float32``).
 
-    In a frozen build the bundled model directory is loaded with
-    ``local_files_only=True`` (+ ``HF_HUB_OFFLINE``) so no network is touched;
-    otherwise the named model is downloaded/cached by faster-whisper as usual."""
+    In a frozen build the bundled ``base`` model directory is loaded with
+    ``local_files_only=True`` (+ ``HF_HUB_OFFLINE``) so no network is touched.
+    Any *other* size the user picked (the ``whisper_model`` setting) is
+    downloaded/cached by faster-whisper as usual — lifting the rthook's
+    offline default first, since that default exists only to keep the bundled
+    path network-free, never to override an explicit user choice.  A
+    user-set ``HF_HUB_OFFLINE`` is left alone (the download then fails with
+    hub's own offline error rather than silently ignoring their environment)."""
     compute = os.environ.get("STAR_WHISPER_COMPUTE", "int8").strip() or "int8"
     WhisperModel = _load_faster_whisper()
     bundled = _faster_whisper_model_dir()
-    if bundled:
+    if bundled and model_name in ("", "base"):
         os.environ.setdefault("HF_HUB_OFFLINE", "1")
         return WhisperModel(
             bundled, device="cpu", compute_type=compute, local_files_only=True
         )
+    if bundled:
+        for var in os.environ.get("_STAR_HF_OFFLINE_DEFAULT", "").split(","):
+            if var:
+                os.environ.pop(var, None)
     return WhisperModel(model_name, device="cpu", compute_type=compute)
 
 

@@ -10,6 +10,14 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### 🔧 Changed
+
+- **Frozen builds now honor the `whisper_model` setting.** The packaged app
+  used to load its bundled base dictation model no matter what `whisper_model`
+  said; now the bundle covers the default (`base`, fully offline) and any
+  other size is downloaded once and cached, exactly like a pip install. A
+  user-set `HF_HUB_OFFLINE` is always respected.
+
 ### ✨ Added
 
 - **A runnable `docs/examples/` tree and a Quick start at the top of the README.**
