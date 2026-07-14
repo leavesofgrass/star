@@ -14,6 +14,7 @@ MX_COMMANDS = sorted(
         "book-prev",
         "close",
         "dictate-note",
+        "edit",
         "summarize",
         "transcribe-file",
         "whisper-model",

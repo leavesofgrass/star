@@ -29,6 +29,14 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ### ✨ Added
 
+- **The TUI can edit documents now — `Ctrl+E` / `M-x edit`.** The terminal
+  idiom, not a home-grown editor: star suspends the screen, opens the
+  document's source in **`$VISUAL` / `$EDITOR`** (notepad or nano/vi when
+  unset), and reloads it when the editor exits — so your own (screen-reader
+  configured) editor does the editing. Text formats (Markdown, txt, reST,
+  org, AsciiDoc) are edited in place; binary formats (PDF, EPUB, DOCX…) get
+  their Markdown conversion as a draft, then a Save-As prompt — mirroring the
+  GUI's edit-mode flow.
 - **Pick your dictation model size in Preferences ▸ Voice.** A new
   **Dictation model** chooser (tiny / base / small / medium / large-v3 /
   large-v3-turbo) controls the Whisper model used for dictation and audio

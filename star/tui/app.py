@@ -29,6 +29,7 @@ from .mixin_docops import DocOpsMixin
 from .mixin_rsvp import RsvpMixin
 from .mixin_annotations import AnnotationsMixin
 from .mixin_transcription import TuiTranscriptionMixin
+from .mixin_editing import TuiEditingMixin
 from .mixin_caret import CaretMixin
 from .mixin_keys import KeysMixin
 from .mixin_draw import DrawMixin
@@ -58,7 +59,7 @@ def _ensure_tui_log_handler() -> None:
 
 
 class StarApp(
-    DocumentMixin, PlaybackMixin, NavigationMixin, SpeechCursorMixin, BookmarksMixin, SearchMixin, VoiceMixin, ExportMixin, DisplayMixin, CommandsMixin, GraphMixin, HelpMixin, DocOpsMixin, RsvpMixin, AnnotationsMixin, TuiTranscriptionMixin, CaretMixin, KeysMixin, DrawMixin,
+    DocumentMixin, PlaybackMixin, NavigationMixin, SpeechCursorMixin, BookmarksMixin, SearchMixin, VoiceMixin, ExportMixin, DisplayMixin, CommandsMixin, GraphMixin, HelpMixin, DocOpsMixin, RsvpMixin, AnnotationsMixin, TuiTranscriptionMixin, TuiEditingMixin, CaretMixin, KeysMixin, DrawMixin,
 ):
     """Main curses application for star — Speaking Terminal Access Reader."""
 
