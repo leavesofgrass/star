@@ -153,7 +153,7 @@ def test_load_whisper_warns_deprecation_once(monkeypatch):
     import warnings
 
     monkeypatch.setitem(sys.modules, "whisper", types.ModuleType("whisper"))
-    monkeypatch.setattr(r, "_OPENAI_WHISPER_WARNED", False)
+    monkeypatch.setattr(r, "_openai_whisper_warned", False)
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         r._load_whisper()

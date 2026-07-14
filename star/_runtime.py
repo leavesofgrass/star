@@ -543,7 +543,7 @@ def _whisper_backend_now() -> str:
 _WHISPER = _whisper_backend_now()
 
 
-_OPENAI_WHISPER_WARNED = False
+_openai_whisper_warned = False
 
 
 def _load_whisper():
@@ -552,9 +552,9 @@ def _load_whisper():
     Emits a one-time DeprecationWarning: the Torch stack is kept only so
     pre-0.1.25 installs keep working and is scheduled for removal in 0.2.0
     (faster-whisper is smaller, faster, and Torch-free)."""
-    global _OPENAI_WHISPER_WARNED
-    if not _OPENAI_WHISPER_WARNED:
-        _OPENAI_WHISPER_WARNED = True
+    global _openai_whisper_warned
+    if not _openai_whisper_warned:
+        _openai_whisper_warned = True
         import warnings
 
         warnings.warn(

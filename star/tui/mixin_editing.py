@@ -69,7 +69,12 @@ class TuiEditingMixin:
             curses.def_prog_mode()
             curses.endwin()
             try:
-                subprocess.call(cmd + [path])
+                # creationflags=0, NOT _SUBPROCESS_FLAGS: this is the one
+                # subprocess that must TAKE OVER the console — CREATE_NO_WINDOW
+                # would detach a console editor (vim, nano) from the terminal
+                # entirely.  The TUI always runs in a real console, so there is
+                # no window flash to suppress here in the first place.
+                subprocess.call(cmd + [path], creationflags=0)
             finally:
                 curses.reset_prog_mode()
                 self.scr.refresh()
