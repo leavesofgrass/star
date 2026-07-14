@@ -16,7 +16,7 @@ plugin star can see.
 
     $ star --plugins list
 
-    star 0.1.26 - registered plugins (30 total)
+    star 0.1.27 - registered plugins (30 total)
 
     TTS backends [star.backends] (backends) - 11:
       [?] pyttsx3        -> star.tts.pyttsx3:Pyttsx3Backend  prio=20
