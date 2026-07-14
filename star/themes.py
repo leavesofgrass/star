@@ -183,6 +183,61 @@ BUILT_IN_PALETTES: Dict[str, Dict[str, str]] = {
         "code": "#009900", "code_bg": "#002600", "link": "#00ff00",
         "muted": "#008800",
     },
+    # ── Popular community palettes (added 0.1.28) ─────────────────────────
+    # Faithful to each scheme's published palette; appended AFTER the
+    # original built-ins so the F5 cycle order existing users know is
+    # unchanged.  Every color pairs ≥ 4.5:1 against its background (WCAG AA).
+    "dracula": {
+        "bg": "#282a36", "fg": "#f8f8f2", "sel": "#44475a",
+        "h1": "#bd93f9", "h2": "#ff79c6", "h3": "#8be9fd", "h4": "#50fa7b",
+        "code": "#f1fa8c", "code_bg": "#21222c", "link": "#8be9fd",
+        "muted": "#9aa0b9",
+    },
+    "nord": {
+        "bg": "#2e3440", "fg": "#eceff4", "sel": "#434c5e",
+        "h1": "#88c0d0", "h2": "#81a1c1", "h3": "#8fbcbb", "h4": "#a3be8c",
+        "code": "#ebcb8b", "code_bg": "#3b4252", "link": "#88c0d0",
+        "muted": "#94a0b8",
+    },
+    # Solarized's canonical accents miss WCAG AA on their own backgrounds (a
+    # known criticism of the scheme); these keep the Solarized character but
+    # are nudged until every pair clears 4.5:1 — star is a reader first.
+    "solarized-dark": {
+        "bg": "#002b36", "fg": "#93a1a1", "sel": "#073642",
+        "h1": "#4aa2df", "h2": "#2aa198", "h3": "#859900", "h4": "#b58900",
+        "code": "#f0784a", "code_bg": "#073642", "link": "#4aa2df",
+        "muted": "#82989f",
+    },
+    "solarized-light": {
+        "bg": "#fdf6e3", "fg": "#586e75", "sel": "#eee8d5",
+        "h1": "#1b6194", "h2": "#1b6b65", "h3": "#566500", "h4": "#7f6100",
+        "code": "#b34212", "code_bg": "#eee8d5", "link": "#1b6194",
+        "muted": "#5e7070",
+    },
+    "gruvbox-dark": {
+        "bg": "#282828", "fg": "#ebdbb2", "sel": "#504945",
+        "h1": "#fabd2f", "h2": "#fe8019", "h3": "#8ec07c", "h4": "#83a598",
+        "code": "#b8bb26", "code_bg": "#3c3836", "link": "#83a598",
+        "muted": "#a89984",
+    },
+    "tokyo-night": {
+        "bg": "#1a1b26", "fg": "#c0caf5", "sel": "#33467c",
+        "h1": "#7aa2f7", "h2": "#bb9af7", "h3": "#7dcfff", "h4": "#9ece6a",
+        "code": "#e0af68", "code_bg": "#24283b", "link": "#7aa2f7",
+        "muted": "#858dbb",
+    },
+    "catppuccin-mocha": {
+        "bg": "#1e1e2e", "fg": "#cdd6f4", "sel": "#45475a",
+        "h1": "#cba6f7", "h2": "#f5c2e7", "h3": "#89dceb", "h4": "#a6e3a1",
+        "code": "#fab387", "code_bg": "#181825", "link": "#89b4fa",
+        "muted": "#9399b2",
+    },
+    "monokai": {
+        "bg": "#272822", "fg": "#f8f8f2", "sel": "#49483e",
+        "h1": "#66d9ef", "h2": "#a6e22e", "h3": "#fd971f", "h4": "#ae81ff",
+        "code": "#e6db74", "code_bg": "#1e1f1c", "link": "#66d9ef",
+        "muted": "#a59f85",
+    },
 }
 
 #: Built-in theme names in cycle order (Obsidian first; it is the default).

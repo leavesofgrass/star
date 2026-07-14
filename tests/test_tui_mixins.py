@@ -484,8 +484,11 @@ def test_resolve_color_orange_and_passthrough():
     assert _resolve_color(-1, 8) == -1  # terminal default untouched
 
 
-def test_no_theme_uses_red():
-    """Colorblind guard: no fg/bg in any TUI theme may be COLOR_RED.
+def test_no_original_theme_uses_red():
+    """Colorblind guard: no fg/bg in the four ORIGINAL TUI themes may be
+    COLOR_RED — that deuteranopia/protanopia promise belongs to the default
+    set.  (The community palettes added in 0.1.28 deliberately reproduce
+    their published colors, red included, and are checked separately below.)
 
     This is platform-sensitive on purpose — the old tables hardcoded
     ncurses-order ints, and on windows-curses (BGR) every intended blue (4)
@@ -497,11 +500,49 @@ def test_no_theme_uses_red():
 
     offenders = [
         (theme, role)
-        for theme, table in THEMES.items()
-        for role, (fg, bg, *_flags) in table.items()
+        for theme in ("dark", "light", "contrast", "phosphor")
+        for role, (fg, bg, *_flags) in THEMES[theme].items()
         if curses.COLOR_RED in (fg, bg)
     ]
     assert not offenders, f"red found in themes: {offenders}"
+
+
+def test_community_theme_colors_are_pairs_or_constants():
+    """BGR-safety for the community themes: every color is either a
+    ``(xterm256, base8)`` pair (resolved explicitly by _resolve_color) or a
+    plain value in the base-8 / default range — never a raw hardcoded int
+    above 7, which would render differently under ncurses vs PDCurses."""
+    from star.tui.theming import THEMES
+
+    community = [
+        "dracula", "nord", "solarized-dark", "solarized-light",
+        "gruvbox-dark", "tokyo-night", "catppuccin-mocha", "monokai",
+    ]
+    for theme in community:
+        assert theme in THEMES, f"TUI missing community theme {theme!r}"
+        for role, (fg, bg, *_flags) in THEMES[theme].items():
+            for c in (fg, bg):
+                if isinstance(c, tuple):
+                    idx256, base8 = c
+                    assert 0 <= idx256 <= 255, (theme, role, c)
+                    assert -1 <= base8 <= 7, (theme, role, c)
+                else:
+                    assert -1 <= c <= 7, (
+                        f"{theme}[{role}] raw int {c} outside base-8 — "
+                        "use a (256, base8) pair"
+                    )
+
+
+def test_resolve_color_256_pairs():
+    """(xterm256, base8) pairs resolve by terminal capability."""
+    import curses
+
+    from star.tui.theming import _resolve_color
+
+    assert _resolve_color((141, curses.COLOR_MAGENTA), 256) == 141
+    assert _resolve_color((141, curses.COLOR_MAGENTA), 768) == 141
+    assert _resolve_color((141, curses.COLOR_MAGENTA), 8) == curses.COLOR_MAGENTA
+    assert _resolve_color((236, -1), 8) == -1  # bg falls back to default
 
 
 def test_dark_theme_chrome_is_orange():

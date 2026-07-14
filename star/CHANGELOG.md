@@ -10,6 +10,20 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### ✨ Added
+
+- **Eight popular color themes — in both the GUI and the terminal.**
+  Dracula, Nord, Solarized Dark, Solarized Light, Gruvbox Dark, Tokyo
+  Night, Catppuccin Mocha, and Monokai join the built-ins, cycled with
+  **F5**, picked from **Choose Theme…**, Preferences ▸ Display, or
+  `M-x theme` — the same names in both UIs, so a profile carries across.
+  Because star is a reader first, every text color clears WCAG AA (4.5:1)
+  on its background even where the upstream scheme does not (Solarized's
+  canonical accents famously miss; ours are nudged, character intact).
+  Each theme is also seeded as an editable CSS file in the themes folder,
+  and the terminal versions approximate the palettes in xterm-256 color
+  with clean base-8 fallbacks.
+
 ### 🔧 Changed
 
 - **`[all]` now includes voice dictation.** The `[transcribe]` stack
