@@ -322,10 +322,11 @@ class DisplayMixin:
             box.setIcon(QMessageBox.Information)  # type: ignore[attr-defined]
         box.setText(
             f"<b>{APP_TITLE}</b><br>Version {APP_VERSION}<br><br>"
-            "star reads your documents aloud — PDF, EPUB, Office files, Markdown "
-            "and more — with word-by-word highlighting, your choice of "
-            "text-to-speech engine, and accessibility-first reading aids. It is "
-            "keyboard-driven and screen-reader friendly.<br><br>"
+            "star is a set of study tools for reading and writing. It reads "
+            "documents aloud — PDF, EPUB, Office files, Markdown and more — "
+            "highlighting each word as it is spoken, and helps you write with "
+            "a built-in Markdown editor and voice dictation. Keyboard-driven, "
+            "screen-reader friendly, and fully offline.<br><br>"
             f'Project &amp; source: <a href="{__url__}">{__url__}</a><br><br>'
             f"{__copyright__} · {__license__}"
         )

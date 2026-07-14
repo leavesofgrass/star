@@ -34,6 +34,12 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
   free-run escape remains only for engines that stop reporting entirely.
   Measured against a live SAPI5 voice: the painted word now *is* the spoken
   word (drift 0) from the first word to the last.
+- **Speech flows across line breaks.** Source files wrapped at a fixed width
+  (README files, hand-wrapped Markdown) were spoken with a pause at the end of
+  every line, because each raw newline reached the speech engine as a sentence
+  boundary. Single newlines inside a paragraph — soft breaks that render as
+  spaces — are now joined before speech, so prose reads straight through;
+  paragraph breaks (blank lines) still pause naturally.
 
 ### ⚠️ Deprecated
 
@@ -46,6 +52,12 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ### 🔧 Changed
 
+- **star now describes itself as what it has become: study tools for reading
+  *and* writing.** The About dialog, the welcome page, and the PyPI summary
+  all said "document reader"; they now cover the writing half too — the
+  Markdown editor, voice dictation, and new-document flow — and the welcome
+  page gained a short **Write your own** section (`Ctrl+N`, `Ctrl+E`,
+  `Ctrl+Alt+K`).
 - **The keyboard cheat sheet's GUI/TUI parity table caught up with reality.**
   The TUI column now shows the new editing bindings (`Ctrl+E`, `Ctrl+N`), the
   dictation model picker, and the `M-x transcribe-file` / `M-x dictate-note`

@@ -1,7 +1,8 @@
 # Welcome to star
 
-<u>**star**</u> is an accessible document reader that speaks almost anything aloud and
-highlights each word as it reads. No cloud account, no internet required.
+<u>**star**</u> is a set of study tools for reading and writing. It speaks almost
+anything aloud, highlights each word as it reads, and lets you write, edit, and
+dictate your own documents. No cloud account, no internet required.
 
 You are reading this welcome page **as a real document** — so every control
 works right here. Go ahead and try them on this text.
@@ -54,6 +55,13 @@ favorite voices across every installed speech engine.
 - **Study ▸ Review Due Cards…** turns your notes and highlights into a
   spaced-repetition review session so what you read actually sticks.
 
+## Write your own
+
+- **Ctrl+N** starts a blank document; **Ctrl+E** switches any document into
+  edit mode, with a Markdown formatting toolbar and find & replace.
+- **Ctrl+Alt+K** turns on voice typing — speak, and your words are inserted at
+  the cursor.
+
 ## Find anything
 
 Press **Ctrl+F** to open the Find bar and search the current document, with a
@@ -79,4 +87,4 @@ live match count and next/previous navigation.
 - **Help ▸ Check for Updates…** tells you when a newer star is available (star
   never checks on its own unless you turn that on in settings).
 
-Happy reading.
+Happy reading — and happy writing.
