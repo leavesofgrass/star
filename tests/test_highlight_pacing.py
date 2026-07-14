@@ -97,9 +97,12 @@ def test_dead_callback_stream_still_free_runs(mgr):
     mgr._last_cb_time = time.monotonic() - 10.0  # stream long dead
 
     _run_timer(mgr, paints, start_idx=10)
-    time.sleep(1.0)
+    time.sleep(1.5)
     mgr.stop()
-    assert paints and max(paints) > 20, (
+    # The property under test is breaking PAST the pause hold cap
+    # (last_cb + 4 = 14) — not any particular speed: slow CI runners tick
+    # the 50 ms timer at 2x+ the nominal interval.
+    assert paints and max(paints) > 14, (
         f"highlight froze on a dead callback stream: {paints[:10]}"
     )
 
@@ -112,9 +115,9 @@ def test_no_callbacks_ever_free_runs(mgr):
     mgr._last_cb_time = 0.0
 
     _run_timer(mgr, paints)
-    time.sleep(1.0)
+    time.sleep(1.5)
     mgr.stop()
-    assert paints and max(paints) > 10
+    assert paints and max(paints) > 5  # advancing; loose for slow CI runners
 
 
 def test_word_callback_always_records_engine_position(mgr):
