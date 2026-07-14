@@ -248,7 +248,7 @@ What the fat zipapp does and does not remove:
 | `pypandoc` | Pandoc conversion for formats without a native loader | `pip install pypandoc` |
 | `louis` | **Optional** contracted Grade 2 Braille (Grade 1 BRF export is built in and needs nothing) | `pip install louis` |
 | `pydub` | Audio format conversion fallback (MP3 / OGG / MP4) when ffmpeg is absent | `pip install pydub` |
-| `faster-whisper` (or `openai-whisper`) | Speech recognition for audio transcription and voice dictation of notes; star prefers whichever is installed | `pip install faster-whisper` |
+| `faster-whisper` | Speech recognition for audio transcription and voice dictation of notes (the legacy `openai-whisper` backend still works but is **deprecated** — scheduled for removal in 0.2.0) | `pip install faster-whisper` |
 | `sounddevice` + `numpy` | Microphone capture for voice dictation (transcription of files needs only Whisper) | `pip install sounddevice numpy` |
 | `windows-curses` | Windows terminal (curses) support for `--tui` mode | `pip install windows-curses` |
 | `watchdog` | Hot-folder watching (`--watch` / GUI Watch Folder); falls back to directory polling if absent | `pip install watchdog` |

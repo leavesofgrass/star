@@ -543,8 +543,27 @@ def _whisper_backend_now() -> str:
 _WHISPER = _whisper_backend_now()
 
 
+_OPENAI_WHISPER_WARNED = False
+
+
 def _load_whisper():
-    """Import and return the openai-whisper module (deferred from startup)."""
+    """Import and return the openai-whisper module (deferred from startup).
+
+    Emits a one-time DeprecationWarning: the Torch stack is kept only so
+    pre-0.1.25 installs keep working and is scheduled for removal in 0.2.0
+    (faster-whisper is smaller, faster, and Torch-free)."""
+    global _OPENAI_WHISPER_WARNED
+    if not _OPENAI_WHISPER_WARNED:
+        _OPENAI_WHISPER_WARNED = True
+        import warnings
+
+        warnings.warn(
+            "star's openai-whisper (PyTorch) dictation backend is deprecated "
+            "and scheduled for removal in 0.2.0; switch to faster-whisper "
+            "(pip install faster-whisper).",
+            DeprecationWarning,
+            stacklevel=2,
+        )
     import whisper
 
     return whisper

@@ -146,6 +146,23 @@ def test_new_faster_model_compute_override(monkeypatch):
     assert captured["kw"]["compute_type"] == "float32"
 
 
+def test_load_whisper_warns_deprecation_once(monkeypatch):
+    """The legacy openai-whisper loader emits ONE DeprecationWarning per
+    process — the backend is scheduled for removal in 0.2.0."""
+    import types
+    import warnings
+
+    monkeypatch.setitem(sys.modules, "whisper", types.ModuleType("whisper"))
+    monkeypatch.setattr(r, "_OPENAI_WHISPER_WARNED", False)
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        r._load_whisper()
+        r._load_whisper()
+    deps = [w for w in caught if issubclass(w.category, DeprecationWarning)]
+    assert len(deps) == 1
+    assert "faster-whisper" in str(deps[0].message)
+
+
 # ── In-session backend detection (no restart after a runtime install) ────────
 
 

@@ -10,6 +10,15 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### ⚠️ Deprecated
+
+- **The legacy openai-whisper (PyTorch) dictation backend.** faster-whisper
+  replaced it as the installed and bundled stack in 0.1.25; the Torch path is
+  kept only so older installs keep working and is scheduled for removal in
+  **0.2.0**. Using it now emits a one-time `DeprecationWarning`. Switch with
+  `pip install faster-whisper` (star prefers openai-whisper only when it is
+  the one installed, or when forced via `STAR_WHISPER_BACKEND=openai`).
+
 ### 🔧 Changed
 
 - **Frozen builds now honor the `whisper_model` setting.** The packaged app

@@ -116,7 +116,7 @@ Many of these settings are exercised in the [`docs/examples/`](examples/).
 | `graph` | *(nested)* | Knowledge-graph options for typed relations between annotations: `auto_rebuild_on_annotation_change` (`true`), `default_layout` (`"spring"`), `node_color_by` (`"doc"`), `show_orphan_nodes` (`false`), `concept_domain` (`"general"`), `last_export_dir` (`""`) |
 | `vault` | *(nested)* | Obsidian vault import/export: `last_vault_dir` (`""`) and `default_link_relation` (`"SEE_ALSO"`, the type given to untyped `[[wikilinks]]` on import) |
 | `video` | *(nested)* | Video-export options: `resolution` (`"1280x720"`), `theme` (`""` = inherit global), `font_scale` (`1.0`), `subtitles` (`"soft"` = selectable muxed SRT track, `"none"` = no track), `last_export_dir` (`""`) |
-| `whisper_model` | `"base"` | Whisper model size for transcription/dictation (`tiny`…`large`) |
+| `whisper_model` | `"base"` | Whisper model size for transcription/dictation: `tiny`, `base`, `small`, `medium`, `large-v3`, or `large-v3-turbo`. Pick it in **Preferences ▸ Voice ▸ Dictation model** (GUI) or `M-x whisper-model` (TUI); `base` ships inside the packaged app, other sizes download once on first use |
 | `transcribe_timestamps` | `false` | Prefix each transcript segment with its `[hh:mm:ss]` start time |
 | `whisper_chunk_seconds` | `6` | Chunk length in seconds for live streaming dictation |
 | `user_highlights` | `{}` | Persistent text highlights per document path |
