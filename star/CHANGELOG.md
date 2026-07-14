@@ -20,6 +20,12 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ### ✨ Added
 
+- **Pick your dictation model size in Preferences ▸ Voice.** A new
+  **Dictation model** chooser (tiny / base / small / medium / large-v3 /
+  large-v3-turbo) controls the Whisper model used for dictation and audio
+  transcription. `base` (the default) ships inside the packaged app and works
+  fully offline; larger sizes are more accurate and are downloaded once on
+  first use.
 - **A runnable `docs/examples/` tree and a Quick start at the top of the README.**
   12 task-focused examples — CLI (extract text, export to audio, list voices,
   check dependencies, list plugins), library (load a document, translate,

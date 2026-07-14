@@ -39,6 +39,9 @@ _READING_FONTS = ["default", "opendyslexic", "atkinson", "lexend"]
 _SYNC_POLICIES = ["newest", "highest_progress", "manual"]
 _FOOTNOTE_MODES = ["inline", "deferred", "skip"]
 _AUDIOBOOK_BITRATES = ["32k", "48k", "64k", "96k", "128k"]
+# Multilingual Whisper sizes both backends resolve by name (the .en variants
+# are deliberately left out — star's dictation is language-agnostic).
+_WHISPER_MODELS = ["tiny", "base", "small", "medium", "large-v3", "large-v3-turbo"]
 
 
 def _std_button(box, name: str):
@@ -448,6 +451,20 @@ class PreferencesDialog(QDialog):
         )
         form.addRow(tr("Audiobook bitrate:"), self.bitrate_box)
 
+        self.whisper_box = QComboBox()
+        self.whisper_box.addItems(_WHISPER_MODELS)
+        curw = str(self.settings.get("whisper_model", "base"))
+        self.whisper_box.setCurrentIndex(
+            _WHISPER_MODELS.index(curw) if curw in _WHISPER_MODELS else 1
+        )
+        self.whisper_box.setToolTip(
+            tr("Whisper model size for dictation and transcription. base ships "
+               "inside the packaged app and works offline; larger sizes are "
+               "more accurate and download once on first use "
+               "(small ~500 MB, large-v3-turbo ~1.6 GB).")
+        )
+        form.addRow(tr("Dictation model:"), self.whisper_box)
+
         self.tabs.addTab(w, tr("Voice"))
 
     # ── Display tab ──────────────────────────────────────────────────────────
@@ -661,6 +678,7 @@ class PreferencesDialog(QDialog):
         self.auto_play.setChecked(bool(D["tts_auto_play"]))
         self.eleven_key.setText(str(D["elevenlabs_api_key"]))
         _combo(self.bitrate_box, _AUDIOBOOK_BITRATES, "audiobook_bitrate")
+        _combo(self.whisper_box, _WHISPER_MODELS, "whisper_model")
         # Display.
         _combo(self.reading_font, _READING_FONTS, "qt_reading_font")
         self._font_family = str(D["qt_font_family"])
@@ -718,6 +736,7 @@ class PreferencesDialog(QDialog):
         d["tts_auto_play"] = self.auto_play.isChecked()
         d["elevenlabs_api_key"] = self.eleven_key.text()
         d["audiobook_bitrate"] = self.bitrate_box.currentText()
+        d["whisper_model"] = self.whisper_box.currentText()
         # Display.
         d["qt_reading_font"] = self.reading_font.currentText()
         d["qt_font_family"] = self._font_family

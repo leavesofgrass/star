@@ -601,5 +601,7 @@
   "Replaced {n} matches": "{n} Treffer ersetzt",
   "Show the replace field (edit mode only)": "Ersetzungsfeld anzeigen (nur im Bearbeitungsmodus)",
   "Turn on Edit Mode (Ctrl+E) to replace text": "Aktivieren Sie den Bearbeitungsmodus (Strg+E), um Text zu ersetzen",
-  "Type the replacement text. Enter replaces the current match.": "Geben Sie den Ersatztext ein. Enter ersetzt den aktuellen Treffer."
+  "Type the replacement text. Enter replaces the current match.": "Geben Sie den Ersatztext ein. Enter ersetzt den aktuellen Treffer.",
+  "Dictation model:": "Diktatmodell:",
+  "Whisper model size for dictation and transcription. base ships inside the packaged app and works offline; larger sizes are more accurate and download once on first use (small ~500 MB, large-v3-turbo ~1.6 GB).": "Whisper-Modellgröße für Diktat und Transkription. base ist in der paketierten App enthalten und funktioniert offline; größere Modelle sind genauer und werden beim ersten Gebrauch einmalig heruntergeladen (small ~500 MB, large-v3-turbo ~1,6 GB)."
 }

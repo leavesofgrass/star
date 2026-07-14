@@ -165,6 +165,37 @@ def test_none_engine_stored_as_silent(window):
     assert window.settings.get("tts_backend") == "silent"
 
 
+def test_whisper_model_combo_stages_and_writes(window):
+    """The Voice tab's dictation-model combo reflects the saved setting and
+    writes the picked size back through the OK/Apply path."""
+    from star.gui.preferences import _WHISPER_MODELS
+
+    window.settings._data["whisper_model"] = "small"
+    dlg = _dialog(window)
+    assert dlg.whisper_box.currentText() == "small"
+    assert [dlg.whisper_box.itemText(i) for i in range(dlg.whisper_box.count())] \
+        == _WHISPER_MODELS
+    dlg.whisper_box.setCurrentText("large-v3-turbo")
+    dlg._write_settings()
+    assert window.settings.get("whisper_model") == "large-v3-turbo"
+
+
+def test_whisper_model_combo_defaults_to_base_on_unknown(window):
+    """A hand-edited settings.json with an unknown size falls back to base."""
+    window.settings._data["whisper_model"] = "gigantic-v9"
+    dlg = _dialog(window)
+    assert dlg.whisper_box.currentText() == "base"
+
+
+def test_whisper_model_restore_defaults(window):
+    from star.settings import DEFAULTS
+
+    dlg = _dialog(window)
+    dlg.whisper_box.setCurrentText("medium")
+    dlg._restore_defaults()
+    assert dlg.whisper_box.currentText() == str(DEFAULTS["whisper_model"])
+
+
 def test_restore_defaults_stages_shipped_values(window):
     """Restore Defaults re-stages every widget from DEFAULTS without saving."""
     from star.settings import DEFAULTS
