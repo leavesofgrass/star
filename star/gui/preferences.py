@@ -954,8 +954,8 @@ class PreferencesDialog(QDialog):
             pass
 
         # Reading font — route a *change* through the same helper as the
-        # View ▸ Reading Aids ▸ Reading Font radios so the on-demand OFL fetch,
-        # the legacy qt_dyslexia_font sync, and the menu radio all happen.
+        # M-x reading-font command so the on-demand OFL fetch and the legacy
+        # qt_dyslexia_font sync all happen.
         # Writing qt_reading_font alone would change nothing on screen.
         try:
             new_rf = str(self.settings.get("qt_reading_font", "default"))

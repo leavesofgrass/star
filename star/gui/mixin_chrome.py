@@ -426,7 +426,9 @@ class ChromeMixin:
         )
 
         # Highlight menu (Ctrl+Shift+digit picks a color)
-        hl_menu: QMenu = mb.addMenu(tr("Highlight"))
+        # Annotate menu — highlights, notes, and bookmarks in one place
+        # (three top-level menus until 0.1.28; every shortcut unchanged).
+        annotate_menu: QMenu = mb.addMenu(tr("Annotate"))
         _HL_COLORS = [
             ("Yellow", "#ffff00", "Ctrl+Shift+1"),
             ("Green", "#90ee90", "Ctrl+Shift+2"),
@@ -435,7 +437,7 @@ class ChromeMixin:
             ("Orange", "#ffa500", "Ctrl+Shift+5"),
         ]
         for _name, _color, _sc in _HL_COLORS:
-            hl_menu.addAction(
+            annotate_menu.addAction(
                 _mi(
                     f"Highlight {_name}",
                     _sc,
@@ -444,8 +446,7 @@ class ChromeMixin:
                         "(persists with the document)",
                 )
             )
-        hl_menu.addSeparator()
-        hl_menu.addAction(
+        annotate_menu.addAction(
             _mi(
                 "Clear All Highlights",
                 "Ctrl+Shift+0",
@@ -453,16 +454,14 @@ class ChromeMixin:
                 tip="Remove every stored highlight from this document",
             )
         )
-
-        # Notes / annotations menu
-        notes_menu: QMenu = mb.addMenu(tr("Notes"))
-        notes_menu.addAction(
+        annotate_menu.addSeparator()
+        annotate_menu.addAction(
             _mi("Add Note at Cursor…", "Ctrl+Shift+A", self._qt_add_annotation)
         )
-        notes_menu.addAction(
+        annotate_menu.addAction(
             _mi("Edit Selected Note…", "Ctrl+Shift+E", self._qt_edit_annotation)
         )
-        notes_menu.addAction(
+        annotate_menu.addAction(
             _mi(
                 "Delete Selected Note",
                 "Ctrl+Shift+D",
@@ -470,15 +469,31 @@ class ChromeMixin:
                 tip="Delete the note selected in the Notes panel",
             )
         )
-        notes_menu.addSeparator()
         # Shared with the View menu so both show the same Ctrl+Shift+N binding.
         toggle_notes_act = _mi(
             "Toggle Notes Panel", "Ctrl+Shift+N", self._qt_toggle_annotations,
             tip="Show or hide the notes dock",
         )
-        notes_menu.addAction(toggle_notes_act)
-        notes_menu.addAction(
+        annotate_menu.addAction(toggle_notes_act)
+        annotate_menu.addAction(
             _mi("Export Notes…", "Ctrl+Alt+N", self._qt_export_annotations)
+        )
+        annotate_menu.addSeparator()
+        # Bookmarks.  Add Bookmark owns Ctrl+M ("Mark"); Ctrl+B is the standard
+        # Bold binding in the Format menu.  The named-add and list dialog carry
+        # no shortcut of their own so every binding stays owned by exactly one
+        # QAction.
+        annotate_menu.addAction(
+            _mi("Add Bookmark", "Ctrl+M", self._qt_bookmark_add,
+                tip="Mark the current position in this document")
+        )
+        annotate_menu.addAction(
+            _mi("Add Named Bookmark…", "", self._qt_bookmark_add_named,
+                tip="Bookmark the current position under a name you choose")
+        )
+        annotate_menu.addAction(
+            _mi("Bookmarks…", "", self._qt_bookmarks_dialog,
+                tip="Jump to any saved bookmark")
         )
 
         # Helper: build a menu from (label, callable, shortcut) rows
@@ -529,21 +544,6 @@ class ChromeMixin:
                 ),
                 None,
                 (
-                    "Toggle SSML Prosody",
-                    lambda: (
-                        self.settings.set(
-                            "use_ssml", not self.settings.get("use_ssml", False)
-                        ),
-                        self.statusBar().showMessage(
-                            "SSML prosody: "
-                            + ("ON" if self.settings.get("use_ssml") else "OFF")
-                        ),
-                    ),
-                    "Ctrl+Alt+Y",
-                    "Richer sentence/clause pausing — may loosen word-highlight "
-                    "accuracy (see the docs)",
-                ),
-                (
                     "Pronunciation Lexicon…",
                     self._qt_pronunciations,
                     "Ctrl+Shift+I",
@@ -552,6 +552,25 @@ class ChromeMixin:
                 ),
             ],
         )
+        # SSML prosody now lives in Preferences ▸ Voice; the classic
+        # Ctrl+Alt+Y toggle survives as a hidden window-level accelerator
+        # (added to the window, not a menu) so muscle memory keeps working.
+        _ssml_act = _mi(
+            "Toggle SSML Prosody",
+            "Ctrl+Alt+Y",
+            lambda: (
+                self.settings.set(
+                    "use_ssml", not self.settings.get("use_ssml", False)
+                ),
+                self.statusBar().showMessage(
+                    "SSML prosody: "
+                    + ("ON" if self.settings.get("use_ssml") else "OFF")
+                ),
+            ),
+            tip="Richer sentence/clause pausing — may loosen word-highlight "
+                "accuracy (see the docs)",
+        )
+        self.addAction(_ssml_act)
 
         # Navigate menu.  Headings read aloud on arrival (toolbar parity).
         _menu(
@@ -589,22 +608,6 @@ class ChromeMixin:
                  "Return to the previous reading position (history)"),
                 ("Forward", self._qt_history_forward, "Alt+Right",
                  "Go forward again in the position history"),
-            ],
-        )
-
-        # Bookmarks menu — named positions per document + a jump list.
-        # Add Bookmark owns Ctrl+M ("Mark"); Ctrl+B is the standard Bold binding
-        # in the Format menu.  The named-add and list dialog carry no shortcut
-        # of their own so every binding stays owned by exactly one QAction.
-        _menu(
-            "Bookmarks",
-            [
-                ("Add Bookmark", self._qt_bookmark_add, "Ctrl+M",
-                 "Mark the current position in this document"),
-                ("Add Named Bookmark…", self._qt_bookmark_add_named, "",
-                 "Bookmark the current position under a name you choose"),
-                ("Bookmarks…", self._qt_bookmarks_dialog, "",
-                 "Jump to any saved bookmark"),
             ],
         )
 
@@ -689,8 +692,28 @@ class ChromeMixin:
         edit_menu.insertAction(_first, self._redo_act)
         if _first is not None:
             edit_menu.insertSeparator(_first)
-        # Preferences lives at the foot of Edit (the conventional home for an
-        # app's settings), added via _mi so it keeps a tooltip.
+        # Settings profiles + Preferences live at the foot of Edit (the
+        # conventional home for an app's settings).  Profiles — named bundles
+        # of voice/theme/font/highlight — had their own top-level menu until
+        # 0.1.28; every shortcut unchanged.
+        edit_menu.addSeparator()
+        edit_menu.addAction(
+            _mi(
+                "Save Current Settings as Profile…",
+                "Ctrl+Shift+K",
+                self._qt_save_profile,
+                tip="Bundle the current voice, theme, font, and highlight "
+                    "settings under a name",
+            )
+        )
+        edit_menu.addAction(
+            _mi("Load Profile…", "Ctrl+Shift+J", self._qt_load_profile,
+                tip="Apply a saved settings profile in one step")
+        )
+        edit_menu.addAction(
+            _mi("Delete Profile…", "Ctrl+Shift+Y", self._qt_delete_profile,
+                tip="Remove a saved settings profile")
+        )
         edit_menu.addSeparator()
         edit_menu.addAction(
             _mi(
@@ -701,16 +724,26 @@ class ChromeMixin:
             )
         )
 
-        # Citations menu.
+        # Study menu — spaced-repetition review plus the citation library
+        # (its own top-level menu until 0.1.28; every shortcut unchanged).
+        # "Review Due Cards…" owns Ctrl+Shift+F5 (Ctrl+Shift+S/R are already
+        # taken by Reading Statistics / Reload CSS Themes).
         _menu(
-            "Citations",
+            "&Study",
             [
+                ("Review Due Cards…", self._qt_review_due, "Ctrl+Shift+F5",
+                 "Study notes and highlights that are due for "
+                 "spaced-repetition review"),
+                ("Sync with Anki (AnkiConnect)…", self._qt_anki_sync, "",
+                 "Push cards to a running Anki and pull back review progress "
+                 "(requires the AnkiConnect add-on)"),
+                None,
+                # Citations.
                 ("Import…", self._qt_import_citations, "Ctrl+Alt+I",
                  "Import references from a BibTeX / RIS / CSL-JSON file"),
                 # Menu-only: Ctrl+Alt+E is View ▸ Reading Aids ▸ RSVP Mode.
                 ("Export…", self._qt_export_citations, "",
                  "Export the citation library to BibTeX / RIS / CSL-JSON"),
-                None,
                 ("Add Citation…", self._qt_add_citation, "Ctrl+Alt+C",
                  "Add a reference by filling in its fields"),
                 ("Add by DOI…", self._qt_add_citation_by_doi, "Ctrl+Alt+D",
@@ -800,30 +833,33 @@ class ChromeMixin:
                 tip="Cycle to the next color theme")
         )
         view_menu.addAction(_mi("Choose Theme…", "Ctrl+Alt+T", self._qt_pick_theme))
-        view_menu.addAction(
-            _mi(
-                "Reload CSS Themes",
-                "Ctrl+Shift+R",
-                self._qt_reload_css_themes,
-                tip=f"Rescan {THEMES_DIR} for *.css files without restarting",
-            )
+        # Theme maintenance (reload CSS / open the folder) now lives on
+        # Preferences ▸ Display; the classic shortcuts survive as hidden
+        # window-level accelerators so muscle memory keeps working.
+        _reload_css_act = _mi(
+            "Reload CSS Themes",
+            "Ctrl+Shift+R",
+            self._qt_reload_css_themes,
+            tip=f"Rescan {THEMES_DIR} for *.css files without restarting",
         )
-        view_menu.addAction(
-            _mi("Open Themes Folder", "Ctrl+Shift+F", self._qt_open_themes_folder,
-                tip="Open the custom CSS themes folder in your file manager")
+        self.addAction(_reload_css_act)
+        _themes_folder_act = _mi(
+            "Open Themes Folder", "Ctrl+Shift+F", self._qt_open_themes_folder,
+            tip="Open the custom CSS themes folder in your file manager",
         )
+        self.addAction(_themes_folder_act)
         view_menu.addSeparator()
-        view_menu.addAction(
-            _mi(
-                "Caret Browsing",
-                "F7",
-                self._qt_toggle_caret_browsing,
-                tip="Show a movable text caret — keyboard navigation, selection for "
-                "highlights, and define-word at the caret",
-                checkable=True,
-                checked=bool(self.settings.get("qt_caret_browsing", True)),
-            )
+        # Kept as an attribute so Preferences can sync the checkmark.
+        self._caret_act = _mi(
+            "Caret Browsing",
+            "F7",
+            self._qt_toggle_caret_browsing,
+            tip="Show a movable text caret — keyboard navigation, selection for "
+            "highlights, and define-word at the caret",
+            checkable=True,
+            checked=bool(self.settings.get("qt_caret_browsing", True)),
         )
+        view_menu.addAction(self._caret_act)
         view_menu.addAction(
             _mi(
                 "Change Font…",
@@ -853,54 +889,29 @@ class ChromeMixin:
 
         # ── Reading Aids submenu (accessibility) ───────────────────
         aids_menu: QMenu = view_menu.addMenu(tr("Reading Aids"))
-        aids_menu.addAction(
-            _mi(
-                "Text Spacing…",
-                "Ctrl+Alt+W",
-                self._qt_text_spacing_dialog,
-                tip="Adjust line height, letter and word spacing (WCAG 1.4.12)",
-            )
+        # Text spacing + the reading-font chooser (Default / OpenDyslexic /
+        # Atkinson / Lexend) now live in Preferences (Fonts / Display tabs);
+        # the classic shortcut survives as a hidden window-level accelerator.
+        _spacing_act = _mi(
+            "Text Spacing…",
+            "Ctrl+Alt+W",
+            self._qt_text_spacing_dialog,
+            tip="Adjust line height, letter and word spacing (WCAG 1.4.12)",
         )
-        aids_menu.addSeparator()
-        # ── Reading Font chooser (Default / OpenDyslexic / Atkinson / Lexend) ─
-        # Each choice fetches its OFL font from GitHub on demand (no pip) and
-        # applies it app-wide + in-document.  A radio-style submenu; the classic
-        # Ctrl+Alt+X toggle (below) flips OpenDyslexic on/off for muscle memory.
-        font_menu: QMenu = aids_menu.addMenu(tr("Reading Font"))
-        try:
-            from PyQt6.QtGui import QActionGroup
-        except ImportError:
-            from PyQt5.QtWidgets import QActionGroup  # type: ignore[no-redef]
-        self._reading_font_group = QActionGroup(self)
-        self._reading_font_acts: Dict[str, QAction] = {}
+        self.addAction(_spacing_act)
+        # No menu radios anymore — an empty dict keeps _qt_set_reading_font's
+        # checkmark sync a no-op.
+        self._reading_font_acts = {}
         _cur_font = str(self.settings.get("qt_reading_font", "default"))
         if _cur_font == "default" and self.settings.get("qt_dyslexia_font", False):
             _cur_font = "opendyslexic"
-        _FONT_TIPS = {
-            "default": "Use the regular display font",
-            "opendyslexic": "Weighted letterforms that reduce letter flipping "
-                            "(fetched on first use)",
-            "atkinson": "Braille Institute font designed for low vision "
-                        "(fetched on first use)",
-            "lexend": "Spacing-tuned family shown to improve reading "
-                      "fluency (fetched on first use)",
-        }
-        for _label, _key in self._READING_FONT_CHOICES:
-            _act = QAction(tr(_label), self)
-            _act.setCheckable(True)
-            _act.setChecked(_key == _cur_font)
-            _act.setToolTip(tr(_FONT_TIPS.get(_key, "")))
-            _act.triggered.connect(lambda _c=False, k=_key: self._qt_set_reading_font(k))
-            self._reading_font_group.addAction(_act)
-            font_menu.addAction(_act)
-            self._reading_font_acts[_key] = _act
-        # Hidden accelerator preserving the classic dyslexia-font toggle. Keyed on
+        # The classic one-tap dyslexia-font toggle stays in the menu. Keyed on
         # the same English label so keybinding overrides stay stable.
         self._dyslexia_font_act = _mi(
             "Dyslexia-Friendly Font",
             "Ctrl+Alt+X",
             self._qt_toggle_dyslexia_font,
-            tip="Toggle OpenDyslexic on/off (see Reading Font for more choices)",
+            tip="Toggle OpenDyslexic on/off (more choices in Preferences ▸ Display)",
             checkable=True,
             checked=_cur_font != "default",
         )
@@ -971,26 +982,8 @@ class ChromeMixin:
         )
         aids_menu.addAction(self._rsvp_act)
 
-        # ── Interface language (UI i18n) ───────────────────────────────
-        # Localizes the chrome (menus, toolbar, docks).  Native language
-        # names are shown untranslated so a user can always find their own.
-        view_menu.addSeparator()
-        lang_menu: QMenu = view_menu.addMenu(tr("Interface Language"))
-        _current_lang = get_language()
-        for _disp, _code in available_languages():
-            _lang_act = QAction(_disp, self)
-            _lang_act.setCheckable(True)
-            _lang_act.setChecked(_code == _current_lang)
-            # The label is the language's own name; the tip explains the effect.
-            _lang_act.setToolTip(
-                tr("Switch the menus, toolbar, and messages to {language}").format(
-                    language=_disp
-                )
-            )
-            _lang_act.triggered.connect(
-                lambda _checked=False, c=_code: self._set_ui_language(c)
-            )
-            lang_menu.addAction(_lang_act)
+        # (The Interface Language picker moved to Preferences ▸ General in
+        # 0.1.28 — one less submenu; the combo shows native language names.)
 
         # Tools menu — transcription, dictation, and maintenance.
         tools_menu: QMenu = mb.addMenu(tr("Tools"))
@@ -1025,27 +1018,28 @@ class ChromeMixin:
             checkable=True,
         )
         tools_menu.addAction(self._qt_vt_action)
-        tools_menu.addAction(
-            _mi(
-                "Toggle Transcript Timestamps",
-                "Ctrl+Alt+Z",
-                lambda: (
-                    self.settings.set(
-                        "transcribe_timestamps",
-                        not self.settings.get("transcribe_timestamps", False),
-                    ),
-                    self.statusBar().showMessage(
-                        "Transcript timestamps: "
-                        + (
-                            "ON"
-                            if self.settings.get("transcribe_timestamps")
-                            else "OFF"
-                        )
-                    ),
+        # Transcript timestamps now live in Preferences ▸ Voice; the classic
+        # Ctrl+Alt+Z toggle survives as a hidden window-level accelerator.
+        _ts_act = _mi(
+            "Toggle Transcript Timestamps",
+            "Ctrl+Alt+Z",
+            lambda: (
+                self.settings.set(
+                    "transcribe_timestamps",
+                    not self.settings.get("transcribe_timestamps", False),
                 ),
-                tip="Prefix transcribed audio with [hh:mm:ss] segment times",
-            )
+                self.statusBar().showMessage(
+                    "Transcript timestamps: "
+                    + (
+                        "ON"
+                        if self.settings.get("transcribe_timestamps")
+                        else "OFF"
+                    )
+                ),
+            ),
+            tip="Prefix transcribed audio with [hh:mm:ss] segment times",
         )
+        self.addAction(_ts_act)
         tools_menu.addSeparator()
         tools_menu.addAction(
             _mi(
@@ -1088,47 +1082,6 @@ class ChromeMixin:
             )
         )
 
-        # Study menu — spaced-repetition review of notes/highlights.
-        # "Review Due Cards…" owns Ctrl+Shift+F5 (Ctrl+Shift+S/R are already
-        # taken by Reading Statistics / Reload CSS Themes); the Anki sync item
-        # is menu/palette-reachable with no shortcut of its own.
-        study_menu: QMenu = mb.addMenu(tr("&Study"))
-        study_menu.addAction(
-            _mi(
-                "Review Due Cards…",
-                "Ctrl+Shift+F5",
-                self._qt_review_due,
-                tip="Study notes and highlights that are due for spaced-repetition review",
-            )
-        )
-        study_menu.addAction(
-            _mi(
-                "Sync with Anki (AnkiConnect)…",
-                "",
-                self._qt_anki_sync,
-                tip="Push cards to a running Anki and pull back review progress "
-                    "(requires the AnkiConnect add-on)",
-            )
-        )
-
-        # Profiles menu — named bundles of voice/theme/font/highlight.
-        _menu(
-            "Profiles",
-            [
-                (
-                    "Save Current Settings as Profile…",
-                    self._qt_save_profile,
-                    "Ctrl+Shift+K",
-                    "Bundle the current voice, theme, font, and highlight "
-                    "settings under a name",
-                ),
-                ("Load Profile…", self._qt_load_profile, "Ctrl+Shift+J",
-                 "Apply a saved settings profile in one step"),
-                ("Delete Profile…", self._qt_delete_profile, "Ctrl+Shift+Y",
-                 "Remove a saved settings profile"),
-            ],
-        )
-
         # Help menu.
         _menu(
             "Help",
@@ -1163,12 +1116,12 @@ class ChromeMixin:
 
         # Reorder the menu bar so the most-used menus lead: File, Edit,
         # View come first and Help stays last.  The menus are built above
-        # in a dependency-friendly order (Notes before View shares the
+        # in a dependency-friendly order (Annotate before View shares the
         # panel-toggle action; View before Tools shares Reading Level), so
         # here we simply move Edit and View ahead of the rest.  insertMenu
         # relocates an already-added menu rather than duplicating it.
-        mb.insertMenu(hl_menu.menuAction(), edit_menu)
-        mb.insertMenu(hl_menu.menuAction(), view_menu)
+        mb.insertMenu(annotate_menu.menuAction(), edit_menu)
+        mb.insertMenu(annotate_menu.menuAction(), view_menu)
 
         # QMenu hides action tooltips unless told otherwise — without this,
         # every tip= written above is invisible in the menu bar.  Applies to

@@ -210,7 +210,7 @@ DEFAULTS: Dict[str, Any] = {
     "qt_paginate_window_pages": 2,
     # ── Dyslexia-friendly reading aids — Qt GUI ───────────────────
     "qt_dyslexia_font": False,  # prefer a bundled/installed dyslexia-friendly font
-    # Reading-font chooser (View ▸ Reading Aids ▸ Reading Font): "default" (no
+    # Reading-font chooser (Preferences ▸ Display ▸ Reading font): "default" (no
     # override), "opendyslexic", "atkinson" (Atkinson Hyperlegible), or "lexend".
     # Fetched on demand from GitHub (OFL) and applied app-wide + in-document.
     "qt_reading_font": "default",

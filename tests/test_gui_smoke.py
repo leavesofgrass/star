@@ -207,12 +207,18 @@ def test_reading_font_chooser_selects_and_reverts(window):
     assert app.font().family() == original
 
 
-def test_reading_font_submenu_present_with_all_families(window):
-    """View ▸ Reading Aids ▸ Reading Font offers Default + the three families."""
-    acts = window._reading_font_acts
-    assert set(acts) == {"default", "opendyslexic", "atkinson", "lexend"}
-    # Exactly one is checked (radio behavior via the QActionGroup).
-    assert sum(1 for a in acts.values() if a.isChecked()) == 1
+def test_reading_font_lives_in_preferences_not_a_submenu(window):
+    """0.1.28: the Reading Font radios left the View menu for Preferences ▸
+    Display — the menu keeps only the one-tap dyslexia toggle.  The empty
+    registry must stay a dict so _qt_set_reading_font's checkmark sync is a
+    clean no-op, and every family must still be settable without menu radios."""
+    assert window._reading_font_acts == {}
+    assert window._dyslexia_font_act is not None  # quick toggle survives
+    window._find_dyslexia_font = lambda prefer="": (prefer or "OpenDyslexic")
+    for key in ("default", "opendyslexic", "atkinson", "lexend"):
+        window._qt_set_reading_font(key)
+        assert window.settings.get("qt_reading_font") == key
+    window._qt_set_reading_font("default")
 
 
 def test_syllable_split_is_display_only(window, monkeypatch):

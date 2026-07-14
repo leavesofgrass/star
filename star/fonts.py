@@ -2,7 +2,7 @@
 
 star does not bundle font binaries; instead the files are downloaded from their
 upstream GitHub repositories into star's cache dir the first time the reader
-picks a reading font (View ▸ Reading Aids ▸ Reading Font). This keeps them
+picks a reading font (Preferences ▸ Display ▸ Reading font). This keeps them
 *optional* assets — fetched only when wanted, never shipped in the wheel/pyz.
 
 Three families are supported, each an openly-licensed typeface tuned for

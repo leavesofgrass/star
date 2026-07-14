@@ -31,7 +31,7 @@ button labels, and dock titles. They are loaded at runtime by
    ]
    ```
 
-4. The new language appears in **View ▸ Interface Language** on next launch.
+4. The new language appears in **Preferences ▸ General ▸ Interface language** on next launch.
 
 ## Finding the strings to translate
 

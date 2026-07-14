@@ -26,6 +26,17 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ### 🔧 Changed
 
+- **The menu bar slimmed from 15 menus to 11 — with every command and every
+  shortcut retained.** **Highlight**, **Notes**, and **Bookmarks** merged
+  into one **Annotate** menu; **Citations** joined **Study**; **Profiles**
+  moved into **Edit** beside Preferences. Settings-type menu items whose
+  home is now Preferences left the menus: the SSML and transcript-timestamp
+  toggles, the Interface Language submenu, the Reading Font submenu, the
+  theme reload/folder pair, and the Text Spacing dialog entry. Their classic
+  shortcuts (Ctrl+Alt+Y, Ctrl+Alt+Z, Ctrl+Alt+W, Ctrl+Shift+R,
+  Ctrl+Shift+F) all still work as hidden window-level accelerators, remain
+  remappable in Customize Shortcuts, and every command is still one F2
+  palette search away.
 - **Every setting now has a home in Preferences (Ctrl+,).** Settings that
   previously lived only as menu items — SSML prosody, transcript
   timestamps, caret browsing, bionic reading, the interface language — plus

@@ -220,14 +220,20 @@ def test_underline_wraps_selection_in_html(window):
 
 
 def test_menu_bar_padding_is_tightened(window):
-    """star has ~15 top-level menus; the bar carries a QMenuBar::item padding
+    """star has ~11 top-level menus; the bar carries a QMenuBar::item padding
     override so they all fit on a 1080p display instead of overflowing into a
     chevron."""
     ss = window.menuBar().styleSheet()
     assert "QMenuBar::item" in ss and "padding" in ss
-    # A generous count of menus is exactly why the tightening exists.
-    menus = [a for a in window.menuBar().actions() if a.menu()]
-    assert len(menus) >= 12
+    # The 0.1.28 simplification: exactly these eleven menus, in this order
+    # (Highlight+Notes+Bookmarks merged into Annotate; Citations into Study;
+    # Profiles into Edit) — a menu creeping back in should be a conscious act.
+    menus = [a.menu().title().replace("&", "")
+             for a in window.menuBar().actions() if a.menu()]
+    assert menus == [
+        "File", "Edit", "View", "Annotate", "Speech", "Navigate",
+        "Format", "Study", "Graph", "Tools", "Help",
+    ]
 
 
 def test_formatting_is_a_no_op_outside_edit_mode(window):
