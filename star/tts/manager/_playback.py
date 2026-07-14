@@ -115,15 +115,26 @@ class PlaybackMixin:
                 abs_loc = location + text_offset
                 for i, wp in enumerate(self._word_map):
                     if wp.tts_offset <= abs_loc < wp.tts_offset + wp.tts_len + 1:
-                        # Monotonic write: only advance, never retreat.
-                        # Delayed or out-of-order SAPI5 callbacks for earlier
-                        # words must not clobber a later confirmed position
-                        # (which would make _tts_toggle save the wrong pause
-                        # word and cause a backward snap on resume).
+                        # ALWAYS record the engine-confirmed position — it is
+                        # the audio truth the timer's pacing guard runs on.
+                        # This write used to sit inside the monotonic check
+                        # below, which starved the guard whenever the timer
+                        # estimate had run ahead (every callback was then
+                        # "behind" and discarded): _last_cb_time went stale,
+                        # the timeout bypass kicked in, and the highlight
+                        # free-ran to the end of the document with nothing
+                        # ever able to rein it back in.
+                        self._last_cb_word_idx = i
+                        self._last_cb_time = time.monotonic()
+                        # Monotonic write for the shared estimate: only
+                        # advance, never retreat.  Delayed or out-of-order
+                        # SAPI5 callbacks for earlier words must not clobber
+                        # a later confirmed position (which would make
+                        # _tts_toggle save the wrong pause word and cause a
+                        # backward snap on resume).  The timer clamps the
+                        # estimate back down when it truly overshoots.
                         if i >= self._current_word_idx:
                             self._current_word_idx = i
-                            self._last_cb_word_idx = i
-                            self._last_cb_time = time.monotonic()
                         break
 
             self._expect_callbacks = True
@@ -208,12 +219,20 @@ class PlaybackMixin:
         # single word so the highlight sits on the word being spoken rather than
         # drifting up to four ahead.
         _MAX_AHEAD = 1 if self._paced_playback else 4
-        # If no callback has arrived within this many seconds the guard is
-        # bypassed entirely: SAPI5 sometimes stops firing callbacks mid-text,
-        # and without this escape the highlight would freeze while speech
-        # continues.  1.5 s ≈ 6 words at 240 wpm — long enough to ride out
-        # normal punctuation pauses, short enough to feel responsive.
+        # If no callback has arrived within this many seconds the engine is
+        # mid-pause (heading, paragraph break, a long number being spoken):
+        # the timer HOLDS at the pacing cap instead of advancing, because a
+        # backend that has produced word events this utterance will produce
+        # more when the audio resumes.  1.5 s ≈ 6 words at 240 wpm — long
+        # enough to ride out normal punctuation pauses.
         _CB_TIMEOUT = 1.5
+        # Only after THIS long with no events is the callback stream deemed
+        # genuinely dead (a SAPI5 configuration that stops firing mid-text)
+        # and the timer free-runs so the highlight never freezes.  The old
+        # behavior free-ran at _CB_TIMEOUT already, which turned every long
+        # pause into a runaway: the timer sprinted ahead during the silence
+        # and (with the guard starved — see on_word_cb) never came back.
+        _CB_DEAD = 6.0
         # First-audio anchor window.  When the backend reports real per-word
         # events, the timer holds its first paint until the first event arrives
         # (≈ audio onset) so the highlight does not start counting from the
@@ -265,21 +284,34 @@ class PlaybackMixin:
                     return
                 # Adopt the engine's position when it has run ahead of the
                 # timer estimate (e.g. fast speech or SSML pauses consumed).
-                # Never go backward — that would cause the highlight to jump
-                # back to a word that was already spoken.
                 if self._current_word_idx > idx:
                     idx = self._current_word_idx
-                # Pacing guard: keep the highlight within _MAX_AHEAD words
-                # of the last callback-confirmed audio position.  Only active
-                # while callbacks are both firing AND recent; if SAPI5 stops
-                # sending callbacks (_CB_TIMEOUT exceeded) the guard is
-                # bypassed so the highlight never freezes mid-document.
-                if (
-                    self._last_cb_word_idx >= 0
-                    and idx >= self._last_cb_word_idx + _MAX_AHEAD
-                    and (time.monotonic() - self._last_cb_time) < _CB_TIMEOUT
-                ):
-                    continue  # hold briefly — callbacks are active but lagging
+                # Pacing guard: keep the highlight on the last callback-
+                # confirmed audio position.  Three regimes, by the age of the
+                # newest callback:
+                #   fresh (< _CB_TIMEOUT)  — clamp the estimate to the
+                #     confirmed word itself and paint there: a word event
+                #     fires at that word's audio onset, so this IS the word
+                #     being voiced.  The one deliberate backward correction,
+                #     taken only toward engine truth, so an overshoot (from a
+                #     pause or a slow voice) heals on the next tick instead
+                #     of persisting forever.  Users who want anticipation
+                #     have the highlight_lead_words setting.
+                #   pause (< _CB_DEAD)     — hold within _MAX_AHEAD of the
+                #     confirmed word without advancing: the engine fired
+                #     events this utterance and will fire more when the
+                #     audio resumes;
+                #   dead  (>= _CB_DEAD)    — free-run so the highlight never
+                #     freezes on a backend that stops firing mid-text.
+                # Inactive when no callback ever fired (SSML mode and
+                # non-event backends: _last_cb_word_idx stays -1).
+                if self._last_cb_word_idx >= 0:
+                    cb = self._last_cb_word_idx
+                    cb_age = time.monotonic() - self._last_cb_time
+                    if idx > cb and cb_age < _CB_TIMEOUT:
+                        idx = cb
+                    elif idx > cb + _MAX_AHEAD and cb_age < _CB_DEAD:
+                        continue  # mid-utterance pause — hold, don't run away
                 if idx < len(self._word_map):
                     # Second gen-check immediately before the display call.
                     # Closes the narrow window between the first check above

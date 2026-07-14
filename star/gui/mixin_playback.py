@@ -134,7 +134,12 @@ class PlaybackMixin:
         * While stopped  → start from the beginning.
         """
         if self.tts_manager.speaking:
-            saved = self.tts_manager.current_word_idx
+            # Prefer the last callback-confirmed position — actual audio
+            # position rather than the timer's estimate — exactly like the
+            # TUI's pause (star/tui/mixin_playback.py): resuming may repeat
+            # a word but never skips one.
+            cb = self.tts_manager.last_cb_word_idx
+            saved = cb if cb >= 0 else self.tts_manager.current_word_idx
             # Suppress the stop announcement here — this is a *pause*, and we
             # announce that explicitly below so a screen reader says "Paused"
             # rather than "Stopped".

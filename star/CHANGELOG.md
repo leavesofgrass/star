@@ -22,6 +22,16 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
   streams as sequences, so tables, skipped code blocks, and any other place
   where what is *said* differs from what is *shown* stay in sync — narration
   words simply park the highlight on the content they describe.
+- **The highlight can no longer run away from the voice.** The word-timing
+  estimate is paced by the speech engine's own word events, but engine
+  positions behind the estimate were discarded, so once the estimate crept
+  ahead (a slow voice, a long pause) nothing could ever pull it back — after
+  1.5 s of silence it sprinted to the end of the document. Engine positions
+  are now always recorded and the highlight snaps to the word whose audio is
+  actually playing; during a pause it holds instead of running, and the
+  free-run escape remains only for engines that stop reporting entirely.
+  Measured against a live SAPI5 voice: the painted word now *is* the spoken
+  word (drift 0) from the first word to the last.
 
 ### ⚠️ Deprecated
 
