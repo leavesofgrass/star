@@ -26,6 +26,14 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ### 🔧 Changed
 
+- **Every setting now has a home in Preferences (Ctrl+,).** Settings that
+  previously lived only as menu items — SSML prosody, transcript
+  timestamps, caret browsing, bionic reading, the interface language — plus
+  two that had no UI at all (table reading mode, skip code blocks) are now
+  on the Preferences tabs, with the same live-apply behavior as everything
+  else. The Display tab also gained **Reload CSS themes** and **Open themes
+  folder…** buttons, and its theme list now includes your custom CSS themes
+  alongside the built-ins.
 - **`[all]` now includes voice dictation.** The `[transcribe]` stack
   (faster-whisper, sounddevice, numpy) joins the `all` extra — the old
   exclusion dated from the openai-whisper/PyTorch era, when it weighed over

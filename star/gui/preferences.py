@@ -21,7 +21,7 @@ try:  # QTabWidget is not re-exported by _runtime; import it directly.
 except ImportError:  # PyQt5 fallback
     from PyQt5.QtWidgets import QTabWidget  # type: ignore[no-redef]
 
-from ..i18n import tr
+from ..i18n import available_languages, get_language, tr
 from ..settings import DEFAULTS, WHISPER_MODELS
 from ..themes import BUILT_IN_THEME_NAMES
 from .a11y import announce
@@ -40,6 +40,7 @@ _SYNC_POLICIES = ["newest", "highest_progress", "manual"]
 _FOOTNOTE_MODES = ["inline", "deferred", "skip"]
 _AUDIOBOOK_BITRATES = ["32k", "48k", "64k", "96k", "128k"]
 _WHISPER_MODELS = list(WHISPER_MODELS)
+_TABLE_MODES = ["structured", "flat", "skip"]
 
 
 def _std_button(box, name: str):
@@ -320,6 +321,35 @@ class PreferencesDialog(QDialog):
         self.syllable_sep.setToolTip(tr("Single character shown between syllables"))
         form.addRow(tr("Syllable separator:"), self.syllable_sep)
 
+        self.caret_browsing = QCheckBox(tr("Caret browsing (movable text cursor)"))
+        self.caret_browsing.setToolTip(
+            tr("Show a movable caret in the reading view — keyboard "
+               "navigation, selection for highlights, define-word (F7)")
+        )
+        self.caret_browsing.setChecked(bool(self.settings.get("qt_caret_browsing", True)))
+        form.addRow(tr("Caret browsing:"), self.caret_browsing)
+
+        self.table_mode = QComboBox()
+        self.table_mode.addItems(_TABLE_MODES)
+        curtm = str(self.settings.get("table_reading_mode", "structured"))
+        self.table_mode.setCurrentIndex(
+            _TABLE_MODES.index(curtm) if curtm in _TABLE_MODES else 0
+        )
+        self.table_mode.setToolTip(
+            tr("How tables are read aloud: structured narrates rows and "
+               "columns, flat reads cells left to right, skip omits tables. "
+               "Applies when a document is (re)opened.")
+        )
+        form.addRow(tr("Table reading:"), self.table_mode)
+
+        self.skip_code = QCheckBox(tr("Skip code blocks when reading aloud"))
+        self.skip_code.setToolTip(
+            tr("Leave fenced code out of the narration. Applies when a "
+               "document is (re)opened.")
+        )
+        self.skip_code.setChecked(bool(self.settings.get("tts_skip_code", True)))
+        form.addRow(tr("Code blocks:"), self.skip_code)
+
         self.tabs.addTab(w, tr("Reading"))
 
     # ── Reading Aids tab (convenience: pick your combination) ─────────────────
@@ -358,6 +388,10 @@ class PreferencesDialog(QDialog):
         form.addRow(self.aid_autoscroll)
 
         # New in Preferences — canonical here (previously View-menu only).
+        self.aid_bionic = QCheckBox(tr("Bionic reading (embolden word starts)"))
+        self.aid_bionic.setChecked(bool(self.settings.get("qt_bionic_reading", False)))
+        form.addRow(self.aid_bionic)
+
         self.aid_ruler = QCheckBox(tr("Reading ruler (a movable focus band)"))
         self.aid_ruler.setChecked(bool(self.settings.get("qt_reading_ruler", False)))
         form.addRow(self.aid_ruler)
@@ -463,6 +497,23 @@ class PreferencesDialog(QDialog):
         )
         form.addRow(tr("Dictation model:"), self.whisper_box)
 
+        self.transcript_ts = QCheckBox(tr("Timestamp transcripts ([hh:mm:ss])"))
+        self.transcript_ts.setToolTip(
+            tr("Prefix transcribed audio with the segment start times")
+        )
+        self.transcript_ts.setChecked(
+            bool(self.settings.get("transcribe_timestamps", False))
+        )
+        form.addRow("", self.transcript_ts)
+
+        self.ssml = QCheckBox(tr("SSML prosody (richer pausing)"))
+        self.ssml.setToolTip(
+            tr("Wrap speech in SSML for fuller sentence/clause pauses — may "
+               "loosen word-highlight accuracy on some engines")
+        )
+        self.ssml.setChecked(bool(self.settings.get("use_ssml", False)))
+        form.addRow("", self.ssml)
+
         self.tabs.addTab(w, tr("Voice"))
 
     # ── Display tab ──────────────────────────────────────────────────────────
@@ -490,12 +541,18 @@ class PreferencesDialog(QDialog):
         self.font_btn.clicked.connect(self._choose_font)
         form.addRow(tr("Display font:"), self.font_btn)
 
+        # Built-ins plus any custom *.css themes (same list as Choose Theme…).
+        try:
+            theme_names = list(self.win._all_theme_names)
+        except Exception:
+            theme_names = list(BUILT_IN_THEME_NAMES)
+        self._theme_names = theme_names
         self.theme_box = QComboBox()
-        self.theme_box.addItems(BUILT_IN_THEME_NAMES)
+        self.theme_box.addItems(theme_names)
         curt = str(self.settings.get("theme", "obsidian"))
         self._orig_theme = curt  # to detect a deliberate change on apply
         self.theme_box.setCurrentIndex(
-            BUILT_IN_THEME_NAMES.index(curt) if curt in BUILT_IN_THEME_NAMES else 0
+            theme_names.index(curt) if curt in theme_names else 0
         )
         form.addRow(tr("Theme:"), self.theme_box)
 
@@ -503,6 +560,44 @@ class PreferencesDialog(QDialog):
         self._orig_follow_os = bool(self.settings.get("qt_follow_os_theme", True))
         self.follow_os.setChecked(self._orig_follow_os)
         form.addRow(tr("Follow OS theme:"), self.follow_os)
+
+        # Custom-theme maintenance (previously View-menu items).  These act
+        # immediately — they manage files on disk, not staged settings.
+        theme_tools = QWidget()
+        tt = QHBoxLayout(theme_tools)
+        tt.setContentsMargins(0, 0, 0, 0)
+        reload_btn = QPushButton(tr("Reload CSS themes"))
+        reload_btn.setToolTip(tr("Rescan the themes folder for *.css files"))
+        open_btn = QPushButton(tr("Open themes folder…"))
+        open_btn.setToolTip(
+            tr("Every theme is an editable CSS file — copy one, rename it, "
+               "and edit freely")
+        )
+
+        def _reload_themes() -> None:
+            try:
+                self.win._qt_reload_css_themes()
+            except Exception:
+                return
+            # Refresh the combo so a just-added file is choosable right away.
+            try:
+                names = list(self.win._all_theme_names)
+            except Exception:
+                return
+            cur = self.theme_box.currentText()
+            self._theme_names = names
+            self.theme_box.clear()
+            self.theme_box.addItems(names)
+            if cur in names:
+                self.theme_box.setCurrentIndex(names.index(cur))
+
+        reload_btn.clicked.connect(_reload_themes)
+        open_btn.clicked.connect(
+            lambda: getattr(self.win, "_qt_open_themes_folder", lambda: None)()
+        )
+        tt.addWidget(reload_btn)
+        tt.addWidget(open_btn)
+        form.addRow(tr("Custom themes:"), theme_tools)
 
         self.tabs.addTab(w, tr("Display"))
 
@@ -585,6 +680,22 @@ class PreferencesDialog(QDialog):
         w = QWidget()
         form = QFormLayout(w)
 
+        # Interface language — native names shown untranslated so a user can
+        # always find their own.  Stored as the language code.
+        self.lang_box = QComboBox()
+        self._lang_codes: list = []
+        cur_lang = get_language()
+        for disp, code in available_languages():
+            self.lang_box.addItem(disp)
+            self._lang_codes.append(code)
+        self._orig_lang = cur_lang
+        if cur_lang in self._lang_codes:
+            self.lang_box.setCurrentIndex(self._lang_codes.index(cur_lang))
+        self.lang_box.setToolTip(
+            tr("Language for the menus, toolbar, and messages")
+        )
+        form.addRow(tr("Interface language:"), self.lang_box)
+
         self.auto_install = QCheckBox(tr("Auto-install optional features on demand"))
         self.auto_install.setChecked(bool(self.settings.get("auto_install", True)))
         form.addRow(tr("Optional features:"), self.auto_install)
@@ -659,7 +770,11 @@ class PreferencesDialog(QDialog):
         self.current_line.setChecked(bool(D["qt_current_line_highlight"]))
         self.autoscroll.setChecked(bool(D["qt_autoscroll"]))
         self.syllable_sep.setText(str(D["qt_syllable_sep"]))
+        self.caret_browsing.setChecked(bool(D["qt_caret_browsing"]))
+        _combo(self.table_mode, _TABLE_MODES, "table_reading_mode")
+        self.skip_code.setChecked(bool(D["tts_skip_code"]))
         # Reading Aids tab (mirrors of the above follow via _link_checkboxes).
+        self.aid_bionic.setChecked(bool(D["qt_bionic_reading"]))
         self.aid_ruler.setChecked(bool(D["qt_reading_ruler"]))
         self.aid_syllables.setChecked(bool(D["qt_syllable_split"]))
         self.aid_vocab.setChecked(bool(D["qt_vocab_highlight"]))
@@ -677,14 +792,19 @@ class PreferencesDialog(QDialog):
         self.eleven_key.setText(str(D["elevenlabs_api_key"]))
         _combo(self.bitrate_box, _AUDIOBOOK_BITRATES, "audiobook_bitrate")
         _combo(self.whisper_box, _WHISPER_MODELS, "whisper_model")
+        self.transcript_ts.setChecked(bool(D["transcribe_timestamps"]))
+        self.ssml.setChecked(bool(D["use_ssml"]))
         # Display.
         _combo(self.reading_font, _READING_FONTS, "qt_reading_font")
         self._font_family = str(D["qt_font_family"])
         self._font_size = int(D["qt_font_size"])
         self._refresh_font_btn()
-        _combo(self.theme_box, list(BUILT_IN_THEME_NAMES), "theme")
+        _combo(self.theme_box, self._theme_names, "theme")
         self.follow_os.setChecked(bool(D["qt_follow_os_theme"]))
         # General.
+        default_lang = str(D["ui_language"])
+        if default_lang in self._lang_codes:
+            self.lang_box.setCurrentIndex(self._lang_codes.index(default_lang))
         self.auto_install.setChecked(bool(D["auto_install"]))
         self.auto_updates.setChecked(bool(D["auto_check_updates"]))
         _combo(self.sync_policy, _SYNC_POLICIES, "sync_conflict_policy")
@@ -716,7 +836,11 @@ class PreferencesDialog(QDialog):
         d["qt_current_line_highlight"] = self.current_line.isChecked()
         d["qt_autoscroll"] = self.autoscroll.isChecked()
         d["qt_syllable_sep"] = self.syllable_sep.text() or "·"
+        d["qt_caret_browsing"] = self.caret_browsing.isChecked()
+        d["table_reading_mode"] = self.table_mode.currentText()
+        d["tts_skip_code"] = self.skip_code.isChecked()
         # Reading Aids tab (on/off toggles surfaced there).
+        d["qt_bionic_reading"] = self.aid_bionic.isChecked()
         d["qt_reading_ruler"] = self.aid_ruler.isChecked()
         d["qt_syllable_split"] = self.aid_syllables.isChecked()
         d["qt_vocab_highlight"] = self.aid_vocab.isChecked()
@@ -735,13 +859,18 @@ class PreferencesDialog(QDialog):
         d["elevenlabs_api_key"] = self.eleven_key.text()
         d["audiobook_bitrate"] = self.bitrate_box.currentText()
         d["whisper_model"] = self.whisper_box.currentText()
+        d["transcribe_timestamps"] = self.transcript_ts.isChecked()
+        d["use_ssml"] = self.ssml.isChecked()
         # Display.
         d["qt_reading_font"] = self.reading_font.currentText()
         d["qt_font_family"] = self._font_family
         d["qt_font_size"] = self._font_size
         d["theme"] = self.theme_box.currentText()
         d["qt_follow_os_theme"] = self.follow_os.isChecked()
-        # General.
+        # General.  (ui_language is applied via _set_ui_language in _apply so
+        # the chrome rebuilds; write the staged code here all the same.)
+        if self._lang_codes:
+            d["ui_language"] = self._lang_codes[self.lang_box.currentIndex()]
         d["auto_install"] = self.auto_install.isChecked()
         d["auto_check_updates"] = self.auto_updates.isChecked()
         d["sync_conflict_policy"] = self.sync_policy.currentText()
@@ -902,6 +1031,8 @@ class PreferencesDialog(QDialog):
             ("_syllable_act", "qt_syllable_split"),
             ("_vocab_act", "qt_vocab_highlight"),
             ("_current_line_act", "qt_current_line_highlight"),
+            ("_bionic_act", "qt_bionic_reading"),
+            ("_caret_act", "qt_caret_browsing"),
         ):
             act = getattr(win, _attr, None)
             if act is not None:
@@ -909,6 +1040,25 @@ class PreferencesDialog(QDialog):
                     act.setChecked(bool(self.settings.get(_key, False)))
                 except Exception:
                     pass
+
+        # Caret browsing — reflect the checkbox onto the live reading view
+        # (bionic needs no extra hook: _apply_qt_theme above re-renders with
+        # the new qt_bionic_reading already written).
+        try:
+            if not getattr(win, "_qt_edit_mode", False):
+                win._apply_caret_mode()
+        except Exception:
+            pass
+
+        # Interface language — route a *change* through the same helper as
+        # the old View-menu radios so the chrome rebuilds live.
+        try:
+            new_lang = str(self.settings.get("ui_language", "en"))
+            if new_lang != self._orig_lang:
+                win._set_ui_language(new_lang)
+                self._orig_lang = new_lang  # Apply twice ≠ rebuild twice
+        except Exception:
+            pass
 
         # Persist everything.
         try:

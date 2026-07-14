@@ -40,6 +40,44 @@ def dlg(window):
     d.deleteLater()
 
 
+def test_consolidated_settings_round_trip_through_apply(dlg, window):
+    """The 0.1.28 consolidation: settings that used to live only in menus
+    (SSML, transcript timestamps, caret browsing, table reading mode, skip
+    code, bionic reading, interface language) write + apply from Preferences."""
+    dlg.caret_browsing.setChecked(False)
+    dlg.table_mode.setCurrentIndex(dlg.table_mode.findText("flat"))
+    dlg.skip_code.setChecked(False)
+    dlg.aid_bionic.setChecked(True)
+    dlg.transcript_ts.setChecked(True)
+    dlg.ssml.setChecked(True)
+    dlg._apply()
+    s = window.settings
+    assert s.get("qt_caret_browsing") is False
+    assert s.get("table_reading_mode") == "flat"
+    assert s.get("tts_skip_code") is False
+    assert s.get("qt_bionic_reading") is True
+    assert s.get("transcribe_timestamps") is True
+    assert s.get("use_ssml") is True
+
+
+def test_language_combo_stages_ui_language(dlg, window):
+    """The General-tab language combo writes the language CODE (not the
+    display name) into ui_language."""
+    assert dlg._lang_codes, "no languages available"
+    # Stage whatever is at index 0 (English in the shipped catalogs).
+    dlg.lang_box.setCurrentIndex(0)
+    dlg._write_settings()
+    assert window.settings._data["ui_language"] == dlg._lang_codes[0]
+
+
+def test_theme_combo_lists_community_palettes(dlg):
+    """The Display-tab theme combo carries the full registry — including the
+    0.1.28 community palettes and any custom CSS themes."""
+    names = [dlg.theme_box.itemText(i) for i in range(dlg.theme_box.count())]
+    for expected in ("obsidian", "dracula", "nord", "catppuccin-mocha"):
+        assert expected in names
+
+
 def test_reading_aids_and_fonts_round_trip_through_apply(dlg, window):
     """Both new tabs in one dialog/window (fewer teardowns): the Apply hook
     writes+applies the Reading-Aids toggles and the Fonts spacing without
