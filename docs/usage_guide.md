@@ -72,7 +72,7 @@ included as a first right-to-left catalog.
 1. On first launch, the **Optional Features** window opens with an **Interface
    language** dropdown at the top — choose your language there. The whole
    interface switches immediately, with no restart.
-2. To change it later, use **View ▸ Interface Language** in the Qt GUI.
+2. To change it later, use **Preferences ▸ General ▸ Interface language** in the Qt GUI.
 
 **Right-to-left languages.** Selecting a right-to-left interface language (such
 as Arabic) mirrors the whole app — menus, toolbar, and panels flip to the right
@@ -139,10 +139,10 @@ terminal UI, so a bookmark set in one interface shows up in the other.
 **Add and use bookmarks**
 
 1. Move to the spot you want to remember, then press **Ctrl+M** (or
-   **Bookmarks ▸ Add Bookmark**). star saves it with an auto-name (`mark1`,
+   **Annotate ▸ Add Bookmark**). star saves it with an auto-name (`mark1`,
    `mark2`, …) and shows the position percentage in the status bar.
-2. To name it yourself, use **Bookmarks ▸ Add Named Bookmark…** and type a name.
-3. To return to one, open **Bookmarks ▸ Bookmarks…**, pick an entry (they are
+2. To name it yourself, use **Annotate ▸ Add Named Bookmark…** and type a name.
+3. To return to one, open **Annotate ▸ Bookmarks…**, pick an entry (they are
    listed in document order), and press **Enter** or click **Go**. Use
    **Delete** to remove one.
 
@@ -225,7 +225,7 @@ you (using the FSRS spaced-repetition algorithm).
 
 1. Select a passage and apply a **Highlight** (toolbar button or
    **Ctrl+Shift+1…5**).
-2. Add a note with **Ctrl+Shift+A** (**Notes ▸ Add Note at Cursor…**). The
+2. Add a note with **Ctrl+Shift+A** (**Annotate ▸ Add Note at Cursor…**). The
    highlighted passage becomes the front of a card and your note the back.
 
 **Review due cards**
@@ -297,7 +297,7 @@ live under **View ▸ Reading Aids** unless noted.
   installed, star fetches OpenDyslexic automatically in the background (no `pip`,
   nothing to install by hand) and falls back gracefully offline.
 - **Reading font chooser.** For more choices than the dyslexia toggle, open
-  **View ▸ Reading Aids ▸ Reading Font** and pick **Default**, **OpenDyslexic**,
+  **Preferences ▸ Display ▸ Reading font** and pick **Default**, **OpenDyslexic**,
   **Atkinson Hyperlegible** (a Braille Institute face designed for low vision),
   or **Lexend**. The chosen font applies everywhere; each is fetched on first use
   in the background (no `pip`). Menu-only — no shortcut. (The `Ctrl+Alt+X`
@@ -419,12 +419,12 @@ trigger it).
 | Next / previous table | — | `Ctrl+T` / `Ctrl+Shift+T` | `t` / `T` |
 | Next / previous sentence | (Navigate toolbar) | `Alt+.` / `Alt+,` | `.` / `,` |
 | History: back / forward | Navigate ▸ Back / Forward | `Alt+←` / `Alt+→` | `H` / `L` |
-| Add bookmark | Bookmarks ▸ Add Bookmark | `Ctrl+M` | `M-x bookmark-set` |
-| Add named bookmark | Bookmarks ▸ Add Named Bookmark… | — | `M-x bookmark-set <name>` |
-| List / jump to bookmarks | Bookmarks ▸ Bookmarks… | — | `M-x bookmark-list` / `bookmark-goto` |
-| Save settings as a profile | Profiles ▸ Save Current Settings… | `Ctrl+Shift+K` | `M-x profile-save <name>` |
-| Load a profile | Profiles ▸ Load Profile… | `Ctrl+Shift+J` | `M-x profile-load <name>` |
-| Delete a profile | Profiles ▸ Delete Profile… | `Ctrl+Shift+Y` | `M-x profile-delete <name>` |
+| Add bookmark | Annotate ▸ Add Bookmark | `Ctrl+M` | `M-x bookmark-set` |
+| Add named bookmark | Annotate ▸ Add Named Bookmark… | — | `M-x bookmark-set <name>` |
+| List / jump to bookmarks | Annotate ▸ Bookmarks… | — | `M-x bookmark-list` / `bookmark-goto` |
+| Save settings as a profile | Edit ▸ Save Current Settings… | `Ctrl+Shift+K` | `M-x profile-save <name>` |
+| Load a profile | Edit ▸ Load Profile… | `Ctrl+Shift+J` | `M-x profile-load <name>` |
+| Delete a profile | Edit ▸ Delete Profile… | `Ctrl+Shift+Y` | `M-x profile-delete <name>` |
 | Toggle edit mode | (Edit toolbar button) | `Ctrl+E` | — |
 | Save document | (Save toolbar button) | `Ctrl+S` | — |
 | Bold / italic / underline (edit mode) | Format ▸ Bold / Italic / Underline | `Ctrl+B` / `Ctrl+I` / `Ctrl+U` | — |
@@ -437,15 +437,15 @@ trigger it).
 | Search backward (TUI) | — | — | `M-x search-backward` (`?`) |
 | Cycle color theme (incl. high-contrast) | View ▸ Next Theme | `F5` | `F5` |
 | Choose theme by name | View ▸ Choose Theme… | `Ctrl+Alt+T` | `M-x theme <name>` |
-| Reload CSS themes | View ▸ Reload CSS Themes | `Ctrl+Shift+R` | — |
-| Open themes folder | View ▸ Open Themes Folder | `Ctrl+Shift+F` | — |
+| Reload CSS themes | Preferences ▸ Display ▸ Reload CSS themes | `Ctrl+Shift+R` | — |
+| Open themes folder | Preferences ▸ Display ▸ Open themes folder… | `Ctrl+Shift+F` | — |
 | Toggle Contents panel | View ▸ Toggle Contents Panel | `Ctrl+\` | — |
 | Toggle Notes panel | View ▸ Toggle Notes Panel | `Ctrl+Shift+N` | `M-x annotations-list` |
 | Change font | View ▸ Change Font… | `Ctrl+Alt+F` | `M-x font <family>` |
-| Text spacing | View ▸ Reading Aids ▸ Text Spacing… | `Ctrl+Alt+W` | — |
+| Text spacing | Preferences ▸ Fonts | `Ctrl+Alt+W` | — |
 | Karaoke highlight / granularity / colors | Edit ▸ Preferences… (or Command Palette: Tune Karaoke Highlight…) | `Ctrl+,` | `M-x highlight-granularity` |
 | Dyslexia-friendly font | View ▸ Reading Aids ▸ Dyslexia-Friendly Font | `Ctrl+Alt+X` | — |
-| Reading font (Default/OpenDyslexic/Atkinson/Lexend) | View ▸ Reading Aids ▸ Reading Font | — (menu only) | — |
+| Reading font (Default/OpenDyslexic/Atkinson/Lexend) | Preferences ▸ Display ▸ Reading font | — (menu only) | — |
 | Bionic reading | View ▸ Reading Aids ▸ Bionic Reading | `Ctrl+Alt+J` | — |
 | Syllable splitting | View ▸ Reading Aids ▸ Syllable Splitting | — (menu only) | — |
 | Current-line highlight | View ▸ Reading Aids ▸ Current-Line Highlight | `Ctrl+Alt+L` | — |
@@ -455,25 +455,25 @@ trigger it).
 | RSVP mode | View ▸ Reading Aids ▸ RSVP Mode | `Ctrl+Alt+E` | `M-x rsvp-mode` |
 | RSVP position | Edit ▸ Preferences… (or Command Palette: Tune RSVP Position…) | `Ctrl+,` | `M-x rsvp-position` |
 | Show reading level | View ▸ Reading Level | `Ctrl+L` | `M-x reading-level` |
-| Interface language | View ▸ Interface Language | — | — |
-| Highlight selection (5 colors) | Highlight ▸ Yellow … Orange | `Ctrl+Shift+1` … `Ctrl+Shift+5` | — |
-| Clear all highlights | Highlight ▸ Clear All Highlights | `Ctrl+Shift+0` | — |
-| Add note at cursor | Notes ▸ Add Note at Cursor… | `Ctrl+Shift+A` | `M-x annotate` (`a`) |
-| Edit selected note | Notes ▸ Edit Note | `Ctrl+Shift+E` | `M-x annotation-goto` |
-| Delete selected note | Notes ▸ Delete Note | `Ctrl+Shift+D` | `M-x annotation-delete` |
-| Export notes | Notes ▸ Export Notes… | `Ctrl+Alt+N` | `M-x annotations-export` |
-| Import citations | Citations ▸ Import… | `Ctrl+Alt+I` | — |
-| Export citations | Citations ▸ Export… | `Ctrl+Alt+E` | — |
-| Add citation | Citations ▸ Add Citation… | `Ctrl+Alt+C` | — |
-| Add citation by DOI | Citations ▸ Add by DOI… | `Ctrl+Alt+D` | — |
-| Insert citation at cursor | Citations ▸ Insert at Cursor | `Ctrl+Alt+R` | — |
-| Manage / browse citations | Citations ▸ Manage / Browse… | `Ctrl+Alt+G` | — |
+| Interface language | Preferences ▸ General ▸ Interface language | — | — |
+| Highlight selection (5 colors) | Annotate ▸ Highlight Yellow … Orange | `Ctrl+Shift+1` … `Ctrl+Shift+5` | — |
+| Clear all highlights | Annotate ▸ Clear All Highlights | `Ctrl+Shift+0` | — |
+| Add note at cursor | Annotate ▸ Add Note at Cursor… | `Ctrl+Shift+A` | `M-x annotate` (`a`) |
+| Edit selected note | Annotate ▸ Edit Note | `Ctrl+Shift+E` | `M-x annotation-goto` |
+| Delete selected note | Annotate ▸ Delete Note | `Ctrl+Shift+D` | `M-x annotation-delete` |
+| Export notes | Annotate ▸ Export Notes… | `Ctrl+Alt+N` | `M-x annotations-export` |
+| Import citations | Study ▸ Import… | `Ctrl+Alt+I` | — |
+| Export citations | Study ▸ Export… | `Ctrl+Alt+E` | — |
+| Add citation | Study ▸ Add Citation… | `Ctrl+Alt+C` | — |
+| Add citation by DOI | Study ▸ Add by DOI… | `Ctrl+Alt+D` | — |
+| Insert citation at cursor | Study ▸ Insert at Cursor | `Ctrl+Alt+R` | — |
+| Manage / browse citations | Study ▸ Manage / Browse… | `Ctrl+Alt+G` | — |
 | Summarize document | Tools ▸ Summarize Document | `Ctrl+Shift+U` | — |
 | Translate document | Tools ▸ Translate Document | `Ctrl+Shift+X` | — |
 | Transcribe audio file | Tools ▸ Transcribe Audio File… | `Ctrl+Alt+S` | — |
 | Dictate note (record) | Tools ▸ Dictate Note (record)… | `Ctrl+Alt+V` | — |
 | Voice typing (dictate into document) | Tools ▸ Voice Typing | `Ctrl+Alt+K` | — |
-| Toggle transcript timestamps | Tools ▸ Toggle Transcript Timestamps | `Ctrl+Alt+Z` | — |
+| Toggle transcript timestamps | Preferences ▸ Voice ▸ Timestamp transcripts | `Ctrl+Alt+Z` | — |
 | Reading statistics | Tools ▸ Reading Statistics… | `Ctrl+Shift+S` | `M-x reading-stats` |
 | Install optional features | Tools ▸ Install Optional Features… | — | (`star --install-optional` CLI) |
 | Review due cards (spaced repetition) | Study ▸ Review Due Cards… | `Ctrl+Shift+F5` | — |
@@ -676,8 +676,8 @@ and the others in blue.
 | Action | Qt GUI | TUI |
 |---|---|---|
 | Add bookmark (auto-named) | `Ctrl+M` | `M-x bookmark-set` |
-| Add named bookmark | Bookmarks ▸ Add Named Bookmark… | `M-x bookmark-set <name>` |
-| List / jump to bookmarks | Bookmarks ▸ Bookmarks… | `M-x bookmark-list` / `bookmark-goto` |
+| Add named bookmark | Annotate ▸ Add Named Bookmark… | `M-x bookmark-set <name>` |
+| List / jump to bookmarks | Annotate ▸ Bookmarks… | `M-x bookmark-list` / `bookmark-goto` |
 | History: back | `Alt+←` | `H` |
 | History: forward | `Alt+→` | `L` |
 
@@ -699,7 +699,7 @@ a bookmark set in one interface appears in the other.
 | Tune karaoke highlight (style / colors / speed) | `Ctrl+,` (Preferences) / Command Palette (F2) | — |
 | Highlight granularity (word/sentence/both) | `Ctrl+,` (Preferences) | `M-x highlight-granularity` |
 | Dyslexia-friendly font | `Ctrl+Alt+X` | — |
-| Reading font (Default/OpenDyslexic/Atkinson/Lexend) | View ▸ Reading Aids ▸ Reading Font | — |
+| Reading font (Default/OpenDyslexic/Atkinson/Lexend) | Preferences ▸ Display ▸ Reading font | — |
 | Bionic reading | `Ctrl+Alt+J` | — |
 | Syllable splitting | View ▸ Reading Aids ▸ Syllable Splitting | — |
 | Current-line highlight | `Ctrl+Alt+L` | — |
@@ -969,8 +969,11 @@ the go; it is menu-only and needs `ffmpeg` on your PATH.
 
 **Edit menu** — Find… (`Ctrl+F`, the incremental find bar), **Find & Replace…**
 (the find bar with the replace row shown; edit mode), Copy, Toggle Edit
-Mode, Save, Check Spelling, and **Preferences…** (`Ctrl+,`) — all reader
-settings in one tabbed dialog (Reading, Reading Aids, Voice, Display, Fonts, General).
+Mode, Save, Check Spelling; then the settings block: **Save / Load / Delete
+Profile…** (named bundles of voice, theme, font, and highlight settings —
+`Ctrl+Shift+K` / `Ctrl+Shift+J` / `Ctrl+Shift+Y`) and **Preferences…**
+(`Ctrl+,`) — all reader settings in one tabbed dialog (Reading, Reading Aids,
+Voice, Display, Fonts, General).
 
 **Format menu** — Markdown authoring commands (also on the edit-mode formatting
 toolbar): Undo, Redo, Bold (`Ctrl+B`), Italic (`Ctrl+I`), Underline (`Ctrl+U`),
@@ -979,31 +982,34 @@ Inline Code, Heading, Bullet List, Numbered List, Block Quote, Insert Link
 Image…**. The commands apply to the Markdown source and no-op with a hint outside
 edit mode.
 
-**Highlight menu** — Highlight Yellow / Green / Cyan / Pink / Orange, Clear All
-Highlights. (`Ctrl+H` is the **Next Heading** shortcut, matching NVDA/JAWS
-convention; use the toolbar Highlight button or this menu to apply colors.)
+**Annotate menu** — everything you mark on a document, in one place:
+Highlight Yellow / Green / Cyan / Pink / Orange (`Ctrl+Shift+1` …
+`Ctrl+Shift+5`), Clear All Highlights; Add Note at Cursor… (`Ctrl+Shift+A`),
+Edit / Delete Selected Note, Toggle Notes Panel (`Ctrl+Shift+N`), Export
+Notes…; Add Bookmark (`Ctrl+M`), Add Named Bookmark…, and Bookmarks… (the
+jump/delete list). (`Ctrl+H` is the **Next Heading** shortcut, matching
+NVDA/JAWS convention; use the toolbar Highlight button or this menu to apply
+colors.)
 
 **Navigate menu** — sentence / paragraph / heading / table moves, plus **Back**
 (`Alt+←`) and **Forward** (`Alt+→`) through your navigation history.
 
-**Bookmarks menu** — Add Bookmark (`Ctrl+M`), Add Named Bookmark…, and
-Bookmarks… (the jump/delete list).
-
-**Study menu** — Review Due Cards… (`Ctrl+Shift+F5`, spaced-repetition review of
-your notes and highlights) and Sync with Anki (AnkiConnect)….
+**Study menu** — Review Due Cards… (`Ctrl+Shift+F5`, spaced-repetition review
+of your notes and highlights), Sync with Anki (AnkiConnect)…, and the citation
+library: Import… (`Ctrl+Alt+I`), Export…, Add Citation… (`Ctrl+Alt+C`), Add by
+DOI… (`Ctrl+Alt+D`), Insert Citation at Cursor… (`Ctrl+Alt+R`), and Manage /
+Browse… (`Ctrl+Alt+G`).
 
 **View menu** — Toggle Contents Panel (`Ctrl+\`), Toggle Notes Panel
-(`Ctrl+Shift+N`), Next Theme (`F5`), Choose Theme…, Reload CSS Themes, Open
-Themes Folder, Change Font…, Reading Level (`Ctrl+L`), and **Reading Aids ▸**
-Text Spacing… /
-Reading Font (Default / OpenDyslexic / Atkinson Hyperlegible / Lexend) /
-Dyslexia-Friendly Font / Bionic Reading / Syllable Splitting / Current-Line
-Highlight / Reading Ruler /
-Highlight Difficult Words / Define Word… / RSVP Mode / Live HTML Preview.
-(Karaoke-highlight, reading-ruler, and RSVP-position settings live in
-**Edit ▸ Preferences…** (`Ctrl+,`); the live-tuning dialogs are in the
-**Command Palette (F2)** as Tune Karaoke Highlight… / Tune Reading Ruler… /
-Tune RSVP Position….)
+(`Ctrl+Shift+N`), Next Theme (`F5`), Choose Theme…, Caret Browsing (`F7`),
+Change Font…, Reading Level (`Ctrl+L`), Live HTML Preview, and **Reading
+Aids ▸** Dyslexia-Friendly Font / Bionic Reading / Syllable Splitting /
+Current-Line Highlight / Reading Ruler / Highlight Difficult Words / Define
+Word… / RSVP Mode. (Theme maintenance, the reading-font chooser, text
+spacing, the interface language, and the karaoke / ruler / RSVP tuning all
+live in **Edit ▸ Preferences…** (`Ctrl+,`); the live-tuning dialogs are in
+the **Command Palette (F2)** as Tune Karaoke Highlight… / Tune Reading
+Ruler… / Tune RSVP Position….)
 
 **Speech menu** — Play/Pause, Stop, speed, Choose TTS Engine… (`Ctrl+Shift+G`;
 engines include the opt-in `elevenlabs` cloud engine — see [Pick a speech engine](#pick-a-speech-engine-system-and-cloud-voices)),
@@ -1021,9 +1027,8 @@ History…**, **Check for Updates…**, and **About star** (`Ctrl+F1`) — a sho
 does, the version and license, and a clickable link to the project on GitHub
 (opens in your browser).
 
-**Profiles, Notes, Citations menus** — see the
-[Quick command reference](#quick-command-reference) for every item, its menu
-path, and its shortcut.
+Every menu item, its path, and its shortcut are also listed in the
+[Quick command reference](#quick-command-reference).
 
 ### Toolbar
 

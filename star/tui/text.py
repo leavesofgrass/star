@@ -542,6 +542,8 @@ completions.  Use `↑` / `↓` to recall previous commands.  Press **Esc** to c
 | `light` | Light background with blue/magenta accents |
 | `contrast` | High contrast — bold white on black |
 | `phosphor` | Monochrome green phosphor terminal |
+| `dracula` `nord` `solarized-dark` `solarized-light` | Popular community palettes (xterm-256 approximations, |
+| `gruvbox-dark` `tokyo-night` `catppuccin-mocha` `monokai` | with plain base-8 fallbacks) — same names as the GUI themes |
 
 ---
 

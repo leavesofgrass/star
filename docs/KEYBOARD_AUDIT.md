@@ -67,7 +67,7 @@ survive a UI-language switch. Source: `star/gui/mixin_chrome.py`.
 | `Ctrl+Shift+V` | Choose Voice… | |
 | `F4` | Voice Manager… | |
 | `Tab` | Speech Cursor Mode | see §2 — Tab is captured by the editor event filter |
-| `Ctrl+Alt+Y` | Toggle SSML Prosody | |
+| `Ctrl+Alt+Y` | Toggle SSML Prosody | hidden accelerator — the setting lives in Preferences ▸ Voice |
 | `Ctrl+Shift+I` | Pronunciation Lexicon… | |
 | *(bare `Ctrl` tap)* | Play / Pause | JAWS habit; opt-out `qt_ctrl_pause` |
 
@@ -94,6 +94,7 @@ survive a UI-language switch. Source: `star/gui/mixin_chrome.py`.
 | `Ctrl+Z` | Undo (editor-scoped) |
 | `Ctrl+Y` | Redo (editor-scoped) |
 | *(no shortcut)* | Check Spelling — menu-only; F7 is View ▸ Caret Browsing (an ambiguous binding would fire neither) |
+| `Ctrl+Shift+K` / `Ctrl+Shift+J` / `Ctrl+Shift+Y` | Save / Load / Delete Profile… (moved here from the retired Profiles menu) |
 | `Ctrl+,` | Preferences… (six tabs: Reading / Reading Aids / Voice / Display / Fonts / General) |
 
 ### Format (Markdown authoring — edit mode)
@@ -111,7 +112,7 @@ Markdown toolbar (`_build_edit_toolbar`). Undo/Redo also appear on this menu but
 are menu-only here — their shortcut owners are the editor-scoped `Ctrl+Z` /
 `Ctrl+Y` listed under Edit.
 
-### Highlight / Notes / Bookmarks
+### Annotate (highlights / notes / bookmarks — one menu since 0.1.28)
 
 | Shortcut | Command |
 |---|---|
@@ -124,10 +125,12 @@ are menu-only here — their shortcut owners are the editor-scoped `Ctrl+Z` /
 | `Ctrl+Alt+N` | Export Notes… |
 | `Ctrl+M` | Add Bookmark (moved from Ctrl+B, which is now Bold) |
 
-### Citations / Graph
+### Study (review + citations) / Graph
 
 | Shortcut | Command |
 |---|---|
+| `Ctrl+Shift+F5` | Review Due Cards… (spaced repetition) |
+| *(no shortcut)* | Sync with Anki (AnkiConnect)… |
 | `Ctrl+Alt+I` / `Ctrl+Alt+E` | Import / Export Citations… |
 | `Ctrl+Alt+C` | Add Citation… |
 | `Ctrl+Alt+D` | Add Citation by DOI… |
@@ -143,8 +146,8 @@ are menu-only here — their shortcut owners are the editor-scoped `Ctrl+Z` /
 | `Ctrl+\` | Toggle Contents Panel | |
 | `F5` | Next Theme | 🔊 announces "Theme: {name}" |
 | `Ctrl+Alt+T` | Choose Theme… | 🔊 announces the chosen theme |
-| `Ctrl+Shift+R` | Reload CSS Themes | |
-| `Ctrl+Shift+F` | Open Themes Folder | |
+| `Ctrl+Shift+R` | Reload CSS Themes | hidden accelerator — the buttons live in Preferences ▸ Display |
+| `Ctrl+Shift+F` | Open Themes Folder | hidden accelerator — the buttons live in Preferences ▸ Display |
 | `F7` | Caret Browsing (checkable) | see §2 |
 | `Ctrl+Alt+F` | Change Font… |
 | `Ctrl+L` | Reading Level |
@@ -154,7 +157,7 @@ are menu-only here — their shortcut owners are the editor-scoped `Ctrl+Z` /
 
 | Shortcut | Command |
 |---|---|
-| `Ctrl+Alt+W` | Text Spacing… (WCAG 1.4.12) |
+| `Ctrl+Alt+W` | Text Spacing… (WCAG 1.4.12) — hidden accelerator; the spacing controls live in Preferences ▸ Fonts |
 | `Ctrl+Alt+X` | Dyslexia-Friendly Font (checkable) |
 | `Ctrl+Alt+J` | Bionic Reading (checkable) |
 | `Ctrl+Alt+L` | Current-Line Highlight (checkable) |
@@ -170,19 +173,18 @@ Position…**. `Ctrl+Alt+K` is now bound to **Tools ▸ Voice Typing** in the Qt
 (dictate speech into the document at the cursor — see the Tools table); the TUI
 keeps its own `Ctrl+Alt+K` karaoke binding.
 
-### Tools / Profiles / Help
+### Tools / Help
 
 | Shortcut | Command |
 |---|---|
 | `Ctrl+Alt+S` | Transcribe Audio File… |
 | `Ctrl+Alt+V` | Dictate Note (record)… — files a separate annotation |
 | `Ctrl+Alt+K` | Voice Typing — insert dictated speech into the document at the cursor |
-| `Ctrl+Alt+Z` | Toggle Transcript Timestamps |
+| `Ctrl+Alt+Z` | Toggle Transcript Timestamps — hidden accelerator; the setting lives in Preferences ▸ Voice |
 | `Ctrl+Shift+U` | Summarize Document… |
 | `Ctrl+Shift+X` | Translate Document… |
 | `Ctrl+Shift+S` | Reading Statistics… |
 | `Ctrl+Shift+Delete` | Clear Document Cache |
-| `Ctrl+Shift+K` / `Ctrl+Shift+J` / `Ctrl+Shift+Y` | Save / Load / Delete Profile… |
 | `F2` | Command Palette… |
 | `F3` | Keyboard Shortcuts… |
 | `Ctrl+Alt+Q` | Customize Shortcuts… |

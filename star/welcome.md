@@ -71,8 +71,10 @@ live match count and next/previous navigation.
 
 - **Edit ▸ Preferences…** (**Ctrl+,**) gathers every reader setting — highlight,
   voice, display, and more — in one tabbed dialog.
-- **F5** cycles the color theme (Obsidian is the default; Zed and a
-  **high-contrast** theme are included for low-vision reading).
+- **F5** cycles the color theme — 17 built-ins including Obsidian (the
+  default), a **high-contrast** theme for low-vision reading, and popular
+  favorites like **Dracula, Nord, Solarized, Gruvbox, Tokyo Night, and
+  Catppuccin**.
 - Turn on the **dyslexia-friendly font**, adjust text spacing, bionic reading,
   or one-word-at-a-time RSVP — all under **View ▸ Reading Aids**.
 - Change the display font and line spacing from the **View** menu, and see your

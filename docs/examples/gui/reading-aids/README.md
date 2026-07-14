@@ -18,7 +18,7 @@ turn them on (star offers this automatically).
   words into syllables (`read·a·bil·i·ty`) as a decoding aid. Display-only:
   speech and highlighting are unaffected.
 - **Dyslexia-friendly font** — **`Ctrl+Alt+X`** switches to OpenDyslexic; pick
-  other reading fonts under **View ▸ Reading Aids ▸ Reading Font**.
+  other reading fonts under **Preferences ▸ Display ▸ Reading font**.
 - **Text spacing** — **`Ctrl+Alt+W`** opens WCAG-style line-height and
   letter/word spacing controls.
 - **Reading ruler** and **RSVP one-word mode** — a moving guide bar, or one word

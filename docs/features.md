@@ -98,7 +98,7 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 | Karaoke video export | Sentence-synchronized MP4: TTS audio + rendered page frames with highlight advancing sentence by sentence; soft SRT subtitle track |
 | Audiobook export (M4B) | Export a document as a chaptered `.m4b` audiobook — chapters come from its headings — for listening on the go (needs ffmpeg) |
 | RSVP reading mode | One-word-at-a-time display at a fixed on-screen point; 9 placement positions for limited-visual-field accessibility; prev/next context words; syncs with TTS |
-| Interface language | Localize the menus, toolbar, and docks — **and now the terminal UI** — (English, Spanish, French, German, Portuguese, plus a first Arabic catalog); first-run language picker in the Qt GUI (the TUI honors the `ui_language` setting); switch live from View ▸ Interface Language; TTS prefers a voice matching the interface language |
+| Interface language | Localize the menus, toolbar, and docks — **and now the terminal UI** — (English, Spanish, French, German, Portuguese, plus a first Arabic catalog); first-run language picker in the Qt GUI (the TUI honors the `ui_language` setting); switch live from Preferences ▸ General ▸ Interface language; TTS prefers a voice matching the interface language |
 | Right-to-left interface | Choosing a right-to-left interface language mirrors the whole app and reading view; Arabic is included as a first catalog |
 | Export | Markdown, PDF (with highlights), BRF braille, TTS audio, SRT/VTT subtitles, and karaoke MP4 video |
 | Reading statistics | Per-document time read, progress %, and session count, with totals and a most-read dashboard |
@@ -112,13 +112,13 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 | Define word (offline) | Selected word → definition, senses, synonyms, pronunciation; WordNet via `nltk`, or a custom JSON glossary |
 | Screen-reader announcements | Playback, document load, theme change, and find results are spoken to NVDA / JAWS / Orca without moving focus |
 | High-contrast AAA theme | WCAG 2.1 AAA (§1.4.6) low-vision theme; theming can also follow the OS light / dark / high-contrast preference |
-| Reading Font chooser | Pick OpenDyslexic, Atkinson Hyperlegible, or Lexend from View ▸ Reading Aids ▸ Reading Font; auto-fetched on first use and applied across the whole UI — document, menus, toolbar, and panels |
+| Reading Font chooser | Pick OpenDyslexic, Atkinson Hyperlegible, or Lexend from Preferences ▸ Display ▸ Reading font; auto-fetched on first use and applied across the whole UI — document, menus, toolbar, and panels |
 | Syllable splitting | Show words split into syllables (`read·a·bil·i·ty`) as a decoding aid; display-only, so speech and highlighting are unaffected |
 | Reading ruler | A movable, translucent band (typoscope) that follows the caret line to help keep your place; adjustable height, opacity, and band color (or "Use highlight color" to match the highlight) |
 | One-click optional features | Missing add-ons are offered for background download — no `pip` required; the feature works in the same session |
 | Plugin system | Third parties add TTS engines, document formats, or exporters via entry-point plugins; introspect with `star --plugins` |
 | Dependency status report | `star --deps` lists every optional dependency and how to add the rest |
-| Built-in themes | obsidian (default), obsidian-light, zed-one-dark, zed-one-light, dark, light, contrast, high-contrast (WCAG AAA), phosphor — all colorblind-friendly; can also follow the OS light / dark / high-contrast preference |
+| Built-in themes | 17 palettes: obsidian (default), obsidian-light, zed-one-dark, zed-one-light, dark, light, contrast, high-contrast (WCAG AAA), phosphor, plus the popular community schemes **dracula, nord, solarized-dark, solarized-light, gruvbox-dark, tokyo-night, catppuccin-mocha, monokai** (every text color AA-checked, in the GUI *and* the terminal); can also follow the OS light / dark / high-contrast preference |
 | CSS theme customization | Drop any `.css` file into the themes folder; star picks it up instantly |
 | High-DPI display support | Qt GUI scales correctly on 4K and HiDPI screens; toolbar icons render crisply on high-DPI displays |
 | Reading level | Flesch-Kincaid grade and ease score on demand |
@@ -1089,7 +1089,7 @@ M-x speed-list
 interfaces from a shared store (`settings['bookmarks']`, keyed by document path,
 so a bookmark set in one UI shows up in the other).
 
-- **Qt GUI:** **`Ctrl+M`** (**Bookmarks ▸ Add Bookmark**) sets a bookmark at the
+- **Qt GUI:** **`Ctrl+M`** (**Annotate ▸ Add Bookmark**) sets a bookmark at the
   current reading position (auto-named `mark1`, `mark2`, …); **Add Named
   Bookmark…** prompts for a name; the **Bookmarks…** dialog lists them (ordered by
   position) to jump to or delete.
@@ -1348,7 +1348,7 @@ best-effort and falls back to your saved theme when the OS preference is unknown
 
 ### Reading fonts across the whole UI
 
-A **Reading Font** chooser (View ▸ Reading Aids ▸ Reading Font) offers three
+A **Reading Font** chooser (Preferences ▸ Display ▸ Reading font) offers three
 low-vision / dyslexia-friendly faces beyond the default: **OpenDyslexic**,
 **Atkinson Hyperlegible** (the Braille Institute's typeface, designed for low
 vision), and **Lexend**. Each OFL font is fetched on demand the first time it is
@@ -1383,22 +1383,36 @@ piping to other AT tools.
 
 | Name | Description |
 |---|---|
-| `dark` | Polished neutral-dark (Zed/Ghostty-inspired) with blue/cyan/purple/teal accents (default) |
+| `obsidian` | Purple-accented dark (the default), modeled on Obsidian's default appearance |
+| `obsidian-light` | Its light counterpart |
+| `zed-one-dark` / `zed-one-light` | The One Dark / One Light pair as shipped by Zed |
+| `dark` | Polished neutral-dark with blue/cyan/purple/teal accents |
 | `light` | Dark text on white with blue and magenta accents |
 | `contrast` | Bold white and cyan on pure black — maximum legibility |
 | `high-contrast` | **WCAG 2.1 AAA** (§1.4.6) low-vision theme — six distinct, slightly-desaturated hues on pure black, all clearing 7:1 contrast by a wide margin (lowest pair ≈ 11:1); links are also underlined and headings distinguished by weight/size, so meaning never rides on colour alone |
 | `phosphor` | Classic green phosphor monochrome |
+| `dracula` | The Dracula scheme — purple/pink/cyan on `#282a36` |
+| `nord` | Nord's frost blues on polar night |
+| `solarized-dark` / `solarized-light` | Solarized, with accents nudged until every pair clears WCAG AA (the canonical values famously miss) |
+| `gruvbox-dark` | Gruvbox's warm retro yellows and oranges |
+| `tokyo-night` | Tokyo Night's blues and violets |
+| `catppuccin-mocha` | Catppuccin Mocha pastels |
+| `monokai` | Classic Monokai — cyan/green/orange on warm charcoal |
 
-No built-in theme places red and green as adjacent accents (deuteranopia /
-protanopia safe); contrast ratios meet or exceed WCAG 2.1 AA (and, for
-`high-contrast`, AAA). Switch with `F5` (cycle), **View → Choose Theme…**, `M-x
-theme <name>`, or `star --theme`.
+The nine original themes avoid red-and-green accent pairs (deuteranopia /
+protanopia safe); the community palettes reproduce their published schemes,
+red included, but every text color in every theme meets or exceeds WCAG 2.1
+AA (4.5:1) on its background — and `high-contrast` meets AAA. The same
+seventeen names work in the terminal UI (xterm-256 approximations with plain
+base-8 fallbacks). Switch with `F5` (cycle), **View → Choose Theme…**,
+Preferences ▸ Display, `M-x theme <name>`, or `star --theme`.
 
 ### Follow the OS appearance
 
 star can track the operating system's appearance and pick the matching built-in
 theme automatically: the OS **dark**, **light**, and **high-contrast** preferences
-map to the dark, light, and AAA themes respectively. Detection uses
+map to `obsidian`, `obsidian-light`, and the AAA `high-contrast` theme
+respectively. Detection uses
 `QGuiApplication.styleHints().colorScheme()` (Qt 6.5+) and is best-effort — when
 the OS preference is unavailable or unknown, star leaves your saved theme
 untouched. See also [Accessibility](#accessibility).
@@ -1415,8 +1429,9 @@ The Qt GUI supports fully custom CSS themes — each is a plain `.css` file in t
 | Windows | `%APPDATA%\star\themes\` |
 
 The folder is created on first launch with the built-in themes as editable
-starting points. To create one: **View → Open Themes Folder**, copy a `.css`
-file, edit it, then **View → Reload CSS Themes** (or `F5` to cycle to it).
+starting points. To create one: **Preferences ▸ Display ▸ Open themes
+folder…**, copy a `.css` file, edit it, then **Reload CSS themes** on the same
+tab (or `Ctrl+Shift+R`, or `F5` to cycle to it).
 
 `star` extracts palette values from `body { background / color }`, `::selection
 { background }`, and `h1`–`h4`/`code` `{ color }`; any rule not present falls back
@@ -1480,7 +1495,7 @@ tends to read aloud in a Spanish voice. If no installed voice matches, it keeps
 the English default. (The [Voice Manager](#voice-manager)'s Piper catalog covers
 all five interface languages so a matching neural voice is one click away.)
 
-**Switching** — Qt GUI: **View ▸ Interface Language**, then pick a language. The
+**Switching** — Qt GUI: **Preferences ▸ General ▸ Interface language**, then pick a language. The
 menu bar and toolbar are rebuilt immediately (no restart) and the choice is
 saved to `ui_language` in settings. Native language names are shown
 untranslated so you can always find your own. The TUI activates the persisted
@@ -1497,7 +1512,7 @@ so a partial catalog degrades gracefully rather than showing blanks.
 1. Copy `star/locale/es.json` to `star/locale/<code>.json` and translate the
    values (leave the English keys untouched).
 2. Add a `(native name, code)` row to `LANGUAGES` in `star/i18n.py`.
-3. The language appears in **View ▸ Interface Language** on next launch.
+3. The language appears in **Preferences ▸ General ▸ Interface language** on next launch.
 
 See [`star/locale/README.md`](../star/locale/README.md) for the full
 contributor guide.

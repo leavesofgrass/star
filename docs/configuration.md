@@ -28,7 +28,7 @@ Many of these settings are exercised in the [`docs/examples/`](examples/).
 
 | Key | Default | Description |
 |---|---|---|
-| `theme` | `"obsidian"` | Color theme: `obsidian`, `dark`, `light`, `contrast`, `high-contrast` (AAA low-vision), `phosphor`. See `qt_follow_os_theme` for automatic light/dark/high-contrast switching |
+| `theme` | `"obsidian"` | Color theme: `obsidian`, `obsidian-light`, `zed-one-dark`, `zed-one-light`, `dark`, `light`, `contrast`, `high-contrast` (AAA low-vision), `phosphor`, `dracula`, `nord`, `solarized-dark`, `solarized-light`, `gruvbox-dark`, `tokyo-night`, `catppuccin-mocha`, `monokai`, or the stem of any custom `.css` file in the themes folder. See `qt_follow_os_theme` for automatic light/dark/high-contrast switching |
 | `qt_follow_os_theme` | `true` | Qt GUI: on startup, follow the OS light/dark/high-contrast appearance and pick a matching built-in theme — unless the user has explicitly chosen one (see `qt_theme_explicit`). Set `false` to always honor the saved `theme` |
 | `qt_theme_explicit` | `false` | Set automatically the first time the user deliberately picks a theme (Choose Theme, Next Theme, or a profile that carries a theme). Once set, OS auto-detection never overrides that choice |
 | `auto_install` | `true` | Auto-install optional dependencies on demand (neural voices, OCR, imports, fonts, …). Gates the first-run feature chooser and later on-demand fetches. Set `false` — or set the `STAR_NO_AUTOINSTALL` env var — to disable all automatic installs |
@@ -93,7 +93,7 @@ Many of these settings are exercised in the [`docs/examples/`](examples/).
 | `qt_letter_spacing` | `0.0` | Qt extra letter spacing, percent of font size (`0` = normal) |
 | `qt_word_spacing` | `0.0` | Qt extra word spacing in pixels (`0` = normal) |
 | `qt_dyslexia_font` | `false` | Prefer an installed dyslexia-friendly font (OpenDyslexic / Atkinson Hyperlegible / Lexend / Comic Sans) when available |
-| `qt_reading_font` | `"default"` | Reading-font override (**View ▸ Reading Aids ▸ Reading Font**): `default` (none), `opendyslexic`, `atkinson` (Atkinson Hyperlegible, for low vision), or `lexend`. Fetched on demand and applied app-wide + in-document |
+| `qt_reading_font` | `"default"` | Reading-font override (**Preferences ▸ Display ▸ Reading font**): `default` (none), `opendyslexic`, `atkinson` (Atkinson Hyperlegible, for low vision), or `lexend`. Fetched on demand and applied app-wide + in-document |
 | `qt_current_line_highlight` | `false` | Tint the line being read with a focus band |
 | `qt_bionic_reading` | `false` | Embolden the leading part of each word (bionic reading) |
 | `qt_syllable_split` | `false` | Show words split into syllables (`read·a·bil·i·ty`) as a decoding aid (**View ▸ Reading Aids ▸ Syllable Splitting**; needs `pyphen`). Display-only — speech and highlighting are unaffected |
