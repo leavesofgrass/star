@@ -29,6 +29,9 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ### ✨ Added
 
+- **New documents from the TUI — `Ctrl+N` / `M-x new-document`.** Prompts for
+  a destination (default `untitled.md`), seeds a title heading, writes it in
+  your `$EDITOR`, and opens the result — File ▸ New parity for the terminal.
 - **The TUI can edit documents now — `Ctrl+E` / `M-x edit`.** The terminal
   idiom, not a home-grown editor: star suspends the screen, opens the
   document's source in **`$VISUAL` / `$EDITOR`** (notepad or nano/vi when

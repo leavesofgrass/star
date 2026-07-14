@@ -117,6 +117,8 @@ class CommandsMixin:
             ),
             "batch-convert": self._batch_convert,
             "edit": self._edit_cmd,
+            # rest, not arg: a new document's path may contain spaces.
+            "new-document": lambda: self._new_document_cmd(rest),
             "export-markdown": self._export_markdown,
             "export-braille": self._export_braille_cmd,
             "export-audio": lambda: self._export_audio_cmd(arg or ""),

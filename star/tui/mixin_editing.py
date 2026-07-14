@@ -105,6 +105,49 @@ class TuiEditingMixin:
             return
         self._edit_markdown_draft(path)
 
+    # ── Ctrl+N / M-x new-document ───────────────────────────────────────────
+
+    def _new_document_cmd(self, arg: str = "") -> None:
+        """Create a new Markdown document and write it in your editor.
+
+        GUI parity for File ▸ New (Ctrl+N).  Prompts for a destination path
+        (or takes it as the M-x argument), seeds a title heading, opens the
+        file in ``$EDITOR``, and loads it as the current document afterwards.
+        """
+        if arg:
+            self._new_document_at(arg)
+            return
+        self._enter_minibuffer(
+            "New document path: ",
+            initial=str(Path.cwd() / "untitled.md"),
+            on_commit=self._new_document_at,
+            completions=[],
+        )
+
+    def _new_document_at(self, dest: str) -> None:
+        dest = (dest or "").strip().strip('"')
+        if not dest:
+            self.notify("New document cancelled")
+            return
+        p = Path(dest).expanduser()
+        if p.suffix.lower() not in _TEXT_EDIT_EXTS:
+            p = p.with_suffix(".md")
+        if p.exists():
+            self.notify(
+                f"{p} already exists — open it and use edit instead", error=True
+            )
+            return
+        try:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(f"# {p.stem}\n\n", encoding="utf-8")
+        except OSError as exc:
+            self.notify(f"Could not create {p}: {exc}", error=True)
+            return
+        # Open even if the editor could not run — the file exists, and the
+        # status line already explains what went wrong with the editor.
+        self._run_editor(str(p))
+        self._open_async(str(p))
+
     def _edit_markdown_draft(self, path: str) -> None:
         """Edit a Markdown draft of a non-text document, then Save-As."""
         stem = (Path(path).stem if path else "") or "document"

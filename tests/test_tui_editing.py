@@ -172,3 +172,47 @@ def test_edit_binary_doc_empty_dest_keeps_the_draft(tmp_path):
 
 def test_edit_registered_in_mx_commands():
     assert "edit" in MX_COMMANDS
+
+
+# ── Ctrl+N / M-x new-document ────────────────────────────────────────────────
+
+
+def test_new_document_creates_seeds_and_opens(tmp_path):
+    app = _App()
+    dest = tmp_path / "ideas.md"
+    app._new_document_cmd(str(dest))
+    assert dest.read_text(encoding="utf-8") == "# ideas\n\n"
+    assert app.edited_paths == [str(dest)]     # handed to $EDITOR
+    assert app.opened == [str(dest)]           # loaded afterwards
+
+
+def test_new_document_appends_md_suffix(tmp_path):
+    app = _App()
+    app._new_document_cmd(str(tmp_path / "plain"))
+    assert (tmp_path / "plain.md").is_file()
+
+
+def test_new_document_refuses_to_overwrite(tmp_path):
+    existing = tmp_path / "have.md"
+    existing.write_text("precious", encoding="utf-8")
+    app = _App()
+    app._new_document_cmd(str(existing))
+    assert existing.read_text(encoding="utf-8") == "precious"
+    msg, is_error = app.notices[-1]
+    assert is_error and "already exists" in msg
+    assert app.opened == []
+
+
+def test_new_document_no_arg_prompts_with_default(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    app = _App()
+    app._new_document_cmd()
+    prompt, initial, on_commit, _completions = app.minibuffer
+    assert initial.endswith("untitled.md")
+    on_commit("")                              # Esc-equivalent: empty commit
+    assert app.notices[-1] == ("New document cancelled", False)
+    assert app.opened == []
+
+
+def test_new_document_registered_in_mx_commands():
+    assert "new-document" in MX_COMMANDS

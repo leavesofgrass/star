@@ -112,6 +112,8 @@ class KeysMixin:
         # ── File operations ────────────────────────────────────────────────
         elif ch == 15:  # Ctrl+O — open
             self._open_file_prompt()
+        elif ch == 14:  # Ctrl+N — new document (GUI parity: File ▸ New)
+            self._new_document_cmd()
         elif ch == 5:  # Ctrl+E — edit in $EDITOR (GUI parity: edit mode)
             self._edit_cmd()
         elif ch == 19:  # Ctrl+S — save/export

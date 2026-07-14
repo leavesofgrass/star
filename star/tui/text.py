@@ -15,6 +15,7 @@ MX_COMMANDS = sorted(
         "close",
         "dictate-note",
         "edit",
+        "new-document",
         "summarize",
         "transcribe-file",
         "whisper-model",
