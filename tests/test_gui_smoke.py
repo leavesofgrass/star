@@ -332,3 +332,31 @@ def test_no_ambiguous_shortcuts(window):
         else:
             owner[sc] = act
     assert not dupes, f"ambiguous shortcuts: {dupes}"
+
+
+def test_bare_less_than_in_prose_survives_render(window):
+    """A bare "<" in prose must not swallow the rest of the text.
+
+    Regression: Qt's rich-text parser treated "< 0.001)…" as a malformed tag
+    opening and dropped everything from "p <" onward, so the read view showed
+    less text than TTS spoke (doc.plain_text keeps the tail) and the highlight
+    aligner had to park around the hole.  Stray "<" is now escaped before
+    setHtml while real HTML constructs still render.
+    """
+    from PyQt6.QtGui import QTextDocument
+
+    md = (
+        "Mean systolic pressure fell from 142.6 to 127.3 mmHg "
+        "(95% CI, 124.1 to 130.5; p < 0.001).\n\n"
+        "Thresholds: x<3 and y <= 4, plus <b>bold</b> and `<code>` literal.\n"
+    )
+    scratch = QTextDocument()
+    scratch.setHtml(window._md_to_html(md))
+    text = scratch.toPlainText()
+    assert "p < 0.001" in text
+    assert "x<3" in text
+    assert "y <= 4" in text
+    # Real inline HTML still renders (tag consumed, content kept)…
+    assert "bold" in text and "<b>" not in text
+    # …and inline code shows its angle brackets literally.
+    assert "<code>" in text

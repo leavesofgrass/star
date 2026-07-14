@@ -19,6 +19,33 @@ from .a11y import announce
 # index-parallel with doc.word_map, so both must tokenize identically.
 _QT_TOKEN_RE = re.compile(r"\b\w[\w'-]*")
 
+# A complete HTML construct Qt's rich-text parser may legitimately consume: an
+# open/close tag (attribute text may contain anything except angle brackets) or
+# a comment.  Any other "<" in the rendered body is prose.
+_HTML_CONSTRUCT_RE = re.compile(
+    r"</?[a-zA-Z][a-zA-Z0-9-]*(?:\s[^<>]*)?/?>|(?s:<!--.*?-->)"
+)
+
+
+def _escape_stray_lt(html: str) -> str:
+    """Escape every ``<`` that does not open a complete HTML tag or comment.
+
+    Qt's rich-text parser treats a bare ``<`` as a tag opening and silently
+    swallows the text after it, so prose like "(95% CI; p < 0.001)" lost
+    everything from "p <" onward in the read view while TTS — fed from
+    ``doc.plain_text`` — still spoke it and the spoken-word highlight had to
+    park around the hole.  Real markup (``<b>…</b>``, footnote anchors, the
+    tags this renderer emits) is left intact.
+    """
+    out: List[str] = []
+    pos = 0
+    for m in _HTML_CONSTRUCT_RE.finditer(html):
+        out.append(html[pos:m.start()].replace("<", "&lt;"))
+        out.append(m.group(0))
+        pos = m.end()
+    out.append(html[pos:].replace("<", "&lt;"))
+    return "".join(out)
+
 
 def _align_word_offsets(
     spoken: List[str], rendered: List[Tuple[str, int]]
@@ -1065,7 +1092,9 @@ class DocumentMixin:
             i += 1
 
         close_list()
-        return "\n".join(out)
+        # Escape prose "<" (fenced/inline code is already entity-escaped, so
+        # only generated markup and raw inline HTML survive this pass intact).
+        return _escape_stray_lt("\n".join(out))
 
     def _plain_text_without_syllables(self, md: str) -> str:
         """Plain text of the rendered document as if syllable splitting were off.

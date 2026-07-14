@@ -242,6 +242,40 @@ def test_edit_mode_save_round_trip(window, qtbot, tmp_path):
     assert "Edited twice." in window.editor.toPlainText()
 
 
+# ── stray "<" in prose must not swallow document text ────────────────────────
+
+
+def test_open_doc_with_bare_less_than_keeps_all_text(window, qtbot, tmp_path):
+    """Opening a document whose prose contains a bare "<" keeps every word in
+    the read view.
+
+    Regression: Qt's rich-text parser treated "< 0.001)…" as a malformed tag
+    and silently dropped everything from "p <" onward — the editor showed a
+    hole that doc.plain_text (the TTS stream) never had, so speech read text
+    the reader could not see."""
+    line = (
+        "Mean systolic pressure fell from 142.6 to 127.3 mmHg "
+        "(95% CI, 124.1 to 130.5; p < 0.001)."
+    )
+    src = tmp_path / "stats.md"
+    src.write_text(
+        f"# Trial results\n\n{line}\n\nThe next paragraph survives too.\n",
+        encoding="utf-8",
+    )
+    window._open_path(str(src))
+    _pump_until(
+        qtbot,
+        window,
+        lambda w: w.doc is not None and (w.doc.path or "").endswith("stats.md"),
+    )
+
+    shown = window.editor.document().toPlainText()
+    assert "p < 0.001" in shown
+    assert shown.count("The next paragraph survives too.") == 1
+    # And the TTS plain text agrees with the view (no speak-what-you-can't-see).
+    assert "p < 0.001" in (window.doc.plain_text or "")
+
+
 # ── archive open (File ▸ Open Archive…) ──────────────────────────────────────
 
 
