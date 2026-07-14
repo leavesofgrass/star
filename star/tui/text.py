@@ -16,6 +16,7 @@ MX_COMMANDS = sorted(
         "dictate-note",
         "summarize",
         "transcribe-file",
+        "whisper-model",
         "translate",
         "contrast-up",
         "contrast-down",

@@ -25,7 +25,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
   large-v3-turbo) controls the Whisper model used for dictation and audio
   transcription. `base` (the default) ships inside the packaged app and works
   fully offline; larger sizes are more accurate and are downloaded once on
-  first use.
+  first use. The TUI has the same picker as **`M-x whisper-model`** (with tab
+  completion over the sizes).
 - **A runnable `docs/examples/` tree and a Quick start at the top of the README.**
   12 task-focused examples — CLI (extract text, export to audio, list voices,
   check dependencies, list plugins), library (load a document, translate,

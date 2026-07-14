@@ -164,6 +164,7 @@ class CommandsMixin:
             "summarize": self._summarize_cmd,
             "dictate-note": self._dictate_note_cmd,
             "transcribe-file": lambda: self._transcribe_file_cmd(rest),
+            "whisper-model": lambda: self._whisper_model_cmd(arg),
             "play": self._tts_play,
             "stop": self._tts_stop,
             "pause": self._tts_toggle,

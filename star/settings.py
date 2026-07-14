@@ -9,6 +9,12 @@ _log = _logging.getLogger("star.settings")
 # Default settings
 # =============================================================================
 
+# Valid values for the "whisper_model" setting — the multilingual Whisper
+# sizes both dictation backends resolve by name (the .en variants are
+# deliberately left out; star's dictation is language-agnostic).  The GUI's
+# Preferences chooser and the TUI's M-x whisper-model both offer this list.
+WHISPER_MODELS = ["tiny", "base", "small", "medium", "large-v3", "large-v3-turbo"]
+
 DEFAULTS: Dict[str, Any] = {
     "theme": "obsidian",
     # ── OS colour-scheme / contrast following (Qt GUI) ────────────────────

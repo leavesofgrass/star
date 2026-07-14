@@ -22,7 +22,7 @@ except ImportError:  # PyQt5 fallback
     from PyQt5.QtWidgets import QTabWidget  # type: ignore[no-redef]
 
 from ..i18n import tr
-from ..settings import DEFAULTS
+from ..settings import DEFAULTS, WHISPER_MODELS
 from ..themes import BUILT_IN_THEME_NAMES
 from .a11y import announce
 
@@ -39,9 +39,7 @@ _READING_FONTS = ["default", "opendyslexic", "atkinson", "lexend"]
 _SYNC_POLICIES = ["newest", "highest_progress", "manual"]
 _FOOTNOTE_MODES = ["inline", "deferred", "skip"]
 _AUDIOBOOK_BITRATES = ["32k", "48k", "64k", "96k", "128k"]
-# Multilingual Whisper sizes both backends resolve by name (the .en variants
-# are deliberately left out — star's dictation is language-agnostic).
-_WHISPER_MODELS = ["tiny", "base", "small", "medium", "large-v3", "large-v3-turbo"]
+_WHISPER_MODELS = list(WHISPER_MODELS)
 
 
 def _std_button(box, name: str):

@@ -10,6 +10,7 @@ through ``_load_queue`` (documents) or ``_bg_queue`` (everything else).
 """
 from .._runtime import *  # noqa: F401,F403
 from ..documents import Document
+from ..settings import WHISPER_MODELS
 from ..transcribe import (
     StreamRecorder,
     _audio_in_now,
@@ -171,6 +172,34 @@ class TuiTranscriptionMixin:
         self.notify(f"Dictated note added ({len(text)} chars)")
 
     # ── Audio-file transcription (M-x transcribe-file) ─────────────────────
+
+    def _whisper_model_cmd(self, arg: str = "") -> None:
+        """M-x whisper-model — pick the Whisper size used for dictation and
+        transcription (mirrors the GUI's Preferences ▸ Voice ▸ Dictation
+        model chooser).  With an argument it applies directly; without one it
+        opens a completion minibuffer over the supported sizes."""
+
+        def _apply(chosen: str) -> None:
+            chosen = chosen.strip()
+            if chosen not in WHISPER_MODELS:
+                self.notify(
+                    f"Unknown model size: {chosen!r} "
+                    f"(choose from {', '.join(WHISPER_MODELS)})",
+                    error=True,
+                )
+                return
+            self.settings.set("whisper_model", chosen)
+            self.notify(f"Dictation model: {chosen}")
+
+        if arg:
+            _apply(arg)
+            return
+        self._enter_minibuffer(
+            "Whisper model (Tab to browse): ",
+            initial=str(self.settings.get("whisper_model", "base")),
+            on_commit=_apply,
+            completions=list(WHISPER_MODELS),
+        )
 
     def _transcribe_file_cmd(self, arg: str = "") -> None:
         """Transcribe an audio file with Whisper and open it as a document."""

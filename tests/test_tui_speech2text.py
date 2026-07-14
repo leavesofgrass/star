@@ -256,3 +256,38 @@ def test_tui_dictate_pauses_tts_first(monkeypatch):
     app._dictate_note_cmd()
     assert app.tts.stopped                     # voice off before the mic opened
     assert app._tts_paused_at_word == 5        # toggle resumes where it stopped
+
+
+# ── M-x whisper-model (dictation model-size picker) ─────────────────────────
+
+
+def test_whisper_model_direct_arg_applies():
+    app = _App()
+    app._whisper_model_cmd("small")
+    assert app.settings["whisper_model"] == "small"
+    assert app.notices and app.notices[-1] == ("Dictation model: small", False)
+
+
+def test_whisper_model_rejects_unknown_size():
+    app = _App()
+    app.settings["whisper_model"] = "base"
+    app._whisper_model_cmd("gigantic-v9")
+    assert app.settings["whisper_model"] == "base"  # unchanged
+    msg, is_error = app.notices[-1]
+    assert is_error and "gigantic-v9" in msg
+
+
+def test_whisper_model_no_arg_opens_completion_minibuffer():
+    from star.settings import WHISPER_MODELS
+
+    app = _App()
+    app.settings["whisper_model"] = "base"
+    app._whisper_model_cmd()
+    prompt, on_commit, completions = app.minibuffer
+    assert completions == list(WHISPER_MODELS)
+    on_commit("large-v3-turbo")  # commit as the minibuffer would
+    assert app.settings["whisper_model"] == "large-v3-turbo"
+
+
+def test_whisper_model_registered_in_mx_commands():
+    assert "whisper-model" in MX_COMMANDS
