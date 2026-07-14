@@ -66,13 +66,15 @@ $gui    = @('PyQt6')
 $tts    = @('pyttsx3')
 $common = @('pdfminer.six', 'python-docx', 'python-pptx', 'windows-curses')
 # Everything optional that pip can install without a multi-GB ML stack: document
-# formats, study/writing aids, hot-folder watching, and the knowledge-graph /
-# Obsidian helpers.  (Voice dictation [transcribe] and the spaCy NER backend
-# [ner] are heavier and installed separately — see the closing notes.)
+# formats, study/writing aids, hot-folder watching, the knowledge-graph /
+# Obsidian helpers, and voice dictation (faster-whisper — CTranslate2, ~150 MB,
+# no PyTorch).  Only the spaCy NER backend [ner] stays a separate install —
+# it also needs a language-model download; see the closing notes.
 $extra  = @(
     'pytesseract', 'pymupdf', 'odfpy', 'openpyxl', 'pypandoc', 'louis', 'pydub',
     'sumy', 'genanki', 'pyspellchecker', 'deep-translator', 'feedparser', 'wordfreq', 'watchdog',
-    'graphviz', 'plantuml', 'pyyaml'
+    'graphviz', 'plantuml', 'pyyaml',
+    'faster-whisper', 'sounddevice', 'numpy'
 )
 
 switch ($Profile) {
@@ -109,6 +111,5 @@ if (-not $NoVenv) {
 Write-Host "  Force the terminal UI:  star --tui"
 if ($Profile -eq 'all') {
     Write-Host "  Heavier optional extras (not installed):" -ForegroundColor DarkGray
-    Write-Host '    voice dictation:  pip install "star-reader[transcribe]"  (Whisper + PyTorch)' -ForegroundColor DarkGray
     Write-Host '    spaCy NER:        pip install "star-reader[ner]"; python -m spacy download en_core_web_sm' -ForegroundColor DarkGray
 }

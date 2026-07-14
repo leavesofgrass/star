@@ -8,6 +8,19 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### 🔧 Changed
+
+- **`[all]` now includes voice dictation.** The `[transcribe]` stack
+  (faster-whisper, sounddevice, numpy) joins the `all` extra — the old
+  exclusion dated from the openai-whisper/PyTorch era, when it weighed over
+  2 GB; the CTranslate2 stack is ~150 MB. `pipx install "star-reader[all]"`
+  now really is batteries-included. The installer scripts' `--all` profile
+  matches. Only Coqui TTS and the spaCy `[ner]` backend remain separate.
+
+---
+
 ## [0.1.27] 2026-07-14
 
 ### 🐛 Fixed

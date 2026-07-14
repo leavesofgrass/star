@@ -145,6 +145,13 @@ all = [
     "pyyaml",
     "py7zr",
     "rarfile",
+    # Speech-to-text dictation ([transcribe]).  Included since faster-whisper
+    # replaced openai-whisper/PyTorch (0.1.25): the CTranslate2 stack is
+    # ~150 MB, small enough for the batteries-included install.  Coqui TTS and
+    # [ner] (spaCy + language model) remain the only groups outside `all`.
+    "faster-whisper",
+    "sounddevice",
+    "numpy",
 ]
 
 [project.scripts]

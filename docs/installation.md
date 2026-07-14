@@ -97,11 +97,11 @@ Worked examples: [`docs/examples/cli/check-dependencies`](examples/cli/check-dep
 
 **Advanced users can still install extras the classic way** — `pip install
 "star-reader[all]"` for the full feature set, or individual groups such as
-`star-reader[translate,vocab]`. Note that `[all]` deliberately **excludes** the
-speech-to-text dictation stack (`[transcribe]` — faster-whisper, ~140 MB), Coqui
-TTS, and the spaCy NER backend (`[ner]`, which also needs a language model);
-install those separately if you want them — but the normal path is one click,
-in-app.
+`star-reader[translate,vocab]`. Since 0.1.28 `[all]` **includes** the
+speech-to-text dictation stack (`[transcribe]` — faster-whisper, ~150 MB; the
+old exclusion dated from the PyTorch era, when it was over 2 GB). Only Coqui
+TTS and the spaCy NER backend (`[ner]`, which also needs a language model)
+remain separate installs — but the normal path is one click, in-app.
 
 The **pure-Python wheel** behind this install is star's primary, stable
 distribution artifact.
@@ -147,13 +147,12 @@ pip install star_reader-0.1.27-py3-none-any.whl
 pip install "star_reader-0.1.27-py3-none-any.whl[all]"
 ```
 
-> **`[all]` excludes the speech-to-text and neural-TTS stacks on purpose.** It
-> does **not** install voice dictation/transcription (`[transcribe]` —
-> faster-whisper, ~140 MB) or Coqui neural TTS. Add those explicitly only if you
-> want them:
+> **`[all]` includes voice dictation/transcription** (`[transcribe]` —
+> faster-whisper, ~150 MB, no PyTorch) since 0.1.28; the old exclusion dated
+> from the openai-whisper/PyTorch era, when the stack was over 2 GB. Only
+> Coqui neural TTS stays a separate, explicit install:
 >
 > ```bash
-> pip install "star-reader[transcribe]"   # faster-whisper + sounddevice (no PyTorch)
 > pip install TTS                          # Coqui neural TTS
 > ```
 
