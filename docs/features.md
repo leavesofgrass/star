@@ -37,7 +37,7 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 - [RSVP reading mode](#rsvp-reading-mode)
 - [Audio export](#audio-export)
 - [Speed presets, bookmarks & history](#speed-presets-bookmarks--history)
-- [Document editing](#document-editing-qt-gui)
+- [Document editing](#document-editing)
 - [Study & writing aids](#study--writing-aids)
 - [Optional features & one-click install](#optional-features--one-click-install)
 - [Accessibility](#accessibility)
@@ -1107,10 +1107,11 @@ stack depth is `nav_history_size` (default 50).
 
 ---
 
-## Document editing (Qt GUI)
+## Document editing
 
 A **Markdown edit mode** lets you correct OCR errors, add notes, or revise any
-document in place.
+document in place. The Qt GUI edits in-window; the TUI hands the source to
+your own editor (see [Editing in the TUI](#editing-in-the-tui) below).
 
 | Action | Key / button |
 |---|---|
@@ -1130,11 +1131,26 @@ unsaved it asks whether to save, discard, or cancel, so a stray press never
 loses work. The editor works on the Markdown representation — for binary formats
 this is a converted approximation, not a round-trip.
 
+### Editing in the TUI
+
+The terminal has no in-app editor pane — instead, **`Ctrl+E`** (or `M-x edit`)
+suspends the screen and opens the document's source in **`$VISUAL` /
+`$EDITOR`** (falling back to notepad on Windows, else nano/vi), then reloads
+the document when the editor exits. Text formats (`.md`, `.txt`, `.rst`,
+`.org`, `.adoc`…) are edited in place; binary formats (PDF, DOCX, EPUB…) get
+their Markdown conversion as a draft file, followed by a Save-As prompt —
+the same split the GUI makes. Because the editing happens in your own editor,
+your screen-reader and keyboard setup apply unchanged, and saving/undo work
+exactly as you have them configured. **`Ctrl+N`** (or `M-x new-document`)
+creates a new Markdown file the same way.
+
 ### Creating a new document
 
 **File ▸ New** (`Ctrl+N`, or the **New** toolbar button) opens a blank document
 in edit mode so you can compose from scratch. The first **Save** (`Ctrl+S`)
-prompts for a location; after that it behaves like any other file.
+prompts for a location; after that it behaves like any other file. In the TUI,
+`Ctrl+N` / `M-x new-document` prompts for a path and writes the file in
+`$EDITOR`.
 
 ### Markdown formatting
 

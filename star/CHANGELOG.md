@@ -21,6 +21,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ### 🔧 Changed
 
+- **The keyboard cheat sheet's GUI/TUI parity table caught up with reality.**
+  The TUI column now shows the new editing bindings (`Ctrl+E`, `Ctrl+N`), the
+  dictation model picker, and the `M-x transcribe-file` / `M-x dictate-note`
+  commands it has had since 0.1.23 but the table still listed as missing.
 - **Frozen builds now honor the `whisper_model` setting.** The packaged app
   used to load its bundled base dictation model no matter what `whisper_model`
   said; now the bundle covers the default (`base`, fully offline) and any

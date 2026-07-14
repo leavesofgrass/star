@@ -605,7 +605,7 @@ which the view stays with you instead of snapping back to the speech.
 | Reload document | — | `F9` |
 | Quit | `Ctrl+Q` | `Ctrl+Q`   `q` |
 
-### Editing (Qt GUI only)
+### Editing
 
 | Key | Action |
 |---|---|
@@ -617,6 +617,11 @@ which the view stays with you instead of snapping back to the speech.
 | `Ctrl+K` | Insert a Markdown link — [text](url) (edit mode) |
 | `Ctrl+X` / `Ctrl+C` / `Ctrl+V` | Cut / copy / paste |
 | `Ctrl+C` | Copy selection or current paragraph (read mode) |
+
+**In the TUI:** `Ctrl+E` / `M-x edit` opens the document's source in your
+`$VISUAL`/`$EDITOR` and reloads it when the editor exits (text formats in
+place; binary formats via a Markdown draft plus a Save-As prompt), and
+`Ctrl+N` / `M-x new-document` creates a new Markdown file the same way.
 
 **Live-edit loop:** `Ctrl+S` saves in place and leaves you in edit mode, so you
 can keep typing and formatting without being bounced to read mode. Formatting

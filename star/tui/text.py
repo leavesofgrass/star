@@ -256,15 +256,18 @@ _SHORTCUTS: List[Tuple[str, List[Tuple[str, str, str]]]] = [
     (
         "Edit",
         [
-            ("Toggle edit mode", "Ctrl+E", "—"),
-            ("Save", "Ctrl+S", "—"),
+            ("New document", "Ctrl+N", "Ctrl+N / M-x new-document"),
+            ("Toggle edit mode", "Ctrl+E", "Ctrl+E / M-x edit ($EDITOR)"),
+            ("Save", "Ctrl+S", "(save in your $EDITOR)"),
             ("Copy", "Ctrl+C", "M-x copy"),
         ],
     ),
     (
         "Tools & Help",
         [
-            ("Transcribe / dictate", "Ctrl+Alt+S / Ctrl+Alt+V", "—"),
+            ("Transcribe / dictate", "Ctrl+Alt+S / Ctrl+Alt+V",
+             "M-x transcribe-file / dictate-note"),
+            ("Dictation model", "Ctrl+, (Preferences)", "M-x whisper-model"),
             ("Transcript timestamps", "Ctrl+Alt+Z", "—"),
             ("Clear document cache", "Ctrl+Shift+Delete", "M-x cache-clear"),
             ("Command palette", "F2", "M-x / F2 / :"),
