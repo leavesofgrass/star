@@ -10,6 +10,19 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### 🐛 Fixed
+
+- **Your word-highlight color is actually used now.** The spoken-word
+  highlight painted every word in the theme's selection color (the default
+  theme's purple) no matter what **Preferences ▸ Reading ▸ Word color**
+  said: the reader parked the real text cursor on the word with the word
+  still *selected*, and the native selection painted over the custom
+  highlight. The caret now parks collapsed at the word start — the color
+  you pick is the color you see.
+- **The Preferences dialog opens maximized.** Six tabs of settings didn't
+  fit a small fixed-size dialog on every display — and nobody likes a
+  scrolling dialog.
+
 ### ✨ Added
 
 - **Eight popular color themes — in both the GUI and the terminal.**
@@ -26,6 +39,12 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ### 🔧 Changed
 
+- **Theme renames: `obsidian` → `galaxy`, `obsidian-light` →
+  `galaxy-light`, `zed-one-dark` → `one-dark`, `zed-one-light` →
+  `one-light`.** star's own themes no longer carry another project's name.
+  Old names keep working everywhere — saved settings and profiles are
+  migrated on load, seeded CSS files are renamed (hand edits carry over),
+  and the legacy names still resolve if anything else supplies them.
 - **The menu bar slimmed from 15 menus to 11 — with every command and every
   shortcut retained.** **Highlight**, **Notes**, and **Bookmarks** merged
   into one **Annotate** menu; **Citations** joined **Study**; **Profiles**

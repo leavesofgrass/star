@@ -118,7 +118,7 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 | One-click optional features | Missing add-ons are offered for background download — no `pip` required; the feature works in the same session |
 | Plugin system | Third parties add TTS engines, document formats, or exporters via entry-point plugins; introspect with `star --plugins` |
 | Dependency status report | `star --deps` lists every optional dependency and how to add the rest |
-| Built-in themes | 17 palettes: obsidian (default), obsidian-light, zed-one-dark, zed-one-light, dark, light, contrast, high-contrast (WCAG AAA), phosphor, plus the popular community schemes **dracula, nord, solarized-dark, solarized-light, gruvbox-dark, tokyo-night, catppuccin-mocha, monokai** (every text color AA-checked, in the GUI *and* the terminal); can also follow the OS light / dark / high-contrast preference |
+| Built-in themes | 17 palettes: galaxy (default), galaxy-light, one-dark, one-light, dark, light, contrast, high-contrast (WCAG AAA), phosphor, plus the popular community schemes **dracula, nord, solarized-dark, solarized-light, gruvbox-dark, tokyo-night, catppuccin-mocha, monokai** (every text color AA-checked, in the GUI *and* the terminal); can also follow the OS light / dark / high-contrast preference |
 | CSS theme customization | Drop any `.css` file into the themes folder; star picks it up instantly |
 | High-DPI display support | Qt GUI scales correctly on 4K and HiDPI screens; toolbar icons render crisply on high-DPI displays |
 | Reading level | Flesch-Kincaid grade and ease score on demand |
@@ -1383,9 +1383,9 @@ piping to other AT tools.
 
 | Name | Description |
 |---|---|
-| `obsidian` | Purple-accented dark (the default), modeled on Obsidian's default appearance |
-| `obsidian-light` | Its light counterpart |
-| `zed-one-dark` / `zed-one-light` | The One Dark / One Light pair as shipped by Zed |
+| `galaxy` | Purple-accented dark (the default) |
+| `galaxy-light` | Its light counterpart |
+| `one-dark` / `one-light` | The classic One Dark / One Light editor pair |
 | `dark` | Polished neutral-dark with blue/cyan/purple/teal accents |
 | `light` | Dark text on white with blue and magenta accents |
 | `contrast` | Bold white and cyan on pure black — maximum legibility |
@@ -1411,7 +1411,7 @@ Preferences ▸ Display, `M-x theme <name>`, or `star --theme`.
 
 star can track the operating system's appearance and pick the matching built-in
 theme automatically: the OS **dark**, **light**, and **high-contrast** preferences
-map to `obsidian`, `obsidian-light`, and the AAA `high-contrast` theme
+map to `galaxy`, `galaxy-light`, and the AAA `high-contrast` theme
 respectively. Detection uses
 `QGuiApplication.styleHints().colorScheme()` (Qt 6.5+) and is best-effort — when
 the OS preference is unavailable or unknown, star leaves your saved theme

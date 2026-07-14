@@ -74,7 +74,7 @@ def test_theme_combo_lists_community_palettes(dlg):
     """The Display-tab theme combo carries the full registry — including the
     0.1.28 community palettes and any custom CSS themes."""
     names = [dlg.theme_box.itemText(i) for i in range(dlg.theme_box.count())]
-    for expected in ("obsidian", "dracula", "nord", "catppuccin-mocha"):
+    for expected in ("galaxy", "dracula", "nord", "catppuccin-mocha"):
         assert expected in names
 
 

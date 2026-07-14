@@ -71,7 +71,7 @@ live match count and next/previous navigation.
 
 - **Edit ▸ Preferences…** (**Ctrl+,**) gathers every reader setting — highlight,
   voice, display, and more — in one tabbed dialog.
-- **F5** cycles the color theme — 17 built-ins including Obsidian (the
+- **F5** cycles the color theme — 17 built-ins including Galaxy (the
   default), a **high-contrast** theme for low-vision reading, and popular
   favorites like **Dracula, Nord, Solarized, Gruvbox, Tokyo Night, and
   Catppuccin**.

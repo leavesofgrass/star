@@ -86,7 +86,14 @@ class PreferencesDialog(QDialog):
         self.win = win
         self.settings = win.settings
         self.setWindowTitle(tr("Preferences"))
-        self.resize(560, 560)
+        # Open maximized: the tabs hold a lot of settings and a small dialog
+        # forces scrolling (explicitly unwanted).  The resize() first gives
+        # "restore down" a sensible floor instead of a postage stamp.
+        self.resize(900, 700)
+        try:  # PyQt6
+            self.setWindowState(Qt.WindowState.WindowMaximized)
+        except AttributeError:  # PyQt5
+            self.setWindowState(Qt.WindowMaximized)  # type: ignore[attr-defined]
 
         outer = QVBoxLayout(self)
         self.tabs = QTabWidget()
@@ -549,7 +556,7 @@ class PreferencesDialog(QDialog):
         self._theme_names = theme_names
         self.theme_box = QComboBox()
         self.theme_box.addItems(theme_names)
-        curt = str(self.settings.get("theme", "obsidian"))
+        curt = str(self.settings.get("theme", "galaxy"))
         self._orig_theme = curt  # to detect a deliberate change on apply
         self.theme_box.setCurrentIndex(
             theme_names.index(curt) if curt in theme_names else 0
@@ -937,7 +944,7 @@ class PreferencesDialog(QDialog):
         # marks the choice "explicit" (qt_theme_explicit) so OS-follow won't
         # override it on the next launch.  Conversely, ticking "Follow OS theme"
         # without changing the theme re-arms OS auto-detection by clearing the flag.
-        new_theme = str(self.settings.get("theme", "obsidian"))
+        new_theme = str(self.settings.get("theme", "galaxy"))
         theme_changed = new_theme != self._orig_theme
         if theme_changed:
             self.settings._data["qt_theme_explicit"] = True

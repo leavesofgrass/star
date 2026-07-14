@@ -115,27 +115,30 @@ p    {{ margin: 4px 0; }}
 # Every palette below carries all eleven keys; missing keys fall back to the
 # ``dark`` defaults in :func:`_parse_css_palette`.
 BUILT_IN_PALETTES: Dict[str, Dict[str, str]] = {
-    # ── Obsidian (default) ────────────────────────────────────────────────
-    "obsidian": {
+    # ── Galaxy (default) — purple-accented dark ───────────────────────────
+    # (Named "obsidian"/"zed-one-*" before 0.1.28; renamed so star's own
+    # themes never carry another project's name.  LEGACY_THEME_ALIASES below
+    # keeps old settings/profiles working.)
+    "galaxy": {
         "bg": "#1e1e1e", "fg": "#dadada", "sel": "#483d6b",
         "h1": "#c9b6ff", "h2": "#a98eff", "h3": "#8aa2ff", "h4": "#7bd0c1",
         "code": "#e0a87a", "code_bg": "#2a2a2a", "link": "#a882ff",
         "muted": "#7d7d7d",
     },
-    "obsidian-light": {
+    "galaxy-light": {
         "bg": "#ffffff", "fg": "#2e3338", "sel": "#d8caff",
         "h1": "#6c3fd6", "h2": "#8257e5", "h3": "#3a6df0", "h4": "#1a9e8f",
         "code": "#b5673a", "code_bg": "#f2f0f9", "link": "#7c3aed",
         "muted": "#8a8f98",
     },
-    # ── Zed (One Dark / One Light) ────────────────────────────────────────
-    "zed-one-dark": {
+    # ── One Dark / One Light ──────────────────────────────────────────────
+    "one-dark": {
         "bg": "#282c34", "fg": "#abb2bf", "sel": "#3e4451",
         "h1": "#61afef", "h2": "#c678dd", "h3": "#56b6c2", "h4": "#98c379",
         "code": "#e5c07b", "code_bg": "#21252b", "link": "#61afef",
         "muted": "#5c6370",
     },
-    "zed-one-light": {
+    "one-light": {
         "bg": "#fafafa", "fg": "#383a42", "sel": "#dbdbdc",
         "h1": "#4078f2", "h2": "#a626a4", "h3": "#0184bc", "h4": "#50a14f",
         "code": "#c18401", "code_bg": "#eaeaeb", "link": "#4078f2",
@@ -240,8 +243,23 @@ BUILT_IN_PALETTES: Dict[str, Dict[str, str]] = {
     },
 }
 
-#: Built-in theme names in cycle order (Obsidian first; it is the default).
+#: Built-in theme names in cycle order (Galaxy first; it is the default).
 BUILT_IN_THEME_NAMES: List[str] = list(BUILT_IN_PALETTES.keys())
+
+#: Pre-0.1.28 theme names → their current names.  star's own themes no
+#: longer carry another project's name; these aliases keep old settings
+#: files, saved profiles, and `star --theme obsidian` working forever.
+LEGACY_THEME_ALIASES: Dict[str, str] = {
+    "obsidian": "galaxy",
+    "obsidian-light": "galaxy-light",
+    "zed-one-dark": "one-dark",
+    "zed-one-light": "one-light",
+}
+
+
+def resolve_theme_name(name: str) -> str:
+    """Map a legacy theme name to its current name (identity otherwise)."""
+    return LEGACY_THEME_ALIASES.get((name or "").strip(), name)
 
 
 # =============================================================================
@@ -249,11 +267,11 @@ BUILT_IN_THEME_NAMES: List[str] = list(BUILT_IN_PALETTES.keys())
 # =============================================================================
 
 #: Theme picked for each detected OS appearance.  ``dark``/``light`` map to the
-#: default Obsidian variants; the *high-contrast* mode (some platforms report a
+#: default Galaxy variants; the *high-contrast* mode (some platforms report a
 #: dedicated forced-colors / high-contrast preference) maps to the AAA theme.
 _OS_SCHEME_THEME: Dict[str, str] = {
-    "dark": "obsidian",
-    "light": "obsidian-light",
+    "dark": "galaxy",
+    "light": "galaxy-light",
     "high-contrast": "high-contrast",
 }
 
@@ -424,6 +442,17 @@ def _seed_default_css_themes() -> None:
         THEMES_DIR.mkdir(parents=True, exist_ok=True)
     except OSError:
         return
+    # Migrate seed files written under the pre-0.1.28 names: rename them so
+    # any hand edits carry over to the new name (skip when the new file
+    # already exists — never clobber).
+    for old, new in LEGACY_THEME_ALIASES.items():
+        old_path = THEMES_DIR / f"{old}.css"
+        new_path = THEMES_DIR / f"{new}.css"
+        if old_path.exists() and not new_path.exists():
+            try:
+                old_path.rename(new_path)
+            except OSError:
+                pass
     header = (
         "/* star CSS theme\n"
         " * Copy this file, give it a new name, and edit freely.\n"

@@ -16,7 +16,7 @@ _log = _logging.getLogger("star.settings")
 WHISPER_MODELS = ["tiny", "base", "small", "medium", "large-v3", "large-v3-turbo"]
 
 DEFAULTS: Dict[str, Any] = {
-    "theme": "obsidian",
+    "theme": "galaxy",
     # ── OS colour-scheme / contrast following (Qt GUI) ────────────────────
     # When True, star queries the OS appearance on startup (Qt 6.5+
     # QStyleHints.colorScheme) and, if the user prefers Dark or Light, picks a
@@ -398,6 +398,19 @@ class Settings:
             self._data["qt_font_family"] = _default_sans_font()
         if self._data.get("highlight_speed") == 0.85:
             self._data["highlight_speed"] = 1.0
+        # 0.1.28 theme renames (obsidian→galaxy, zed-one-*→one-*): migrate the
+        # saved theme and every profile's theme so old settings keep working.
+        # Imported lazily — themes.py imports the runtime hub, and settings is
+        # constructed very early.
+        try:
+            from .themes import LEGACY_THEME_ALIASES as _ALIASES
+        except Exception:  # pragma: no cover - defensive
+            _ALIASES = {}
+        if self._data.get("theme") in _ALIASES:
+            self._data["theme"] = _ALIASES[str(self._data["theme"])]
+        for _profile in (self._data.get("profiles") or {}).values():
+            if isinstance(_profile, dict) and _profile.get("theme") in _ALIASES:
+                _profile["theme"] = _ALIASES[str(_profile["theme"])]
 
     def save(self) -> None:
         # Write atomically: serialize to a temp file in the same directory,

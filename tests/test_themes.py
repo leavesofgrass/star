@@ -58,12 +58,46 @@ def test_community_theme_registered(name):
 
 
 def test_cycle_order_preserved():
-    """The 0.1.28 additions are appended — the first nine names (the F5
-    cycle order existing users know) are unchanged."""
+    """The 0.1.28 additions are appended — the first nine palettes (the F5
+    cycle order existing users know) keep their positions.  (galaxy/one-* are
+    the 0.1.28 renames of obsidian/zed-one-* — same palettes, star-own names.)"""
     assert BUILT_IN_THEME_NAMES[:9] == [
-        "obsidian", "obsidian-light", "zed-one-dark", "zed-one-light",
+        "galaxy", "galaxy-light", "one-dark", "one-light",
         "dark", "light", "contrast", "high-contrast", "phosphor",
     ]
+
+
+def test_legacy_theme_names_resolve():
+    """Pre-0.1.28 names in old settings/profiles map to the current themes."""
+    from star.themes import LEGACY_THEME_ALIASES, resolve_theme_name
+
+    assert resolve_theme_name("obsidian") == "galaxy"
+    assert resolve_theme_name("obsidian-light") == "galaxy-light"
+    assert resolve_theme_name("zed-one-dark") == "one-dark"
+    assert resolve_theme_name("zed-one-light") == "one-light"
+    # Identity for current names; every alias target must exist.
+    assert resolve_theme_name("galaxy") == "galaxy"
+    assert resolve_theme_name("dracula") == "dracula"
+    for target in LEGACY_THEME_ALIASES.values():
+        assert target in BUILT_IN_PALETTES
+
+
+def test_settings_migrate_legacy_theme(tmp_path, monkeypatch):
+    """A settings.json (and profiles) saved with a pre-0.1.28 theme name is
+    migrated on load."""
+    import json
+
+    import star.settings as settings_mod
+
+    f = tmp_path / "settings.json"
+    f.write_text(json.dumps({
+        "theme": "obsidian",
+        "profiles": {"study": {"theme": "zed-one-dark", "tts_rate": 300}},
+    }), encoding="utf-8")
+    monkeypatch.setattr(settings_mod, "SETTINGS_FILE", f)
+    s = settings_mod.Settings()
+    assert s.get("theme") == "galaxy"
+    assert s.get("profiles")["study"]["theme"] == "one-dark"
 
 
 @pytest.mark.parametrize("name", _COMMUNITY)

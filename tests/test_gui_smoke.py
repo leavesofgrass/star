@@ -207,6 +207,46 @@ def test_reading_font_chooser_selects_and_reverts(window):
     assert app.font().family() == original
 
 
+def test_word_highlight_paints_user_color_with_collapsed_caret(window, qapp):
+    """The spoken-word highlight must show the user's highlight_color.
+
+    Regression: _apply_word_highlight used to hand the editor a text cursor
+    with the word still SELECTED, so the native selection painted the theme's
+    `sel` color over the ExtraSelection — a custom word color (Preferences ▸
+    Reading ▸ Word color) never showed.  The real caret must be collapsed and
+    the painted ExtraSelection must carry the user's color."""
+    from types import SimpleNamespace
+
+    qapp.processEvents()  # let the async welcome render land first
+    window.settings["highlight_color"] = "#0f766e"  # a dark teal
+    window.settings["highlight_style"] = "background"
+    window.settings["highlight_lead_words"] = 0
+    window._rebuild_hl_fmt()
+    window.editor.setPlainText("alpha beta gamma delta epsilon")
+    window._qt_word_map = [0, 6, 11, 17, 23]
+    old_doc = window.doc
+    window.doc = SimpleNamespace(
+        path="", title="t", format="markdown", markdown="",
+        word_map=[SimpleNamespace(tts_len=5, word="w")] * 5,
+    )
+    try:
+        # setExtraSelections/setTextCursor are synchronous — assert without
+        # pumping the loop (a queued render would replace the editor text).
+        window._apply_word_highlight(2, window._hl_session)
+        # No native selection — that is what painted over the user's color.
+        assert not window.editor.textCursor().hasSelection()
+        # And the caret parked on the spoken word (ruler / resume tracking).
+        assert window.editor.textCursor().position() == 11
+        # The word's ExtraSelection carries the user's color, verbatim.
+        word_sels = [
+            s for s in window.editor.extraSelections() if s.cursor.hasSelection()
+        ]
+        assert word_sels, "no word ExtraSelection painted"
+        assert word_sels[-1].format.background().color().name() == "#0f766e"
+    finally:
+        window.doc = old_doc
+
+
 def test_reading_font_lives_in_preferences_not_a_submenu(window):
     """0.1.28: the Reading Font radios left the View menu for Preferences ▸
     Display — the menu keeps only the one-tap dyslexia toggle.  The empty

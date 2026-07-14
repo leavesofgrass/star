@@ -367,7 +367,14 @@ class PlaybackMixin:
         # nearest edge — which lets the read line drift down to the bottom and is
         # easy to lose track of — so scroll it into the middle instead (honours
         # the qt_autoscroll preference).
-        self.editor.setTextCursor(cursor)
+        #
+        # COLLAPSED caret, not the word-span cursor: a real selection paints
+        # the theme's selection color OVER the ExtraSelection, so the user's
+        # highlight_color never showed — every word lit up in the theme's
+        # `sel` purple no matter what Preferences said.
+        caret = QTextCursor(doc_obj)
+        caret.setPosition(char_pos)
+        self.editor.setTextCursor(caret)
         if self.settings.get("qt_autoscroll", True):
             self._scroll_read_word_into_view(char_pos)
 

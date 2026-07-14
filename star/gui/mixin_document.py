@@ -765,6 +765,9 @@ class DocumentMixin:
         Uses getattr so this method is safe to call even before
         _css_themes is assigned (e.g. during very early init).
         """
+        from ..themes import resolve_theme_name
+
+        theme_name = resolve_theme_name(theme_name)
         css_themes: Dict[str, Any] = getattr(self, "_css_themes", {})
         if theme_name in css_themes:
             return css_themes[theme_name]
@@ -1071,7 +1074,7 @@ class DocumentMixin:
         palettes the CSS is generated from the palette dict (all 11 keys —
         ``code_bg`` / ``link`` / ``muted`` fall back gracefully).
         """
-        theme_name = self.settings.get("theme", "obsidian")
+        theme_name = self.settings.get("theme", "galaxy")
         pal = self._effective_palette(theme_name)
         custom_css: str = str(pal.get("_css", ""))
 
