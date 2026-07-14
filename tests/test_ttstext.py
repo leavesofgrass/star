@@ -486,3 +486,14 @@ def test_nested_blockquote_markers_do_not_leak():
     out = _strip_markdown_for_tts(md, skip_code=True)
     assert ">" not in out
     assert "quoted" in out and "nested quote" in out and "spaced nested" in out
+
+
+def test_soft_line_breaks_joined_into_spaces():
+    """Single newlines within a paragraph are soft breaks — they must become
+    spaces so TTS engines don't pause at the end of every source line."""
+    md = "star is a reader\nthat converts text\nfor easier reading.\n\nNew paragraph here.\n"
+    out = _strip_markdown_for_tts(md)
+    assert "reader that converts" in out
+    assert "text for easier" in out
+    # Paragraph break preserved
+    assert "reading.\n\nNew" in out

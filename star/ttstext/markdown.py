@@ -70,4 +70,11 @@ def _strip_markdown_for_tts(
 
     # Collapse extra blank lines
     text = re.sub(r"\n{3,}", "\n\n", text)
+
+    # Join soft line breaks into spaces.  In Markdown a single newline
+    # inside a paragraph is a soft break that renders as a space — but
+    # SAPI5 (and most TTS engines) treats every \n as a sentence boundary
+    # and inserts a pause.  Preserve double newlines (paragraph breaks).
+    text = re.sub(r"(?<!\n)\n(?!\n)", " ", text)
+
     return text.strip()
