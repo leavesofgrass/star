@@ -105,6 +105,7 @@ def test_announce_called_on_playback_transitions(window, monkeypatch):
     class _FakeTTS:
         speaking = False
         current_word_idx = -1
+        last_cb_word_idx = -1  # pause prefers the engine-confirmed word
 
         def stop(self):
             self.speaking = False
