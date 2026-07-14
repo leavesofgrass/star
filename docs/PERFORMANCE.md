@@ -54,73 +54,47 @@ reading highlight can follow playback. It runs once per document render (on a
 background thread), and it is the single largest CPU cost when opening a large
 document.
 
-### The problem
+### History
 
-The previous implementation, for each of *n* word tokens, scanned the display
-line-by-line with `str.find`, **re-lowercasing each candidate line on every
-token**. When a token was not found ahead of the rolling cursor (common in
-structured documents that re-narrate table column headers in each row), it fell
-through to an *extended* scan to end-of-document and then a *backward* scan over
-the **entire** document — a full re-scan per unmatched token. That is O(n²) on
-exactly the documents where it hurts most.
+1. **Original** — for each of *n* word tokens, a line-by-line `str.find` scan
+   with a rolling cursor, re-lowercasing candidate lines per token and falling
+   back to whole-document re-scans for unmatched tokens: O(n²) on structured
+   documents.
+2. **Blob rewrite** — same output, effectively O(n): lines lower-cased once and
+   joined into a single blob, one `blob.find` per token, offsets mapped back to
+   `(line, col)` via a line-start table and `bisect`.
+3. **Sequence alignment (current, July 2026)** — the rolling search itself was
+   retired, however fast: it produced *wrong positions* whenever the spoken
+   plain text diverged from the display. Structured table narration inserts
+   spoken-only words ("Table with 3 columns", "Row 1", "… is …"); those matched
+   unrelated display occurrences further down, dragged the rolling cursor past
+   real content, and pinned every word from the first table to document end to
+   a stale display line (the karaoke-highlight desync). The token streams are
+   now sequence-aligned with `difflib.SequenceMatcher` in re-anchored
+   2000-token chunks (`_align_word_offsets` in
+   [`star/documents/model.py`](../star/documents/model.py) — the same aligner
+   the Qt GUI uses for its word→char map), and narration-only words borrow the
+   next aligned word's position.
 
-### The fix
+### Current cost
 
-The rewrite keeps the algorithm's output **byte-for-byte identical** but makes
-it effectively O(n):
+The chunked alignment is ~O(n · CHUNK); when the spoken and rendered token
+streams are identical (plain prose with no structural narration) a fast path
+skips difflib entirely. Measured with the harness below (best of 3, background
+thread either way — the UI never blocks on this):
 
-- Each display line is lower-cased **once** and joined into a single `blob`
-  (`"\n".join(lowered)`).
-- The forward match is a single `blob.find(word_lower, cursor)` — one C-level
-  call instead of a per-line Python loop. A word token never contains a newline,
-  so a `blob` match always lies within one line; the first match at or after the
-  rolling cursor is exactly the first line-scan match. The absolute offset is
-  mapped back to `(line, col)` via a precomputed line-start table and `bisect`.
-- The "does this word exist anywhere?" backward fallback is a single
-  `word_lower in blob` (O(len(word))) rather than a whole-document re-scan.
+| corpus | words | time |
+|---|---:|---:|
+| prose, identical streams (fast path) | 20,000 | 24 ms |
+| prose, identical streams (fast path) | 100,000 | 123 ms |
+| structured table narration (alignment) | 22,000 | 193 ms |
+| structured table narration (alignment) | 110,000 | ~4.7 s |
 
-Output identity was verified against the previous implementation on synthetic
-100k-word inputs (well-ordered, lightly structured, and header-heavy) — all
-positions match exactly, in addition to `tests/test_documents.py`.
-
-### Measured results
-
-Three synthetic corpora, `orig` = previous implementation, `new` = current:
-
-**Well-ordered** (normal prose, every word found immediately ahead — already
-near-linear before, so this is a small constant-factor win from dropping the
-per-token `.lower()`):
-
-| words | orig | new | speedup |
-|---:|---:|---:|---:|
-| 2,000 | 2.7 ms | 2.2 ms | 1.2× |
-| 20,000 | 29 ms | 27 ms | 1.1× |
-| 100,000 | 155 ms | 137 ms | 1.1× |
-
-**Structured** (≈12% of words re-narrate a header that only appears earlier in
-the display — triggers the old backward scan):
-
-| words | orig | new | speedup |
-|---:|---:|---:|---:|
-| 2,000 | 4.5 ms | 2.6 ms | 1.7× |
-| 20,000 | 76 ms | 28 ms | 2.8× |
-| 100,000 | 1,167 ms | 216 ms | **5.4×** |
-
-**Structured-heavy** (a table-like document that re-narrates its column header
-on every row — the worst case for the old whole-document re-scan):
-
-| words | orig | new | speedup |
-|---:|---:|---:|---:|
-| 4,800 | 30 ms | 10 ms | 2.9× |
-| 19,200 | 290 ms | 43 ms | 6.8× |
-| 76,800 | 4,366 ms | 364 ms | **12.0×** |
-
-The key result is the **scaling**, not any single row: the old implementation is
-quadratic (each 4× in document size costs ≈16× more time), while the new one is
-linear (≈4× time for 4× size). On the structured-heavy corpus the gap is 12× at
-77k words and keeps widening — a ~4.4 s stall to open the document collapses to
-under 0.4 s, and it would exceed ~20× past ~150k words. This is the difference
-between a large accessible textbook opening instantly versus visibly hanging.
+The structured-heavy worst case (a document that is one giant table, every row
+re-narrated) is markedly slower than the retired blob search was — but the blob
+search's positions were wrong from the first table onward, so the comparison is
+moot: correctness first, and the work happens off the UI thread while playback
+can already start.
 
 ## Large-document pagination
 
@@ -237,7 +211,10 @@ every converter and for `render_markdown` at multiple wrap widths.
 # Startup import cost (summarize the top self-time rows):
 python -X importtime -c "import star" 2> importtime.txt
 
-# Word-map timeit harness (from a checkout, using the venv interpreter):
+# Word-map timeit harness (from a checkout, using the venv interpreter).
+# NOTE: this prose corpus has identical spoken/rendered token streams, so it
+# measures the fast path; for the alignment path, interleave spoken-only
+# narration (e.g. "Row N: <header> is <cell>, …" rows) into the plain text:
 python - <<'PY'
 import random, timeit
 from star.documents.model import _build_word_map

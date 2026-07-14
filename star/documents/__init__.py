@@ -6,7 +6,7 @@ resolving."""
 from .._runtime import *  # noqa: F401,F403
 from ..formats import FormatHandler, UnsupportedFormatError  # noqa: F401
 from ..settings import Settings  # noqa: F401
-from .model import (Document, WordPos, _build_word_map)
+from .model import (Document, WordPos, _align_word_offsets, _build_word_map)
 from .pdf import (_PDF_PAGENUM_RE, _PdfBox, _load_pdf, _pdf_detect_columns, _pdf_is_running, _pdf_mark_captions, _pdf_norm_margin, _pdf_order_boxes, _pdf_running_heads_feet)
 from .html import (_HTML2MD, _load_html, _load_html_str)
 from .ebook import (_epub_extract_chapters, _load_daisy_zip, _load_dtbook, _load_epub)
@@ -37,6 +37,7 @@ __all__ = [
     "_PANDOC_INPUT_EXTS",
     "_PDF_PAGENUM_RE",
     "_PdfBox",
+    "_align_word_offsets",
     "_build_word_map",
     "_detect_format",
     "_document_from_markdown",

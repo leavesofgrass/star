@@ -143,6 +143,70 @@ def test_build_word_map_does_not_regress_on_repeated_words():
     assert lines == sorted(lines)  # monotonic, never regresses
 
 
+def _assert_word_map_exact(wm, rendered_lines, indices):
+    """Each WordPos in *indices* must point at a real occurrence of its word."""
+    for i in indices:
+        wp = wm[i]
+        line = rendered_lines[wp.disp_line].lower()
+        assert line.startswith(wp.word.lower(), wp.disp_col), (
+            f"word {i} ({wp.word!r}) pinned to line {wp.disp_line} "
+            f"col {wp.disp_col}: {rendered_lines[wp.disp_line]!r}"
+        )
+
+
+def test_build_word_map_table_narration_does_not_derail_following_text():
+    """TUI mirror of tests/test_qt_word_map.py: spoken-only table narration
+    ("Table with 3 columns", "Row 1", "… is …") used to drag the rolling
+    search cursor past real content, pinning every word from the first table
+    to document end onto a stale disp_line."""
+    plain = (
+        "Before the table sits ordinary prose. "
+        "Table with 3 columns: Group, N, Change. "
+        "Row 1: Group is Treated, N is 6,423, Change is -15.3. "
+        "Row 2: Group is Control, N is 6,424, Change is -2.1. "
+        "After the table the prose continues with completely normal "
+        "sentences that every reader expects to see highlighted."
+    )
+    lines = [
+        "Before the table sits ordinary prose.",
+        "Group N Change",
+        "Treated 6,423 -15.3",
+        "Control 6,424 -2.1",
+        "After the table the prose continues with completely normal",
+        "sentences that every reader expects to see highlighted.",
+    ]
+    wm = _build_word_map(plain, lines)
+    words = [w.word.lower() for w in wm]
+    after = words.index("continues")
+    _assert_word_map_exact(wm, lines, range(after, len(wm)))
+    # Cell words inside the narration land on the actual table cells.
+    treated = words.index("treated")
+    assert (wm[treated].disp_line, wm[treated].disp_col) == (2, 0)
+
+
+def test_build_word_map_narration_words_park_at_next_aligned_word():
+    # Spoken-only narration words borrow the next aligned word's position, so
+    # the highlight parks at the content the narration describes.
+    wm = _build_word_map("alpha Table with 3 columns beta", ["alpha", "beta"])
+    assert (wm[0].disp_line, wm[0].disp_col) == (0, 0)
+    for wp in wm[1:]:
+        assert (wp.disp_line, wp.disp_col) == (1, 0)
+
+
+def test_build_word_map_rendered_only_code_is_skipped_not_derailing():
+    # Display-only content (a code block skipped by tts_skip_code) must not
+    # break the mapping of the prose after it.
+    plain = "Look at this example. And the story continues after the code."
+    lines = [
+        "Look at this example.",
+        "def compute(items):",
+        "    return sum(items)",
+        "And the story continues after the code.",
+    ]
+    wm = _build_word_map(plain, lines)
+    _assert_word_map_exact(wm, lines, range(len(wm)))
+
+
 # ============================================================================
 # _load_html_str  (the _HTML2MD parser)
 # ============================================================================

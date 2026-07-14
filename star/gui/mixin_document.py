@@ -5,10 +5,9 @@ on StarWindow instance state and other methods via ``self``, holding no
 state of its own.  IMPORT SAFETY: references Qt at module scope — imported
 lazily by main_window.py (itself imported by runner.py after the _QT guard).
 """
-import difflib
-
 from .._runtime import *  # noqa: F401,F403
 from ..documents import Document, _build_word_map, load_document
+from ..documents.model import _WORD_TOKEN_RE, _align_word_offsets
 from ..i18n import is_rtl, tr
 from ..mathrender import has_math, render_math_to_unicode
 from ..pagination import Paginator, paginate
@@ -16,8 +15,10 @@ from ..stats import _record_library
 from .a11y import announce
 
 # Same tokenizer as documents.model._WORD_TOKEN_RE — the qt word map must stay
-# index-parallel with doc.word_map, so both must tokenize identically.
-_QT_TOKEN_RE = re.compile(r"\b\w[\w'-]*")
+# index-parallel with doc.word_map, so both must tokenize identically (aliased
+# so they cannot drift).  The aligner lives beside it in documents.model, so
+# the TUI's line map and this char map share one implementation.
+_QT_TOKEN_RE = _WORD_TOKEN_RE
 
 # A complete HTML construct Qt's rich-text parser may legitimately consume: an
 # open/close tag (attribute text may contain anything except angle brackets) or
@@ -45,64 +46,6 @@ def _escape_stray_lt(html: str) -> str:
         pos = m.end()
     out.append(html[pos:].replace("<", "&lt;"))
     return "".join(out)
-
-
-def _align_word_offsets(
-    spoken: List[str], rendered: List[Tuple[str, int]]
-) -> List[int]:
-    """Map each spoken word to the character offset of its rendered occurrence.
-
-    *spoken* is the lower-cased TTS word stream; *rendered* is
-    ``(word_lower, char_offset)`` for every token of the rendered editor text.
-    Returns one offset per spoken word, ``-1`` where no occurrence was found.
-
-    This is a real sequence alignment (difflib), not a rolling substring
-    search.  The spoken stream and the rendered text diverge legitimately in
-    both directions — structured table narration adds spoken-only words
-    ("Table with 3 columns", "Row 1", "… is …"), and skipped code blocks are
-    rendered-only — and a rolling ``find`` derails on either: a spoken-only
-    word like "with" matches some *later* rendered occurrence, drags the
-    cursor forward past real content, and every word after that is pinned to
-    a stale fallback position (the table-onward highlight breakage).
-    Alignment instead matches the two token streams as sequences, so
-    divergent runs are simply left unmatched and everything around them
-    stays exact.
-
-    Runs in re-anchored chunks: each chunk is aligned independently and the
-    cursor resumes at the end of the last *matched* block, keeping the cost
-    ~O(n · CHUNK) instead of difflib's worst-case O(n²) on book-sized text
-    while remaining exact for local divergences (tables, code blocks, figure
-    narration are all far smaller than a chunk).
-    """
-    n, m = len(spoken), len(rendered)
-    r_words = [w for w, _ in rendered]
-    offsets = [-1] * n
-    CHUNK = 2000
-    PAD = 500
-    si = ri = 0
-    while si < n and ri < m:
-        s_hi = min(n, si + CHUNK)
-        r_hi = min(m, ri + CHUNK + PAD)
-        sm = difflib.SequenceMatcher(
-            None, spoken[si:s_hi], r_words[ri:r_hi], autojunk=False
-        )
-        blocks = [b for b in sm.get_matching_blocks() if b.size]
-        if not blocks:
-            # Pathological chunk (no single common token): skip half a chunk
-            # on both sides rather than stall — later chunks re-anchor.
-            si += CHUNK // 2
-            ri += CHUNK // 2
-            continue
-        for a, b, size in blocks:
-            for k in range(size):
-                offsets[si + a + k] = rendered[ri + b + k][1]
-        last = blocks[-1]
-        new_si = si + last.a + last.size
-        new_ri = ri + last.b + last.size
-        if new_si <= si:  # guarantee forward progress
-            new_si = s_hi
-        si, ri = new_si, new_ri
-    return offsets
 
 
 class DocumentMixin:

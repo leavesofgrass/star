@@ -21,7 +21,9 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
   voice. The map is now built by aligning the spoken and rendered word
   streams as sequences, so tables, skipped code blocks, and any other place
   where what is *said* differs from what is *shown* stay in sync — narration
-  words simply park the highlight on the content they describe.
+  words simply park the highlight on the content they describe. Both reading
+  views are covered: the graphical window and the terminal reader now share
+  the same aligner.
 - **The highlight can no longer run away from the voice.** The word-timing
   estimate is paced by the speech engine's own word events, but engine
   positions behind the estimate were discarded, so once the estimate crept
