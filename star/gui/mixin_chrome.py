@@ -714,6 +714,15 @@ class ChromeMixin:
             _mi("Delete Profile…", "Ctrl+Shift+Y", self._qt_delete_profile,
                 tip="Remove a saved settings profile")
         )
+        edit_menu.addAction(
+            _mi("Export Profiles…", "", self._qt_export_profiles,
+                tip="Save your settings profiles to a shareable JSON file")
+        )
+        edit_menu.addAction(
+            _mi("Import Profiles…", "", self._qt_import_profiles,
+                tip="Load profiles from an exported file — even from another "
+                    "star version or machine")
+        )
         edit_menu.addSeparator()
         edit_menu.addAction(
             _mi(

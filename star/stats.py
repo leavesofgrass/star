@@ -305,3 +305,74 @@ def _delete_profile(settings: "Settings", name: str) -> bool:
         settings.set("profiles", profiles)
         return True
     return False
+
+
+# Version of the profile-export file format (bumped only if the envelope
+# shape itself changes; new/removed PROFILE_KEYS need no bump — import
+# filters to the keys the running version knows).
+PROFILE_EXPORT_FORMAT = 1
+
+
+def _export_profiles(
+    settings: "Settings", names: Optional[List[str]] = None
+) -> Dict[str, Any]:
+    """Build the shareable export envelope for the named profiles (all when
+    *names* is None).  The envelope records the format version and the app
+    version that wrote it, so imports can stay honest across releases."""
+    profiles = dict(settings.get("profiles", {}) or {})
+    if names is not None:
+        profiles = {n: dict(profiles[n]) for n in names if n in profiles}
+    else:
+        profiles = {n: dict(v) for n, v in profiles.items()}
+    return {
+        "star_profiles": PROFILE_EXPORT_FORMAT,
+        "app_version": APP_VERSION,
+        "profiles": profiles,
+    }
+
+
+def _import_profiles(
+    settings: "Settings", payload: Any
+) -> "Tuple[List[str], List[str]]":
+    """Merge a profile-export envelope into ``settings['profiles']``.
+
+    Cross-version by construction: keys a running version does not know
+    (added later, or since removed) are dropped rather than smuggled into
+    settings; legacy theme names are resolved through the same aliases the
+    settings migration uses.  Same-name profiles are overwritten — an export
+    is the user's chosen source of truth.
+
+    Returns ``(imported_names, dropped_keys)``.  Raises ``ValueError`` with a
+    readable message when *payload* is not a profile export.
+    """
+    from .themes import resolve_theme_name
+
+    if not isinstance(payload, dict) or "profiles" not in payload:
+        raise ValueError("not a star profile export (no 'profiles' object)")
+    if not isinstance(payload.get("star_profiles"), int):
+        raise ValueError("not a star profile export (missing format marker)")
+    raw = payload["profiles"]
+    if not isinstance(raw, dict):
+        raise ValueError("malformed profile export ('profiles' is not an object)")
+
+    known = set(PROFILE_KEYS)
+    profiles = dict(settings.get("profiles", {}) or {})
+    imported: List[str] = []
+    dropped: List[str] = []
+    for name, values in raw.items():
+        if not isinstance(name, str) or not name.strip() or not isinstance(values, dict):
+            continue
+        clean: Dict[str, Any] = {}
+        for k, v in values.items():
+            if k not in known:
+                dropped.append(k)
+                continue
+            if k == "theme" and isinstance(v, str):
+                v = resolve_theme_name(v)
+            clean[k] = v
+        if clean:
+            profiles[name.strip()] = clean
+            imported.append(name.strip())
+    if imported:
+        settings.set("profiles", profiles)
+    return imported, sorted(set(dropped))

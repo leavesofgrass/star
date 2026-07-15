@@ -22,6 +22,11 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 - **The Preferences dialog opens maximized.** Six tabs of settings didn't
   fit a small fixed-size dialog on every display — and nobody likes a
   scrolling dialog.
+- **The guided tour no longer pops over the first-run dialogs.** On a true
+  first launch the optional-features chooser opened right after the window,
+  and the tour fired inside its modal loop — appearing on top of a dialog
+  the user had to deal with first, impossible to dismiss until then. The
+  tour now waits until no modal is up before starting.
 - **No more phantom RSVP checkmark.** Closing the app with RSVP on (or
   applying it from Preferences) persisted `qt_rsvp_mode: true`, but the
   overlay is never restored at startup — so the Reading Aids menu showed a
@@ -31,6 +36,13 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ### ✨ Added
 
+- **Settings profiles travel: Export / Import Profiles… (Edit menu).**
+  Profiles were an internal list; now they export to a shareable JSON file
+  (all at once or one at a time) and import on any machine or star
+  version — the file carries a format marker and the writing version, and
+  import is cross-version by construction: settings the running version
+  doesn't know are skipped (and named), legacy theme names are translated,
+  and a same-name profile is overwritten by the imported one.
 - **RSVP display options: show exactly the words you want.** The previous
   and next context words are now independently toggleable
   (`qt_rsvp_show_prev` / `qt_rsvp_show_next`, on the Reading and Reading

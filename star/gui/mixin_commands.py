@@ -122,6 +122,8 @@ class CommandsMixin:
             ("Save Current Settings as Profile…", self._qt_save_profile),
             ("Load Profile…", self._qt_load_profile),
             ("Delete Profile…", self._qt_delete_profile),
+            ("Export Profiles…", self._qt_export_profiles),
+            ("Import Profiles…", self._qt_import_profiles),
             (
                 "Speech Cursor Mode",
                 lambda: (

@@ -7,7 +7,13 @@ lazily by main_window.py (itself imported by runner.py after the _QT guard).
 """
 from .._runtime import *  # noqa: F401,F403
 from ..i18n import tr
-from ..stats import _apply_profile_values, _delete_profile, _save_profile
+from ..stats import (
+    _apply_profile_values,
+    _delete_profile,
+    _export_profiles,
+    _import_profiles,
+    _save_profile,
+)
 from ._qtcompat import _USER_ROLE
 
 
@@ -101,6 +107,74 @@ class PresetsMixin:
             return
         _delete_profile(self.settings, chosen)
         self.statusBar().showMessage(f"Profile deleted: {chosen}")
+
+    def _qt_export_profiles(self) -> None:
+        """Export all profiles (or one) to a shareable JSON file.
+
+        The file carries a format marker and the writing app version, so it
+        can be imported on another machine or a later star release."""
+        profiles = self.settings.get("profiles", {}) or {}
+        if not profiles:
+            self.statusBar().showMessage(
+                "No profiles to export — use Edit → Save Current Settings as Profile"
+            )
+            return
+        names = sorted(profiles)
+        all_label = f"All profiles ({len(names)})"
+        chosen, ok = QInputDialog.getItem(
+            self, "Export Profiles", "Export which profile?",
+            [all_label] + names, 0, False,
+        )
+        if not ok:
+            return
+        picked = None if chosen == all_label else [chosen]
+        suggested = (
+            "star-profiles.json" if picked is None
+            else f"star-profile-{chosen}.json"
+        )
+        path, _f = QFileDialog.getSaveFileName(
+            self, "Export Profiles", suggested, "JSON (*.json);;All Files (*)"
+        )
+        if not path:
+            return
+        try:
+            payload = _export_profiles(self.settings, picked)
+            Path(path).write_text(
+                json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
+        except OSError as exc:
+            self._status_error(f"Export failed: {exc}")
+            return
+        n = len(payload["profiles"])
+        self.statusBar().showMessage(
+            f"Exported {n} profile(s) to {Path(path).name}"
+        )
+
+    def _qt_import_profiles(self) -> None:
+        """Import profiles from an exported JSON file (same-name overwrite)."""
+        path, _f = QFileDialog.getOpenFileName(
+            self, "Import Profiles", "", "JSON (*.json);;All Files (*)"
+        )
+        if not path:
+            return
+        try:
+            payload = json.loads(Path(path).read_text(encoding="utf-8"))
+            imported, dropped = _import_profiles(self.settings, payload)
+        except (OSError, json.JSONDecodeError, ValueError) as exc:
+            self._status_error(f"Import failed: {exc}")
+            return
+        if not imported:
+            self.statusBar().showMessage(
+                "No profiles found in that file — nothing imported"
+            )
+            return
+        msg = f"Imported {len(imported)} profile(s): {', '.join(sorted(imported))}"
+        if dropped:
+            # Keys from another star version this one does not know — dropped
+            # rather than smuggled into settings.
+            msg += f"  (skipped unknown settings: {', '.join(dropped)})"
+        self.statusBar().showMessage(msg, 8000)
 
     # ── Pronunciation lexicon editor ───────────────────────────
 

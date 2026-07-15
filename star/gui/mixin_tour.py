@@ -234,9 +234,21 @@ class TourMixin:
 
         Gated by the ``tour_seen`` setting so it never re-triggers on its own.
         Best-effort: a failure here must never block the app.
+
+        Never starts while a modal dialog is up: on a true first run the
+        optional-features chooser (and possibly the autosave-recovery prompt)
+        opens right after the window shows, and this singleShot(0) would fire
+        inside its exec() loop — popping the tour on top of a modal the user
+        must deal with first, with the tour impossible to dismiss.  While any
+        modal is active, re-check shortly; the tour begins once the user has
+        dealt with first-run dialogs.
         """
         try:
             if bool(self.settings.get("tour_seen", False)):
+                return
+            app = QApplication.instance()
+            if app is not None and app.activeModalWidget() is not None:
+                QTimer.singleShot(500, self._maybe_run_first_run_tour)
                 return
             self._start_tour()
         except Exception:  # noqa: BLE001 — onboarding must never crash a launch.

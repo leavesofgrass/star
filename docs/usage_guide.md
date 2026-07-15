@@ -425,6 +425,8 @@ trigger it).
 | Save settings as a profile | Edit ▸ Save Current Settings… | `Ctrl+Shift+K` | `M-x profile-save <name>` |
 | Load a profile | Edit ▸ Load Profile… | `Ctrl+Shift+J` | `M-x profile-load <name>` |
 | Delete a profile | Edit ▸ Delete Profile… | `Ctrl+Shift+Y` | `M-x profile-delete <name>` |
+| Export profiles to a JSON file | Edit ▸ Export Profiles… | — | — |
+| Import profiles from a file | Edit ▸ Import Profiles… | — | — |
 | Toggle edit mode | (Edit toolbar button) | `Ctrl+E` | — |
 | Save document | (Save toolbar button) | `Ctrl+S` | — |
 | Bold / italic / underline (edit mode) | Format ▸ Bold / Italic / Underline | `Ctrl+B` / `Ctrl+I` / `Ctrl+U` | — |

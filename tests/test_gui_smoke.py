@@ -207,6 +207,39 @@ def test_reading_font_chooser_selects_and_reverts(window):
     assert app.font().family() == original
 
 
+def test_first_run_tour_defers_while_a_modal_is_up(qapp, monkeypatch):
+    """The guided tour must not pop over a modal (the first-run
+    optional-features chooser): while a modal is active it reschedules
+    itself instead of starting."""
+    from star.gui.main_window import StarWindow
+    from star.settings import Settings
+
+    settings = Settings()
+    settings._data["tour_seen"] = False
+    win = StarWindow(settings)
+    try:
+        try:  # PyQt6
+            from PyQt6.QtWidgets import QApplication
+        except ImportError:
+            from PyQt5.QtWidgets import QApplication  # type: ignore[no-redef]
+        # Simulate an active modal (the deps chooser's exec loop).
+        monkeypatch.setattr(
+            QApplication, "activeModalWidget", lambda *a: object()
+        )
+        win._maybe_run_first_run_tour()
+        assert win._tour_popover is None  # deferred, not shown
+        # Modal gone → the tour starts on the next attempt.
+        monkeypatch.setattr(
+            QApplication, "activeModalWidget", lambda *a: None
+        )
+        win._maybe_run_first_run_tour()
+        assert win._tour_popover is not None
+        win._tour_finish()
+    finally:
+        win.close()
+        qapp.processEvents()
+
+
 def test_stale_rsvp_mode_never_survives_startup(qapp):
     """A qt_rsvp_mode persisted True (app closed with RSVP on, or a
     Preferences apply) must not leave a phantom checkmark: the overlay is
