@@ -28,7 +28,7 @@ Many of these settings are exercised in the [`docs/examples/`](examples/).
 
 | Key | Default | Description |
 |---|---|---|
-| `theme` | `"galaxy"` | Color theme: `galaxy`, `galaxy-light`, `one-dark`, `one-light`, `dark`, `light`, `contrast`, `high-contrast` (AAA low-vision), `phosphor`, `dracula`, `nord`, `solarized-dark`, `solarized-light`, `gruvbox-dark`, `tokyo-night`, `catppuccin-mocha`, `monokai`, or the stem of any custom `.css` file in the themes folder (pre-0.1.28 names — `obsidian`, `obsidian-light`, `zed-one-dark`, `zed-one-light` — are migrated automatically). See `qt_follow_os_theme` for automatic light/dark/high-contrast switching |
+| `theme` | `"galaxy"` | Color theme: `galaxy`, `galaxy-light`, `one-dark`, `one-light`, `dark`, `light`, `contrast`, `high-contrast` (AAA low-vision), `phosphor`, `dracula`, `nord`, `solarized-dark`, `solarized-light`, `gruvbox-dark`, `tokyo-night`, `catppuccin-mocha`, `monokai`, or the stem of any custom `.css` file in the themes folder (pre-0.1.27 names — `obsidian`, `obsidian-light`, `zed-one-dark`, `zed-one-light` — are migrated automatically). See `qt_follow_os_theme` for automatic light/dark/high-contrast switching |
 | `qt_follow_os_theme` | `true` | Qt GUI: on startup, follow the OS light/dark/high-contrast appearance and pick a matching built-in theme — unless the user has explicitly chosen one (see `qt_theme_explicit`). Set `false` to always honor the saved `theme` |
 | `qt_theme_explicit` | `false` | Set automatically the first time the user deliberately picks a theme (Choose Theme, Next Theme, or a profile that carries a theme). Once set, OS auto-detection never overrides that choice |
 | `auto_install` | `true` | Auto-install optional dependencies on demand (neural voices, OCR, imports, fonts, …). Gates the first-run feature chooser and later on-demand fetches. Set `false` — or set the `STAR_NO_AUTOINSTALL` env var — to disable all automatic installs |
@@ -107,7 +107,7 @@ Many of these settings are exercised in the [`docs/examples/`](examples/).
 | `qt_rsvp_mode` | `false` | Qt GUI: show the RSVP (Rapid Serial Visual Presentation) overlay — one word at a time at a fixed point |
 | `qt_rsvp_position` | `"top-center"` | Qt RSVP overlay placement: `top-left`/`center`/`right`, `center-left`/`right`, `center`, `bottom-left`/`center`/`right` |
 | `qt_rsvp_font_size` | `48` | Qt RSVP focused-word point size |
-| `qt_rsvp_show_prev` | `true` | Qt RSVP: show the previous word above the focused word (replaces the pre-0.1.28 combined `qt_rsvp_context`, which is migrated) |
+| `qt_rsvp_show_prev` | `true` | Qt RSVP: show the previous word above the focused word (replaces the pre-0.1.27 combined `qt_rsvp_context`, which is migrated) |
 | `qt_rsvp_show_next` | `true` | Qt RSVP: show the next word below the focused word — turn both off for only the single large word |
 | `qt_rsvp_text_color` | `""` | Qt RSVP: color of the focused word (context words fade the same hue); empty = light default (swatch in **Preferences ▸ Reading Aids**) |
 | `qt_rsvp_bg_color` | `""` | Qt RSVP: color of the floating panel (kept translucent); empty = dark default (swatch in **Preferences ▸ Reading Aids**) |

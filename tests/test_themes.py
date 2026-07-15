@@ -1,6 +1,6 @@
 """Theme registry invariants — palette schema, contrast, and GUI/TUI parity.
 
-The community palettes (0.1.28) reproduce well-known color schemes; because
+The community palettes (0.1.27) reproduce well-known color schemes; because
 star is a reader for people who need reading to work, every text color must
 clear WCAG AA (4.5:1) on its background even where the upstream scheme does
 not (Solarized's canonical accents famously miss it — ours are nudged).
@@ -58,9 +58,9 @@ def test_community_theme_registered(name):
 
 
 def test_cycle_order_preserved():
-    """The 0.1.28 additions are appended — the first nine palettes (the F5
+    """The 0.1.27 additions are appended — the first nine palettes (the F5
     cycle order existing users know) keep their positions.  (galaxy/one-* are
-    the 0.1.28 renames of obsidian/zed-one-* — same palettes, star-own names.)"""
+    the 0.1.27 renames of obsidian/zed-one-* — same palettes, star-own names.)"""
     assert BUILT_IN_THEME_NAMES[:9] == [
         "galaxy", "galaxy-light", "one-dark", "one-light",
         "dark", "light", "contrast", "high-contrast", "phosphor",
@@ -68,7 +68,7 @@ def test_cycle_order_preserved():
 
 
 def test_legacy_theme_names_resolve():
-    """Pre-0.1.28 names in old settings/profiles map to the current themes."""
+    """Pre-0.1.27 names in old settings/profiles map to the current themes."""
     from star.themes import LEGACY_THEME_ALIASES, resolve_theme_name
 
     assert resolve_theme_name("obsidian") == "galaxy"
@@ -83,7 +83,7 @@ def test_legacy_theme_names_resolve():
 
 
 def test_settings_migrate_legacy_theme(tmp_path, monkeypatch):
-    """A settings.json (and profiles) saved with a pre-0.1.28 theme name is
+    """A settings.json (and profiles) saved with a pre-0.1.27 theme name is
     migrated on load."""
     import json
 

@@ -289,7 +289,7 @@ THEMES: Dict[str, Dict] = {
         progress=(_BLACK, _GREEN, False, False, False, False),
         title_bar=(_BLACK, _GREEN, True, False, False, False),
     ),
-    # ── Popular community palettes (added 0.1.28) ─────────────────────────
+    # ── Popular community palettes (added 0.1.27) ─────────────────────────
     # xterm-256 approximations of each scheme's published colors, with base-8
     # fallbacks for plain terminals.  Same names as the GUI palettes so a
     # profile or muscle memory carries across both UIs.  Appended AFTER the

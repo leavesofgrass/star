@@ -427,7 +427,7 @@ class ChromeMixin:
 
         # Highlight menu (Ctrl+Shift+digit picks a color)
         # Annotate menu — highlights, notes, and bookmarks in one place
-        # (three top-level menus until 0.1.28; every shortcut unchanged).
+        # (three top-level menus until 0.1.27; every shortcut unchanged).
         annotate_menu: QMenu = mb.addMenu(tr("Annotate"))
         _HL_COLORS = [
             ("Yellow", "#ffff00", "Ctrl+Shift+1"),
@@ -695,7 +695,7 @@ class ChromeMixin:
         # Settings profiles + Preferences live at the foot of Edit (the
         # conventional home for an app's settings).  Profiles — named bundles
         # of voice/theme/font/highlight — had their own top-level menu until
-        # 0.1.28; every shortcut unchanged.
+        # 0.1.27; every shortcut unchanged.
         edit_menu.addSeparator()
         edit_menu.addAction(
             _mi(
@@ -734,7 +734,7 @@ class ChromeMixin:
         )
 
         # Study menu — spaced-repetition review plus the citation library
-        # (its own top-level menu until 0.1.28; every shortcut unchanged).
+        # (its own top-level menu until 0.1.27; every shortcut unchanged).
         # "Review Due Cards…" owns Ctrl+Shift+F5 (Ctrl+Shift+S/R are already
         # taken by Reading Statistics / Reload CSS Themes).
         _menu(
@@ -992,7 +992,7 @@ class ChromeMixin:
         aids_menu.addAction(self._rsvp_act)
 
         # (The Interface Language picker moved to Preferences ▸ General in
-        # 0.1.28 — one less submenu; the combo shows native language names.)
+        # 0.1.27 — one less submenu; the combo shows native language names.)
 
         # Tools menu — transcription, dictation, and maintenance.
         tools_menu: QMenu = mb.addMenu(tr("Tools"))

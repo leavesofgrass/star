@@ -1,4 +1,4 @@
-"""Profile export/import — the shareable-JSON envelope (0.1.28).
+"""Profile export/import — the shareable-JSON envelope (0.1.27).
 
 Pure-logic tests: profiles are exported with a format marker + app version
 and imported with cross-version hygiene (unknown keys dropped, legacy theme

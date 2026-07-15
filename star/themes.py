@@ -116,7 +116,7 @@ p    {{ margin: 4px 0; }}
 # ``dark`` defaults in :func:`_parse_css_palette`.
 BUILT_IN_PALETTES: Dict[str, Dict[str, str]] = {
     # ── Galaxy (default) — purple-accented dark ───────────────────────────
-    # (Named "obsidian"/"zed-one-*" before 0.1.28; renamed so star's own
+    # (Named "obsidian"/"zed-one-*" before 0.1.27; renamed so star's own
     # themes never carry another project's name.  LEGACY_THEME_ALIASES below
     # keeps old settings/profiles working.)
     "galaxy": {
@@ -186,7 +186,7 @@ BUILT_IN_PALETTES: Dict[str, Dict[str, str]] = {
         "code": "#009900", "code_bg": "#002600", "link": "#00ff00",
         "muted": "#008800",
     },
-    # ── Popular community palettes (added 0.1.28) ─────────────────────────
+    # ── Popular community palettes (added 0.1.27) ─────────────────────────
     # Faithful to each scheme's published palette; appended AFTER the
     # original built-ins so the F5 cycle order existing users know is
     # unchanged.  Every color pairs ≥ 4.5:1 against its background (WCAG AA).
@@ -246,7 +246,7 @@ BUILT_IN_PALETTES: Dict[str, Dict[str, str]] = {
 #: Built-in theme names in cycle order (Galaxy first; it is the default).
 BUILT_IN_THEME_NAMES: List[str] = list(BUILT_IN_PALETTES.keys())
 
-#: Pre-0.1.28 theme names → their current names.  star's own themes no
+#: Pre-0.1.27 theme names → their current names.  star's own themes no
 #: longer carry another project's name; these aliases keep old settings
 #: files, saved profiles, and `star --theme obsidian` working forever.
 LEGACY_THEME_ALIASES: Dict[str, str] = {
@@ -442,7 +442,7 @@ def _seed_default_css_themes() -> None:
         THEMES_DIR.mkdir(parents=True, exist_ok=True)
     except OSError:
         return
-    # Migrate seed files written under the pre-0.1.28 names: rename them so
+    # Migrate seed files written under the pre-0.1.27 names: rename them so
     # any hand edits carry over to the new name (skip when the new file
     # already exists — never clobber).
     for old, new in LEGACY_THEME_ALIASES.items():

@@ -41,7 +41,7 @@ def dlg(window):
 
 
 def test_consolidated_settings_round_trip_through_apply(dlg, window):
-    """The 0.1.28 consolidation: settings that used to live only in menus
+    """The 0.1.27 consolidation: settings that used to live only in menus
     (SSML, transcript timestamps, caret browsing, table reading mode, skip
     code, bionic reading, interface language) write + apply from Preferences."""
     dlg.caret_browsing.setChecked(False)
@@ -133,7 +133,7 @@ def test_rsvp_overlay_prev_next_independently_toggleable(window):
 
 
 def test_legacy_rsvp_context_setting_migrates():
-    """A settings.json saved with the pre-0.1.28 combined qt_rsvp_context
+    """A settings.json saved with the pre-0.1.27 combined qt_rsvp_context
     switch carries its value over to both new prev/next toggles."""
     import json
     import tempfile
@@ -164,7 +164,7 @@ def test_language_combo_stages_ui_language(dlg, window):
 
 def test_theme_combo_lists_community_palettes(dlg):
     """The Display-tab theme combo carries the full registry — including the
-    0.1.28 community palettes and any custom CSS themes."""
+    0.1.27 community palettes and any custom CSS themes."""
     names = [dlg.theme_box.itemText(i) for i in range(dlg.theme_box.count())]
     for expected in ("galaxy", "dracula", "nord", "catppuccin-mocha"):
         assert expected in names

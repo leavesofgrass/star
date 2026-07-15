@@ -225,7 +225,7 @@ def test_menu_bar_padding_is_tightened(window):
     chevron."""
     ss = window.menuBar().styleSheet()
     assert "QMenuBar::item" in ss and "padding" in ss
-    # The 0.1.28 simplification: exactly these eleven menus, in this order
+    # The 0.1.27 simplification: exactly these eleven menus, in this order
     # (Highlight+Notes+Bookmarks merged into Annotate; Citations into Study;
     # Profiles into Edit) — a menu creeping back in should be a conscious act.
     menus = [a.menu().title().replace("&", "")

@@ -8,7 +8,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [Unreleased]
+## [0.1.27] 2026-07-14
 
 ### 🐛 Fixed
 
@@ -34,39 +34,45 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
   restorable preference: it is normalized to off at session start, so the
   menu, Preferences, and reality always agree.
 
-### ✨ Added
+- **The spoken-word highlight stays in sync — even in documents with
+  tables.** The map that ties each spoken word to its place in the rendered
+  view was built with a rolling text search, and the structured table
+  narration ("Table with 3 columns… Row 1…") derailed it: narration-only
+  words matched unrelated text further down the page, and from the first
+  table to the end of the document the highlight no longer tracked the
+  voice. The map is now built by aligning the spoken and rendered word
+  streams as sequences, so tables, skipped code blocks, and any other place
+  where what is *said* differs from what is *shown* stay in sync — narration
+  words simply park the highlight on the content they describe. Both reading
+  views are covered: the graphical window and the terminal reader now share
+  the same aligner.
+- **The highlight can no longer run away from the voice.** The word-timing
+  estimate is paced by the speech engine's own word events, but engine
+  positions behind the estimate were discarded, so once the estimate crept
+  ahead (a slow voice, a long pause) nothing could ever pull it back — after
+  1.5 s of silence it sprinted to the end of the document. Engine positions
+  are now always recorded and the highlight snaps to the word whose audio is
+  actually playing; during a pause it holds instead of running, and the
+  free-run escape remains only for engines that stop reporting entirely.
+  Measured against a live SAPI5 voice: the painted word now *is* the spoken
+  word (drift 0) from the first word to the last.
+- **Speech flows across line breaks.** Source files wrapped at a fixed width
+  (README files, hand-wrapped Markdown) were spoken with a pause at the end of
+  every line, because each raw newline reached the speech engine as a sentence
+  boundary. Single newlines inside a paragraph — soft breaks that render as
+  spaces — are now joined before speech, so prose reads straight through;
+  paragraph breaks (blank lines) still pause naturally.
 
-- **Settings profiles travel: Export / Import Profiles… (Edit menu).**
-  Profiles were an internal list; now they export to a shareable JSON file
-  (all at once or one at a time) and import on any machine or star
-  version — the file carries a format marker and the writing version, and
-  import is cross-version by construction: settings the running version
-  doesn't know are skipped (and named), legacy theme names are translated,
-  and a same-name profile is overwritten by the imported one.
-- **RSVP display options: show exactly the words you want.** The previous
-  and next context words are now independently toggleable
-  (`qt_rsvp_show_prev` / `qt_rsvp_show_next`, on the Reading and Reading
-  Aids tabs) — turn both off and the overlay collapses to only the single
-  large word. The old combined switch is migrated.
-- **Every reading-aid color is now pickable — right on the Reading Aids
-  tab.** Each visual aid pairs its toggle with a color swatch: the spoken
-  word, the current-line tint (new `qt_current_line_color` — previously
-  always the theme's selection color), the reading ruler, and the RSVP
-  overlay's word and panel colors (new `qt_rsvp_text_color` /
-  `qt_rsvp_bg_color`; the context words fade the same hue and the panel
-  keeps its translucency). Colors apply live, and every swatch has a reset
-  button that returns the element to its theme-derived default.
-- **Eight popular color themes — in both the GUI and the terminal.**
-  Dracula, Nord, Solarized Dark, Solarized Light, Gruvbox Dark, Tokyo
-  Night, Catppuccin Mocha, and Monokai join the built-ins, cycled with
-  **F5**, picked from **Choose Theme…**, Preferences ▸ Display, or
-  `M-x theme` — the same names in both UIs, so a profile carries across.
-  Because star is a reader first, every text color clears WCAG AA (4.5:1)
-  on its background even where the upstream scheme does not (Solarized's
-  canonical accents famously miss; ours are nudged, character intact).
-  Each theme is also seeded as an editable CSS file in the themes folder,
-  and the terminal versions approximate the palettes in xterm-256 color
-  with clean base-8 fallbacks.
+
+### ⚠️ Deprecated
+
+- **The legacy openai-whisper (PyTorch) dictation backend.** faster-whisper
+  replaced it as the installed and bundled stack in 0.1.25; the Torch path is
+  kept only so older installs keep working and is scheduled for removal in
+  **0.2.0**. Using it now emits a one-time `DeprecationWarning`. Switch with
+  `pip install faster-whisper` (star prefers openai-whisper only when it is
+  the one installed, or when forced via `STAR_WHISPER_BACKEND=openai`).
+
 
 ### 🔧 Changed
 
@@ -108,52 +114,6 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
   now really is batteries-included. The installer scripts' `--all` profile
   matches. Only Coqui TTS and the spaCy `[ner]` backend remain separate.
 
----
-
-## [0.1.27] 2026-07-14
-
-### 🐛 Fixed
-
-- **The spoken-word highlight stays in sync — even in documents with
-  tables.** The map that ties each spoken word to its place in the rendered
-  view was built with a rolling text search, and the structured table
-  narration ("Table with 3 columns… Row 1…") derailed it: narration-only
-  words matched unrelated text further down the page, and from the first
-  table to the end of the document the highlight no longer tracked the
-  voice. The map is now built by aligning the spoken and rendered word
-  streams as sequences, so tables, skipped code blocks, and any other place
-  where what is *said* differs from what is *shown* stay in sync — narration
-  words simply park the highlight on the content they describe. Both reading
-  views are covered: the graphical window and the terminal reader now share
-  the same aligner.
-- **The highlight can no longer run away from the voice.** The word-timing
-  estimate is paced by the speech engine's own word events, but engine
-  positions behind the estimate were discarded, so once the estimate crept
-  ahead (a slow voice, a long pause) nothing could ever pull it back — after
-  1.5 s of silence it sprinted to the end of the document. Engine positions
-  are now always recorded and the highlight snaps to the word whose audio is
-  actually playing; during a pause it holds instead of running, and the
-  free-run escape remains only for engines that stop reporting entirely.
-  Measured against a live SAPI5 voice: the painted word now *is* the spoken
-  word (drift 0) from the first word to the last.
-- **Speech flows across line breaks.** Source files wrapped at a fixed width
-  (README files, hand-wrapped Markdown) were spoken with a pause at the end of
-  every line, because each raw newline reached the speech engine as a sentence
-  boundary. Single newlines inside a paragraph — soft breaks that render as
-  spaces — are now joined before speech, so prose reads straight through;
-  paragraph breaks (blank lines) still pause naturally.
-
-### ⚠️ Deprecated
-
-- **The legacy openai-whisper (PyTorch) dictation backend.** faster-whisper
-  replaced it as the installed and bundled stack in 0.1.25; the Torch path is
-  kept only so older installs keep working and is scheduled for removal in
-  **0.2.0**. Using it now emits a one-time `DeprecationWarning`. Switch with
-  `pip install faster-whisper` (star prefers openai-whisper only when it is
-  the one installed, or when forced via `STAR_WHISPER_BACKEND=openai`).
-
-### 🔧 Changed
-
 - **star now describes itself as what it has become: study tools for reading
   *and* writing.** The About dialog, the welcome page, and the PyPI summary
   all said "document reader"; they now cover the writing half too — the
@@ -170,7 +130,40 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
   other size is downloaded once and cached, exactly like a pip install. A
   user-set `HF_HUB_OFFLINE` is always respected.
 
+
 ### ✨ Added
+
+- **Settings profiles travel: Export / Import Profiles… (Edit menu).**
+  Profiles were an internal list; now they export to a shareable JSON file
+  (all at once or one at a time) and import on any machine or star
+  version — the file carries a format marker and the writing version, and
+  import is cross-version by construction: settings the running version
+  doesn't know are skipped (and named), legacy theme names are translated,
+  and a same-name profile is overwritten by the imported one.
+- **RSVP display options: show exactly the words you want.** The previous
+  and next context words are now independently toggleable
+  (`qt_rsvp_show_prev` / `qt_rsvp_show_next`, on the Reading and Reading
+  Aids tabs) — turn both off and the overlay collapses to only the single
+  large word. The old combined switch is migrated.
+- **Every reading-aid color is now pickable — right on the Reading Aids
+  tab.** Each visual aid pairs its toggle with a color swatch: the spoken
+  word, the current-line tint (new `qt_current_line_color` — previously
+  always the theme's selection color), the reading ruler, and the RSVP
+  overlay's word and panel colors (new `qt_rsvp_text_color` /
+  `qt_rsvp_bg_color`; the context words fade the same hue and the panel
+  keeps its translucency). Colors apply live, and every swatch has a reset
+  button that returns the element to its theme-derived default.
+- **Eight popular color themes — in both the GUI and the terminal.**
+  Dracula, Nord, Solarized Dark, Solarized Light, Gruvbox Dark, Tokyo
+  Night, Catppuccin Mocha, and Monokai join the built-ins, cycled with
+  **F5**, picked from **Choose Theme…**, Preferences ▸ Display, or
+  `M-x theme` — the same names in both UIs, so a profile carries across.
+  Because star is a reader first, every text color clears WCAG AA (4.5:1)
+  on its background even where the upstream scheme does not (Solarized's
+  canonical accents famously miss; ours are nudged, character intact).
+  Each theme is also seeded as an editable CSS file in the themes folder,
+  and the terminal versions approximate the palettes in xterm-256 color
+  with clean base-8 fallbacks.
 
 - **New documents from the TUI — `Ctrl+N` / `M-x new-document`.** Prompts for
   a destination (default `untitled.md`), seeds a title heading, writes it in

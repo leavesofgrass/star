@@ -112,7 +112,7 @@ Markdown toolbar (`_build_edit_toolbar`). Undo/Redo also appear on this menu but
 are menu-only here — their shortcut owners are the editor-scoped `Ctrl+Z` /
 `Ctrl+Y` listed under Edit.
 
-### Annotate (highlights / notes / bookmarks — one menu since 0.1.28)
+### Annotate (highlights / notes / bookmarks — one menu since 0.1.27)
 
 | Shortcut | Command |
 |---|---|

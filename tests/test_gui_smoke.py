@@ -302,7 +302,7 @@ def test_word_highlight_paints_user_color_with_collapsed_caret(window, qapp):
 
 
 def test_reading_font_lives_in_preferences_not_a_submenu(window):
-    """0.1.28: the Reading Font radios left the View menu for Preferences ▸
+    """0.1.27: the Reading Font radios left the View menu for Preferences ▸
     Display — the menu keeps only the one-tap dyslexia toggle.  The empty
     registry must stay a dict so _qt_set_reading_font's checkmark sync is a
     clean no-op, and every family must still be settable without menu radios."""

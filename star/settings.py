@@ -245,7 +245,7 @@ DEFAULTS: Dict[str, Any] = {
     "qt_rsvp_font_size": 48,        # point size of the focused word
     # Context words around the focused word — each independently toggleable
     # (some readers want ONLY the single large word).  Replaces the combined
-    # pre-0.1.28 qt_rsvp_context switch (migrated in _migrate).
+    # pre-0.1.27 qt_rsvp_context switch (migrated in _migrate).
     "qt_rsvp_show_prev": True,      # show the previous word above
     "qt_rsvp_show_next": True,      # show the next word below
     "qt_rsvp_text_color": "",       # focused-word color; "" = light default
@@ -346,7 +346,7 @@ DEFAULTS: Dict[str, Any] = {
 # _migrate runs would silently lose the user's value).  _migrate pops each
 # one, so they never persist back out.
 _LEGACY_KEYS = frozenset({
-    "qt_rsvp_context",  # 0.1.28: split into qt_rsvp_show_prev / _show_next
+    "qt_rsvp_context",  # 0.1.27: split into qt_rsvp_show_prev / _show_next
 })
 
 # =============================================================================
@@ -416,7 +416,7 @@ class Settings:
             self._data["qt_font_family"] = _default_sans_font()
         if self._data.get("highlight_speed") == 0.85:
             self._data["highlight_speed"] = 1.0
-        # 0.1.28 theme renames (obsidian→galaxy, zed-one-*→one-*): migrate the
+        # 0.1.27 theme renames (obsidian→galaxy, zed-one-*→one-*): migrate the
         # saved theme and every profile's theme so old settings keep working.
         # Imported lazily — themes.py imports the runtime hub, and settings is
         # constructed very early.
@@ -426,7 +426,7 @@ class Settings:
             _ALIASES = {}
         if self._data.get("theme") in _ALIASES:
             self._data["theme"] = _ALIASES[str(self._data["theme"])]
-        # 0.1.28: the combined RSVP context switch split into independent
+        # 0.1.27: the combined RSVP context switch split into independent
         # prev/next toggles — carry the saved value over to both.  Plain
         # assignment (not setdefault): the defaults were already merged in,
         # and the new keys cannot have been user-set while the old key still

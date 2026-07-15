@@ -487,7 +487,7 @@ def test_resolve_color_orange_and_passthrough():
 def test_no_original_theme_uses_red():
     """Colorblind guard: no fg/bg in the four ORIGINAL TUI themes may be
     COLOR_RED — that deuteranopia/protanopia promise belongs to the default
-    set.  (The community palettes added in 0.1.28 deliberately reproduce
+    set.  (The community palettes added in 0.1.27 deliberately reproduce
     their published colors, red included, and are checked separately below.)
 
     This is platform-sensitive on purpose — the old tables hardcoded
