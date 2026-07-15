@@ -283,9 +283,16 @@ class PlaybackMixin:
 
         # Optional current-line band: a full-width tint behind the line
         # being read, drawn *under* the word highlight (a reading aid).
+        # Tint = the user's line color when set, else the theme's selection.
         if paint and self.settings.get("qt_current_line_highlight", False):
-            pal = self._effective_palette(self.settings.get("theme", "dark"))
-            band = QColor(str(pal.get("sel", "#2c313a")))
+            _line_col = str(
+                self.settings.get("qt_current_line_color", "") or ""
+            ).strip()
+            if _line_col and QColor(_line_col).isValid():
+                band = QColor(_line_col)
+            else:
+                pal = self._effective_palette(self.settings.get("theme", "dark"))
+                band = QColor(str(pal.get("sel", "#2c313a")))
             line_fmt = QTextCharFormat()
             line_fmt.setBackground(band)
             # Property id is an int; PyQt6 enums expose it via .value.

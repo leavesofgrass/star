@@ -31,6 +31,14 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ### ✨ Added
 
+- **Every reading-aid color is now pickable — right on the Reading Aids
+  tab.** Each visual aid pairs its toggle with a color swatch: the spoken
+  word, the current-line tint (new `qt_current_line_color` — previously
+  always the theme's selection color), the reading ruler, and the RSVP
+  overlay's word and panel colors (new `qt_rsvp_text_color` /
+  `qt_rsvp_bg_color`; the context words fade the same hue and the panel
+  keeps its translucency). Colors apply live, and every swatch has a reset
+  button that returns the element to its theme-derived default.
 - **Eight popular color themes — in both the GUI and the terminal.**
   Dracula, Nord, Solarized Dark, Solarized Light, Gruvbox Dark, Tokyo
   Night, Catppuccin Mocha, and Monokai join the built-ins, cycled with

@@ -95,6 +95,7 @@ Many of these settings are exercised in the [`docs/examples/`](examples/).
 | `qt_dyslexia_font` | `false` | Prefer an installed dyslexia-friendly font (OpenDyslexic / Atkinson Hyperlegible / Lexend / Comic Sans) when available |
 | `qt_reading_font` | `"default"` | Reading-font override (**Preferences ▸ Display ▸ Reading font**): `default` (none), `opendyslexic`, `atkinson` (Atkinson Hyperlegible, for low vision), or `lexend`. Fetched on demand and applied app-wide + in-document |
 | `qt_current_line_highlight` | `false` | Tint the line being read with a focus band |
+| `qt_current_line_color` | `""` | Color of the current-line tint; empty = the theme's selection color (swatch in **Preferences ▸ Reading Aids**) |
 | `qt_bionic_reading` | `false` | Embolden the leading part of each word (bionic reading) |
 | `qt_syllable_split` | `false` | Show words split into syllables (`read·a·bil·i·ty`) as a decoding aid (**View ▸ Reading Aids ▸ Syllable Splitting**; needs `pyphen`). Display-only — speech and highlighting are unaffected |
 | `qt_syllable_sep` | `"·"` | The visible separator inserted between syllables (U+00B7 middot) |
@@ -107,6 +108,8 @@ Many of these settings are exercised in the [`docs/examples/`](examples/).
 | `qt_rsvp_position` | `"top-center"` | Qt RSVP overlay placement: `top-left`/`center`/`right`, `center-left`/`right`, `center`, `bottom-left`/`center`/`right` |
 | `qt_rsvp_font_size` | `48` | Qt RSVP focused-word point size |
 | `qt_rsvp_context` | `true` | Qt RSVP: show the previous/next word above and below the focused word |
+| `qt_rsvp_text_color` | `""` | Qt RSVP: color of the focused word (context words fade the same hue); empty = light default (swatch in **Preferences ▸ Reading Aids**) |
+| `qt_rsvp_bg_color` | `""` | Qt RSVP: color of the floating panel (kept translucent); empty = dark default (swatch in **Preferences ▸ Reading Aids**) |
 | `tui_rsvp_mode` | `false` | TUI mirror of the RSVP toggle |
 | `tui_rsvp_position` | `"top-center"` | TUI RSVP placement (same nine-position set as `qt_rsvp_position`) |
 | `tui_caret_follow_speech` | `true` | TUI: while reading aloud, the caret follows the spoken word so Enter resumes from here; a manual caret move gets a ~3-second grace window |

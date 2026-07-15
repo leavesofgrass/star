@@ -99,6 +99,7 @@ class _RSVPOverlay(QWidget):
 
     def __init__(self, parent: QWidget, settings: "Settings") -> None:
         super().__init__(parent)
+        self._settings = settings
         self._pos_key: str = str(settings.get("qt_rsvp_position", "top-center"))
         self._font_size: int = int(settings.get("qt_rsvp_font_size", 48))
         self._show_context: bool = bool(settings.get("qt_rsvp_context", True))
@@ -133,18 +134,40 @@ class _RSVPOverlay(QWidget):
         layout.addWidget(self._next_lbl)
         self._apply_label_styles()
 
+    def _text_color(self) -> QColor:
+        """The focused-word color: user setting, else the light default."""
+        c = QColor(str(self._settings.get("qt_rsvp_text_color", "") or "").strip())
+        return c if c.isValid() else QColor("#e8e8e8")
+
+    def _bg_color(self) -> QColor:
+        """The panel color (user setting, else the dark default) at the
+        overlay's translucency so the document stays faintly visible."""
+        c = QColor(str(self._settings.get("qt_rsvp_bg_color", "") or "").strip())
+        if not c.isValid():
+            c = QColor(24, 27, 34)
+        c.setAlpha(230)
+        return c
+
     def _apply_label_styles(self) -> None:
         fs = self._font_size
+        text = self._text_color()
         self._word_lbl.setStyleSheet(
-            f"color: #e8e8e8; font-size: {fs}px; font-weight: bold;"
+            f"color: {text.name()}; font-size: {fs}px; font-weight: bold;"
             " background: transparent; border: none;"
         )
+        # Context words: the same hue, faded — readable against the panel
+        # whatever color the user picked.
         ctx = (
-            "color: rgba(200,200,200,120); font-size: 16px;"
-            " background: transparent; border: none;"
+            f"color: rgba({text.red()},{text.green()},{text.blue()},120);"
+            " font-size: 16px; background: transparent; border: none;"
         )
         self._prev_lbl.setStyleSheet(ctx)
         self._next_lbl.setStyleSheet(ctx)
+
+    def set_colors(self) -> None:
+        """Re-read the color settings and repaint (live Preferences apply)."""
+        self._apply_label_styles()
+        self.update()
 
     def paintEvent(self, event: Any) -> None:
         try:
@@ -159,7 +182,7 @@ class _RSVPOverlay(QWidget):
         painter.setRenderHint(_AA)
         path = QPainterPath()
         path.addRoundedRect(QRectF(self.rect()), 10.0, 10.0)
-        painter.fillPath(path, QColor(24, 27, 34, 230))
+        painter.fillPath(path, self._bg_color())
         painter.end()
 
     def eventFilter(self, obj: Any, event: Any) -> bool:

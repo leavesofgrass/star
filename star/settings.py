@@ -215,6 +215,8 @@ DEFAULTS: Dict[str, Any] = {
     # Fetched on demand from GitHub (OFL) and applied app-wide + in-document.
     "qt_reading_font": "default",
     "qt_current_line_highlight": False,  # band-highlight the line being read
+    # Tint of the current-line band; "" = the theme's selection color.
+    "qt_current_line_color": "",
     "qt_bionic_reading": False,  # embolden the leading part of each word
     # Highlight Difficult Words overlay (Ctrl+Alt+O).  Seeded here so the
     # toggle's state survives restarts (see tts_favorite_voices note above).
@@ -242,6 +244,8 @@ DEFAULTS: Dict[str, Any] = {
                                      # center, bottom-left/center/right
     "qt_rsvp_font_size": 48,        # point size of the focused word
     "qt_rsvp_context": True,        # show the prev/next word above/below
+    "qt_rsvp_text_color": "",       # focused-word color; "" = light default
+    "qt_rsvp_bg_color": "",         # overlay panel color; "" = dark default
     "tui_rsvp_mode": False,         # TUI mirror of the toggle
     "tui_rsvp_position": "top-center",  # same 9-key set, TUI placement
     # ── TUI caret browsing ─────────────────────────────────

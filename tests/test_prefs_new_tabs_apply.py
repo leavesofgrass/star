@@ -60,6 +60,51 @@ def test_consolidated_settings_round_trip_through_apply(dlg, window):
     assert s.get("use_ssml") is True
 
 
+def test_reading_aid_colors_round_trip_through_apply(dlg, window):
+    """Every reading-aid visual element's color is settable from the Reading
+    Aids tab: line tint, reading ruler, RSVP word + panel (word highlight is
+    the same state as the Reading tab swatch)."""
+    dlg._line_color["v"] = "#123456"
+    dlg._ruler_color["v"] = "#654321"
+    dlg._rsvp_text_color["v"] = "#abcdef"
+    dlg._rsvp_bg_color["v"] = "#0d1117"
+    dlg._apply()
+    s = window.settings
+    assert s.get("qt_current_line_color") == "#123456"
+    assert s.get("qt_ruler_color") == "#654321"
+    assert s.get("qt_rsvp_text_color") == "#abcdef"
+    assert s.get("qt_rsvp_bg_color") == "#0d1117"
+
+
+def test_rsvp_overlay_honors_color_settings(window):
+    """The RSVP overlay paints the configured word/panel colors, live via
+    set_colors(), and falls back to its defaults when the settings are empty."""
+    from star.gui.main_window import _RSVPOverlay
+
+    window.settings["qt_rsvp_text_color"] = "#ff8800"
+    window.settings["qt_rsvp_bg_color"] = "#112233"
+    ov = _RSVPOverlay(window.editor, window.settings)
+    try:
+        assert ov._text_color().name() == "#ff8800"
+        bg = ov._bg_color()
+        assert (bg.red(), bg.green(), bg.blue()) == (0x11, 0x22, 0x33)
+        assert bg.alpha() == 230  # translucency preserved for any color
+        assert "#ff8800" in ov._word_lbl.styleSheet()
+        # Live re-apply picks up a change without rebuilding the overlay.
+        window.settings["qt_rsvp_text_color"] = "#00ff77"
+        ov.set_colors()
+        assert "#00ff77" in ov._word_lbl.styleSheet()
+        # Empty settings restore the built-in defaults.
+        window.settings["qt_rsvp_text_color"] = ""
+        window.settings["qt_rsvp_bg_color"] = ""
+        ov.set_colors()
+        assert ov._text_color().name() == "#e8e8e8"
+        assert (ov._bg_color().red(), ov._bg_color().green(),
+                ov._bg_color().blue()) == (24, 27, 34)
+    finally:
+        ov.deleteLater()
+
+
 def test_language_combo_stages_ui_language(dlg, window):
     """The General-tab language combo writes the language CODE (not the
     display name) into ui_language."""

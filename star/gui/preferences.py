@@ -103,6 +103,9 @@ class PreferencesDialog(QDialog):
         self._hl_color = {"v": str(self.settings.get("highlight_color", "cyan") or "")}
         self._sent_color = {"v": str(self.settings.get("sentence_highlight_color", "") or "")}
         self._ruler_color = {"v": str(self.settings.get("qt_ruler_color", "") or "")}
+        self._line_color = {"v": str(self.settings.get("qt_current_line_color", "") or "")}
+        self._rsvp_text_color = {"v": str(self.settings.get("qt_rsvp_text_color", "") or "")}
+        self._rsvp_bg_color = {"v": str(self.settings.get("qt_rsvp_bg_color", "") or "")}
 
         self._build_reading_tab()
         self._build_reading_aids_tab()   # convenience: pick your aid combination
@@ -179,11 +182,20 @@ class PreferencesDialog(QDialog):
             chosen = QColorDialog.getColor(start, self, tr("Choose color"))
             if chosen.isValid():
                 state["v"] = chosen.name()
-                _paint()
+                state["repaint"]()
 
         btn.clicked.connect(_pick)
         _paint()
-        state["repaint"] = _paint  # runtime-only; _write_settings reads "v" alone
+        # A state dict may back MORE than one swatch (the Reading Aids tab
+        # mirrors colors from the Reading tab), so "repaint" fans out to every
+        # button built on it.  Runtime-only; _write_settings reads "v" alone.
+        state.setdefault("_painters", []).append(_paint)
+
+        def _paint_all() -> None:
+            for p in state.get("_painters", []):
+                p()
+
+        state["repaint"] = _paint_all
         if not allow_theme:
             return btn
         wrap = QWidget()
@@ -196,7 +208,7 @@ class PreferencesDialog(QDialog):
 
         def _clear() -> None:
             state["v"] = ""
-            _paint()
+            state["repaint"]()
 
         clear_btn.clicked.connect(_clear)
         hb.addWidget(clear_btn)
@@ -378,16 +390,27 @@ class PreferencesDialog(QDialog):
         intro.setWordWrap(True)
         form.addRow(intro)
 
-        # Mirrors of the Reading tab (kept in sync).
+        # Mirrors of the Reading tab (kept in sync).  Each visual aid pairs
+        # its toggle with a color swatch so every element's color is
+        # changeable right here (swatches share state with the Reading tab —
+        # the same color, whichever tab you set it from).
         self.aid_highlight = QCheckBox(tr("Highlight the word being spoken"))
         self.aid_highlight.setChecked(self.hl_master.isChecked())
         _link_checkboxes(self.hl_master, self.aid_highlight)
-        form.addRow(self.aid_highlight)
+        form.addRow(
+            self.aid_highlight,
+            self._make_swatch(self._hl_color, False, name=tr("Word highlight color")),
+        )
 
         self.aid_current_line = QCheckBox(tr("Tint the line being read"))
         self.aid_current_line.setChecked(self.current_line.isChecked())
         _link_checkboxes(self.current_line, self.aid_current_line)
-        form.addRow(self.aid_current_line)
+        form.addRow(
+            self.aid_current_line,
+            self._make_swatch(
+                self._line_color, True, name=tr("Line tint color")
+            ),
+        )
 
         self.aid_autoscroll = QCheckBox(tr("Auto-scroll to follow the spoken word"))
         self.aid_autoscroll.setChecked(self.autoscroll.isChecked())
@@ -401,7 +424,15 @@ class PreferencesDialog(QDialog):
 
         self.aid_ruler = QCheckBox(tr("Reading ruler (a movable focus band)"))
         self.aid_ruler.setChecked(bool(self.settings.get("qt_reading_ruler", False)))
-        form.addRow(self.aid_ruler)
+        form.addRow(
+            self.aid_ruler,
+            self._make_swatch(
+                self._ruler_color, True,
+                theme_label=tr("Use highlight color"),
+                empty_text=tr("Highlight color"),
+                name=tr("Reading ruler color"),
+            ),
+        )
 
         self.aid_syllables = QCheckBox(tr("Syllable splitting (read·a·bil·i·ty)"))
         self.aid_syllables.setChecked(bool(self.settings.get("qt_syllable_split", False)))
@@ -414,6 +445,18 @@ class PreferencesDialog(QDialog):
         self.aid_rsvp = QCheckBox(tr("RSVP speed-reading overlay"))
         self.aid_rsvp.setChecked(bool(self.settings.get("qt_rsvp_mode", False)))
         form.addRow(self.aid_rsvp)
+        form.addRow(
+            tr("RSVP word color:"),
+            self._make_swatch(
+                self._rsvp_text_color, True, name=tr("RSVP word color")
+            ),
+        )
+        form.addRow(
+            tr("RSVP panel color:"),
+            self._make_swatch(
+                self._rsvp_bg_color, True, name=tr("RSVP panel color")
+            ),
+        )
 
         self.tabs.addTab(w, tr("Reading Aids"))
 
@@ -783,6 +826,12 @@ class PreferencesDialog(QDialog):
         # Reading Aids tab (mirrors of the above follow via _link_checkboxes).
         self.aid_bionic.setChecked(bool(D["qt_bionic_reading"]))
         self.aid_ruler.setChecked(bool(D["qt_reading_ruler"]))
+        self._line_color["v"] = str(D["qt_current_line_color"])
+        self._line_color["repaint"]()
+        self._rsvp_text_color["v"] = str(D["qt_rsvp_text_color"])
+        self._rsvp_text_color["repaint"]()
+        self._rsvp_bg_color["v"] = str(D["qt_rsvp_bg_color"])
+        self._rsvp_bg_color["repaint"]()
         self.aid_syllables.setChecked(bool(D["qt_syllable_split"]))
         self.aid_vocab.setChecked(bool(D["qt_vocab_highlight"]))
         self.aid_rsvp.setChecked(bool(D["qt_rsvp_mode"]))
@@ -846,12 +895,15 @@ class PreferencesDialog(QDialog):
         d["qt_caret_browsing"] = self.caret_browsing.isChecked()
         d["table_reading_mode"] = self.table_mode.currentText()
         d["tts_skip_code"] = self.skip_code.isChecked()
-        # Reading Aids tab (on/off toggles surfaced there).
+        # Reading Aids tab (on/off toggles + per-aid colors surfaced there).
         d["qt_bionic_reading"] = self.aid_bionic.isChecked()
         d["qt_reading_ruler"] = self.aid_ruler.isChecked()
         d["qt_syllable_split"] = self.aid_syllables.isChecked()
         d["qt_vocab_highlight"] = self.aid_vocab.isChecked()
         d["qt_rsvp_mode"] = self.aid_rsvp.isChecked()
+        d["qt_current_line_color"] = self._line_color["v"]
+        d["qt_rsvp_text_color"] = self._rsvp_text_color["v"]
+        d["qt_rsvp_bg_color"] = self._rsvp_bg_color["v"]
         # Fonts tab (text spacing).
         d["qt_line_height"] = self.line_height.value()
         d["qt_letter_spacing"] = self.letter_spacing.value()
@@ -926,6 +978,7 @@ class PreferencesDialog(QDialog):
                 rsvp.set_position(str(self.settings.get("qt_rsvp_position", "top-center")))
                 rsvp.set_font_size(int(self.settings.get("qt_rsvp_font_size", 48)))
                 rsvp.set_show_context(bool(self.settings.get("qt_rsvp_context", True)))
+                rsvp.set_colors()
             except Exception:
                 pass
 
