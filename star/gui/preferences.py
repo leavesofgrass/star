@@ -320,9 +320,12 @@ class PreferencesDialog(QDialog):
         self.rsvp_font.setValue(int(self.settings.get("qt_rsvp_font_size", 48) or 48))
         form.addRow(tr("RSVP font size:"), self.rsvp_font)
 
-        self.rsvp_ctx = QCheckBox(tr("Show previous / next word"))
-        self.rsvp_ctx.setChecked(bool(self.settings.get("qt_rsvp_context", True)))
-        form.addRow(tr("RSVP context:"), self.rsvp_ctx)
+        self.rsvp_prev = QCheckBox(tr("Show the previous word above"))
+        self.rsvp_prev.setChecked(bool(self.settings.get("qt_rsvp_show_prev", True)))
+        form.addRow(tr("RSVP context:"), self.rsvp_prev)
+        self.rsvp_next = QCheckBox(tr("Show the next word below"))
+        self.rsvp_next.setChecked(bool(self.settings.get("qt_rsvp_show_next", True)))
+        form.addRow("", self.rsvp_next)
 
         # Misc reading toggles.
         self.current_line = QCheckBox(tr("Tint the line being read"))
@@ -445,6 +448,16 @@ class PreferencesDialog(QDialog):
         self.aid_rsvp = QCheckBox(tr("RSVP speed-reading overlay"))
         self.aid_rsvp.setChecked(bool(self.settings.get("qt_rsvp_mode", False)))
         form.addRow(self.aid_rsvp)
+        # Display options: each context word independently toggleable — some
+        # readers want ONLY the single large word (mirrors the Reading tab).
+        self.aid_rsvp_prev = QCheckBox(tr("Show the previous word above"))
+        self.aid_rsvp_prev.setChecked(self.rsvp_prev.isChecked())
+        _link_checkboxes(self.rsvp_prev, self.aid_rsvp_prev)
+        form.addRow("", self.aid_rsvp_prev)
+        self.aid_rsvp_next = QCheckBox(tr("Show the next word below"))
+        self.aid_rsvp_next.setChecked(self.rsvp_next.isChecked())
+        _link_checkboxes(self.rsvp_next, self.aid_rsvp_next)
+        form.addRow("", self.aid_rsvp_next)
         form.addRow(
             tr("RSVP word color:"),
             self._make_swatch(
@@ -816,7 +829,8 @@ class PreferencesDialog(QDialog):
         self._ruler_color["repaint"]()
         _combo(self.rsvp_pos, _RSVP_POSITIONS, "qt_rsvp_position")
         self.rsvp_font.setValue(int(D["qt_rsvp_font_size"]))
-        self.rsvp_ctx.setChecked(bool(D["qt_rsvp_context"]))
+        self.rsvp_prev.setChecked(bool(D["qt_rsvp_show_prev"]))
+        self.rsvp_next.setChecked(bool(D["qt_rsvp_show_next"]))
         self.current_line.setChecked(bool(D["qt_current_line_highlight"]))
         self.autoscroll.setChecked(bool(D["qt_autoscroll"]))
         self.syllable_sep.setText(str(D["qt_syllable_sep"]))
@@ -888,7 +902,8 @@ class PreferencesDialog(QDialog):
         d["qt_ruler_color"] = self._ruler_color["v"]
         d["qt_rsvp_position"] = self.rsvp_pos.currentText()
         d["qt_rsvp_font_size"] = self.rsvp_font.value()
-        d["qt_rsvp_context"] = self.rsvp_ctx.isChecked()
+        d["qt_rsvp_show_prev"] = self.rsvp_prev.isChecked()
+        d["qt_rsvp_show_next"] = self.rsvp_next.isChecked()
         d["qt_current_line_highlight"] = self.current_line.isChecked()
         d["qt_autoscroll"] = self.autoscroll.isChecked()
         d["qt_syllable_sep"] = self.syllable_sep.text() or "·"
@@ -977,7 +992,7 @@ class PreferencesDialog(QDialog):
             try:
                 rsvp.set_position(str(self.settings.get("qt_rsvp_position", "top-center")))
                 rsvp.set_font_size(int(self.settings.get("qt_rsvp_font_size", 48)))
-                rsvp.set_show_context(bool(self.settings.get("qt_rsvp_context", True)))
+                rsvp.set_display_options()
                 rsvp.set_colors()
             except Exception:
                 pass

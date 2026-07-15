@@ -576,7 +576,7 @@ def _fake_backend_cls(real_name, public_name, priority):
 # share "dectalk" — that mirrors the real module, where priority decides which
 # implementation of a shared-name engine is tried first.
 _BACKENDS = {
-    "DECtalkDLLBackend": ("dectalk", 10),
+    "DECtalkDLLBackend": ("dectalk", 25),
     "Pyttsx3Backend": ("pyttsx3", 20),
     "AppleSayBackend": ("applesay", 30),
     "ESpeakLibBackend": ("espeak", 40),
@@ -625,9 +625,15 @@ def test_manager_auto_prefers_pyttsx3_when_available(fake_backends):
     assert _manager("auto").backend_name == "pyttsx3"
 
 
-def test_manager_auto_dectalk_dll_outranks_pyttsx3(fake_backends):
-    # In auto mode an available bundled DECtalk engine is inserted first.
+def test_manager_auto_pyttsx3_outranks_dectalk_dll(fake_backends):
+    # The system voice (pyttsx3) is star's default engine: with both
+    # available, auto picks pyttsx3, and DECtalk is the next in line.
     fake_backends["Pyttsx3Backend"]._avail = True
+    fake_backends["DECtalkDLLBackend"]._avail = True
+    assert _manager("auto").backend_name == "pyttsx3"
+
+
+def test_manager_auto_dectalk_dll_is_second_choice(fake_backends):
     fake_backends["DECtalkDLLBackend"]._avail = True
     assert _manager("auto").backend_name == "dectalk"
 

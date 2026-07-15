@@ -1022,7 +1022,7 @@ row that spans the word and its context.
 | `qt_rsvp_mode` | `false` | Enable RSVP overlay at startup |
 | `qt_rsvp_position` | `"top-center"` | Initial panel position |
 | `qt_rsvp_font_size` | `48` | Current-word font size in pt |
-| `qt_rsvp_context` | `true` | Show prev/next context words |
+| `qt_rsvp_show_prev` / `qt_rsvp_show_next` | `true` | Show the previous / next context word (each independently toggleable) |
 | `tui_rsvp_mode` | `false` | Enable RSVP overlay in TUI at startup |
 | `tui_rsvp_position` | `"top-center"` | Initial panel position in TUI |
 

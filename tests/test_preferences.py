@@ -292,7 +292,8 @@ def test_apply_fires_live_hooks_with_picked_values(window):
     window._rsvp_overlay = SimpleNamespace(
         set_position=lambda k: rsvp_calls.__setitem__("pos", k),
         set_font_size=lambda s: rsvp_calls.__setitem__("size", s),
-        set_show_context=lambda b: rsvp_calls.__setitem__("ctx", b),
+        set_display_options=lambda: rsvp_calls.__setitem__("display", True),
+        set_colors=lambda: rsvp_calls.__setitem__("colors", True),
     )
 
     dlg = _dialog(window)
@@ -304,7 +305,8 @@ def test_apply_fires_live_hooks_with_picked_values(window):
     dlg._ruler_color["v"] = ""  # exercise the empty → highlight-color fallback
     dlg.rsvp_pos.setCurrentText("center")
     dlg.rsvp_font.setValue(72)
-    dlg.rsvp_ctx.setChecked(False)
+    dlg.rsvp_prev.setChecked(False)
+    dlg.rsvp_next.setChecked(False)
     dlg._apply()
 
     assert calls.get("hl") and calls.get("vocab")
@@ -316,7 +318,9 @@ def test_apply_fires_live_hooks_with_picked_values(window):
         window.settings.get("qt_font_size"),
     )
     assert ruler_calls == {"h": 60, "o": 33, "c": QColor("#ff8800").name()}
-    assert rsvp_calls == {"pos": "center", "size": 72, "ctx": False}
+    assert rsvp_calls == {"pos": "center", "size": 72, "display": True, "colors": True}
+    assert window.settings.get("qt_rsvp_show_prev") is False
+    assert window.settings.get("qt_rsvp_show_next") is False
 
 
 def test_apply_changes_backend_once_and_skips_auto(window):

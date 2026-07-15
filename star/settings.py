@@ -243,7 +243,11 @@ DEFAULTS: Dict[str, Any] = {
     "qt_rsvp_position": "top-center",  # top-left/center/right, center-left/right,
                                      # center, bottom-left/center/right
     "qt_rsvp_font_size": 48,        # point size of the focused word
-    "qt_rsvp_context": True,        # show the prev/next word above/below
+    # Context words around the focused word — each independently toggleable
+    # (some readers want ONLY the single large word).  Replaces the combined
+    # pre-0.1.28 qt_rsvp_context switch (migrated in _migrate).
+    "qt_rsvp_show_prev": True,      # show the previous word above
+    "qt_rsvp_show_next": True,      # show the next word below
     "qt_rsvp_text_color": "",       # focused-word color; "" = light default
     "qt_rsvp_bg_color": "",         # overlay panel color; "" = dark default
     "tui_rsvp_mode": False,         # TUI mirror of the toggle
@@ -337,6 +341,14 @@ DEFAULTS: Dict[str, Any] = {
     "watch_move_processed": True,
 }
 
+# Keys that no longer exist in DEFAULTS but must still LOAD from older
+# settings files so _migrate() can convert them (a key dropped here before
+# _migrate runs would silently lose the user's value).  _migrate pops each
+# one, so they never persist back out.
+_LEGACY_KEYS = frozenset({
+    "qt_rsvp_context",  # 0.1.28: split into qt_rsvp_show_prev / _show_next
+})
+
 # =============================================================================
 # Settings manager
 # =============================================================================
@@ -355,11 +367,13 @@ class Settings:
     def _load(self) -> None:
         try:
             raw = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
-            # Accept all known keys, plus nested dicts that may have grown.
+            # Accept all known keys (plus legacy keys _migrate converts), and
+            # merge nested dicts that may have grown.
             for k, v in raw.items():
-                if k in DEFAULTS:
+                if k in DEFAULTS or k in _LEGACY_KEYS:
                     # Merge nested dicts (speed_presets, reading_positions)
-                    if isinstance(DEFAULTS[k], dict) and isinstance(v, dict):
+                    # — .get(): legacy keys have no DEFAULTS entry.
+                    if isinstance(DEFAULTS.get(k), dict) and isinstance(v, dict):
                         merged = dict(DEFAULTS[k])
                         merged.update(v)
                         self._data[k] = merged
@@ -412,6 +426,15 @@ class Settings:
             _ALIASES = {}
         if self._data.get("theme") in _ALIASES:
             self._data["theme"] = _ALIASES[str(self._data["theme"])]
+        # 0.1.28: the combined RSVP context switch split into independent
+        # prev/next toggles — carry the saved value over to both.  Plain
+        # assignment (not setdefault): the defaults were already merged in,
+        # and the new keys cannot have been user-set while the old key still
+        # exists, so the migrated value always wins.
+        if "qt_rsvp_context" in self._data:
+            ctx = bool(self._data.pop("qt_rsvp_context"))
+            self._data["qt_rsvp_show_prev"] = ctx
+            self._data["qt_rsvp_show_next"] = ctx
         for _profile in (self._data.get("profiles") or {}).values():
             if isinstance(_profile, dict) and _profile.get("theme") in _ALIASES:
                 _profile["theme"] = _ALIASES[str(_profile["theme"])]

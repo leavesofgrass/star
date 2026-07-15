@@ -31,6 +31,11 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ### ✨ Added
 
+- **RSVP display options: show exactly the words you want.** The previous
+  and next context words are now independently toggleable
+  (`qt_rsvp_show_prev` / `qt_rsvp_show_next`, on the Reading and Reading
+  Aids tabs) — turn both off and the overlay collapses to only the single
+  large word. The old combined switch is migrated.
 - **Every reading-aid color is now pickable — right on the Reading Aids
   tab.** Each visual aid pairs its toggle with a color swatch: the spoken
   word, the current-line tint (new `qt_current_line_color` — previously
@@ -53,6 +58,12 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ### 🔧 Changed
 
+- **The system voice (pyttsx3) is star's default speech engine.** Auto
+  engine selection now tries pyttsx3 first — SAPI 5 on Windows, the system
+  speech voice on macOS — so a fresh install always starts with the
+  familiar OS voice. A bundled DECtalk is the second choice instead of
+  jumping the queue (it previously outranked the system voice when
+  present); it remains one **Choose TTS Engine…** click away.
 - **Theme renames: `obsidian` → `galaxy`, `obsidian-light` →
   `galaxy-light`, `zed-one-dark` → `one-dark`, `zed-one-light` →
   `one-light`.** star's own themes no longer carry another project's name.

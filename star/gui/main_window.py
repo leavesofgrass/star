@@ -102,7 +102,8 @@ class _RSVPOverlay(QWidget):
         self._settings = settings
         self._pos_key: str = str(settings.get("qt_rsvp_position", "top-center"))
         self._font_size: int = int(settings.get("qt_rsvp_font_size", 48))
-        self._show_context: bool = bool(settings.get("qt_rsvp_context", True))
+        self._show_prev: bool = bool(settings.get("qt_rsvp_show_prev", True))
+        self._show_next: bool = bool(settings.get("qt_rsvp_show_next", True))
         # Make child labels paint over our custom paintEvent background.
         self.setAttribute(_WA_STYLED_BG, True)
         self._setup_ui()
@@ -203,14 +204,16 @@ class _RSVPOverlay(QWidget):
         return False  # do not consume the event
 
     def update_word(self, prev_word: str, curr_word: str, next_word: str) -> None:
-        """Update the displayed words and reposition within the parent."""
+        """Update the displayed words and reposition within the parent.
+
+        The prev/next context labels are independently toggleable; a hidden
+        label is removed from the layout entirely (setVisible, not just empty
+        text) so "only the single large word" really is only the word."""
         self._word_lbl.setText(curr_word)
-        if self._show_context:
-            self._prev_lbl.setText(prev_word)
-            self._next_lbl.setText(next_word)
-        else:
-            self._prev_lbl.setText("")
-            self._next_lbl.setText("")
+        self._prev_lbl.setText(prev_word if self._show_prev else "")
+        self._prev_lbl.setVisible(self._show_prev)
+        self._next_lbl.setText(next_word if self._show_next else "")
+        self._next_lbl.setVisible(self._show_next)
         self.adjustSize()
         self._reposition()
 
@@ -225,8 +228,15 @@ class _RSVPOverlay(QWidget):
         self.adjustSize()
         self._reposition()
 
-    def set_show_context(self, show: bool) -> None:
-        self._show_context = show
+    def set_display_options(self) -> None:
+        """Re-read the prev/next toggles and collapse hidden labels (live
+        Preferences apply)."""
+        self._show_prev = bool(self._settings.get("qt_rsvp_show_prev", True))
+        self._show_next = bool(self._settings.get("qt_rsvp_show_next", True))
+        self._prev_lbl.setVisible(self._show_prev)
+        self._next_lbl.setVisible(self._show_next)
+        self.adjustSize()
+        self._reposition()
 
     def _reposition(self) -> None:
         parent = self.parent()

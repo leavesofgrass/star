@@ -19,7 +19,10 @@ class DECtalkDLLBackend(TTSBackend):
     """
 
     name = "dectalk"
-    priority = 10  # in-process DECtalk.dll ("Perfect Paul") — first in auto when present
+    # In-process DECtalk.dll ("Perfect Paul") — auto's SECOND choice, right
+    # after pyttsx3 (20): the system voice (SAPI5 / NSSpeech) is the default
+    # engine; DECtalk stays one Choose-TTS-Engine click away when bundled.
+    priority = 25
 
     # DECtalk C API constants (ttsapi.h).
     _TTS_FORCE = 1

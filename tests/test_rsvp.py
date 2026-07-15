@@ -181,7 +181,8 @@ def test_rsvp_settings_defaults():
     assert s.get("qt_rsvp_mode") is False
     assert s.get("qt_rsvp_position") == "top-center"
     assert s.get("qt_rsvp_font_size") == 48
-    assert s.get("qt_rsvp_context") is True
+    assert s.get("qt_rsvp_show_prev") is True
+    assert s.get("qt_rsvp_show_next") is True
     assert s.get("tui_rsvp_mode") is False
     assert s.get("tui_rsvp_position") == "top-center"
 

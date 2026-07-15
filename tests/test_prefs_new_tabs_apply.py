@@ -105,6 +105,53 @@ def test_rsvp_overlay_honors_color_settings(window):
         ov.deleteLater()
 
 
+def test_rsvp_overlay_prev_next_independently_toggleable(window):
+    """Each RSVP context word hides independently — and a hidden label leaves
+    the layout entirely, so 'only the single large word' is truly only the
+    word."""
+    from star.gui.main_window import _RSVPOverlay
+
+    window.settings["qt_rsvp_show_prev"] = False
+    window.settings["qt_rsvp_show_next"] = True
+    ov = _RSVPOverlay(window.editor, window.settings)
+    try:
+        ov.update_word("before", "WORD", "after")
+        assert not ov._prev_lbl.isVisibleTo(ov)
+        assert ov._next_lbl.isVisibleTo(ov)
+        assert ov._next_lbl.text() == "after"
+        # Live re-apply picks up a change without rebuilding the overlay.
+        window.settings["qt_rsvp_show_next"] = False
+        ov.set_display_options()
+        assert not ov._next_lbl.isVisibleTo(ov)
+        window.settings["qt_rsvp_show_prev"] = True
+        ov.set_display_options()
+        ov.update_word("before", "WORD", "after")
+        assert ov._prev_lbl.isVisibleTo(ov)
+        assert ov._prev_lbl.text() == "before"
+    finally:
+        ov.deleteLater()
+
+
+def test_legacy_rsvp_context_setting_migrates():
+    """A settings.json saved with the pre-0.1.28 combined qt_rsvp_context
+    switch carries its value over to both new prev/next toggles."""
+    import json
+    import tempfile
+    from pathlib import Path
+    from unittest import mock
+
+    import star.settings as settings_mod
+
+    with tempfile.TemporaryDirectory() as td:
+        f = Path(td) / "settings.json"
+        f.write_text(json.dumps({"qt_rsvp_context": False}), encoding="utf-8")
+        with mock.patch.object(settings_mod, "SETTINGS_FILE", f):
+            s = settings_mod.Settings()
+            assert s.get("qt_rsvp_show_prev") is False
+            assert s.get("qt_rsvp_show_next") is False
+            assert "qt_rsvp_context" not in s._data
+
+
 def test_language_combo_stages_ui_language(dlg, window):
     """The General-tab language combo writes the language CODE (not the
     display name) into ui_language."""

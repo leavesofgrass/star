@@ -107,7 +107,8 @@ Many of these settings are exercised in the [`docs/examples/`](examples/).
 | `qt_rsvp_mode` | `false` | Qt GUI: show the RSVP (Rapid Serial Visual Presentation) overlay — one word at a time at a fixed point |
 | `qt_rsvp_position` | `"top-center"` | Qt RSVP overlay placement: `top-left`/`center`/`right`, `center-left`/`right`, `center`, `bottom-left`/`center`/`right` |
 | `qt_rsvp_font_size` | `48` | Qt RSVP focused-word point size |
-| `qt_rsvp_context` | `true` | Qt RSVP: show the previous/next word above and below the focused word |
+| `qt_rsvp_show_prev` | `true` | Qt RSVP: show the previous word above the focused word (replaces the pre-0.1.28 combined `qt_rsvp_context`, which is migrated) |
+| `qt_rsvp_show_next` | `true` | Qt RSVP: show the next word below the focused word — turn both off for only the single large word |
 | `qt_rsvp_text_color` | `""` | Qt RSVP: color of the focused word (context words fade the same hue); empty = light default (swatch in **Preferences ▸ Reading Aids**) |
 | `qt_rsvp_bg_color` | `""` | Qt RSVP: color of the floating panel (kept translucent); empty = dark default (swatch in **Preferences ▸ Reading Aids**) |
 | `tui_rsvp_mode` | `false` | TUI mirror of the RSVP toggle |

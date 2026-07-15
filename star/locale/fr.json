@@ -486,6 +486,8 @@
   "Show Graph View": "Afficher la vue graphe",
   "Show previous / next word": "Afficher le mot précédent / suivant",
   "Show reading level (Ctrl+L)": "Afficher le niveau de lecture (Ctrl+L)",
+  "Show the next word below": "Afficher le mot suivant en dessous",
+  "Show the previous word above": "Afficher le mot précédent au-dessus",
   "Show the replace field (edit mode only)": "Afficher le champ de remplacement (mode édition uniquement)",
   "Single character shown between syllables": "Caractère unique affiché entre les syllabes",
   "Skip code blocks when reading aloud": "Ignorer les blocs de code lors de la lecture à voix haute",
