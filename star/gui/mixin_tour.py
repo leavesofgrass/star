@@ -244,6 +244,11 @@ class TourMixin:
         dealt with first-run dialogs.
         """
         try:
+            # A queued retry may fire after the window began closing (or, in
+            # the test suite, during a LATER test on the shared QApplication) —
+            # never start or reschedule from a dying window.
+            if getattr(self, "_closing", False):
+                return
             if bool(self.settings.get("tour_seen", False)):
                 return
             app = QApplication.instance()
