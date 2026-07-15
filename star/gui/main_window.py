@@ -460,6 +460,13 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         # RSVP (Rapid Serial Visual Presentation) floating overlay.
         # Created lazily on first toggle; None until then.
         self._rsvp_overlay: Optional[Any] = None
+        # RSVP is a live overlay mode, not a preference to restore: the
+        # overlay is never re-shown at startup, so a qt_rsvp_mode persisted
+        # True (app closed with RSVP on, or a Preferences apply) would leave
+        # a phantom checkmark on the menu and the Preferences box while no
+        # RSVP is actually running.  Normalize to off at session start so the
+        # setting, the menu, and reality always agree.
+        self.settings._data["qt_rsvp_mode"] = False
 
         # Session counter — incremented by every new speak() invocation.
         # The timer thread closes over the session value at speak() time;

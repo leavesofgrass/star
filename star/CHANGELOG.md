@@ -22,6 +22,12 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 - **The Preferences dialog opens maximized.** Six tabs of settings didn't
   fit a small fixed-size dialog on every display — and nobody likes a
   scrolling dialog.
+- **No more phantom RSVP checkmark.** Closing the app with RSVP on (or
+  applying it from Preferences) persisted `qt_rsvp_mode: true`, but the
+  overlay is never restored at startup — so the Reading Aids menu showed a
+  checkmark for a mode that wasn't running. RSVP is a live mode, not a
+  restorable preference: it is normalized to off at session start, so the
+  menu, Preferences, and reality always agree.
 
 ### ✨ Added
 

@@ -207,6 +207,27 @@ def test_reading_font_chooser_selects_and_reverts(window):
     assert app.font().family() == original
 
 
+def test_stale_rsvp_mode_never_survives_startup(qapp):
+    """A qt_rsvp_mode persisted True (app closed with RSVP on, or a
+    Preferences apply) must not leave a phantom checkmark: the overlay is
+    never restored at startup, so the setting is normalized to off and the
+    Reading Aids menu item starts unchecked."""
+    from star.gui.main_window import StarWindow
+    from star.settings import Settings
+
+    settings = Settings()
+    settings._data["qt_rsvp_mode"] = True  # simulate the stale persisted state
+    win = StarWindow(settings)
+    try:
+        assert win.settings.get("qt_rsvp_mode") is False
+        assert win._rsvp_act.isChecked() is False
+        # And no overlay was conjured up by startup.
+        assert win._rsvp_overlay is None or win._rsvp_overlay.isHidden()
+    finally:
+        win.close()
+        qapp.processEvents()
+
+
 def test_word_highlight_paints_user_color_with_collapsed_caret(window, qapp):
     """The spoken-word highlight must show the user's highlight_color.
 
