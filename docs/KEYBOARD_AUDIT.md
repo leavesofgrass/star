@@ -290,6 +290,18 @@ accessible **description** (the gray sub-label is visual-only and not reliably
 announced). List-bearing dialogs (Command Palette, Bookmarks, Presets, Library)
 use `itemActivated` so Enter activates the selection. ✅ [A]
 
+**Preferences (`Ctrl+,`)** opens **maximized** (since 0.1.27), so its six tabs
+never scroll. `Tab` walks the tab strip and then every control in each tab in
+build order (labels precede their fields via `QFormLayout`, so focus order
+matches reading order); `Ctrl+PageUp`/`Ctrl+PageDown` switch tabs. Every
+control announces *which* setting it is: checkboxes and buttons carry their
+own text, and combo boxes / spin boxes / text fields — which show no text of
+their own — are given an explicit accessible **name** derived from their form
+label by `PreferencesDialog._ensure_accessible_names()` (guarded by
+`tests/test_prefs_a11y.py`, which fails if any control would be announced as a
+bare widget). Color swatches announce their purpose (e.g. "RSVP word color")
+rather than their hex value. ✅ [A][F]
+
 ---
 
 ## 7. Mouse-only gaps found

@@ -114,6 +114,16 @@ class PreferencesDialog(QDialog):
         self._build_fonts_tab()          # convenience: all font + spacing options
         self._build_general_tab()
 
+        # Accessibility: give every combo / spin box / text field an explicit
+        # accessible name derived from its form-row label.  A QComboBox shows
+        # no text of its own, so without this a screen reader announces only
+        # "combo box" with no hint of *which* setting — the form label alone
+        # relies on a buddy relationship that some AT and some Qt versions do
+        # not surface.  Runs once here so it also covers any widget a future
+        # tab adds.  (Checkboxes / buttons carry their own label text and are
+        # left as-is.)
+        self._ensure_accessible_names()
+
         # OK / Cancel / Apply / Restore Defaults — apply-on-OK; Cancel writes
         # nothing; Restore Defaults only re-stages the widgets (see method).
         buttons = QDialogButtonBox(
@@ -137,6 +147,46 @@ class PreferencesDialog(QDialog):
                 )
             )
         outer.addWidget(buttons)
+
+    # ── accessibility ────────────────────────────────────────────────────────
+
+    def _ensure_accessible_names(self) -> None:
+        """Set an accessible name on every field that lacks one, taken from its
+        form-row label.
+
+        Walks each :class:`QFormLayout` in the dialog and, for a field widget
+        that carries no text of its own (combo boxes, spin boxes, line edits)
+        and no accessible name yet, copies the row label's text (minus the
+        trailing colon and any ``&`` mnemonic).  Idempotent and defensive — a
+        missing label or an already-named widget is left untouched.
+        """
+        try:  # PyQt6 / PyQt5 spin-box base + form-layout role enums
+            from PyQt6.QtWidgets import QAbstractSpinBox, QFormLayout
+            _LABEL = QFormLayout.ItemRole.LabelRole
+            _FIELD = QFormLayout.ItemRole.FieldRole
+        except ImportError:  # PyQt5
+            from PyQt5.QtWidgets import QAbstractSpinBox, QFormLayout  # type: ignore
+            _LABEL = QFormLayout.LabelRole  # type: ignore[attr-defined]
+            _FIELD = QFormLayout.FieldRole  # type: ignore[attr-defined]
+
+        def _clean(text: str) -> str:
+            return text.replace("&", "").rstrip(":： ").strip()
+
+        for form in self.findChildren(QFormLayout):
+            for row in range(form.rowCount()):
+                field_item = form.itemAt(row, _FIELD)
+                if field_item is None:
+                    continue
+                field = field_item.widget()
+                if not isinstance(field, (QComboBox, QAbstractSpinBox, QLineEdit)):
+                    continue
+                if field.accessibleName():
+                    continue
+                label_item = form.itemAt(row, _LABEL)
+                label = label_item.widget() if label_item is not None else None
+                text = _clean(label.text()) if isinstance(label, QLabel) else ""
+                if text:
+                    field.setAccessibleName(text)
 
     # ── colour swatch helper (shared with the karaoke dialog pattern) ────────
 
