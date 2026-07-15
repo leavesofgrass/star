@@ -226,10 +226,9 @@ class AutosaveMixin:
         md = str(snap.get("markdown") or "")
         title = str(snap.get("title") or tr("Recovered document"))
         orig = str(snap.get("path") or "")
-        self._pending_doc = Document(
+        self._apply_local_doc(Document(
             path=orig, title=title, markdown=md, plain_text="", format="markdown"
-        )
-        self._on_doc_loaded()
+        ))
         if not getattr(self, "_qt_edit_mode", False):
             self._qt_enter_edit_mode()
         # Recovered text is unsaved by definition — mark dirty and re-arm autosave.

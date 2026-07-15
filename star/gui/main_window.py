@@ -478,6 +478,17 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         # background build's precise pagination decision.
         self._page_provisional: bool = False
 
+        # Document-load generation counter (mirrors _hl_session for TTS).
+        # Every document replacement — a background file load OR a synchronous
+        # New / translation / transcription / recovery doc — bumps this; a
+        # background load tags its result with the value it was launched under.
+        # _on_doc_loaded drops a result whose generation has been superseded,
+        # so a slow startup welcome.md load can never clobber a document the
+        # user created in the meantime (the race behind the release-day
+        # doc.path failures).
+        self._doc_load_gen: int = 0
+        self._pending_doc_gen: int = 0
+
         # QTextCharFormat applied to the currently spoken word.
         # Built from the user's highlight style/color settings so the
         # karaoke highlight can be tuned (see _rebuild_hl_fmt).

@@ -193,14 +193,13 @@ class TranscriptionMixin:
             return
         name = Path(src).stem if src else "transcription"
         md = f"# Transcription — {name}\n\n{text}\n"
-        self._pending_doc = Document(
+        self._apply_local_doc(Document(
             path="",
             title=f"Transcription — {name}",
             markdown=md,
             plain_text=text,
             format="transcription",
-        )
-        self._on_doc_loaded()
+        ))
         self.statusBar().showMessage(f"Transcribed {name} ({len(text)} chars)")
         announce(
             self.editor,

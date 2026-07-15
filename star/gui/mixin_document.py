@@ -98,15 +98,21 @@ class DocumentMixin:
         self.statusBar().showMessage(f"Loading {Path(path).name} …")
         QApplication.processEvents()
         self._pending_doc: Optional[Document] = None
+        # Claim a load generation; a synchronous doc replacement (New /
+        # translation / …) or a newer open that happens while this one is
+        # still loading will bump the counter past _gen, so the stale result
+        # below is dropped by _on_doc_loaded instead of clobbering it.
+        self._doc_load_gen += 1
+        _gen = self._doc_load_gen
 
         def _work() -> None:
             try:
-                self._pending_doc = load_document(path, self.settings)
+                doc = load_document(path, self.settings)
             except Exception as _exc:  # noqa: BLE001
                 # Never let the background thread die silently and leave
                 # the UI frozen.  Create a minimal error document instead
                 # so _on_doc_loaded always has something to display.
-                _err = Document(
+                doc = Document(
                     path=path,
                     title=f"Error — {Path(path).name}",
                     markdown=(
@@ -117,13 +123,19 @@ class DocumentMixin:
                     plain_text=str(_exc),
                     format="error",
                 )
-                self._pending_doc = _err
-            # Signal the GUI thread to call _on_doc_loaded.
-            # Using a pyqtSignal guarantees safe cross-thread delivery;
-            # QMetaObject.invokeMethod with a plain string requires the
-            # method to be a registered @pyqtSlot and fails silently on
-            # Windows when that registration is missing.
-            self._doc_loaded_signal.emit()
+            # Only publish if still current: if a newer load or a synchronous
+            # replacement advanced the counter while this file was loading,
+            # this result is stale — don't even stage it (so it can't briefly
+            # overwrite _pending_doc between a newer thread's write and its
+            # signal delivery).  The GIL makes this compare-and-set atomic.
+            if self._doc_load_gen == _gen:
+                self._pending_doc = doc
+                self._pending_doc_gen = _gen
+                # Using a pyqtSignal guarantees safe cross-thread delivery;
+                # QMetaObject.invokeMethod with a plain string requires the
+                # method to be a registered @pyqtSlot and fails silently on
+                # Windows when that registration is missing.
+                self._doc_loaded_signal.emit()
 
         threading.Thread(target=_work, daemon=True).start()
 
@@ -152,10 +164,31 @@ class DocumentMixin:
                 except Exception:
                     pass
 
+    def _apply_local_doc(self, doc: "Document") -> None:
+        """Stage and apply a document built synchronously in-process (New,
+        translation, transcription, crash recovery) through the normal load
+        path, so its word map / highlighting / speech are all rebuilt.
+
+        Bumps the load generation and tags the staged doc with it, so (a) this
+        document passes the freshness check in _on_doc_loaded and (b) any file
+        load still running in the background is invalidated — its late signal
+        is dropped instead of overwriting this document."""
+        self._doc_load_gen += 1
+        self._pending_doc = doc
+        self._pending_doc_gen = self._doc_load_gen
+        self._on_doc_loaded()
+
     def _on_doc_loaded_impl(self) -> None:
         """Inner implementation of _on_doc_loaded, called inside a
         try/except wrapper to prevent slot exceptions from escaping
         into the Qt event loop."""
+        # Freshness gate: drop a result whose generation has been superseded by
+        # a newer load or a synchronous replacement.  This is what stops a slow
+        # startup welcome.md load from clobbering a document the user opened or
+        # created while it was still loading — the intermittent doc.path flake
+        # (reproduced under xdist load in a Debian/CI-parity container).
+        if getattr(self, "_pending_doc_gen", 0) != getattr(self, "_doc_load_gen", 0):
+            return
         doc = getattr(self, "_pending_doc", None)
         if not doc:
             return

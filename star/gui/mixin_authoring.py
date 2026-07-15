@@ -31,7 +31,7 @@ class AuthoringMixin:
         # An in-memory doc with no path — never touches recents/library until
         # the first save (which assigns a real path); mirrors the translation /
         # transcription result docs.
-        self._pending_doc = Document(
+        doc = Document(
             path="",
             title=tr("Untitled"),
             markdown="",
@@ -45,7 +45,9 @@ class AuthoringMixin:
         self.settings["qt_edit_preview"] = True
         if hasattr(self, "_preview_act"):
             self._preview_act.setChecked(True)
-        self._on_doc_loaded()
+        # _apply_local_doc bumps the load generation, so a still-loading
+        # startup document (welcome.md) cannot overwrite this blank one.
+        self._apply_local_doc(doc)
         if not getattr(self, "_qt_edit_mode", False):
             self._qt_enter_edit_mode()
         # Even 50/50 split of editor | preview (enter-edit sizes it, but do it

@@ -8,6 +8,22 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### 🐛 Fixed
+
+- **A slow document load can no longer clobber the document you switched to.**
+  Every window loads its opening document (the welcome page) on a background
+  thread; if you created a New document, opened another file, or generated a
+  translation/transcription before that load finished, its late result was
+  applied *over* your document — silently replacing it. Document loads now
+  carry a generation stamp and a superseded result is dropped. (This was also
+  the intermittent `doc.path` test failure previously dismissed as a CI flake;
+  it reproduced under load in a CI-parity Linux container and is now covered
+  by a regression test.)
+
+---
+
 ## [0.1.27] 2026-07-14
 
 ### 🐛 Fixed

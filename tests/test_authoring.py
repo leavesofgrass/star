@@ -82,6 +82,36 @@ def test_new_document_discard_starts_blank(window, monkeypatch):
     assert window.editor.toPlainText() == ""  # blank canvas
 
 
+def test_stale_background_load_does_not_clobber_new_document(window):
+    """A slow startup file load must not overwrite a document created while it
+    was still loading.
+
+    This is the race behind the intermittent ``doc.path`` failures dismissed
+    as flakes on two release days: the window's constructor kicks off an async
+    welcome.md load; if the user creates a New document before it finishes, the
+    late ``_doc_loaded`` signal used to apply the welcome doc over the blank
+    one.  The load-generation guard drops the superseded result.  Replayed here
+    deterministically (no thread-timing dependence)."""
+    from star.documents import Document
+
+    stale_gen = window._doc_load_gen  # the generation the "welcome load" holds
+
+    window._qt_new_document()          # bumps the generation, applies blank
+    assert window.doc.path == ""
+
+    # The background welcome load now finishes and delivers its (stale) signal.
+    window._pending_doc = Document(
+        path="welcome.md", title="Welcome", markdown="# Welcome\n",
+        plain_text="Welcome", format="markdown",
+    )
+    window._pending_doc_gen = stale_gen
+    window._on_doc_loaded()
+
+    # Dropped as superseded — the blank Untitled document survives.
+    assert window.doc.path == ""
+    assert window.editor.toPlainText() == ""
+
+
 # ── Formatting toolbar visibility ────────────────────────────────────────────
 
 

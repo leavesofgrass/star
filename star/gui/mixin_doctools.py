@@ -300,14 +300,13 @@ class DocToolsMixin:
         # Reuse the transcription-result pattern: an in-memory Document with no
         # path, handed to the normal load path so the word map / highlighting /
         # speech are all rebuilt for it (see _qt_on_transcribed).
-        self._pending_doc = Document(
+        self._apply_local_doc(Document(
             path="",
             title=title,
             markdown=f"# {title}\n\n{result}\n",
             plain_text=result,
             format="translation",
-        )
-        self._on_doc_loaded()
+        ))
         self.statusBar().showMessage(
             f"Translated to {lang} — press Space to read the translation aloud"
         )
