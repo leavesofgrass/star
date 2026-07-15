@@ -102,7 +102,7 @@ def test_welcome_loads_as_document(qapp, window):
 def test_dyslexia_font_reaches_the_document_even_for_css_themes(window):
     """The dyslexia font must override a CSS/palette theme's own font-family.
 
-    Regression: the Obsidian (default) theme injects its CSS verbatim with a
+    Regression: the galaxy (default) theme injects its CSS verbatim with a
     hard-coded ``font-family: Georgia`` — which used to win in the reading pane,
     so OpenDyslexic changed only the chrome and 'nothing happened' in the
     document.  The renderer now appends an override the cascade resolves last.

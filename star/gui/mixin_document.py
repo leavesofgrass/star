@@ -1097,7 +1097,7 @@ class DocumentMixin:
         if custom_css:
             style = custom_css
             # A CSS-file / palette theme may hard-set the body font-family (the
-            # Obsidian theme uses Georgia). When a reading font is active it must
+            # galaxy theme uses Georgia). When a reading font is active it must
             # win in the reading pane too, so append an override the cascade
             # resolves last — across text elements, but never code/pre.
             if self._reading_font_key() != "default" and fam:

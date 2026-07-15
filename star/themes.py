@@ -111,7 +111,7 @@ p    {{ margin: 4px 0; }}
 
 # The full palette schema.  ``bg/fg/sel/h1–h4/code`` are the original eight keys;
 # ``code_bg`` (code/pre block background), ``link`` (anchor colour), and ``muted``
-# (blockquote / rule / table borders) were added for the Obsidian and Zed themes.
+# (blockquote / rule / table borders) were added for the galaxy and one-dark/one-light themes.
 # Every palette below carries all eleven keys; missing keys fall back to the
 # ``dark`` defaults in :func:`_parse_css_palette`.
 BUILT_IN_PALETTES: Dict[str, Dict[str, str]] = {
