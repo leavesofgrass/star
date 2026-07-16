@@ -99,17 +99,30 @@ def test_stale_background_load_does_not_clobber_new_document(window):
     window._qt_new_document()          # bumps the generation, applies blank
     assert window.doc.path == ""
 
-    # The background welcome load now finishes and delivers its (stale) signal.
+    # The background welcome load now finishes and delivers its (stale) signal
+    # — _on_doc_loaded_async is the slot the pyqtSignal is wired to, where the
+    # freshness gate lives.
     window._pending_doc = Document(
         path="welcome.md", title="Welcome", markdown="# Welcome\n",
         plain_text="Welcome", format="markdown",
     )
     window._pending_doc_gen = stale_gen
-    window._on_doc_loaded()
+    window._on_doc_loaded_async()
 
     # Dropped as superseded — the blank Untitled document survives.
     assert window.doc.path == ""
     assert window.editor.toPlainText() == ""
+
+    # A *current* async delivery (matching generation) is still applied — the
+    # gate drops only superseded results, never fresh ones.
+    window._doc_load_gen += 1
+    window._pending_doc = Document(
+        path="real.md", title="Real", markdown="# Real\n",
+        plain_text="Real", format="markdown",
+    )
+    window._pending_doc_gen = window._doc_load_gen
+    window._on_doc_loaded_async()
+    assert window.doc.path == "real.md"
 
 
 # ── Formatting toolbar visibility ────────────────────────────────────────────

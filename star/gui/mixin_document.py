@@ -169,26 +169,36 @@ class DocumentMixin:
         translation, transcription, crash recovery) through the normal load
         path, so its word map / highlighting / speech are all rebuilt.
 
-        Bumps the load generation and tags the staged doc with it, so (a) this
-        document passes the freshness check in _on_doc_loaded and (b) any file
-        load still running in the background is invalidated — its late signal
-        is dropped instead of overwriting this document."""
+        Bumps the load generation so any file load still running in the
+        background is invalidated — its late signal is dropped by
+        _on_doc_loaded_async instead of overwriting this document.  The apply
+        itself is synchronous and always current, so it does not go through
+        the async freshness gate."""
         self._doc_load_gen += 1
         self._pending_doc = doc
         self._pending_doc_gen = self._doc_load_gen
+        self._on_doc_loaded()
+
+    def _on_doc_loaded_async(self) -> None:
+        """Slot for the background-load signal.  Applies the freshness gate —
+        a result whose generation has been superseded by a newer load or a
+        synchronous replacement (New / translation / …) is dropped — then
+        hands off to the normal apply path.
+
+        This is what stops a slow startup welcome.md load from clobbering a
+        document the user opened or created while it was still loading: the
+        intermittent doc.path flake reproduced under xdist load in a Debian
+        CI-parity container.  Only the async delivery can be stale, so the
+        gate lives here rather than on _on_doc_loaded (which every synchronous
+        caller also uses)."""
+        if getattr(self, "_pending_doc_gen", 0) != getattr(self, "_doc_load_gen", 0):
+            return
         self._on_doc_loaded()
 
     def _on_doc_loaded_impl(self) -> None:
         """Inner implementation of _on_doc_loaded, called inside a
         try/except wrapper to prevent slot exceptions from escaping
         into the Qt event loop."""
-        # Freshness gate: drop a result whose generation has been superseded by
-        # a newer load or a synchronous replacement.  This is what stops a slow
-        # startup welcome.md load from clobbering a document the user opened or
-        # created while it was still loading — the intermittent doc.path flake
-        # (reproduced under xdist load in a Debian/CI-parity container).
-        if getattr(self, "_pending_doc_gen", 0) != getattr(self, "_doc_load_gen", 0):
-            return
         doc = getattr(self, "_pending_doc", None)
         if not doc:
             return

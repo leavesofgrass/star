@@ -537,8 +537,11 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         # this at the start of every new speak() call.
         self._refresh_hl_callback()
 
-        # Wire the doc-loaded callback → signal (thread-safe delivery).
-        self._doc_loaded_signal.connect(self._on_doc_loaded, _QUEUED)
+        # Wire the doc-loaded callback → signal (thread-safe delivery).  The
+        # async slot applies the freshness gate (drop a superseded background
+        # load); synchronous callers use _on_doc_loaded / _apply_local_doc
+        # directly and are always current.
+        self._doc_loaded_signal.connect(self._on_doc_loaded_async, _QUEUED)
         # Wire the restore-position callback → main thread.
         self._restore_signal.connect(self._qt_restore_reading_position, _QUEUED)
         # After the position is restored: honor tts_auto_play (slots run in
