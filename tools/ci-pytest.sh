@@ -38,22 +38,38 @@ else
   _run() { timeout --kill-after=30s "${_dur}s" "$@"; }
 fi
 
+# The xdist worker-crash signature.  When a *worker* segfaults, the controller
+# survives, marks the dead worker's in-flight test failed, and exits 1 — NOT a
+# native-crash code — so the exit-code case below would wrongly treat it as a
+# real failure.  Detect it in the output and retry instead.  (A genuine failure
+# recurs on every attempt and still fails after 3, so this never masks one.)
+_XDIST_CRASH_RE='node down: Not properly terminated|crashed while running|Replacing crashed worker|worker .* crashed'
+
 for attempt in 1 2 3; do
-  _run "$@"
-  code=$?
-  [ "$code" -eq 0 ] && exit 0
+  _log="$(mktemp)"
+  _run "$@" 2>&1 | tee "$_log"
+  code=${PIPESTATUS[0]}
+  if [ "$code" -eq 0 ]; then rm -f "$_log"; exit 0; fi
+  _retry=""
   case "$code" in
     124 | 137 | 143)
       echo "::warning::pytest exceeded ${_dur}s and was killed on attempt $attempt — the Qt-teardown xdist wedge; retrying"
+      _retry=1
       ;;
     139 | 134 | 132 | 136)
       echo "::warning::pytest native crash (exit $code) on attempt $attempt — retrying (flaky Qt teardown)"
+      _retry=1
       ;;
     *)
-      # A real, deterministic test failure — do not mask it with a retry.
-      exit "$code"
+      if grep -qE "$_XDIST_CRASH_RE" "$_log"; then
+        echo "::warning::an xdist worker crashed (surfaced as exit $code) on attempt $attempt — retrying (flaky Qt teardown)"
+        _retry=1
+      fi
       ;;
   esac
+  rm -f "$_log"
+  # A real, deterministic test failure — do not mask it with a retry.
+  [ -z "$_retry" ] && exit "$code"
 done
 echo "::error::pytest still hanging/crashing after 3 attempts"
 exit 1
