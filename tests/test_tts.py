@@ -792,3 +792,50 @@ def test_elevenlabs_riff_wraps_raw_pcm():
         assert w.getnchannels() == 1
         assert w.getsampwidth() == 2
         assert w.readframes(w.getnframes()) == raw
+
+
+def test_espeak_synth_size_shim_reports_true_buffer_size(monkeypatch):
+    """pyttsx3's espeak binding tells espeak_Synth the buffer is
+    ``len(text) * 10`` bytes; espeak-ng then memmoves that many bytes of the
+    caller's buffer into its command fifo — reading up to 9× the utterance
+    length past the Python bytes object (Valgrind: an invalid-read sweep
+    through neighbouring live and freed heap blocks).  The shim replaces the
+    wrapper so espeak is told the true size (buffer + NUL), idempotently."""
+    import sys
+    import types
+
+    from star.tts import pyttsx3 as sp
+
+    calls = {}
+
+    def cSynth(text, size, position, position_type, end_position, flags,
+               unique_identifier, user_data):
+        calls["text"], calls["size"] = text, size
+        return 0
+
+    fake = types.ModuleType("pyttsx3.drivers._espeak")
+    fake.POS_CHARACTER = 1
+    fake.cSynth = cSynth
+
+    def _orig_synth(text, position=0, position_type=1, end_position=0,
+                    flags=0, user_data=None):
+        if isinstance(text, str):
+            text = text.encode("utf-8")
+        return cSynth(text, len(text) * 10, position, position_type,
+                      end_position, flags, None, user_data)
+
+    fake.Synth = _orig_synth
+    drivers = types.ModuleType("pyttsx3.drivers")
+    drivers._espeak = fake
+    monkeypatch.setitem(sys.modules, "pyttsx3.drivers", drivers)
+    monkeypatch.setitem(sys.modules, "pyttsx3.drivers._espeak", fake)
+
+    sp._fix_espeak_synth_size()
+    fake.Synth("hello world")
+    assert calls["size"] == len(b"hello world") + 1
+    assert calls["text"] == b"hello world"
+
+    # Idempotent: a second call must not stack another wrapper.
+    patched = fake.Synth
+    sp._fix_espeak_synth_size()
+    assert fake.Synth is patched

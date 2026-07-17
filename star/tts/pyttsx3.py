@@ -2,6 +2,110 @@
 from .._runtime import *  # noqa: F401,F403
 from .base import TTSBackend
 
+# pyttsx3's Linux backend drives libespeak-ng through ctypes.
+_ESPEAK_PLATFORM = sys.platform not in ("win32", "cygwin", "darwin")
+
+
+def _fix_espeak_synth_size() -> None:
+    """Correct the buffer size pyttsx3 reports to ``espeak_Synth``.
+
+    pyttsx3's binding (``pyttsx3/drivers/_espeak.py``) calls
+    ``espeak_Synth(text, size=len(text) * 10, …)``.  espeak-ng copies *size*
+    bytes from the caller's buffer into its command fifo, so every utterance
+    makes it read up to 9× the utterance length PAST the Python bytes object —
+    Valgrind (memcheck, on the exact failing suite invocation) shows the
+    sweep marching through neighbouring live and freed heap blocks, and it can
+    segfault outright when the buffer sits near the end of a mapping.  Replace
+    the wrapper with one that passes the true size (buffer + NUL — CPython
+    bytes objects are NUL-terminated).  Idempotent; no-op when pyttsx3 or the
+    espeak driver is absent.
+    """
+    try:
+        from pyttsx3.drivers import _espeak as _drv
+    except Exception:
+        return
+    if getattr(_drv.Synth, "_star_size_fix", False):
+        return
+
+    def _synth(  # mirrors the original signature exactly
+        text,
+        position=0,
+        position_type=_drv.POS_CHARACTER,
+        end_position=0,
+        flags=0,
+        user_data=None,
+    ):
+        if isinstance(text, str):
+            text = text.encode("utf-8")
+        return _drv.cSynth(
+            text,
+            len(text) + 1,
+            position,
+            position_type,
+            end_position,
+            flags,
+            None,
+            user_data,
+        )
+
+    _synth._star_size_fix = True
+    _drv.Synth = _synth
+
+
+# Keep-alive for the one native trampoline espeak is ever given, plus the
+# Python-level callback pyttsx3 most recently registered through it.
+_espeak_perm_cb = None
+_espeak_target = None
+_espeak_shield_lock = threading.Lock()
+
+
+def _shield_espeak_trampoline() -> None:
+    """Give libespeak-ng a single immortal synth-callback trampoline.
+
+    pyttsx3's espeak driver re-registers the global synth callback on every
+    ``Engine()`` (and on destroy), each time building a NEW ctypes trampoline
+    and dropping the previous one — and star constructs an engine per window
+    probe and per utterance.  espeak-ng invokes the callback from its own
+    native thread (AUDIO_OUTPUT_RETRIEVAL is asynchronous), so a dropped
+    trampoline can be freed while that thread is about to call it — a
+    use-after-free in executable memory.  Interpose once, before this
+    process's first ``Engine()``: the native pointer espeak holds is ours and
+    never changes; pyttsx3's registrations only swap a module-level Python
+    target (a GIL-atomic store).
+    """
+    global _espeak_perm_cb
+    with _espeak_shield_lock:
+        if _espeak_perm_cb is not None:
+            return
+        try:
+            from pyttsx3.drivers import _espeak as _drv
+        except Exception:
+            return
+
+        def _dispatch(wav, numsamples, evp):
+            cb = _espeak_target
+            if cb is None:
+                return 0
+            try:
+                return cb(wav, numsamples, evp)
+            except Exception:
+                return 0  # a broken callback must never crash espeak's thread
+
+        perm = _drv.t_espeak_callback(_dispatch)
+
+        def _capture(cb) -> None:
+            global _espeak_target
+            _espeak_target = cb
+            # Re-assert our pointer in case anything native reset it; the
+            # call is idempotent and espeak merely stores the address.
+            try:
+                _drv.cSetSynthCallback(perm)
+            except Exception:
+                pass
+
+        _drv.SetSynthCallback = _capture
+        _espeak_perm_cb = perm
+
 
 class Pyttsx3Backend(TTSBackend):
     """pyttsx3 backend — uses SAPI5 (Windows), NSSpeechSynthesizer (macOS),
@@ -40,6 +144,9 @@ class Pyttsx3Backend(TTSBackend):
         if not _PYTTSX3:
             return False
         try:
+            if _ESPEAK_PLATFORM:
+                _fix_espeak_synth_size()
+                _shield_espeak_trampoline()
             eng = _load_pyttsx3().Engine()
             eng.stop()
             return True
