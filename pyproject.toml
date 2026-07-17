@@ -117,9 +117,10 @@ video = ["Pillow"]
 # interactive/end-to-end Qt GUI tests and hypothesis powers the loader property
 # tests; both are pure-Python wheels, so the base matrix legs pick them up too
 # and simply skip the Qt-guarded modules when PyQt is somehow absent.
-# pytest-xdist parallelizes the suite (~3× faster) AND fixes the exit-139 Qt
-# teardown flake: the addopts below pin every Qt test to one worker (a crash-
-# free serial order) while the non-GUI bulk fans out across the rest.
+# pytest-xdist parallelizes the suite (~3× faster); the addopts below pin
+# every Qt test to one worker while the non-GUI bulk fans out across the rest.
+# (The exit-139 teardown flake itself was root-caused to stale sip wrappers
+# and is fixed by the wrapper sweep in tests/conftest.py.)
 test = ["pytest", "pytest-cov", "pytest-qt", "pytest-xdist", "hypothesis"]
 all = [
     "pytesseract",
@@ -213,10 +214,15 @@ star = ["README.md", "LICENSE", "CHANGELOG.md", "welcome.md", "locale/*.json", "
 testpaths = ["tests"]
 # -n auto  → run across all cores (pytest-xdist).
 # --dist loadgroup → keep xdist_group("qt") tests (all the GUI tests, grouped
-#   in tests/conftest.py) together on ONE worker so they run in their crash-free
-#   serial order; the non-GUI tests fan out across the other workers.  This is
-#   what killed the flaky exit-139 Qt-teardown segfault AND cut the suite ~3×.
-#   Escape hatch for single-test TDD runs / debugging:  pytest -n0 <target>
+#   in tests/conftest.py) together on ONE worker so they run in their serial
+#   order; the non-GUI tests fan out across the other workers (the ~3× win).
+#   The historical probabilistic teardown segfault in this suite was
+#   root-caused (2026-07-17) to stale sip wrappers surviving window
+#   destruction and is fixed by the wrapper sweep in tests/conftest.py
+#   (validated 40/40 on both the Linux and Windows reproducers) — a plain
+#   `pytest` needs no special invocation.  The `qt` marker remains for
+#   targeted runs (`pytest -m qt -n0` was the reproducer that cracked it).
+#   Escape hatch for single-test runs / debugging:  pytest -n0 <target>
 addopts = "-q -n auto --dist loadgroup"
 # Hang DIAGNOSTICS: any single test stuck for 2 minutes dumps every thread's
 # traceback to stderr (pytest's built-in faulthandler — a dump, not a kill).
@@ -229,6 +235,7 @@ faulthandler_timeout = 120
 pythonpath = ["."]
 markers = [
     "network: test requires network access (may be skipped offline)",
+    "qt: touches Qt (added automatically in tests/conftest.py); CI runs these serially in-process via `pytest -m qt -n0`",
 ]
 
 # Coverage is opt-in (the `coverage` CI job passes --cov), so the default test

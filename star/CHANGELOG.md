@@ -12,6 +12,19 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ### 🐛 Fixed
 
+- **Background workers can no longer outlive their window.** Every
+  window-spawned worker thread (document loads, word-map builds, update
+  checks, exports, transcription) is now registered and joined while the
+  window closes, and an in-flight document load is invalidated the moment
+  closing starts. Previously a worker could finish *after* the window's
+  underlying Qt object was gone and emit its completion signal on the dead
+  object — a demonstrated use-after-free (observed in test logs as
+  `RuntimeError: wrapped C/C++ object of type StarWindow has been deleted`
+  raised inside the loader thread) that could in principle bite a real
+  session closed mid-load. Covered by regression tests. (This removed one
+  real teardown race; the probabilistic test-suite teardown segfaults
+  themselves were separately root-caused to stale sip wrappers surviving
+  window destruction and are fixed by the test harness's wrapper sweep.)
 - **A slow document load can no longer clobber the document you switched to.**
   Every window loads its opening document (the welcome page) on a background
   thread; if you created a New document, opened another file, or generated a
