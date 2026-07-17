@@ -7,6 +7,20 @@ accessible name derived from their form-row label (see
 ``PreferencesDialog._ensure_accessible_names``).  This test walks the whole
 dialog and fails if any control would be announced as a bare, unlabelled
 widget — the regression guard for that audit.
+
+FLAKE NOTE (2026-07-16, root-caused 2026-07-17): a one-off failure of the
+combo test in a full serial ``-m qt -n0`` run had no logical cause — every
+combo is added via ``form.addRow(<str>, combo)``, the derivation is
+synchronous, and ``tr()`` can never return "".  It was the benign face of
+the stale-sip-wrapper teardown bug: a destroyed window's un-invalidated
+child wrapper, handed out again when the allocator re-carved its address
+for a fresh dialog's widget, reads garbage (here: an empty accessible
+name) — the same mechanism whose 16-byte-shifted flavour caused the
+access-violation crashes in sibling modules.  Fixed by the wrapper sweep in
+tests/conftest.py (``_mark_for_wrapper_cleanup``/``_sweep_stale_wrappers``);
+validated 40/40 clean on the previously ~20%-crashing Windows reproducer.
+A REPRODUCIBLE failure, or one whose dump shows a specific combo
+consistently, is real — investigate the dialog, not the sweep.
 """
 import importlib.util
 import os
@@ -80,10 +94,23 @@ def test_every_preferences_control_is_announceable(dlg):
 def test_combo_boxes_carry_a_derived_name(dlg):
     """The core of the fix: combo boxes (which show no text of their own) must
     all get an accessible name from their form label."""
+    from star.i18n import get_language
+
     _AB, _ASB, QComboBox, _LE = _widgets()
+    # Identify a failing combo by the attribute PreferencesDialog stores it
+    # under (self.style_box, self.engine_box, …) — an objectName is never set
+    # on these, so it alone would just print "<combo>".
+    attr_of = {id(v): k for k, v in vars(dlg).items() if isinstance(v, QComboBox)}
     nameless = [
-        c.objectName() or "<combo>"
+        "%s items[:3]=%r parent=%s" % (
+            attr_of.get(id(c), c.objectName() or "<combo>"),
+            [c.itemText(i) for i in range(min(c.count(), 3))],
+            type(c.parent()).__name__,
+        )
         for c in dlg.findChildren(QComboBox)
         if not c.accessibleName()
     ]
-    assert not nameless, f"combo boxes with no accessible name: {nameless}"
+    assert not nameless, (
+        f"combo boxes with no accessible name (ui language={get_language()!r}):\n  "
+        + "\n  ".join(nameless)
+    )
