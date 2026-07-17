@@ -82,7 +82,7 @@ class ExportMixin:
             self._batch_done_signal.emit("\n".join(lines))
 
         self.statusBar().showMessage("Batch conversion started…")
-        threading.Thread(target=_work, daemon=True).start()
+        self._spawn_worker(_work)
 
     def _on_batch_done(self, msg: str) -> None:
         self.statusBar().showMessage("Batch conversion complete.")
@@ -319,7 +319,7 @@ class ExportMixin:
             except Exception as exc:
                 self._export_audio_signal.emit(f"Audio export error: {exc}")
 
-        threading.Thread(target=_do_export, daemon=True).start()
+        self._spawn_worker(_do_export)
 
     def _qt_export_subtitles(self) -> None:
         """Export a timestamped SRT/VTT caption track synchronized to the
@@ -361,7 +361,7 @@ class ExportMixin:
             except Exception as exc:
                 self._export_audio_signal.emit(f"Subtitle export error: {exc}")
 
-        threading.Thread(target=_do_export, daemon=True).start()
+        self._spawn_worker(_do_export)
 
     def _qt_export_audiobook(self) -> None:
         """Export the document as a chaptered audiobook (``.m4b``).
@@ -448,7 +448,7 @@ class ExportMixin:
             finally:
                 state["done"] = True
 
-        thread = threading.Thread(target=_work, daemon=True)
+        thread = self._spawn_worker(_work, name="star-audiobook-export", start=False)
 
         def _poll() -> None:
             if dlg.wasCanceled():
@@ -541,5 +541,5 @@ class ExportMixin:
             except Exception as exc:
                 self._export_audio_signal.emit(f"{label} export error: {exc}")
 
-        threading.Thread(target=_work, daemon=True).start()
+        self._spawn_worker(_work)
 

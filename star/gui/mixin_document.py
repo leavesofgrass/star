@@ -128,16 +128,19 @@ class DocumentMixin:
             # this result is stale — don't even stage it (so it can't briefly
             # overwrite _pending_doc between a newer thread's write and its
             # signal delivery).  The GIL makes this compare-and-set atomic.
-            if self._doc_load_gen == _gen:
+            if self._doc_load_gen == _gen and not getattr(self, "_closing", False):
                 self._pending_doc = doc
                 self._pending_doc_gen = _gen
                 # Using a pyqtSignal guarantees safe cross-thread delivery;
                 # QMetaObject.invokeMethod with a plain string requires the
                 # method to be a registered @pyqtSlot and fails silently on
-                # Windows when that registration is missing.
+                # Windows when that registration is missing.  (closeEvent bumps
+                # the generation, so a load finishing after close is already
+                # stale; the _closing re-check narrows the remaining window
+                # between the compare and the emit.)
                 self._doc_loaded_signal.emit()
 
-        threading.Thread(target=_work, daemon=True).start()
+        self._spawn_worker(_work, name="star-doc-load")
 
     def _on_doc_loaded(self) -> None:
         # Wrap the entire slot body so that any exception is caught here
@@ -292,6 +295,11 @@ class DocumentMixin:
                     # render when paginating, or a full render when not) on the
                     # GUI thread.  _page_render_initial_window handles both and
                     # rebuilds the appropriate word→char map itself.
+                    # Never emit on a closing window: if this worker outlived
+                    # closeEvent's join budget, the C++ object may already be
+                    # gone by the time the emit runs (use-after-free).
+                    if getattr(self, "_closing", False):
+                        return
                     self._paginate_signal.emit()
                 else:
                     # Qt char-offset map for the whole rendered document
@@ -318,11 +326,15 @@ class DocumentMixin:
                     self._qt_sentence_starts = result if result else [0]
                 # Signal the main thread to restore the reading position
                 # now that the word map and sentence map are both ready.
+                # (Same closing gate as above: a worker that outlived the
+                # closeEvent join must not touch the window's signals.)
+                if getattr(self, "_closing", False):
+                    return
                 self._restore_signal.emit()
             except Exception:
                 pass  # word map is best-effort; TTS works without it
 
-        threading.Thread(target=_build, daemon=True).start()
+        self._spawn_worker(_build, name="star-word-map")
         if getattr(doc, "format", "") == "error":
             # A failed load must not read as a success ("Opened: Error — x").
             # _record_library skips error docs internally, so only the message

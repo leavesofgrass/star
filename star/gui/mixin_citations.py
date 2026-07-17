@@ -121,7 +121,7 @@ class CitationsMixin:
             except Exception as exc:  # noqa: BLE001
                 self._doi_signal.emit(f"ERROR: {exc}")
 
-        threading.Thread(target=_work, daemon=True).start()
+        self._spawn_worker(_work)
 
     def _qt_on_doi(self, payload: str) -> None:
         """Main-thread handler for a Crossref DOI lookup result."""

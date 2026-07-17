@@ -103,7 +103,7 @@ class DocToolsMixin:
             except Exception as exc:  # noqa: BLE001
                 self._summary_signal.emit("", str(exc))
 
-        threading.Thread(target=_work, daemon=True).start()
+        self._spawn_worker(_work)
 
     def _qt_on_summary(self, summary: str, error: str) -> None:
         """Main-thread handler: show the summary (or an error) in a dialog."""
@@ -169,7 +169,7 @@ class DocToolsMixin:
             except Exception as exc:  # noqa: BLE001
                 self._define_signal.emit(None, word, str(exc))
 
-        threading.Thread(target=_work, daemon=True).start()
+        self._spawn_worker(_work)
 
     def _qt_on_definition(self, result: object, word: str, error: str) -> None:
         """Main-thread handler: show the definition (or a not-found note)."""
@@ -284,7 +284,7 @@ class DocToolsMixin:
             except Exception as exc:  # noqa: BLE001
                 self._translate_signal.emit("", str(exc))
 
-        threading.Thread(target=_work, daemon=True).start()
+        self._spawn_worker(_work)
 
     def _qt_on_translation(self, result: str, error: str) -> None:
         """Main-thread handler: open the translation as the live document."""
@@ -334,7 +334,7 @@ class DocToolsMixin:
             except Exception as exc:  # noqa: BLE001
                 self._feed_signal.emit([], str(exc))
 
-        threading.Thread(target=_work, daemon=True).start()
+        self._spawn_worker(_work)
 
     def _qt_on_feed(self, entries: Any, error: str) -> None:
         """Main-thread handler: list the feed's entries; open the chosen one."""

@@ -489,6 +489,16 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         self._doc_load_gen: int = 0
         self._pending_doc_gen: int = 0
 
+        # Background workers whose lifetime is bounded by this window (the
+        # async doc/welcome load, word-map builds, update checks, exports…).
+        # Every window-spawned thread is registered via _spawn_worker so
+        # closeEvent can join them while the C++ object is still alive: a
+        # worker that outlives the window and then runs its final
+        # ``self.<signal>.emit(...)`` is a use-after-free on the deleted
+        # QObject (caught in the wild as a RuntimeError from the doc-load
+        # worker once the sip check happened to win the race).
+        self._bg_threads: List[threading.Thread] = []
+
         # QTextCharFormat applied to the currently spoken word.
         # Built from the user's highlight style/color settings so the
         # karaoke highlight can be tuned (see _rebuild_hl_fmt).
@@ -792,9 +802,13 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
                 )
             except Exception:  # noqa: BLE001 — an update check must never crash.
                 result = None
+            # Never emit on a closing window (a slow network check can easily
+            # outlive closeEvent's join budget; the C++ object may be gone).
+            if getattr(self, "_closing", False):
+                return
             self._update_signal.emit(result, user_initiated)
 
-        threading.Thread(target=_work, daemon=True).start()
+        self._spawn_worker(_work, name="star-update-check")
 
     def _qt_on_update_result(self, result: Any, user_initiated: bool) -> None:
         """GUI-thread handler for a completed update check.
@@ -1134,11 +1148,46 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
         """
         return not getattr(self, "_closing", False)
 
+    def _spawn_worker(
+        self, target: Any, name: Optional[str] = None, start: bool = True
+    ) -> threading.Thread:
+        """Start a daemon worker whose lifetime is bounded by this window.
+
+        Every background thread the window spawns MUST go through here: the
+        thread is registered so :meth:`closeEvent` can join it while the
+        window's C++ object is still alive.  A worker that outlives the
+        window and then touches any Qt member — typically its final
+        ``self.<signal>.emit(...)`` — is a use-after-free on the deleted
+        QObject.  Registering here is what makes those emits safe: by the
+        time the C++ object dies, the worker is gone.
+
+        *start=False* returns the registered-but-unstarted thread for call
+        sites that wire a progress poller before starting it.
+        """
+        t = threading.Thread(target=target, daemon=True, name=name)
+        # A queued slot delivered during teardown (the window is closing but
+        # its C++ object still alive) must not launch new workers: the
+        # closeEvent join has already run, so nobody would bound this thread's
+        # lifetime.  Return it unstarted — callers treat it as fire-and-forget.
+        if getattr(self, "_closing", False):
+            return t
+        # Prune finished workers so a long-lived window doesn't accumulate them.
+        self._bg_threads = [w for w in self._bg_threads if w.is_alive()]
+        self._bg_threads.append(t)
+        if start:
+            t.start()
+        return t
+
     def closeEvent(self, event: Any) -> None:
         # From here on, queued-signal handlers must not open modal dialogs
         # (see _modal_ok) — a background result arriving mid-teardown would
         # block forever with no user to dismiss it.
         self._closing = True
+        # Invalidate any in-flight document load NOW: the loader thread's
+        # final compare-and-set sees a newer generation and returns without
+        # staging or emitting — so even a load that outlives the join budget
+        # at the end of this method can never touch this window again.
+        self._doc_load_gen += 1
         # Persist position, then silence.
         self._qt_save_reading_position()
         # Flush the final reading-statistics slice.
@@ -1166,7 +1215,11 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
             except Exception:
                 pass
             self._watcher = None
-        self.tts_manager.stop()
+        # shutdown (not stop): severs the highlight/done callbacks and joins
+        # the manager's timer + speech threads, so neither can fire into this
+        # window once teardown starts destroying the C++ object.  Test fakes
+        # and third-party managers may only implement stop().
+        getattr(self.tts_manager, "shutdown", self.tts_manager.stop)()
         # Disconnect + hide the reading-ruler overlay so its caret-tracking slot
         # can never fire into a half-destroyed widget during teardown.
         if getattr(self, "_reading_ruler", None) is not None:
@@ -1184,6 +1237,25 @@ class StarWindow(AidDialogsMixin, ChromeMixin, CommandsMixin, TocMixin, Highligh
                     _t.stop()
                 except Exception:
                     pass
+        # Join the window's background workers (see _spawn_worker) while the
+        # C++ object is still alive.  A daemon worker that survives past
+        # deletion and then emits its completion signal is a use-after-free
+        # (caught in the wild as a RuntimeError from the doc-load worker's
+        # emit).  The budget is generous for the common quick workers (doc
+        # loads, word maps); a genuinely long job that outlasts it is already
+        # disarmed by the generation bump at the top of this method.
+        import time as _time
+
+        _deadline = _time.monotonic() + 3.0
+        for _w in list(getattr(self, "_bg_threads", ())):
+            try:
+                _w.join(timeout=max(0.0, _deadline - _time.monotonic()))
+            except Exception:
+                pass
+        # Keep any straggler that outlived the budget on the registry — the
+        # test harness joins survivors again (with a fatter budget) before it
+        # deletes the window's C++ object.
+        self._bg_threads = [w for w in self._bg_threads if w.is_alive()]
         self.settings["gui_width"] = self.width()
         self.settings["gui_height"] = self.height()
         self.settings.save()

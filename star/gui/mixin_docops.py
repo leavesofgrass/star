@@ -108,7 +108,7 @@ class DocOpsMixin:
                     status_lbl.setText("DOI metadata filled")
                 except Exception as e:
                     status_lbl.setText(f"DOI lookup failed: {e}")
-            threading.Thread(target=_do, daemon=True).start()
+            self._spawn_worker(_do)
 
         def _lookup_isbn() -> None:
             isbn = edits["isbn"].text().strip()
@@ -127,7 +127,7 @@ class DocOpsMixin:
                     status_lbl.setText("ISBN metadata filled")
                 else:
                     status_lbl.setText(f"Lookup: {msg}")
-            threading.Thread(target=_do, daemon=True).start()
+            self._spawn_worker(_do)
 
         def _save() -> None:
             for fname, _ in fields:
@@ -188,7 +188,7 @@ class DocOpsMixin:
             except Exception as exc:
                 self._export_audio_signal.emit(f"Video export error: {exc}")
 
-        threading.Thread(target=_do_export, daemon=True).start()
+        self._spawn_worker(_do_export)
 
     def _qt_pick_backend(self) -> None:
         """Choose the active TTS engine (pyttsx3 / espeak / piper / …).

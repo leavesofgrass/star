@@ -339,6 +339,28 @@ class PlaybackMixin:
         self._last_cb_word_idx = -1
         self._last_cb_time = 0.0
 
+    def shutdown(self) -> None:
+        """Stop speech, sever the owner's callbacks, and join the TTS threads.
+
+        For owner teardown (window close).  ``stop()`` alone leaves the daemon
+        highlight-timer thread (and the backend's speech thread) winding down
+        *asynchronously*; an owner about to be destroyed must also sever its
+        callbacks and wait those threads out, or a late ``_on_highlight`` /
+        ``on_word`` can fire into an object whose C++ side is already being
+        destroyed (use-after-free — the teardown-segfault class).  Joins are
+        bounded; the severance covers any thread that outlives them.
+        """
+        self.stop()
+        self._on_highlight = None
+        self._on_done = None
+        for t in (self._timer_thread, getattr(self._backend, "_thread", None)):
+            if (
+                t is not None
+                and t.is_alive()
+                and t is not threading.current_thread()
+            ):
+                t.join(timeout=2.0)
+
     @property
     def last_cb_word_idx(self) -> int:
         """Last word index confirmed by a pyttsx3 word-boundary callback.

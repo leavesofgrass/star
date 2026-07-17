@@ -95,7 +95,7 @@ class TranscriptionMixin:
             except Exception:
                 pass
 
-        threading.Thread(target=_work, name="star-feature-install", daemon=True).start()
+        self._spawn_worker(_work, name="star-feature-install")
 
     def _on_feature_installed(self, human_name: str, ok: bool, ready: bool) -> None:
         """GUI-thread slot: report the outcome of a feature download.
@@ -178,7 +178,7 @@ class TranscriptionMixin:
             except Exception as exc:  # noqa: BLE001
                 self._transcribe_signal.emit("", f"ERROR: {exc}")
 
-        threading.Thread(target=_work, daemon=True).start()
+        self._spawn_worker(_work)
 
     def _qt_on_transcribed(self, text: str, src: str) -> None:
         """Main-thread handler for a completed transcription."""
@@ -330,7 +330,7 @@ class TranscriptionMixin:
             except Exception as exc:  # noqa: BLE001
                 self._dictate_signal.emit("", "ERROR", str(exc), "", "")
 
-        threading.Thread(target=_work, daemon=True).start()
+        self._spawn_worker(_work)
 
     def _qt_on_dictated(
         self, text: str, char_pos_s: str, anchor: str,
@@ -485,7 +485,7 @@ class TranscriptionMixin:
             except Exception as exc:  # noqa: BLE001
                 self._voice_type_signal.emit("", str(exc))
 
-        threading.Thread(target=_work, daemon=True).start()
+        self._spawn_worker(_work)
 
     def _qt_on_voice_typed(self, text: str, error: str) -> None:
         """Main-thread handler: insert the recognized speech at the cursor."""

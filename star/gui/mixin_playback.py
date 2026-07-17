@@ -25,9 +25,21 @@ class PlaybackMixin:
         is therefore silently dropped by _apply_word_highlight.
         """
         _s = self._hl_session
-        self.tts_manager.set_on_highlight(
-            lambda idx, __s=_s: self._word_signal.emit(idx, __s)
-        )
+
+        def _hl_cb(idx: int, __s: int = _s) -> None:
+            # Runs on the TTS timer thread.  A closing window must never be
+            # emitted into — the C++ object may be mid-destruction (the
+            # teardown-segfault class).  closeEvent also severs this callback
+            # via TTSManager.shutdown(); the guard covers the window between
+            # registration and severance.
+            if getattr(self, "_closing", False):
+                return
+            try:
+                self._word_signal.emit(idx, __s)
+            except RuntimeError:
+                pass  # window destroyed while the TTS thread was mid-callback
+
+        self.tts_manager.set_on_highlight(_hl_cb)
 
     def _qt_maybe_auto_play(self) -> None:
         """Start reading a freshly opened document when tts_auto_play is on.

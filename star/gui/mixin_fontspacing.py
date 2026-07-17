@@ -74,7 +74,6 @@ class FontSpacingMixin:
         the GUI thread to register + (re)apply. A no-op when the font is already
         fetched, already installed, or auto-install is disabled."""
         import os
-        import threading
 
         from .. import fonts as _fontmod
 
@@ -115,7 +114,7 @@ class FontSpacingMixin:
             except Exception:
                 pass
 
-        threading.Thread(target=_work, name="star-font-fetch", daemon=True).start()
+        self._spawn_worker(_work, name="star-font-fetch")
 
     def _on_dyslexia_font_ready(self) -> None:
         """GUI-thread slot: register the freshly-fetched reading font and, if a
