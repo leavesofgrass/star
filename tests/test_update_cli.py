@@ -208,12 +208,29 @@ def test_gui_manual_check_spawns_worker(window, monkeypatch):
     monkeypatch.setattr(_update, "check_for_update", lambda **k: _result(True, "9.9.9"))
     monkeypatch.setattr(QMessageBox, "exec", lambda self: 0)
 
-    window.statusBar().clearMessage()
-    window._qt_check_for_updates()
-
-    deadline = time.time() + 5
-    while time.time() < deadline and "9.9.9" not in window.statusBar().currentMessage():
+    # The fixture builds StarWindow, which *asynchronously* loads the bundled
+    # welcome page; that load ends by writing "Opened: Welcome to star" to the
+    # status bar (its only status write — a fresh profile restores no position
+    # and the welcome page is excluded from auto-play).  If that queued write is
+    # delivered *after* the update result, it clobbers "9.9.9" — and the manual
+    # check fires only once, so the status never recovers.  That is the slow-
+    # runner flake seen on Windows CI.  Drain the welcome load first, so the
+    # update result is the only remaining writer once we trigger the check.
+    settle = time.time() + 5
+    while time.time() < settle and "Opened" not in window.statusBar().currentMessage():
         QApplication.processEvents()
         time.sleep(0.02)
 
-    assert "9.9.9" in window.statusBar().currentMessage()
+    window.statusBar().clearMessage()
+    window._qt_check_for_updates()
+
+    # Latch on the first sighting of the version: an unrelated late status write
+    # can never then mask a result that did in fact arrive.
+    deadline = time.time() + 5
+    seen = "9.9.9" in window.statusBar().currentMessage()
+    while time.time() < deadline and not seen:
+        QApplication.processEvents()
+        time.sleep(0.02)
+        seen = seen or "9.9.9" in window.statusBar().currentMessage()
+
+    assert seen
