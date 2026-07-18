@@ -1,7 +1,6 @@
 """Format detection and the load_document entry points."""
 from .._runtime import *  # noqa: F401,F403
 from ..cache import _cache_load, _cache_save
-from ..formats import UnsupportedFormatError
 from ..settings import Settings
 from ..stats import _settings_fingerprint
 from ..ttstext import _strip_markdown_for_tts
@@ -103,24 +102,6 @@ def supported_extensions() -> "frozenset[str]":
     except Exception:  # noqa: BLE001 — plugin discovery must never break scanning
         pass
     return frozenset(exts)
-
-
-def load_document_via_plugins(path: "str | Path", **kwargs) -> Document:
-    """Load *path* using the plugin registry.  Raises UnsupportedFormatError if
-    no handler is registered and available for the file extension.
-
-    Phase 2 scaffolding: this delegates format dispatch to
-    :class:`star.plugins.PluginRegistry`.  It is **not** yet wired into the
-    application's call sites — the legacy :func:`load_document` remains the
-    production path until the Phase 2 switch.
-    """
-    from ..plugins import PluginRegistry
-
-    p = Path(path)
-    handler = PluginRegistry.get().handler_for(p)
-    if handler is None:
-        raise UnsupportedFormatError(p.suffix)
-    return handler.load(p, **kwargs)
 
 
 def load_document(path: str, settings: Settings) -> Document:
