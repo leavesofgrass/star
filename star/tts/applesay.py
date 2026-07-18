@@ -8,16 +8,29 @@ class AppleSayBackend(TTSBackend):
 
     This gives Mac users Apple's high-quality system voices (including the
     Eloquence voices bundled with recent macOS releases) with **zero extra
-    dependencies** — no ``pyobjc``, no Homebrew, no ``espeak``.  Because it is
-    always present on macOS it is ranked above eSpeak in ``auto`` mode so the
-    program never silently falls back to the robotic eSpeak voice on a Mac.
+    dependencies** — no ``pyobjc``, no Homebrew, no ``espeak``.
+
+    On modern macOS ``say`` is backed by **AVSpeechSynthesizer**, and its
+    ``-r`` flag is words-per-minute — exactly star's rate model.  It is the
+    macOS *default* auto engine (priority below pyttsx3) so star does not
+    depend on pyttsx3's macOS driver, which still defaults to the
+    Apple-deprecated ``NSSpeechSynthesizer`` and whose experimental
+    ``AVSpeech`` driver misreads a WPM rate as a 0-1 fraction multiplier.
+    ``available()`` is False off macOS, so this priority only affects Macs;
+    every other platform keeps pyttsx3/eSpeak/etc. as before.  A deliberately
+    installed DECtalk is still reachable by explicit selection.
 
     ``say`` does not emit per-word events, so word highlighting is driven by
     the timer in :class:`TTSManager` (the same path used for Festival/Coqui).
     """
 
     name = "applesay"
-    priority = 30
+    # 15: below the in-process DECtalk.dll (25) only in number — DECtalk is
+    # essentially never present on a stock Mac — and above pyttsx3 (20) so the
+    # AVSpeech-backed `say` is the macOS default instead of pyttsx3's
+    # deprecated NSSpeech path.  Off macOS this backend is unavailable, so the
+    # value is inert there.
+    priority = 15
 
     def __init__(self, rate: int = 265, volume: float = 1.0, voice: str = ""):
         self._rate = int(rate)

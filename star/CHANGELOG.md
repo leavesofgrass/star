@@ -10,6 +10,16 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### 🔀 Changed
+
+- **macOS speech now defaults to the built-in `say` voice.** On a Mac, `auto`
+  engine selection prefers the AVSpeechSynthesizer-backed `say` command
+  (whose rate is words-per-minute, matching star) over pyttsx3, whose macOS
+  driver still defaults to Apple-deprecated `NSSpeechSynthesizer` and whose
+  experimental `AVSpeech` driver misreads a WPM rate. The system voices are
+  the same; this just future-proofs macOS speech against pyttsx3's driver
+  transition. Other platforms are unaffected (`say` exists only on macOS).
+
 ### 🐛 Fixed
 
 - **Background workers can no longer outlive their window.** Every

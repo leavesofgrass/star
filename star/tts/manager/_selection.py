@@ -61,11 +61,12 @@ class SelectionMixin:
                     break
         else:
             # Auto: walk every auto-eligible engine in priority order.
-            # pyttsx3 (the system voice: SAPI5 / NSSpeech) sorts first — it is
-            # star's default engine — then the bundled DECtalk.dll ("Perfect
-            # Paul"), the macOS `say` voice (ranked above eSpeak so a Mac
-            # never falls to the robotic eSpeak voice), eSpeak, Festival, and
-            # the DECtalk CLI.
+            # On macOS the built-in `say` voice (AVSpeech-backed, WPM-native)
+            # sorts first, so star never depends on pyttsx3's macOS driver
+            # (deprecated NSSpeech / experimental AVSpeech).  Everywhere else
+            # `say` is unavailable and pyttsx3 (the system voice: SAPI5 /
+            # NSSpeech) is star's default, then the bundled DECtalk.dll
+            # ("Perfect Paul"), eSpeak, Festival, and the DECtalk CLI.
             for cls in classes:
                 if cls.name in self._AUTO_SKIP:
                     continue

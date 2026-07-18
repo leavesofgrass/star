@@ -578,7 +578,7 @@ def _fake_backend_cls(real_name, public_name, priority):
 _BACKENDS = {
     "DECtalkDLLBackend": ("dectalk", 25),
     "Pyttsx3Backend": ("pyttsx3", 20),
-    "AppleSayBackend": ("applesay", 30),
+    "AppleSayBackend": ("applesay", 15),
     "ESpeakLibBackend": ("espeak", 40),
     "ESpeakBackend": ("espeak", 50),
     "FestivalBackend": ("festival", 60),
@@ -619,9 +619,18 @@ def test_manager_all_unavailable_falls_back_to_silent(fake_backends):
     assert mgr.current_word_idx == -1
 
 
-def test_manager_auto_prefers_pyttsx3_when_available(fake_backends):
+def test_manager_auto_prefers_applesay_over_pyttsx3_on_mac(fake_backends):
+    # On a Mac both are available; `say` (AVSpeech-backed, WPM-native) now
+    # outranks pyttsx3 so star never rides pyttsx3's deprecated NSSpeech /
+    # experimental AVSpeech macOS driver.
     fake_backends["Pyttsx3Backend"]._avail = True
     fake_backends["AppleSayBackend"]._avail = True
+    assert _manager("auto").backend_name == "applesay"
+
+
+def test_manager_auto_prefers_pyttsx3_when_say_unavailable(fake_backends):
+    # Off macOS `say` is unavailable, so pyttsx3 stays star's default engine.
+    fake_backends["Pyttsx3Backend"]._avail = True
     assert _manager("auto").backend_name == "pyttsx3"
 
 
