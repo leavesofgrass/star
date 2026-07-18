@@ -40,6 +40,7 @@ star's core is a library, not just an app.
 | Open any document and read its text/title/format in Python | [`library/load-a-document`](library/load-a-document) | ✅ `python run.py` |
 | Translate a document to another language | [`library/translate-document`](library/translate-document) | ✅ `python run.py` |
 | Summarize a document to key sentences | [`library/summarize-document`](library/summarize-document) | ✅ `python run.py` |
+| Share reading profiles between machines (JSON export/import) | [`library/profiles`](library/profiles) | ✅ `python run.py` |
 
 More: the loaders, word map, and TTS pipeline are described in
 [Architecture](../architecture.md).
