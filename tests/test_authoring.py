@@ -538,12 +538,32 @@ def test_word_map_worker_bails_when_window_is_closing(window):
     """The rebuild worker must skip its work when the window is closing rather
     than churn a daemon thread against a teardown-in-progress. With _closing set,
     calling the rebuild leaves the maps untouched."""
+    import time as _t
+
+    from PyQt6.QtWidgets import QApplication
+
+    # Settle the fixture's asynchronous welcome-page load first.  Constructing
+    # StarWindow starts a background doc load whose word-map worker
+    # (star-word-map) writes _qt_word_map; if it is still in flight when we
+    # plant the sentinel below, it overwrites it with the real welcome map — a
+    # fixture race unrelated to the _closing guard under test.  Pump the event
+    # loop and join the window's registered workers (the _bg_threads idiom from
+    # test_bg_thread_lifecycle) until the welcome map is built and none remain.
+    _deadline = _t.time() + 5
+    while _t.time() < _deadline:
+        QApplication.processEvents()
+        alive = [w for w in getattr(window, "_bg_threads", []) if w.is_alive()]
+        for w in alive:
+            w.join(0.05)
+        if not alive and window._qt_word_map:
+            break
+        _t.sleep(0.02)
+
     # A valid word map is List[int] (char offsets); use ints so any incidental
     # highlight/caret event that touches it during the test can't type-error.
     sentinel = [0, 1, 2]
     window._qt_word_map = sentinel
     window._closing = True
     window._qt_rebuild_word_maps_async()   # spawns a thread that must early-return
-    import time as _t
     _t.sleep(0.2)                           # give any (wrongly-spawned) work time
     assert window._qt_word_map is sentinel  # worker bailed, nothing rebuilt
