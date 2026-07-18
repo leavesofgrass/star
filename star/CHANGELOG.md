@@ -8,7 +8,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [Unreleased]
+## [0.1.28] 2026-07-18
 
 ### 🔀 Changed
 
@@ -44,6 +44,18 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
   the intermittent `doc.path` test failure previously dismissed as a CI flake;
   it reproduced under load in a CI-parity Linux container and is now covered
   by a regression test.)
+- **eSpeak speech no longer over-reads its input buffer (Linux).** The pyttsx3
+  eSpeak binding told `espeak_Synth` the text was ten times its real length,
+  so every utterance read past the end of the buffer — harmless for short
+  text, a crash for very long documents. star now corrects the reported size
+  at the boundary; also reported and fixed upstream
+  ([pyttsx3#448](https://github.com/nateshmbhat/pyttsx3/issues/448)).
+- **The chronic Qt test-teardown segfault is fixed.** The ~10% intermittent
+  CI worker crash on the GUI suite was root-caused to stale PyQt/sip wrappers
+  surviving window destruction and being handed to the next window at a reused
+  address; a wrapper sweep in the test harness eliminates it (validated 40/40
+  on three reproducers where the baseline was 20-30%). No user-facing code
+  change — CI is simply reliable again.
 
 ---
 
