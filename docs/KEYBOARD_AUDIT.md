@@ -348,8 +348,8 @@ All announcement text flows through `tr()` and is translated in every catalog.
 On startup `mixin_display._maybe_follow_os_theme` queries
 `QStyleHints.colorScheme()` (Qt 6.5+; `themes.detect_os_color_scheme`) and, when
 `qt_follow_os_theme` is on and the user has not **explicitly** chosen a theme
-(`qt_theme_explicit`), adopts a matching built-in theme (Dark → `obsidian`,
-Light → `obsidian-light`, high-contrast → `high-contrast`). An explicit pick via
+(`qt_theme_explicit`), adopts a matching built-in theme (Dark → `galaxy`,
+Light → `galaxy-light`, high-contrast → `high-contrast`). An explicit pick via
 Next Theme or Choose Theme sets `qt_theme_explicit` so auto-detection never
 overrides it. On older Qt / PyQt5 / no running app, detection returns "unknown"
 and the saved theme is left untouched. This keeps the default appearance in step

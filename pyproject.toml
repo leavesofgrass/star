@@ -1,7 +1,9 @@
 # Packaging: the pure-Python wheel (py3-none-any) is the primary, stable
-# distribution artifact.  `python -m build` produces the wheel + sdist, which CI
-# publishes to PyPI.  The self-contained Windows star.exe is a deprecated manual
-# fallback only (see star/BUILD.md and tools/build-windows.ps1).
+# distribution artifact — installing via pip/pipx is the recommended route.
+# `python -m build` produces the wheel + sdist, which CI publishes to PyPI.  The
+# self-contained Windows star.exe is a supported release artifact, built on
+# every v* tag and attached to the GitHub Release (see star/BUILD.md and
+# tools/build-windows.ps1).
 [build-system]
 requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
