@@ -695,8 +695,8 @@ pip install faster-whisper          # transcription of audio files (no PyTorch)
 pip install sounddevice numpy       # plus this for microphone dictation
 ```
 
-The legacy `openai-whisper` backend is also supported but deprecated (removal
-planned for 0.2.0). The model size is configurable with `whisper_model`
+The legacy `openai-whisper`/PyTorch backend was removed in 0.2.0
+(deprecated since 0.1.25). The model size is configurable with `whisper_model`
 (`tiny`, `base`, `small`, `medium`, `large-v3`, `large-v3-turbo`). When Whisper
 is not installed, these menu items simply explain how to enable them.
 

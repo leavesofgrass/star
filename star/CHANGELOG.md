@@ -8,6 +8,25 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### 🗑️ Removed
+
+- **The `openai-whisper` (PyTorch) speech-to-text backend is gone.**
+  Deprecated in 0.1.25 with a one-time warning, it is removed here as promised:
+  **faster-whisper (CTranslate2) is now the only dictation/transcription
+  backend**. It is roughly 4× faster at equal accuracy, needs no PyTorch (~2.5 GB
+  saved), and decodes audio through bundled PyAV — so transcribing a file no
+  longer requires `ffmpeg` on your PATH at all, and the pre-flight ffmpeg check
+  in both the GUI and the TUI is gone with it.
+
+  **If you relied on the old backend:** `pip install faster-whisper`. A leftover
+  `whisper` install is now ignored rather than selected. The
+  `STAR_WHISPER_BACKEND` environment variable is removed — with one backend
+  there is nothing to choose between.
+
+---
+
 ## [0.1.30] 2026-08-16
 
 ### ✨ Added

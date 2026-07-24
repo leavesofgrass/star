@@ -266,11 +266,10 @@ _excludes = [
     # Only one Qt binding is needed; star prefers PyQt6.  Excluding PyQt5
     # avoids bundling a second, unused Qt.
     "PyQt5",
-    # star migrated dictation to faster-whisper (CTranslate2), so openai-whisper
-    # + Torch are NEVER bundled now — exclude them always so a build venv that
-    # happens to have them installed can't drag ~2.5 GB of Torch back into the
-    # exe via star's guarded ``import whisper`` fallback.  At runtime the frozen
-    # app then sees no ``whisper`` module and selects the faster backend.
+    # star's only dictation backend is faster-whisper (CTranslate2); the
+    # openai-whisper + Torch path was removed in 0.2.0.  Keep excluding them so
+    # a build venv that happens to have them installed can't drag ~2.5 GB of
+    # Torch into the exe through some transitive import.
     "whisper",
     "torch",
     "numba",

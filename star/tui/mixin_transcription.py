@@ -208,19 +208,10 @@ class TuiTranscriptionMixin:
                 "audio transcription", "pip install faster-whisper"
             )
             return
-        # openai-whisper decodes audio FILES through ffmpeg; without it the
-        # failure is a baffling WinError long after the model loads (the GUI has
-        # the same pre-check).  faster-whisper decodes via bundled PyAV, so it
-        # needs no ffmpeg — only gate the check on the openai backend.  Dictation
-        # is exempt either way — it feeds samples directly.
-        from ..audiobook import find_ffmpeg
-
-        if _whisper_backend_now() == "openai" and not find_ffmpeg():
-            self.notify(
-                "Transcribing a file needs ffmpeg on your PATH to decode it.",
-                error=True,
-            )
-            return
+        # No ffmpeg pre-check here: faster-whisper decodes via bundled PyAV.
+        # (The removed openai-whisper backend shelled out to ffmpeg and failed
+        # with a baffling WinError long after the model loaded, which is what
+        # the old guard existed to pre-empt.)
         path = (arg or "").strip().strip('"')
         if not path:
             self._enter_minibuffer(

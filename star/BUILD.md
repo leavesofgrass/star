@@ -308,8 +308,9 @@ ships in the exe:
   `star` uses whichever backend is installed, preferring `faster-whisper`;
   `build-windows.ps1` installs it (which pulls in `ctranslate2`, `av`/PyAV, and
   `tokenizers`). `star.spec` bundles the whole stack via `collect_all` +
-  `collect_dynamic_libs` (for the native libs), forcing the frozen app to select
-  the faster backend by excluding openai-whisper/Torch.
+  `collect_dynamic_libs` (for the native libs), with openai-whisper/Torch
+  excluded as a guard (the backend itself was removed in 0.2.0; the
+  exclusion keeps a build venv from dragging Torch in transitively).
 - **`sounddevice`** — microphone capture (ships the PortAudio DLL).
 - **The `base` model** (~145 MB, CTranslate2 directory) — staged to
   `build\faster_whisper_model\` by `build-windows.ps1` and bundled by

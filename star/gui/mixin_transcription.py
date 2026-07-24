@@ -140,22 +140,10 @@ class TranscriptionMixin:
         """Transcribe an audio file with Whisper and open it as a document."""
         if not self._qt_require_optional_feature("transcribe", tr("Speech recognition")):
             return
-        # openai-whisper decodes audio through ffmpeg; without it the failure is
-        # a baffling "[WinError 2] The system cannot find the file specified"
-        # AFTER the model loads.  Pre-check like the M4B exporter does.  The
-        # faster-whisper backend decodes via bundled PyAV, so it needs no ffmpeg
-        # — only gate the check on the openai path.
-        from .. import _runtime
-        from ..audiobook import find_ffmpeg
-
-        if _runtime._whisper_backend_now() == "openai" and not find_ffmpeg():
-            QMessageBox.warning(
-                self,
-                "Transcribe Audio",
-                "Transcription needs ffmpeg to decode the audio file.\n\n"
-                "Install ffmpeg and make sure it is on your PATH, then try again.",
-            )
-            return
+        # No ffmpeg pre-check here: faster-whisper decodes via bundled PyAV.
+        # (The removed openai-whisper backend shelled out to ffmpeg and failed
+        # with a baffling "[WinError 2]" *after* the model loaded, which is what
+        # the old guard existed to pre-empt.)
         src, _flt = QFileDialog.getOpenFileName(
             self,
             "Transcribe Audio",

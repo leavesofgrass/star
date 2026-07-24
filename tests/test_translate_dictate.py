@@ -492,7 +492,7 @@ def test_stream_recorder_available_check_is_fresh_not_stale(monkeypatch):
 
 @pytest.mark.skipif(not _HAS_NUMPY, reason="numpy not installed (audio extra)")
 def test_transcribe_samples_needs_no_ffmpeg(monkeypatch):
-    """Dictation transcribes an in-memory array — Whisper gets a float32
+    """Dictation transcribes an in-memory array — faster-whisper gets a float32
     ndarray, so no WAV is written and no ffmpeg subprocess is spawned (which
     would flash a console window in the windowed exe)."""
     import numpy as np
@@ -503,16 +503,14 @@ def test_transcribe_samples_needs_no_ffmpeg(monkeypatch):
 
     def _fake_transcribe(audio):
         captured["audio"] = audio
-        return {"text": " hi "}
+        return ([type("Seg", (), {"text": " hi "})()], None)
 
     # _transcribe_samples detects the backend fresh, so patch the detector (the
     # _WHISPER snapshot it used to read is no longer consulted).
-    monkeypatch.setattr(t, "_whisper_backend_now", lambda: "openai")
+    monkeypatch.setattr(t, "_whisper_backend_now", lambda: "faster")
     monkeypatch.setattr(
-        t, "_load_whisper",
-        lambda: type("W", (), {"load_model": staticmethod(
-            lambda _m: type("M", (), {"transcribe": staticmethod(_fake_transcribe)})()
-        )})(),
+        t, "_new_faster_model",
+        lambda _m: type("M", (), {"transcribe": staticmethod(_fake_transcribe)})(),
     )
     out = t._transcribe_samples(np.array([16384, -16384], dtype="int16"), "base")
     assert out == "hi"
