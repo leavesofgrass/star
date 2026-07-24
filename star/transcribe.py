@@ -18,28 +18,13 @@ def _fmt_timestamp(seconds: float) -> str:
 def _transcribe_audio(
     path: str, model_name: str = "base", timestamps: bool = False
 ) -> str:
-    """Transcribe an audio file to text using Whisper (blocking).
+    """Transcribe an audio file to text using faster-whisper (blocking).
 
-    Works with either ``openai-whisper`` or ``faster-whisper``.  When
-    *timestamps* is True each segment is prefixed with its start time as
+    When *timestamps* is True each segment is prefixed with its start time as
     ``[hh:mm:ss]`` on its own line, producing a navigable transcript.
-    Raises RuntimeError with install guidance when no backend is available.
+    Raises RuntimeError with install guidance when the backend is unavailable.
     """
-    backend = _whisper_backend_now()
-    if backend == "openai":
-        model = _load_whisper().load_model(model_name)
-        result = model.transcribe(path)
-        if timestamps:
-            segs = result.get("segments", []) or []
-            return (
-                "\n".join(
-                    f"{_fmt_timestamp(s.get('start', 0))} {str(s.get('text', '')).strip()}"
-                    for s in segs
-                ).strip()
-                or str(result.get("text", "")).strip()
-            )
-        return str(result.get("text", "")).strip()
-    if backend == "faster":
+    if _whisper_backend_now() == "faster":
         model = _new_faster_model(model_name)
         segments, _info = model.transcribe(path)
         if timestamps:
@@ -49,8 +34,8 @@ def _transcribe_audio(
             ).strip()
         return " ".join(seg.text for seg in segments).strip()
     raise RuntimeError(
-        "Speech recognition requires Whisper:\n"
-        "  pip install faster-whisper   (or: pip install openai-whisper)"
+        "Speech recognition requires faster-whisper:\n"
+        "  pip install faster-whisper"
     )
 
 
@@ -59,28 +44,24 @@ def _transcribe_samples(
 ) -> str:
     """Transcribe in-memory 16-bit mono PCM (16 kHz) WITHOUT ffmpeg.
 
-    Whisper accepts a float32 ndarray directly, so the microphone-dictation
-    path can skip the WAV → ffmpeg round-trip entirely.  That matters twice
-    over in a frozen, windowed build: ffmpeg-via-subprocess flashes a console
-    window (star.exe has no console), and it made dictation depend on ffmpeg
-    being found on PATH.  Feeding the samples straight in avoids both.
+    faster-whisper accepts a float32 ndarray directly, so the microphone-
+    dictation path can skip the WAV → ffmpeg round-trip entirely.  That matters
+    twice over in a frozen, windowed build: ffmpeg-via-subprocess flashes a
+    console window (star.exe has no console), and it made dictation depend on
+    ffmpeg being found on PATH.  Feeding the samples straight in avoids both.
     """
     import numpy as np
 
     if samples is None or len(samples) == 0:
         return ""
     audio = np.asarray(samples, dtype=np.float32).flatten() / 32768.0
-    backend = _whisper_backend_now()
-    if backend == "openai":
-        model = _load_whisper().load_model(model_name)
-        return str(model.transcribe(audio).get("text", "")).strip()
-    if backend == "faster":
+    if _whisper_backend_now() == "faster":
         model = _new_faster_model(model_name)
         segments, _info = model.transcribe(audio)
         return " ".join(seg.text for seg in segments).strip()
     raise RuntimeError(
-        "Speech recognition requires Whisper:\n"
-        "  pip install faster-whisper   (or: pip install openai-whisper)"
+        "Speech recognition requires faster-whisper:\n"
+        "  pip install faster-whisper"
     )
 
 

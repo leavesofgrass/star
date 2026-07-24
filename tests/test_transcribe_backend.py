@@ -146,23 +146,6 @@ def test_new_faster_model_compute_override(monkeypatch):
     assert captured["kw"]["compute_type"] == "float32"
 
 
-def test_load_whisper_warns_deprecation_once(monkeypatch):
-    """The legacy openai-whisper loader emits ONE DeprecationWarning per
-    process — the backend is scheduled for removal in 0.2.0."""
-    import types
-    import warnings
-
-    monkeypatch.setitem(sys.modules, "whisper", types.ModuleType("whisper"))
-    monkeypatch.setattr(r, "_openai_whisper_warned", False)
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        r._load_whisper()
-        r._load_whisper()
-    deps = [w for w in caught if issubclass(w.category, DeprecationWarning)]
-    assert len(deps) == 1
-    assert "faster-whisper" in str(deps[0].message)
-
-
 # ── In-session backend detection (no restart after a runtime install) ────────
 
 
@@ -171,28 +154,25 @@ def _fake_available(present):
     return lambda name: name in present
 
 
-def test_whisper_backend_now_none_when_neither(monkeypatch):
-    monkeypatch.setattr(r, "_WHISPER_OVERRIDE", "")
+def test_whisper_backend_now_none_when_absent(monkeypatch):
     monkeypatch.setattr(r, "_module_available", _fake_available(set()))
     assert r._whisper_backend_now() == ""
 
 
-def test_whisper_backend_now_faster_only(monkeypatch):
-    monkeypatch.setattr(r, "_WHISPER_OVERRIDE", "")
+def test_whisper_backend_now_faster_when_present(monkeypatch):
     monkeypatch.setattr(r, "_module_available", _fake_available({"faster_whisper"}))
     assert r._whisper_backend_now() == "faster"
 
 
-def test_whisper_backend_now_prefers_openai_when_both(monkeypatch):
-    monkeypatch.setattr(r, "_WHISPER_OVERRIDE", "")
-    monkeypatch.setattr(
-        r, "_module_available", _fake_available({"whisper", "faster_whisper"})
-    )
-    assert r._whisper_backend_now() == "openai"
+def test_whisper_backend_now_ignores_openai_whisper(monkeypatch):
+    """The openai-whisper/PyTorch backend was removed in 0.2.0.
 
+    A leftover ``whisper`` install must NOT be selected — it would route to a
+    loader that no longer exists.  Only faster-whisper counts.
+    """
+    monkeypatch.setattr(r, "_module_available", _fake_available({"whisper"}))
+    assert r._whisper_backend_now() == ""
 
-def test_whisper_backend_now_override_forces_faster(monkeypatch):
-    monkeypatch.setattr(r, "_WHISPER_OVERRIDE", "faster")
     monkeypatch.setattr(
         r, "_module_available", _fake_available({"whisper", "faster_whisper"})
     )
@@ -202,7 +182,6 @@ def test_whisper_backend_now_override_forces_faster(monkeypatch):
 def test_refresh_whisper_backend_flips_snapshot_in_session(monkeypatch):
     """Simulate a mid-session transcribe install: refresh re-detects the backend
     and updates the _WHISPER snapshot with no restart."""
-    monkeypatch.setattr(r, "_WHISPER_OVERRIDE", "")
     monkeypatch.setattr(r, "_WHISPER", "")  # as if nothing was installed at startup
     monkeypatch.setattr(
         r, "_module_available",
@@ -214,7 +193,6 @@ def test_refresh_whisper_backend_flips_snapshot_in_session(monkeypatch):
 
 
 def test_refresh_whisper_backend_false_when_absent(monkeypatch):
-    monkeypatch.setattr(r, "_WHISPER_OVERRIDE", "")
     monkeypatch.setattr(r, "_module_available", _fake_available(set()))
     assert r.refresh_whisper_backend() is False
     assert r._WHISPER == ""

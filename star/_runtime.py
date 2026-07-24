@@ -505,34 +505,26 @@ _PANDOC_BIN = (
 # Used for dictation and recording transcription.  Both the model library and
 # a microphone capture library are optional; every code path is guarded so the
 # program runs identically when they are absent.
-# Whisper pulls in PyTorch — a multi-second import — so it is never imported at
-# startup.  Detect which backend is installed (cheap), and defer the real import
-# to _load_whisper() / _load_faster_whisper(), called only when a transcription
-# or dictation actually runs.
-# Backend selection.  Auto-detect by default (prefer openai-whisper when both
-# are installed, so existing installs are untouched), but honour an explicit
-# STAR_WHISPER_BACKEND=openai|faster override — the spike/faster-whisper switch
-# that lets a user with both stacks installed force the CTranslate2 path without
-# uninstalling Torch.  Unknown/empty value falls through to auto-detect.
-_WHISPER_OVERRIDE = os.environ.get("STAR_WHISPER_BACKEND", "").strip().lower()
+# faster-whisper (CTranslate2) is the only speech-to-text backend as of 0.2.0.
+# The openai-whisper/PyTorch path was deprecated in 0.1.25 and removed here: it
+# cost ~2 GB of Torch for a slower transcription that also required ffmpeg to
+# decode audio.  Importing it is still deferred to _load_faster_whisper(),
+# called only when a transcription or dictation actually runs.
 
 
 def _whisper_backend_now() -> str:
-    """Pick the speech-to-text backend from what's importable *right now*.
+    """Report the speech-to-text backend importable *right now*.
 
-    Prefer openai-whisper when both are installed (so existing Torch installs
-    are untouched), but honour ``STAR_WHISPER_BACKEND=openai|faster``.  Returns
-    ``""`` when neither is present.  Checked fresh rather than trusting the
-    import-time ``_WHISPER`` snapshot so a same-session ``transcribe`` install
-    works without a restart — faster-whisper (CTranslate2, no Torch) imports
-    cleanly into a running process, so nothing forces a fresh process anymore.
-    Mirrors :func:`_audio_in_now` for the microphone half."""
-    if _WHISPER_OVERRIDE == "openai" and _module_available("whisper"):
-        return "openai"
-    if _WHISPER_OVERRIDE == "faster" and _module_available("faster_whisper"):
-        return "faster"
-    if _module_available("whisper"):
-        return "openai"
+    Returns ``"faster"`` when faster-whisper is present, ``""`` when it is not.
+    Checked fresh rather than trusting the import-time ``_WHISPER`` snapshot so
+    a same-session ``transcribe`` install works without a restart —
+    faster-whisper (CTranslate2, no Torch) imports cleanly into a running
+    process.  Mirrors :func:`_audio_in_now` for the microphone half.
+
+    Kept as a function returning a backend *name* — rather than collapsing to a
+    bool — because call sites branch on the name and a future second backend
+    would slot in here.
+    """
     if _module_available("faster_whisper"):
         return "faster"
     return ""
@@ -541,32 +533,6 @@ def _whisper_backend_now() -> str:
 # Import-time snapshot (kept for diagnostics + cheap gating); the transcription
 # call sites use _whisper_backend_now() so a runtime install needs no restart.
 _WHISPER = _whisper_backend_now()
-
-
-_openai_whisper_warned = False
-
-
-def _load_whisper():
-    """Import and return the openai-whisper module (deferred from startup).
-
-    Emits a one-time DeprecationWarning: the Torch stack is kept only so
-    pre-0.1.25 installs keep working and is scheduled for removal in 0.2.0
-    (faster-whisper is smaller, faster, and Torch-free)."""
-    global _openai_whisper_warned
-    if not _openai_whisper_warned:
-        _openai_whisper_warned = True
-        import warnings
-
-        warnings.warn(
-            "star's openai-whisper (PyTorch) dictation backend is deprecated "
-            "and scheduled for removal in 0.2.0; switch to faster-whisper "
-            "(pip install faster-whisper).",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-    import whisper
-
-    return whisper
 
 
 def _load_faster_whisper():
