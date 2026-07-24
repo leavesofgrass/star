@@ -259,6 +259,70 @@ def test_chunk_offsets_concatenation_preserves_visible_text():
 
 
 # ============================================================================
+# ESpeakLibBackend._utf8_byte_to_char  (static; no library needed)
+#
+# libespeak-ng reports WORD events as offsets into the UTF-8 *byte* buffer it
+# was handed, but star applies them to the Python str.  These agree for ASCII
+# and diverge by one position per extra byte otherwise.
+# ============================================================================
+
+
+def test_utf8_byte_to_char_is_identity_for_ascii():
+    """The ASCII path must be unchanged — one byte per character."""
+    chunk = "Alpha beta gamma."
+    b2c = tts.ESpeakLibBackend._utf8_byte_to_char(chunk)
+    # one entry per byte, plus the one-past-the-end entry
+    assert len(b2c) == len(chunk.encode("utf-8")) + 1
+    assert b2c == list(range(len(chunk) + 1))
+
+
+@pytest.mark.parametrize(
+    ("chunk", "word"),
+    [
+        ("Café pour Émile", "Émile"),      # 2-byte Latin-1 supplement
+        ("日本語 の テキスト", "テキスト"),   # 3-byte CJK
+        ("Ω≈ç√ tail", "tail"),             # mixed multi-byte run
+        ("emoji 🎧 headphones", "headphones"),  # 4-byte astral plane
+    ],
+)
+def test_utf8_byte_to_char_locates_word_after_multibyte_text(chunk, word):
+    """A byte offset from the engine must map to the word's *character* index.
+
+    This is the regression the mapping exists for: taking espeak's byte
+    position as a character index lands the highlight further right the more
+    multi-byte text precedes it.
+    """
+    b2c = tts.ESpeakLibBackend._utf8_byte_to_char(chunk)
+    byte_pos = chunk.encode("utf-8").index(word.encode("utf-8"))
+
+    assert b2c[byte_pos] == chunk.index(word)
+    # and the naive (pre-fix) reading really is wrong, so this test has teeth
+    assert byte_pos != chunk.index(word)
+
+
+def test_utf8_byte_to_char_maps_word_length_to_characters():
+    """Mapping start and end bytes yields the word's length in characters."""
+    chunk = "Ünicöde wörd"
+    word = "wörd"
+    raw = chunk.encode("utf-8")
+    b2c = tts.ESpeakLibBackend._utf8_byte_to_char(chunk)
+
+    b0 = raw.index(word.encode("utf-8"))
+    b1 = b0 + len(word.encode("utf-8"))  # 5 bytes for a 4-char word
+
+    start, end = b2c[b0], b2c[b1]
+    assert chunk[start:end] == word
+    assert end - start == len(word) == 4
+
+
+def test_utf8_byte_to_char_end_entry_allows_final_word():
+    """The one-past-the-end entry lets a trailing word map its end offset."""
+    chunk = "tréma"
+    b2c = tts.ESpeakLibBackend._utf8_byte_to_char(chunk)
+    assert b2c[len(chunk.encode("utf-8"))] == len(chunk)
+
+
+# ============================================================================
 # PiperBackend model resolution
 # ============================================================================
 

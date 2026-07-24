@@ -296,8 +296,10 @@ class ESpeakLibBackend(TTSBackend):
             _fields_ = [
                 ("type", ctypes.c_int),
                 ("unique_identifier", ctypes.c_uint),
-                ("text_position", ctypes.c_int),  # 1-based char index in the text
-                ("length", ctypes.c_int),
+                # 1-based offset into the UTF-8 *byte* buffer handed to
+                # espeak_Synth — not a character index; see _utf8_byte_to_char.
+                ("text_position", ctypes.c_int),
+                ("length", ctypes.c_int),  # likewise measured in UTF-8 bytes
                 ("audio_position", ctypes.c_int),  # ms into the output stream
                 ("sample", ctypes.c_int),
                 ("user_data", ctypes.c_void_p),
@@ -416,6 +418,27 @@ class ESpeakLibBackend(TTSBackend):
                 i = end
         return out or [(text, 0)]
 
+    @staticmethod
+    def _utf8_byte_to_char(chunk: str) -> "List[int]":
+        """Map 0-based UTF-8 **byte** offsets in *chunk* to character indices.
+
+        libespeak-ng is handed UTF-8 bytes (``espeakCHARS_UTF8``) and reports a
+        WORD event's ``text_position``/``length`` as offsets into *that byte
+        buffer* — not into the Python ``str`` the offsets are eventually applied
+        to.  The two coincide exactly for ASCII, which is why the discrepancy
+        stayed invisible for so long, but every multi-byte character shifts them
+        apart: with "é" (2 bytes) or "日" (3 bytes) earlier in the passage the
+        highlight lands progressively further right than the word being spoken.
+
+        The returned list holds one entry per byte plus a final one-past-the-end
+        entry, so a start byte and an end byte can both be mapped by indexing.
+        """
+        out: List[int] = []
+        for i, ch in enumerate(chunk):
+            out.extend([i] * len(ch.encode("utf-8", "replace")))
+        out.append(len(chunk))
+        return out
+
     # -- speech -----------------------------------------------------------
     def speak(
         self,
@@ -457,15 +480,14 @@ class ESpeakLibBackend(TTSBackend):
         # and a dedicated pacer thread fires on_word at that time, so the
         # highlight follows actual playback instead of synthesis.
         #
-        # (text_position is a 1-based character index into the chunk; adding the
-        # chunk's base offset yields an absolute plain-text offset, which
-        # TTSManager maps to a word-map index exactly as it does for pyttsx3.
-        # It counts characters for the ASCII/Latin text that dominates here;
-        # non-ASCII input could need a byte->char correction, tracked as a
-        # follow-up.)
+        # (text_position/length are 1-based offsets into the chunk's UTF-8 *byte*
+        # buffer — see _utf8_byte_to_char.  They are mapped back to character
+        # offsets and added to the chunk's base offset, yielding an absolute
+        # plain-text offset which TTSManager maps to a word-map index exactly as
+        # it does for pyttsx3.)
         pace_q: "queue.Queue" = queue.Queue()
 
-        def _make_cb(base_offset: int, chunk_start: float):
+        def _make_cb(base_offset: int, chunk_start: float, b2c: "List[int]"):
             def _synth_cb(wav, numsamples, evp):
                 if self._gen != my_gen or self._stop_evt.is_set():
                     return 1  # abort this chunk's synthesis
@@ -480,11 +502,19 @@ class ESpeakLibBackend(TTSBackend):
                                     + e.audio_position / 1000.0
                                     + self._hl_offset
                                 )
+                                # Byte offsets from the engine -> character
+                                # offsets into the chunk (identity for ASCII).
+                                # Clamped so a surprising position from the
+                                # engine can never index past the map.
+                                last = len(b2c) - 1
+                                b0 = min(max(e.text_position - 1, 0), last)
+                                b1 = min(max(b0 + e.length, b0), last)
+                                start = b2c[b0]
                                 pace_q.put(
                                     (
                                         target,
-                                        base_offset + e.text_position - 1,
-                                        e.length,
+                                        base_offset + start,
+                                        b2c[b1] - start,
                                         my_gen,
                                     )
                                 )
@@ -535,7 +565,10 @@ class ESpeakLibBackend(TTSBackend):
                     # returns; espeak_Synchronize then blocks until this chunk
                     # finishes playing, so chunks play back to back from here.
                     chunk_start = time.monotonic()
-                    cb = type(self)._callback_type(_make_cb(base, chunk_start))
+                    b2c = self._utf8_byte_to_char(chunk_text)
+                    cb = type(self)._callback_type(
+                        _make_cb(base, chunk_start, b2c)
+                    )
                     self._cb = cb  # keep a live ref for this chunk
                     lib.espeak_SetSynthCallback(cb)
                     raw = chunk_text.encode("utf-8", "replace")
