@@ -264,9 +264,17 @@ target-version = "py311"
 # ruff honours .gitignore, so the vendored/build/venv trees are skipped.
 
 [tool.ruff.lint]
+# Name the rule set explicitly.  With no `select`, ruff applies its *implicit
+# default*, and that default broadened in ruff 0.16.0 — which turned this
+# blocking gate red with ~965 findings across a dozen rule families the project
+# never opted into (blind-except, try-except-pass, pyupgrade, isort, …) without
+# a single line of code changing.  CI installs ruff unpinned, so the rule set
+# has to be stated here for the gate to be reproducible across upgrades.
+# Broadening it is a deliberate decision, not the linter's default policy.
+select = ["E4", "E7", "E9", "F"]
 # star deliberately uses `from ._runtime import *` as a shared-import hub, which
 # trips the star-import checks (F403/F405).  Line length (E501) is enforced by
-# convention/review rather than the (currently non-blocking) lint gate.
+# convention/review rather than by this gate.
 ignore = ["F403", "F405", "E501"]
 
 [tool.ruff.lint.per-file-ignores]
