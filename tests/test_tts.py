@@ -643,6 +643,7 @@ _BACKENDS = {
     "DECtalkDLLBackend": ("dectalk", 25),
     "Pyttsx3Backend": ("pyttsx3", 20),
     "AppleSayBackend": ("applesay", 15),
+    "QtSpeechBackend": ("qtspeech", 35),
     "ESpeakLibBackend": ("espeak", 40),
     "ESpeakBackend": ("espeak", 50),
     "FestivalBackend": ("festival", 60),
@@ -709,6 +710,23 @@ def test_manager_auto_pyttsx3_outranks_dectalk_dll(fake_backends):
 def test_manager_auto_dectalk_dll_is_second_choice(fake_backends):
     fake_backends["DECtalkDLLBackend"]._avail = True
     assert _manager("auto").backend_name == "dectalk"
+
+
+def test_manager_qtspeech_never_changes_auto_but_is_selectable(fake_backends):
+    """qtspeech (registered 0.1.29, priority 35) must not shift any existing
+    auto default — pyttsx3 (20) and the in-process DECtalk (25) still outrank
+    it — while an explicit `tts_backend=qtspeech` selects it, and auto reaches
+    it only when every higher-priority engine is gone."""
+    fake_backends["Pyttsx3Backend"]._avail = True
+    fake_backends["DECtalkDLLBackend"]._avail = True
+    fake_backends["QtSpeechBackend"]._avail = True
+    assert _manager("auto").backend_name == "pyttsx3"
+    assert _manager("qtspeech").backend_name == "qtspeech"
+
+    fake_backends["Pyttsx3Backend"]._avail = False
+    assert _manager("auto").backend_name == "dectalk"
+    fake_backends["DECtalkDLLBackend"]._avail = False
+    assert _manager("auto").backend_name == "qtspeech"
 
 
 def test_manager_explicit_preference_selected(fake_backends):

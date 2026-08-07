@@ -10,6 +10,18 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [0.1.29] 2026-08-07
 
+### ✨ Added
+
+- **New `qtspeech` TTS engine.** Qt's `QTextToSpeech` (WinRT/SAPI on Windows,
+  AVSpeech on macOS, speech-dispatcher on Linux) is now a registered backend —
+  it ships inside the PyQt6 wheel star already requires, and it delivers true
+  per-word boundary events synchronized to playback, with exact character
+  offsets for the reading highlight. It never changes what `auto` picks on any
+  existing platform (pyttsx3 and the in-process DECtalk still outrank it);
+  select it explicitly via **Speech ▸ Choose TTS Engine…** or
+  `tts_backend: "qtspeech"`. Validated on real Windows hardware (word events,
+  playback pacing, and an audible listening check).
+
 ### 🐛 Fixed
 
 - **Word highlighting now lands on the right word for non-ASCII text with the

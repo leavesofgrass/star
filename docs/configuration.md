@@ -36,7 +36,7 @@ Many of these settings are exercised in the [`docs/examples/`](examples/).
 | `tour_seen` | `false` | Set automatically once the first-run guided tour has been shown or skipped, so it never re-triggers on its own. The tour stays re-runnable from **Help ▸ Guided Tour** |
 | `auto_check_updates` | `false` | Opt in to a quiet, best-effort update check shortly after launch (one cached PyPI query; only speaks up if a newer release exists). Off by default for privacy/offline use — **Help ▸ Check for Updates…** always runs a manual check regardless |
 | `ui_language` | `"en"` | UI-chrome language (menus, toolbar, docks): `en`, `es`, `fr`, `de`, `pt`, `ar` (rendered right-to-left). See [Interface language](features.md#interface-language-i18n) |
-| `tts_backend` | `"auto"` | TTS engine: `auto`, `pyttsx3`, `applesay` (macOS `say`; the `auto` default on macOS), `espeak`, `festival`, `piper`, `coqui`, `dectalk`, `elevenlabs` (cloud; needs `elevenlabs_api_key`), `none` |
+| `tts_backend` | `"auto"` | TTS engine: `auto`, `pyttsx3`, `applesay` (macOS `say`; the `auto` default on macOS), `qtspeech` (Qt's `QTextToSpeech` — native word-boundary events; new in 0.1.29), `espeak`, `festival`, `piper`, `coqui`, `dectalk`, `elevenlabs` (cloud; needs `elevenlabs_api_key`), `none` |
 | `piper_model` | `""` | Path to a Piper `.onnx` voice model for the `piper` backend (neural, offline). The matching `.onnx.json` must sit beside it. Also honored: `PIPER_MODEL` env var and Piper voice directories. |
 | `elevenlabs_api_key` | `""` | API key for the opt-in `elevenlabs` cloud neural voice. Empty = disabled (no network egress); paste a key **and** select the `elevenlabs` engine to enable |
 | `tts_rate` | `265` | Reading speed in words per minute |

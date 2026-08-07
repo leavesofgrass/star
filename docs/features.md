@@ -193,8 +193,8 @@ Worked example: [`docs/examples/library/load-a-document`](examples/library/load-
 
 In `auto` mode (the default), `star` chooses the first available backend in this
 order: **macOS `say` (Mac only) → pyttsx3 → DECtalk (in-process DLL, when
-present) → eSpeak-NG → Festival → DECtalk CLI → silent**. On a Mac this
-guarantees a native Apple voice even without any Python packages.
+present) → Qt speech → eSpeak-NG → Festival → DECtalk CLI → silent**. On a Mac
+this guarantees a native Apple voice even without any Python packages.
 
 Switch engines any time with **Speech → Choose TTS Engine…** (`Ctrl+Shift+G`) or
 `M-x tts-backend`.
@@ -207,6 +207,13 @@ Switch engines any time with **Speech → Choose TTS Engine…** (`Ctrl+Shift+G`
   Apple's high-quality voices with no extra dependencies. When no voice is set,
   star auto-selects a voice matching `tts_prefer_voice` (default `"eloquence"`),
   favoring a US-English variant.
+- **Qt speech (`qtspeech`, new in 0.1.29)** — drives the platform's native
+  engine through Qt's `QTextToSpeech` (WinRT/SAPI on Windows, AVSpeech on
+  macOS, speech-dispatcher on Linux). Ships inside the PyQt6 wheel star
+  already depends on, and delivers true per-word boundary events synchronized
+  to playback, with exact character offsets for the highlight. Never
+  auto-selected while pyttsx3 or DECtalk is available; pick it explicitly via
+  **Choose TTS Engine…** or `tts_backend: "qtspeech"`.
 - **eSpeak-NG** — preferentially driven **in process through libespeak-ng** (via
   `ctypes`); each per-word event carries the word's audio position, so the
   highlight follows actual playback. Falls back to the `espeak-ng` CLI
