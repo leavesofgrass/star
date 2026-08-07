@@ -912,3 +912,47 @@ def test_espeak_synth_size_shim_reports_true_buffer_size(monkeypatch):
     patched = fake.Synth
     sp._fix_espeak_synth_size()
     assert fake.Synth is patched
+
+
+def test_espeak_synth_size_shim_retires_on_fixed_upstream(monkeypatch):
+    """A pyttsx3 whose ``Synth`` already passes the true buffer size (the
+    upstream fix for #448 / PR #450) must be left untouched — the shim reads
+    the wrapper's source and stands down when the ``* 10`` multiplier is gone,
+    so star stops monkeypatching the moment a fixed release is installed."""
+    import sys
+    import types
+
+    from star.tts import pyttsx3 as sp
+
+    def cSynth(text, size, position, position_type, end_position, flags,
+               unique_identifier, user_data):
+        return 0
+
+    fake = types.ModuleType("pyttsx3.drivers._espeak")
+    fake.POS_CHARACTER = 1
+    fake.cSynth = cSynth
+
+    def _fixed_synth(text, position=0, position_type=1, end_position=0,
+                     flags=0, user_data=None):
+        if isinstance(text, str):
+            text = text.encode("utf-8")
+        return cSynth(text, len(text) + 1, position, position_type,
+                      end_position, flags, None, user_data)
+
+    fake.Synth = _fixed_synth
+    drivers = types.ModuleType("pyttsx3.drivers")
+    drivers._espeak = fake
+    monkeypatch.setitem(sys.modules, "pyttsx3.drivers", drivers)
+    monkeypatch.setitem(sys.modules, "pyttsx3.drivers._espeak", fake)
+
+    sp._fix_espeak_synth_size()
+    assert fake.Synth is _fixed_synth  # untouched — upstream is already right
+
+    # Unreadable source (e.g. a frozen build) errs toward patching: safe on a
+    # fixed driver (behavior-identical), essential on a buggy one.
+    monkeypatch.setattr(
+        "inspect.getsource", lambda _o: (_ for _ in ()).throw(OSError())
+    )
+    sp._fix_espeak_synth_size()
+    assert fake.Synth is not _fixed_synth
+    assert getattr(fake.Synth, "_star_size_fix", False)

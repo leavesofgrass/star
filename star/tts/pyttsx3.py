@@ -19,6 +19,14 @@ def _fix_espeak_synth_size() -> None:
     the wrapper with one that passes the true size (buffer + NUL — CPython
     bytes objects are NUL-terminated).  Idempotent; no-op when pyttsx3 or the
     espeak driver is absent.
+
+    Self-retiring: reported upstream with a fix
+    (https://github.com/nateshmbhat/pyttsx3/pull/450), so before patching we
+    read ``Synth``'s source — if the oversized ``* 10`` multiplier is gone,
+    the installed pyttsx3 already carries the fix and its wrapper is left
+    untouched.  Detection only ever errs toward patching (source unavailable
+    in a frozen build, or a stray "*10" in a comment), and the replacement is
+    behavior-identical on a fixed driver, so the conservative side is safe.
     """
     try:
         from pyttsx3.drivers import _espeak as _drv
@@ -26,6 +34,14 @@ def _fix_espeak_synth_size() -> None:
         return
     if getattr(_drv.Synth, "_star_size_fix", False):
         return
+    import inspect
+
+    try:
+        src = inspect.getsource(_drv.Synth).replace(" ", "")
+    except Exception:
+        src = ""  # no source (frozen/odd install) — assume unfixed and patch
+    if src and "*10" not in src:
+        return  # upstream passes a sane size already — nothing to shim
 
     def _synth(  # mirrors the original signature exactly
         text,
