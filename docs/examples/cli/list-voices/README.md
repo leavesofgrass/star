@@ -1,6 +1,6 @@
 # List available TTS voices
 
-See every text-to-speech voice star can use on your system. Useful for picking
+See the text-to-speech voices star can use on your system. Useful for picking
 a voice before reading aloud or exporting to audio.
 
 **You'll need:** nothing beyond `star-reader`.
@@ -19,7 +19,7 @@ a voice before reading aloud or exporting to audio.
     ...
 
 (The voices listed depend on your OS and installed engines. Windows shows SAPI5
-voices, macOS shows NSSpeechSynthesizer voices, and Linux shows whatever
+voices, macOS shows the built-in `say` voices, and Linux shows whatever
 eSpeak-NG or pyttsx3 can find.)
 
 ## How it works
@@ -28,8 +28,9 @@ eSpeak-NG or pyttsx3 can find.)
   prints each voice's ID, display name, and language code, tab-separated.
 - star supports many engines: pyttsx3 (SAPI5 / NSSpeech / eSpeak), macOS
   `say`, eSpeak-NG, Festival, **Piper** (neural, offline), Coqui, DECtalk,
-  and **ElevenLabs** (cloud). The command shows all voices across all backends
-  that are available right now.
+  and **ElevenLabs** (cloud). The command shows the voices of the automatically
+  selected engine — rerun with `star --backend NAME --list-voices` to list
+  another engine's voices.
 - In the GUI, the **Voice Manager (F4)** gives a richer view — browse, filter,
   preview, and favorite voices, plus one-click download of Piper neural voices.
 

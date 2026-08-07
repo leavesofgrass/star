@@ -294,8 +294,9 @@ def main() -> None:
         const="all",
         default=None,
         help="Install optional features and exit. PRESET is a preset (thin|all) or a "
-        "comma-separated list of feature keys (e.g. ocr,dictionary); default 'all'. "
-        "Run with no value or an unknown value to see the available features.",
+        "comma-separated list of feature keys (e.g. ocr,dictionary); with no value "
+        "the 'all' preset is installed. Run with an unrecognized value to list "
+        "every feature with its size.",
     )
     ap.add_argument(
         "--plugins",

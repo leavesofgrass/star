@@ -14,8 +14,9 @@ follow the steps in the app.
 2. **Start reading** — press **`Space`** (or tap the **`Ctrl`** key on its own).
    star speaks with your system voice and **highlights each word** as it goes,
    scrolling to follow along.
-3. **Read from a specific spot** — turn on caret browsing with **`F7`**, move the
-   caret to where you want, and press **`Ctrl+Space`** to start reading there.
+3. **Read from a specific spot** — caret browsing is on by default (**`F7`**
+   toggles it); move the caret to where you want, and press **`Ctrl+Space`** to
+   start reading there.
 4. **Steer while reading** — `Space` pauses/resumes; the **Navigate** menu (and
    its shortcuts) jump by sentence, paragraph, or heading.
 5. **Pick a voice / speed** — **Speech ▸ Choose TTS Engine…** and the rate

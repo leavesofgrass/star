@@ -5,8 +5,8 @@ Turn any document star can open into a WAV file — the same pipeline the GUI's
 lecture notes, articles, or study materials to listen to on the go.
 
 **You'll need:** `star-reader` with a TTS voice available. On Windows and macOS
-the system voices (SAPI5 / NSSpeech) work out of the box; on Linux install
-`pyttsx3` or `espeak-ng`.
+the system voices (SAPI5 / the macOS `say` voices) work out of the box; on
+Linux install `pyttsx3` or `espeak-ng`.
 
 ## Run it
 

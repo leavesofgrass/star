@@ -51,8 +51,7 @@ survive a UI-language switch. Source: `star/gui/mixin_chrome.py`.
 | `Ctrl+Alt+A` | Export as Audio… |
 | `Ctrl+Alt+U` | Export Subtitles (SRT / VTT)… |
 | `Ctrl+Alt+H` | Anki Flashcards… |
-| `Ctrl+Alt+V` | Video (MP4)… |
-| *(no shortcut)* | Obsidian Vault…, plugin exporters (HTML/EPUB/third-party) |
+| *(no shortcut)* | Obsidian Vault…, Video (MP4)… (menu-only; `Ctrl+Alt+V` is Tools ▸ Dictate Note), Export Audiobook (M4B)…, plugin exporters (HTML/EPUB/third-party) |
 
 ### Speech 🔊
 
@@ -131,7 +130,8 @@ are menu-only here — their shortcut owners are the editor-scoped `Ctrl+Z` /
 |---|---|
 | `Ctrl+Shift+F5` | Review Due Cards… (spaced repetition) |
 | *(no shortcut)* | Sync with Anki (AnkiConnect)… |
-| `Ctrl+Alt+I` / `Ctrl+Alt+E` | Import / Export Citations… |
+| `Ctrl+Alt+I` | Import Citations… |
+| *(no shortcut)* | Export Citations… — menu-only; Ctrl+Alt+E is View ▸ Reading Aids ▸ RSVP Mode |
 | `Ctrl+Alt+C` | Add Citation… |
 | `Ctrl+Alt+D` | Add Citation by DOI… |
 | `Ctrl+Alt+R` | Insert Citation at Cursor… |
@@ -170,8 +170,7 @@ left this menu when their settings were centralized in **Edit ▸ Preferences…
 (Ctrl+,)**; the live-tuning dialogs remain reachable from the Command Palette
 (F2) as **Tune Karaoke Highlight… / Tune Reading Ruler… / Tune RSVP
 Position…**. `Ctrl+Alt+K` is now bound to **Tools ▸ Voice Typing** in the Qt GUI
-(dictate speech into the document at the cursor — see the Tools table); the TUI
-keeps its own `Ctrl+Alt+K` karaoke binding.
+(dictate speech into the document at the cursor — see the Tools table).
 
 ### Tools / Help
 
@@ -188,6 +187,7 @@ keeps its own `Ctrl+Alt+K` karaoke binding.
 | `F2` | Command Palette… |
 | `F3` | Keyboard Shortcuts… |
 | `Ctrl+Alt+Q` | Customize Shortcuts… |
+| `Shift+F1` | Guided Tour |
 | `F1` | Open README (Help) |
 | `Ctrl+F1` | About star |
 
@@ -242,7 +242,9 @@ action exposes non-empty accessible text.
 ## 4. Find bar (`Ctrl+F`, `mixin_find.py`)
 
 Created lazily under the editor. Focus order within the bar: input → count
-label (read-only) → Previous → Next → Match case → Close. ✅ [F]
+label (read-only) → Previous → Next → Match case → Replace ▾ → Close; the
+Replace ▾ toggle reveals a replace row (Replace input → Replace → Replace All)
+beneath the bar in edit mode. ✅ [F]
 
 | Key (while the find input has focus) | Behaviour |
 |---|---|
@@ -275,8 +277,8 @@ buttons. Focus order top-to-bottom matches visual order. ✅ [F]
 ### Knowledge Graph (`Ctrl+Shift+Q`)
 `graph_view.py` node list connects **both** `itemActivated` and
 `itemDoubleClicked` to the open handler, so a node is reachable by Enter as well
-as double-click. ✅ [A] (This is the canonical pattern the two ⚠ items in §7
-should follow.)
+as double-click. ✅ [A] (This is the canonical pattern the two former gaps in §7
+now follow.)
 
 ---
 
@@ -308,18 +310,17 @@ rather than their hex value. ✅ [A][F]
 
 | Location | Issue | Status |
 |---|---|---|
-| `mixin_doctools.py:386` (archive / library picker) | list wires only `itemDoubleClicked`; no `itemActivated` so Enter on a row does nothing | ⚠ Not a hard 2.1.1 failure — the dialog's **OK** button accepts the selected row from the keyboard — but Enter-on-row parity is missing. Out of the accessibility-work file scope; **flagged as a follow-up task**. |
-| `mixin_voices.py:297` (Voice Manager) | list wires only `itemDoubleClicked`; the **Set as Current** button is keyboard-reachable, but Enter on a row does nothing | ⚠ Same as above — flagged as a follow-up task. |
+| `mixin_doctools.py` (archive / library picker) | list wired only `itemDoubleClicked`; no `itemActivated`, so Enter on a row did nothing | ✅ Fixed — `itemActivated` now connects to the same open handler (`mixin_doctools.py:398`, "Enter opens (keyboard parity)"). |
+| `mixin_voices.py` (Voice Manager) | list wired only `itemDoubleClicked`; the **Set as Current** button was keyboard-reachable, but Enter on a row did nothing | ✅ Fixed — `itemActivated` now connects to Set as Current (`mixin_voices.py:298`, "Enter sets (keyboard parity)"). |
 
-Both are ergonomic parity gaps, not functional keyboard-access failures: in each
-case the primary action is reachable via a focusable button. The recommended fix
-is to add an `itemActivated` connection to the same handler, mirroring
-`graph_view.py`. These files are outside the accessibility-work change set, so
-the fix is tracked separately rather than applied here.
+Both were ergonomic parity gaps, not functional keyboard-access failures: in
+each case the primary action was reachable via a focusable button. Each list now
+pairs an `itemActivated` connection with `itemDoubleClicked`, mirroring
+`graph_view.py`, so Enter on a row works everywhere.
 
 No control was found that is **exclusively** operable by mouse with no keyboard
 path at all. star therefore meets WCAG 2.1.1 (Level A) across the audited
-surface; the two ⚠ items are 2.1.1-adjacent parity improvements.
+surface; no mouse-only gaps remain.
 
 ---
 

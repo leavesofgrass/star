@@ -18,7 +18,7 @@ release is cut and what the automation produces.
 `main` and every pull request:
 
 - **`test`** — the `pytest` suite on a matrix of Linux / Windows / macOS across
-  Python 3.11–3.13. One Linux leg also installs the pure-Python optional
+  Python 3.11–3.14. One Linux leg also installs the pure-Python optional
   packages (`deep-translator`, `feedparser`, `wordfreq`, `sumy`, `genanki`,
   `pyspellchecker`) so the real-behaviour tests run, not just the
   graceful-degradation paths.
@@ -166,9 +166,12 @@ before cutting the final tag.
 ## Optional signing & native installers
 
 The release workflow also carries **optional, off-by-default** jobs for
-GPG-signing the wheel/sdist and building native installers (Windows NSIS +
-Authenticode, macOS `.app`/DMG + notarization, Linux AppImage). Each is *skipped*
-— never failed — when its enabling variable/secret is absent, so they never block
-the wheel/PyPI pipeline or the manual `pypi` approval gate. See
+GPG-signing the wheel/sdist and building the Windows NSIS installer
+(+ Authenticode). Each is *skipped* — never failed — when its enabling
+variable/secret is absent, so they never block the wheel/PyPI pipeline or the
+manual `pypi` approval gate. (The macOS `.app`/DMG and the Linux AppImage build
+on **every** `v*` tag — see above; only the Developer-ID codesigning/notarization
+step *inside* the `macos-app` job is likewise secret-gated, and an ad-hoc-signed
+build is still produced without it.) See
 [`PACKAGING.md`](PACKAGING.md) for what each job does and exactly which GitHub
 secrets/certificates a maintainer must configure to turn them on.

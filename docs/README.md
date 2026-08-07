@@ -26,5 +26,5 @@ Maintainer-only:
 | [Packaging & Distribution](PACKAGING.md) | Every way star is packaged and shipped — wheel/sdist, the `.pyz`, GPG signatures, and the optional native Windows/macOS/Linux installer jobs |
 
 Also bundled with the package: [`star/CHANGELOG.md`](../star/CHANGELOG.md) (full
-change history) and [`star/BUILD.md`](../star/BUILD.md) (building the wheel and the
-self-contained Windows `star.exe`).
+change history). In the repository: [`star/BUILD.md`](../star/BUILD.md) (building
+the wheel and the self-contained Windows `star.exe`).

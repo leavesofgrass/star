@@ -192,13 +192,15 @@ Worked example: [`docs/examples/library/load-a-document`](examples/library/load-
 ## TTS backends
 
 In `auto` mode (the default), `star` chooses the first available backend in this
-order: **pyttsx3 → macOS `say` → eSpeak-NG → Festival → DECtalk → silent**. On a
-Mac this guarantees a native Apple voice even without any Python packages.
+order: **macOS `say` (Mac only) → pyttsx3 → DECtalk (in-process DLL, when
+present) → eSpeak-NG → Festival → DECtalk CLI → silent**. On a Mac this
+guarantees a native Apple voice even without any Python packages.
 
 Switch engines any time with **Speech → Choose TTS Engine…** (`Ctrl+Shift+G`) or
 `M-x tts-backend`.
 
-- **pyttsx3 (preferred when installed)** — wraps the platform's native engine
+- **pyttsx3 (preferred when installed — except on macOS, where the native `say`
+  backend is the default)** — wraps the platform's native engine
   (Windows SAPI5, macOS NSSpeechSynthesizer (needs `pyobjc`), Linux eSpeak-NG)
   and provides word-boundary callbacks for the most accurate highlighting.
 - **macOS `say` (native, default on Mac)** — drives `/usr/bin/say`, giving
@@ -339,8 +341,10 @@ upcoming text below. Controlled by the `qt_autoscroll` setting (on by default).
 **Highlight timer and SAPI5 pacing:** the highlight timer fires once per word at
 `highlight_speed × tts_rate`. With pyttsx3 callbacks active, a *pacing guard*
 keeps the timer no more than **4 words ahead** of the last confirmed position;
-SAPI5 callbacks can arrive 1–3 words late or stop entirely, so the guard has a
-**1.5-second timeout** after which the timer runs freely until callbacks resume.
+SAPI5 callbacks can arrive 1–3 words late or stop entirely, so after **1.5
+seconds** without a callback the timer holds at the pacing cap (the engine is
+mid-pause); only after **~6 seconds** with no events is the stream deemed dead
+and the timer runs freely so the highlight never freezes.
 
 **Word-position map:** at load time star builds a map linking every TTS word to
 its display line and column, using a monotonically advancing, column-aware search
@@ -485,8 +489,9 @@ one step.
 - **Captured:** TTS backend, voice, rate, volume, SSML toggle, theme, font
   family/size, letter/word/line spacing, the dyslexia-friendly font, bionic
   reading, current-line highlight, and all karaoke-highlight settings.
-- **Qt GUI:** the **Profiles** menu — Save (`Ctrl+Shift+K`), Load
-  (`Ctrl+Shift+J`), Delete (`Ctrl+Shift+Y`).
+- **Qt GUI:** the bottom of the **Edit** menu — Save Current Settings as
+  Profile… (`Ctrl+Shift+K`), Load Profile… (`Ctrl+Shift+J`), Delete Profile…
+  (`Ctrl+Shift+Y`), plus Export/Import Profiles….
 - **TUI:** `M-x profile-save <name>`, `profile-load <name>`, `profile-list`,
   `profile-delete <name>`.
 - **Storage:** `settings.json` under `profiles`.
@@ -511,7 +516,7 @@ Map any term to a spoken form so it is read correctly on **every** backend.
 ## User highlights
 
 Select any passage and highlight it in yellow, green, cyan, pink, or orange via
-the **Highlight toolbar button** or the **Highlight menu** (`Ctrl+Shift+1` …
+the **Highlight toolbar button** or the **Annotate** menu (`Ctrl+Shift+1` …
 `Ctrl+Shift+5`; clear all with `Ctrl+Shift+0`).
 
 Highlights are saved per document path in `settings.json` under `user_highlights`
@@ -527,7 +532,7 @@ Attach notes anywhere in a document, available in **both** interfaces and sharin
 the same per-document store (anchored by reading position so they survive
 re-rendering).
 
-- **Qt GUI:** add with `Ctrl+Shift+A` / **Notes → Add Note at Cursor…** /
+- **Qt GUI:** add with `Ctrl+Shift+A` / **Annotate → Add Note at Cursor…** /
   toolbar; a text selection becomes the note's anchor and a second prompt accepts
   comma-separated tags. Single-click to scroll to a note; double-click to read
   aloud from there. Filter via the panel's box (plain terms or `#tag`). Toggle
@@ -542,7 +547,7 @@ navigates correctly in the other).
 
 ### Exporting notes (bibliographic formats)
 
-**Notes → Export Notes…** writes the current document's notes; the format is
+**Annotate → Export Notes…** writes the current document's notes; the format is
 chosen by extension:
 
 | Extension | Format | Notes |
@@ -615,7 +620,7 @@ remains the source of truth.
 
 ## Citation manager (Qt GUI)
 
-A lightweight citation library lives in the **Citations** menu, shared across all
+A lightweight citation library lives in the **Study** menu, shared across all
 documents (stored under `citations` in `settings.json`).
 
 - **Import…** — read references from BibTeX (`.bib`), RIS (`.ris`), or CSL-JSON
@@ -683,9 +688,10 @@ pip install faster-whisper          # transcription of audio files (no PyTorch)
 pip install sounddevice numpy       # plus this for microphone dictation
 ```
 
-`faster-whisper` is also supported. The model size is configurable with
-`whisper_model` (`tiny`, `base`, `small`, `medium`, `large`). When Whisper is not
-installed, these menu items simply explain how to enable them.
+The legacy `openai-whisper` backend is also supported but deprecated (removal
+planned for 0.2.0). The model size is configurable with `whisper_model`
+(`tiny`, `base`, `small`, `medium`, `large-v3`, `large-v3-turbo`). When Whisper
+is not installed, these menu items simply explain how to enable them.
 
 ---
 
@@ -1081,8 +1087,8 @@ it you get a clear message rather than a broken file.
 
 ```
 M-x speed skim
-M-x speed-add fast 400  # define a new preset
-M-x speed-list
+M-x preset-add fast 400  # define a new preset
+M-x preset-list
 ```
 
 **Bookmarks** — named, one set per document, and now available in **both**
@@ -1200,7 +1206,7 @@ type them.
   notes into an `.apkg` deck (highlighted passage on the front, your note on the
   back). `pip install genanki`.
 - **Spell check** — in edit mode (`Ctrl+E`) misspellings get a red squiggle;
-  **Edit ▸ Check Spelling** (`F7`) lists them. `pip install pyspellchecker`.
+  **Edit ▸ Check Spelling** lists them. `pip install pyspellchecker`.
 - **Translate** — **Tools ▸ Translate Document** (`Ctrl+Shift+X`) translates the
   **whole document** into 15 languages via Google Translate (no API key). Long
   documents are split into chunks automatically (there is no per-request length
@@ -1230,8 +1236,8 @@ star runs fully out of the box on the Python standard library alone. Every
 heavier capability is an *optional* package with a graceful fallback — but you no
 longer have to run `pip` to get one. When a feature needs an add-on that isn't
 installed, star offers to **download it for you in the background**, and the
-feature becomes usable **in the same session** (only the very large speech-to-text
-pack asks for a restart).
+feature becomes usable **in the same session** — speech-to-text included, no
+restart needed.
 
 ### First-run chooser
 
@@ -1239,9 +1245,9 @@ On first launch star shows a short **Optional Features** menu instead of silentl
 fetching everything. Pick a preset — **Thin** (the lightweight everyday reading
 and study aids, ~40 MB) or **All** (everything star can use) — or tick individual
 features. Each entry shows its purpose, approximate download size, and whether it
-is already installed. The very large packs (speech-to-text dictation ≈ 2 GB,
-named-entity extraction ≈ 500 MB) are opt-in and listed with their size upfront,
-so choosing **All** is an informed, deliberate choice. A read-only **System
+is already installed. The largest pack (named-entity extraction ≈ 500 MB) is
+opt-in and listed with its size upfront, so choosing **All** is an informed,
+deliberate choice (speech-to-text dictation is ≈ 150 MB). A read-only **System
 tools** list also reports native (non-pip) engines — Tesseract, Pandoc, ffmpeg,
 liblouis, Piper — that star can use but cannot install for you.
 
@@ -1443,13 +1449,16 @@ margin/border properties work, but CSS variables (`var()`) and `:root {}` do not
 ### Reading aids & High-DPI
 
 **View → Reading Aids** collects accommodations for dyslexic and low-vision
-readers: **Text Spacing…** (line height / letter / word spacing — WCAG 1.4.12), the
-**Reading Font** chooser (**Default**, **OpenDyslexic**, **Atkinson Hyperlegible**,
-or **Lexend** — each OFL font fetched on demand the first time it is picked and
-applied app-wide; the classic `Ctrl+Alt+X` still toggles OpenDyslexic on/off for
-muscle memory), **Bionic Reading**, **Syllable Splitting**, **Current-Line
-Highlight**, the **Reading Ruler**, and **RSVP Mode** (one word at a time at a
-chosen screen position — see [RSVP reading mode](#rsvp-reading-mode)). Karaoke
+readers: the **Dyslexia-Friendly Font** toggle (the classic `Ctrl+Alt+X`
+switches OpenDyslexic on/off), **Bionic Reading**, **Syllable Splitting**,
+**Current-Line Highlight**, the **Reading Ruler**, **Highlight Difficult
+Words**, **Define Word…**, and **RSVP Mode** (one word at a time at a chosen
+screen position — see [RSVP reading mode](#rsvp-reading-mode)). **Text
+Spacing…** (line height / letter / word spacing — WCAG 1.4.12; `Ctrl+Alt+W`
+still opens its dialog) and the **Reading Font** chooser (**Default**,
+**OpenDyslexic**, **Atkinson Hyperlegible**, or **Lexend** — each OFL font
+fetched on demand the first time it is picked and applied app-wide) now live in
+**Edit ▸ Preferences…**. Karaoke
 highlight, ruler, and RSVP settings are centralized in **Edit ▸ Preferences…
 (Ctrl+,)**, with live-tuning dialogs in the Command Palette (F2). star
 applies high-DPI scaling by default (`qt_hidpi`), so the window renders crisp on

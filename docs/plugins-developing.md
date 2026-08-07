@@ -165,7 +165,9 @@ Note `available()` is an **instance** method on `TTSBackend` (unlike the
 classmethod on `FormatHandler`), because deciding whether an engine is usable can
 require constructing it. star selects a backend by trying registered classes in
 `priority` order and picking the first whose `available()` returns `True`.
-Built-in backends use 10–90; third-party backends should use **≥ 100**.
+Auto-selected built-ins use 15–90 (opt-in built-ins like piper and coqui sit at
+≥ 100 so they are never auto-selected); third-party backends should also use
+**≥ 100**.
 
 ---
 

@@ -19,6 +19,7 @@ plugin star can see.
     star 0.1.28 - registered plugins (30 total)
 
     TTS backends [star.backends] (backends) - 11:
+      [?] applesay       -> star.tts.applesay:AppleSayBackend  prio=15
       [?] pyttsx3        -> star.tts.pyttsx3:Pyttsx3Backend  prio=20
       [?] espeak         -> star.tts.espeak:ESpeakBackend  prio=50
       [?] elevenlabs     -> star.tts.cloud.elevenlabs:ElevenLabsBackend  prio=900

@@ -35,8 +35,8 @@ Many of these settings are exercised in the [`docs/examples/`](examples/).
 | `deps_prompted` | `false` | Set automatically once the first-run optional-feature chooser has been shown, so it never prompts again (populated automatically) |
 | `tour_seen` | `false` | Set automatically once the first-run guided tour has been shown or skipped, so it never re-triggers on its own. The tour stays re-runnable from **Help ▸ Guided Tour** |
 | `auto_check_updates` | `false` | Opt in to a quiet, best-effort update check shortly after launch (one cached PyPI query; only speaks up if a newer release exists). Off by default for privacy/offline use — **Help ▸ Check for Updates…** always runs a manual check regardless |
-| `ui_language` | `"en"` | UI-chrome language (menus, toolbar, docks): `en`, `es`, `fr`, `de`, `pt`. See [Interface language](features.md#interface-language-i18n) |
-| `tts_backend` | `"auto"` | TTS engine: `auto`, `pyttsx3`, `espeak`, `festival`, `piper`, `coqui`, `dectalk`, `elevenlabs` (cloud; needs `elevenlabs_api_key`), `none` |
+| `ui_language` | `"en"` | UI-chrome language (menus, toolbar, docks): `en`, `es`, `fr`, `de`, `pt`, `ar` (rendered right-to-left). See [Interface language](features.md#interface-language-i18n) |
+| `tts_backend` | `"auto"` | TTS engine: `auto`, `pyttsx3`, `applesay` (macOS `say`; the `auto` default on macOS), `espeak`, `festival`, `piper`, `coqui`, `dectalk`, `elevenlabs` (cloud; needs `elevenlabs_api_key`), `none` |
 | `piper_model` | `""` | Path to a Piper `.onnx` voice model for the `piper` backend (neural, offline). The matching `.onnx.json` must sit beside it. Also honored: `PIPER_MODEL` env var and Piper voice directories. |
 | `elevenlabs_api_key` | `""` | API key for the opt-in `elevenlabs` cloud neural voice. Empty = disabled (no network egress); paste a key **and** select the `elevenlabs` engine to enable |
 | `tts_rate` | `265` | Reading speed in words per minute |
@@ -89,7 +89,7 @@ Many of these settings are exercised in the [`docs/examples/`](examples/).
 | `pronunciations` | `{}` | Pronunciation lexicon: `{term: spoken form}` applied before other TTS normalization |
 | `use_pronunciations` | `true` | Apply the pronunciation lexicon while reading |
 | `dictionary_file` | `""` | Path to a custom JSON dictionary for Define Word (`{term: definition}` or `{term: {pos, definition, pronunciation, examples}}`); checked before WordNet |
-| `qt_line_height` | `1.5` | Qt line-height multiplier (WCAG 1.4.12). Adjust via **View → Reading Aids → Text Spacing…** |
+| `qt_line_height` | `1.5` | Qt line-height multiplier (WCAG 1.4.12). Adjust in **Edit → Preferences… → Fonts**, or press `Ctrl+Alt+W` for the Text Spacing dialog (hidden shortcut) |
 | `qt_letter_spacing` | `0.0` | Qt extra letter spacing, percent of font size (`0` = normal) |
 | `qt_word_spacing` | `0.0` | Qt extra word spacing in pixels (`0` = normal) |
 | `qt_dyslexia_font` | `false` | Prefer an installed dyslexia-friendly font (OpenDyslexic / Atkinson Hyperlegible / Lexend / Comic Sans) when available |

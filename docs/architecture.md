@@ -29,29 +29,37 @@ that ships in every distribution form.
 | `star/ttstext/` | TTS text preprocessing **package** (SSML/DECtalk markup, abbreviation/number/date/math normalization, table narration) — a behaviour-identical split of the former `ttstext.py`; the public API is unchanged. |
 | `star/markup/` | Lightweight markup → Markdown converters (AsciiDoc, Creole, MediaWiki, Org, reStructuredText, Textile, LaTeX) and the Pandoc bridge — a behaviour-identical split of the former `markup.py`; the public API is unchanged. |
 | `star/documents/` | Document model and the multi-format loaders (PDF, EPUB, DOCX, …), plus format dispatch and the entry-point `FormatHandler`s. |
+| `star/archive.py` | Archive-member ingestion — ZIP and TAR via the stdlib (always available), `.7z`/`.rar` via optional packages — feeding the document loaders. |
 | `star/pagination.py` | Pure paging logic for windowing very large documents (no Qt, no I/O). |
 | `star/sync.py` | Sidecar (annotations/settings) conflict-merge for two-way sync. |
 | `star/syllables.py` | Pyphen-based hyphenation/syllable decoding aid (offline-safe, graceful fallback). |
 | `star/render.py` · `star/search.py` | Markdown → styled terminal lines; in-document search and the line editor. |
 | `star/braille.py` · `star/annotations.py` · `star/citations.py` · `star/transcribe.py` | Braille export, notes, citation management, Whisper transcription. |
+| `star/graph.py` · `star/ner.py` · `star/export_graph.py` | The knowledge graph built from cross-annotation relations; optional spaCy named-entity concept extraction (regex fallback); graph export to SVG, PlantUML, DOT, JSON. |
+| `star/obsidian.py` | Obsidian vault import and export. |
 | `star/cache.py` · `star/stats.py` · `star/themes.py` | Document cache, reading statistics, color/CSS themes. |
 | `star/convert.py` · `star/watch.py` · `star/feeds.py` · `star/translate.py` · `star/vocab.py` · `star/summarize.py` · `star/flashcards.py` · `star/spellcheck.py` | Batch convert, hot-folder watch, feeds, translation, difficult-word overlay, summarization, Anki export, spell check. |
+| `star/dictionary.py` | Offline dictionary/definition lookup behind **Define Word** — closes the loop the difficult-word overlay (`star/vocab.py`) opens. |
 | `star/fulltext.py` | On-demand full-text **content** search across the folder-library (complements the title/author/path metadata search). A lazy `FullTextIndex` extracts each library document's `plain_text` and caches it on disk keyed by `(size, mtime)`, so a refresh only re-reads changed files; `build_index_async` runs the extraction off the UI thread. Pure — no Qt, no hard optional deps. |
+| `star/library.py` · `star/discovery.py` | Folder-as-library: scan any directory as a document library, and the cross-library title/author/path **metadata** search that `star/fulltext.py` complements. |
 | `star/sr.py` | Spaced-repetition scheduler — pure, deterministic, no I/O. The **FSRS** memory model (with an SM-2 fallback) that turns notes/highlights into review cards: `review()` maps a card's `sr_state` + a 1–4 grade to the next state (`is_due`, `days_until_due`, `retention_estimate`). "Today" is injected so tests are reproducible; state is JSON-friendly. |
 | `star/anki_sync.py` | AnkiConnect two-way sync — optional, best-effort, offline-safe (stdlib `urllib` only). `push_cards` mirrors star annotations into a local Anki deck; `pull_review_state` reads scheduling back; `sync_annotations` does both. Degrades quietly when Anki/the add-on is absent — star's own note store is the source of truth. |
 | `star/mathrender.py` | Visual LaTeX-math → readable **Unicode** for the Qt document view (`x²`, `√2`, `½`, `α`). Pure string→string, no deps; independent of the speech path (TTS still gets raw LaTeX, normalized by `ttstext`). |
 | `star/update.py` | Best-effort PyPI version check (stdlib `urllib` against the PyPI JSON API). `check_for_update()` compares the newest `star-reader` release to the running one, caches the reply under `CACHE_DIR`, and **never raises** (offline → "no update known"). Injectable `fetcher=` keeps tests off the network. |
 | `star/fonts.py` | On-demand fetch & cache of the **OpenDyslexic** typeface (SIL OFL 1.1) into `CACHE_DIR/fonts` the first time the reader enables the dyslexia-friendly font. Not bundled; offline-safe (a failed fetch falls back to a system family). |
+| `star/i18n.py` · `star/locale/` | UI internationalization for star's own chrome (menus, toolbar, docks): a small gettext-style `tr()` layer over per-language JSON catalogs in `star/locale/`. |
 | `star/tts/` | TTS **package**: one module per backend (pyttsx3, eSpeak-NG, Festival, DECtalk, Piper, Coqui, Apple `say`, the `silent` null backend, …), the audio/subtitle/exporter helpers, and the `manager/` sub-package. |
 | `star/tts/manager/` | The `TTSManager` **mixin package** (`_playback`, `_selection`, `_screader`, `_export`) — a behaviour-identical split of the former `manager.py`; the public API is unchanged. |
 | `star/tts/qtspeech.py` | `QtSpeechBackend` — a `QTextToSpeech`-driven system-voice backend. Present in the tree but **not yet registered** (deferred until its audio output is verified across platforms). |
 | `star/tts/cloud/` | Opt-in **cloud** TTS backends (e.g. `elevenlabs`) plus a shared base and a `mock` for tests; off by default, credential-gated, graceful when unconfigured. |
 | `star/tts/piper_models.py` | Piper voice **catalog** (`CATALOG` — curated name/language/quality rows) + on-demand download/cache of each voice's `.onnx` weights + `.onnx.json` config into `CACHE_DIR/piper` — the same dir `PiperBackend` scans, so a fetched voice is discovered automatically. Same "fetch when wanted" ergonomics as `star/fonts.py`; offline-safe, injectable `fetcher=`. |
 | `star/audiobook.py` | M4B audiobook assembly: chapter markers and the `ffmpeg` muxing logic behind the `m4b` exporter. |
+| `star/export.py` · `star/video.py` | The Markdown / HTML / EPUB document exporters, and the sentence-level karaoke video export behind the `mp4` exporter — all registered in the `star.exporters` entry-point group. |
 | `star/tui/` | The curses terminal UI **package** (see below). |
 | `star/gui/` | The Qt GUI **package** (see below). |
+| `star/_bundled.py` | Shared, stdlib-only locator for the bundled docs (`welcome.md`, README) — the GUI and TUI both use it, so they agree on what counts as the welcome page. |
 | `star/app.py` | Command-line entry point (`star.app:main`). |
-| `star/plugins.py` · `star/formats.py` | The `PluginRegistry` and the plugin ABCs. Backends, format handlers, and exporters are discovered via `importlib.metadata.entry_points` — the built-ins register in [`pyproject.toml`](../pyproject.toml)'s `[project.entry-points]` groups (`star.backends`: pyttsx3, espeak, festival, piper, coqui, dectalk, applesay, **elevenlabs**, silent; `star.formats`: pdf, epub, docx, …; `star.exporters`: anki, markdown, html, epub, wav, mp4, **m4b**), and third-party packages add entry-points in the same groups. |
+| `star/plugins.py` · `star/formats.py` | The `PluginRegistry` and the plugin ABCs. Backends, format handlers, and exporters are discovered via `importlib.metadata.entry_points` — the built-ins register in [`pyproject.toml`](../pyproject.toml)'s `[project.entry-points]` groups (`star.backends`: pyttsx3, espeak, espeaklib, festival, piper, coqui, dectalk, dectalkdll, applesay, **elevenlabs**, silent; `star.formats`: pdf, epub, docx, …; `star.exporters`: anki, markdown, html, epub, wav, mp4, **m4b**), and third-party packages add entry-points in the same groups. |
 | `star/diagnostics.py` | `OPTIONAL_DEPENDENCIES` registry powering `star --deps`. |
 | `star/autodeps.py` | On-demand optional-dependency installer: the `FEATURES` registry, `FEATURE_INFO`/`PRESETS`, and the best-effort `ensure()` engine behind the first-run chooser and `star --install-optional`. |
 | `star/__main__.py` · `run_star.py` | `python -m star`, and the source-tree entry script. |
@@ -108,8 +116,9 @@ demand.
 - **`FEATURE_INFO`** carries the human-facing `(label, detail, approx MB)` used by
   the chooser and by `star --install-optional`'s listing.
 - **`PRESETS`** defines **`thin`** (the small everyday reading/study aids) and
-  **`all`** (everything *except* the very large `transcribe`/`ner` packs, which
-  are held in `_HEAVY` so "All" can never trigger a multi-gigabyte download).
+  **`all`** (literally every optional feature, including the very large
+  `transcribe`/`ner` packs — the chooser labels each feature's approximate
+  download size so "All" is an informed, deliberate choice).
 - **`ensure()` / `ensure_feature()`** install any missing packages best-effort in
   a daemon thread — the UI never blocks on pip. Installs are **attempted once per
   machine**: a per-package marker file under the cache dir (`CACHE_DIR/autodeps`)
@@ -126,10 +135,11 @@ demand.
   after a *runtime* install that flag is stale-`False`, so the gate would still
   refuse to run even though the package is now present. `refresh_feature()`
   invalidates the import caches and flips the stale flags listed in
-  `_FEATURE_FLAGS` (`summarize`, `translate`, `feeds`, `vocab`, `spellcheck`,
-  `flashcards`) so the gate and the feature code agree and the deferred `import`
-  succeeds. `transcribe` is special-cased: its availability snapshot lives in
-  `_runtime` (`_WHISPER` / `_AUDIO_IN`), so `refresh_feature("transcribe")` calls
+  `_FEATURE_FLAGS` (`summarize`, `syllables`, `translate`, `feeds`, `vocab`,
+  `spellcheck`, `flashcards`) so the gate and the feature code agree and the
+  deferred `import` succeeds. `transcribe` is special-cased: its availability
+  snapshot lives in `_runtime` (`_WHISPER` / `_AUDIO_IN`), so
+  `refresh_feature("transcribe")` calls
   `_runtime.refresh_whisper_backend()` to re-detect it. Since 0.1.25 the stack is
   faster-whisper (CTranslate2, **no Torch**), which imports cleanly into a
   running process — so dictation, too, is usable **in-session with no restart**
@@ -163,10 +173,12 @@ counterpart is `star/app.py`'s `_install_optional()`, invoked by
   real, readable document (`star/welcome.md`) rather than a static splash — it
   reads aloud and supports the caret/lookup controls. `_bundled_path(name)`
   resolves a bundled doc by filename wherever star is installed (package root for
-  wheel/pyz, then the repo root for source checkouts, then `gui/`), which is how
-  both the welcome page (`_welcome_path`) and **F1 → README** work reliably on
-  every install form. When you edit user-facing docs, refresh the copies bundled
-  with the package so these stay current (see *Contributing*).
+  wheel/pyz, then the repo root for source checkouts) — the logic lives in the
+  shared, UI-agnostic `star/_bundled.py`, which `StarWindow._bundled_path` thinly
+  delegates to, so the GUI and the TUI agree on what counts as the welcome page.
+  This is how both the welcome page (`_welcome_path`) and **F1 → README** work
+  reliably on every install form. When you edit user-facing docs, refresh the
+  copies bundled with the package so these stay current (see *Contributing*).
 
 ### The `star/tui/` package
 
@@ -179,7 +191,7 @@ no longer lands in one giant class:
 |---|---|
 | `star/tui/__init__.py` | Re-export shim: exposes `StarApp`, `THEMES`, `THEME_NAMES` so `from star.tui import StarApp` (used by `star/app.py` and the tests) keeps working unchanged. |
 | `star/tui/app.py` | `StarApp` — the core: `__init__`, the main `run()` loop, color setup, and `notify`. It inherits the mixins below as base classes. |
-| `star/tui/mixin_*.py` | `StarApp`'s methods grouped by responsibility — `document`, `playback`, `navigation`, `speechcursor`, `bookmarks`, `search`, `voice`, `export`, `display`, `commands`, `graph`, `help`, `docops`, `rsvp`, `annotations`, `transcription`, `caret`, `keys`, `draw` — each a mixin that `StarApp` inherits. |
+| `star/tui/mixin_*.py` | `StarApp`'s methods grouped by responsibility — `document`, `playback`, `navigation`, `speechcursor`, `bookmarks`, `search`, `voice`, `export`, `display`, `commands`, `graph`, `help`, `docops`, `rsvp`, `annotations`, `transcription`, `editing`, `caret`, `keys`, `draw` — each a mixin that `StarApp` inherits. |
 | `star/tui/theming.py` | Color-pair roles, the `THEMES` table, and `_setup_colors()`. |
 | `star/tui/_screen.py` | Low-level curses draw primitives (`_addstr`, `_fillrow`, `_fillrow_range`). |
 | `star/tui/text.py` | Static text/data: the M-x command table, the keyboard-shortcut data + renderer, and the embedded help-pager text. |
@@ -197,11 +209,13 @@ position tables live on `RsvpMixin` and remain reachable as `StarApp._RSVP_*`.
 | **Wheel + sdist** (`star_reader-<version>-py3-none-any.whl`) | `python -m build`; published to PyPI by CI | **Primary, stable** — the pure-Python artifact; published to PyPI and attached to the GitHub Release |
 | **`star.pyz`** (fat zipapp) | `python build_zipapp.py`; bundles `[all]` extras; platform-specific | Build-it-yourself (not built by CI, not attached to releases) |
 | **`star.exe`** (PyInstaller, Windows — `star-<version>-windows-x64.exe`) | CI `windows-exe` job on every `v*` tag (`STAR_ALLOW_EXE=1 ./tools/build-windows.ps1 -Ocr`); locally `tools/build-windows.ps1 -AllowDeprecatedExe` | **Supported release artifact** — self-contained (Python + PyQt6 + document loaders + offline dictation + vendored native tools; DECtalk excluded), built on every tag and attached to the GitHub Release |
+| **`star.app`/DMG** (PyInstaller, macOS — `star-<version>-macos-arm64.dmg` + `.app.zip`) | CI `macos-app` job on every `v*` tag (`tools/build-macos.sh`, driving the shared `star.spec`) | **Supported release artifact** — self-contained macOS app, Apple-Silicon (arm64) only; ad-hoc-signed by default, Developer-ID codesigned + notarized when the `MACOS_*` secrets are set; attached to the GitHub Release (default since 0.1.24) |
 | **`star.AppImage`** (Linux) | CI `linux-appimage` job (`tools/build-appimage.sh`) on every `v*` tag | **Supported release artifact** — self-contained Linux binary, attached to the GitHub Release (default since 0.1.22) |
 
 The automated release publishes the **wheel + sdist** to PyPI and attaches them to
-the GitHub Release, alongside the **Linux AppImage** and the self-contained Windows
-`star.exe` (both built on every `v*` tag). Only the `.pyz` is build-it-yourself —
+the GitHub Release, alongside the **Linux AppImage**, the self-contained Windows
+`star.exe`, and the **macOS `star.app`/DMG** (all built on every `v*` tag). Only
+the `.pyz` is build-it-yourself —
 see [Installation](installation.md#single-file-build-starpyz) and
 [`star/BUILD.md`](../star/BUILD.md). The wheel is pure Python (`py3-none-any`) so
 one build serves macOS, Linux, and Windows.

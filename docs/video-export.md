@@ -115,7 +115,7 @@ Video-export settings live under the `"video"` key in `settings.json`:
 | `subtitles` | `"soft"` | `"soft"` = embed SRT as a muxed subtitle track selectable in the player; `"none"` = no subtitle track |
 | `last_export_dir` | `""` | Remembered last export directory (updated automatically) |
 
-Edit these in `settings.json` or change them at runtime via `M-x settings`.
+Edit these in `settings.json` (`M-x settings` shows its location).
 
 ### Resolution
 
@@ -147,7 +147,7 @@ there is nothing to synthesize. Audio and subtitle export refuse the same way.
 check your TTS installation, or try `M-x tts-backend` to pick a working engine
 first.
 
-**"No frame renderer available"** — neither Qt nor Pillow is installed.
+**"Frame rendering failed (install PyQt6 or Pillow)"** — neither Qt nor Pillow is installed.
 `pip install "star-reader[video]"` installs Pillow.
 
 **Video is blank / shows only a placeholder** — the Pillow fallback rendered

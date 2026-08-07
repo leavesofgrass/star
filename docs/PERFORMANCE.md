@@ -176,11 +176,13 @@ affected; each degrades *safely and visibly*, never silently:
   opening Find on a paginated document **suspends paging and renders the
   document whole** (`_page_disable_and_render_whole`), paying the one-shot layout
   once so search is fully correct.  A status message reports the switch.
-- **User highlights / difficult-word overlay.** These paint against
-  rendered-editor offsets, so under paging they apply within the visible window;
-  out-of-window highlights are simply not painted until the window reaches them
-  (their stored offsets are validated against the rendered length, so nothing
-  is mis-placed).  Re-rendering a window re-applies the in-window ones.
+- **User highlights / difficult-word overlay.** These store and paint
+  *absolute* character offsets into the whole-document render, so they never
+  coexist with a windowed render: a document with saved highlights (or the
+  overlay enabled) is excluded from pagination up front, and activating either
+  on an already-paginated document **suspends paging and renders the document
+  whole** (`_page_disable_and_render_whole`) — the same safe degradation as
+  Find — keeping every offset exact.  A status message reports the switch.
 
 ### Settings
 

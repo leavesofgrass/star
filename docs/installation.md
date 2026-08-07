@@ -194,9 +194,9 @@ python build_zipapp.py        # output: dist/star.pyz
 Run it with any Python interpreter:
 
 ```bash
-starz                 # launch the Qt GUI
-starz document.pdf    # open a file
-starz --tui           # force the terminal UI
+python star.pyz                 # launch the Qt GUI
+python star.pyz document.pdf    # open a file
+python star.pyz --tui           # force the terminal UI
 ```
 
 On first run, `star.pyz` extracts its bundled packages into your per-user config
@@ -227,10 +227,13 @@ What the fat zipapp does and does not remove:
 
 ## Optional Packages
 
-> **You rarely need this table.** star installs each of these **automatically, on
+> **You rarely need this table.** star installs most of these **automatically, on
 > demand** — the first time you use a feature that needs one, it fetches the
-> package in the background (or run `star --install-optional`). The `pip` commands
-> below are the manual / advanced route for scripted or offline setups.
+> package in the background (or run `star --install-optional`). The first few rows
+> (Qt, `pyttsx3`, `pyobjc`, `pdfminer.six`, `python-docx`, `python-pptx`,
+> `windows-curses`) ship with the wheel itself and are listed here only for
+> from-source setups. The `pip` commands below are the manual / advanced route
+> for scripted or offline setups.
 
 | Package | Purpose | Install |
 |---|---|---|

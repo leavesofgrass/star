@@ -95,10 +95,12 @@ star can scan the open document's text and pull out candidate **concepts**
 - **Open it:** **Graph ▸ Show Graph View** (`Ctrl+Shift+Q`) or `M-x graph-show`
   (the TUI shows the DOT source in a scrollable pager).
 - **Layout:** a colour-coded, force-directed rendering (edges coloured by
-  relation type). With `graphviz` installed, its layout engine is used; otherwise
-  a built-in pure-Python spring layout renders the SVG.
+  relation type). The dock uses the built-in pure-Python spring layout by
+  default; set `graph.default_layout` to `dot`, `neato`, or `fdp` to use
+  `graphviz`'s layout engine instead (graphviz is used automatically for
+  Export Graph ▸ SVG/DOT).
 - **Filter:** click **Filter** in the dock toolbar to reveal a search box —
-  type text (or `#tag`) and **Apply** to restrict the graph to matching nodes.
+  type text and **Apply** to restrict the graph to matching nodes.
 - **Navigate:** the dock lists every node; **double-click a node** to jump to that
   annotation in its document (opening the document first if needed).
 - **Empty graph:** with no relations yet, the dock shows
@@ -131,8 +133,7 @@ star can also open graph files produced elsewhere:
   (falls back to showing the raw markup if Qt's SVG component is unavailable).
 - **Open DOT File…** — renders via `graphviz` if installed, otherwise shows the
   raw DOT text.
-- **Open PlantUML File…** — shows the `.puml` text (and renders it when a
-  `plantuml` renderer is available).
+- **Open PlantUML File…** — shows the `.puml` text.
 
 ---
 
@@ -147,7 +148,6 @@ following improve it:
 | `spacy` (+ a model, e.g. `en_core_web_sm`) | Best-quality concept extraction (real NER) |
 | `nltk` | NER fallback when spaCy is absent |
 | `graphviz` (+ the Graphviz binary) | Higher-quality graph layout and SVG/DOT rendering |
-| `plantuml` | Render PlantUML exports to SVG |
 
 Run `star --deps` to see which are installed. Install hints are listed there and
 in [Installation](installation.md).
@@ -168,7 +168,7 @@ in [Installation](installation.md).
 | Export as PlantUML | Graph ▸ Export Graph ▸ Export as PlantUML… | — | `M-x graph-export-plantuml` |
 | Export as DOT | Graph ▸ Export Graph ▸ Export as DOT… | — | `M-x graph-export-dot` |
 | Export as JSON | Graph ▸ Export Graph ▸ Export as JSON… | — | `M-x graph-export-json` |
-| Open SVG file | Graph ▸ View Formats ▸ Open SVG File… | — | `M-x graph` (palette) |
+| Open SVG file | Graph ▸ View Formats ▸ Open SVG File… | — | — |
 | Open DOT file | Graph ▸ View Formats ▸ Open DOT File… | — | — |
 | Open PlantUML file | Graph ▸ View Formats ▸ Open PlantUML File… | — | — |
 

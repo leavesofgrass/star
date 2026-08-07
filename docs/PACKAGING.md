@@ -7,12 +7,12 @@ day-to-day "cut a release" procedure) and [`installation.md`](installation.md)
 (the user-facing install instructions).
 
 > **TL;DR for the release model.** The **wheel + sdist published to PyPI** is
-> the primary distribution channel and the canonical artifact. Two more
+> the primary distribution channel and the canonical artifact. Three more
 > self-contained artifacts also build automatically on every `v*` tag and
-> attach to the GitHub Release: the **Linux AppImage** (default since 0.1.22)
-> and the **self-contained Windows `star.exe`** (default since 0.1.24).
-> Everything else on this page — the `.pyz`, GPG signatures, the Windows NSIS
-> installer, and the macOS `.app`/DMG — is **optional and gated off by
+> attach to the GitHub Release: the **Linux AppImage** (default since 0.1.22),
+> the **self-contained Windows `star.exe`**, and the **macOS `star.app`/DMG**
+> (both default since 0.1.24). Everything else on this page — the `.pyz`, GPG
+> signatures, and the Windows NSIS installer — is **optional and gated off by
 > default**. None of it can fail or block the wheel/PyPI pipeline: PyPI
 > publishing waits only on the wheel, and every optional job is *skipped* (not
 > failed) when its enabling variable/secret is absent.

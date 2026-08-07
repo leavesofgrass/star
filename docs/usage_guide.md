@@ -210,7 +210,7 @@ preview.
 - **`elevenlabs` — cloud neural voices (opt-in).** Premium neural speech from
   the ElevenLabs service. **Nothing is sent anywhere** until you both paste your
   key and select a cloud voice: put your key in the **`elevenlabs_api_key`**
-  setting (edit `settings.json` via **`M-x settings`**, or set the
+  setting (edit `settings.json` — **`M-x settings`** shows its path — or set the
   `ELEVENLABS_API_KEY` environment variable), then select the `elevenlabs`
   engine and choose a voice. With no key the engine stays unavailable and star
   keeps using a local engine; on any network error it silently falls back to a
@@ -258,9 +258,10 @@ for you — there is **never** a `pip install` instruction to copy.
    approximate download size.
 2. Click **Install** (Yes). star downloads it in the background while you keep
    reading.
-3. Most features become usable in the same session, and the status bar confirms
-   *"… installed — you can use it now."* Only the large **speech-to-text**
-   (dictation) pack asks you to **restart star** before using it.
+3. Every feature — including the large **speech-to-text** (dictation) pack —
+   becomes usable in the same session, and the status bar confirms *"…
+   installed — you can use it now."* star asks you to **restart** only in the
+   rare case the in-session activation fails.
 
 Power users can install features from the command line instead:
 `star --install-optional` (installs the `all` preset), `star --install-optional
@@ -355,7 +356,7 @@ time (pagination) so the first page appears almost instantly instead of after a
 multi-second layout.
 
 1. Pagination is **opt-in**. Turn it on by setting **`qt_paginate_large_docs`**
-   to `true` in `settings.json` (open it with **`M-x settings`**, or **Tools**
+   to `true` in `settings.json` (find its path with **`M-x settings`**, or **Tools**
    in the TUI).
 2. Once enabled, it engages **automatically** only when a document is very large
    (past roughly 60,000 words) — smaller documents render whole as before.
@@ -383,7 +384,7 @@ trigger it).
 | Feature | GUI menu path | Keyboard shortcut | TUI palette command |
 |---|---|---|---|
 | Open a file | File ▸ Open… | `Ctrl+O` | `M-x open` (`Ctrl+O`) |
-| New document | File ▸ New | `Ctrl+N` | — |
+| New document | File ▸ New | `Ctrl+N` | `M-x new-document` (`Ctrl+N`) |
 | Open a URL | File ▸ Open URL… | `Ctrl+Shift+O` | `M-x open-url` |
 | Open an RSS / Atom feed | File ▸ Open Feed… | `Ctrl+Shift+M` | — |
 | Open an archive | File ▸ Open Archive… | — | `M-x open-archive` |
@@ -397,7 +398,7 @@ trigger it).
 | Export as Braille (BRF) | File ▸ Export ▸ Export as Braille… | `Ctrl+Alt+B` | `M-x export-braille` |
 | Export as Audio | File ▸ Export ▸ Export as Audio… | `Ctrl+Alt+A` | `M-x export-audio` |
 | Export subtitles (SRT/VTT) | File ▸ Export ▸ Export Subtitles… | `Ctrl+Alt+U` | `M-x export-subtitles` |
-| Export karaoke video (MP4) | File ▸ Export ▸ Video (MP4)… | `Ctrl+Alt+V` | `M-x export-video` |
+| Export karaoke video (MP4) | File ▸ Export ▸ Video (MP4)… | — (menu only) | `M-x export-video` |
 | Export audiobook (M4B) | File ▸ Export ▸ Export Audiobook (M4B)… | — (menu only) | — |
 | Export Anki flashcards | File ▸ Export ▸ Anki Flashcards… | `Ctrl+Alt+H` | — |
 | Quit | File ▸ Quit | `Ctrl+Q` | `M-x quit` (`q`) |
@@ -405,8 +406,8 @@ trigger it).
 | Stop | (Playback toolbar) | `Esc` | `M-x stop` (`Esc`) |
 | Speed up (+20 wpm) | (Playback toolbar) | `Ctrl+=` | `M-x rate-up` (`+`) |
 | Slow down (−20 wpm) | (Playback toolbar) | `Ctrl+-` | `M-x rate-down` (`-`) |
-| Play from cursor / selection | — | `Ctrl+Space` | `Enter` / `Ctrl+Space` |
-| Cycle speed preset | — | `F8` | `M-x speed <name>` (`F8`) |
+| Play from cursor / selection | Speech ▸ Play from Cursor | `Ctrl+Space` | `Enter` / `Ctrl+Space` |
+| Cycle speed preset | — | — | `M-x speed <name>` (`F8`) |
 | Toggle SSML prosody | — | `Ctrl+Alt+Y` | `M-x ssml` |
 | Choose TTS engine | Speech ▸ Choose TTS Engine… | `Ctrl+Shift+G` | `M-x tts-backend` |
 | Choose voice | Speech ▸ Choose Voice… | `Ctrl+Shift+V` | `M-x tts-voice` (`Ctrl+T`) |
@@ -427,23 +428,23 @@ trigger it).
 | Delete a profile | Edit ▸ Delete Profile… | `Ctrl+Shift+Y` | `M-x profile-delete <name>` |
 | Export profiles to a JSON file | Edit ▸ Export Profiles… | — | — |
 | Import profiles from a file | Edit ▸ Import Profiles… | — | — |
-| Toggle edit mode | (Edit toolbar button) | `Ctrl+E` | — |
+| Toggle edit mode | (Edit toolbar button) | `Ctrl+E` | `M-x edit` (`Ctrl+E`) |
 | Save document | (Save toolbar button) | `Ctrl+S` | — |
 | Bold / italic / underline (edit mode) | Format ▸ Bold / Italic / Underline | `Ctrl+B` / `Ctrl+I` / `Ctrl+U` | — |
 | Insert link (edit mode) | Format ▸ Insert Link | `Ctrl+K` | — |
 | Live HTML preview | View ▸ Live HTML Preview | `Ctrl+Shift+Z` | — |
-| Check spelling | Edit ▸ Check Spelling | `F7` | — |
+| Check spelling | Edit ▸ Check Spelling | — (menu only) | — |
 | Preferences (Reading / Reading Aids / Voice / Display / Fonts / General) | Edit ▸ Preferences… | `Ctrl+,` | — |
-| Find in document (find bar) | Edit ▸ Find… | `Ctrl+F` | `M-x search` (`/`) |
+| Find in document (find bar) | Edit ▸ Find… | `Ctrl+F` | `M-x search` (`Ctrl+F`) |
 | Find next / previous match | (find bar Next / Previous) | `Enter`/`F3` · `Shift+Enter`/`Shift+F3` | `n` / `N` |
-| Search backward (TUI) | — | — | `M-x search-backward` (`?`) |
+| Search backward (TUI) | — | — | `M-x search-backward` |
 | Cycle color theme (incl. high-contrast) | View ▸ Next Theme | `F5` | `F5` |
 | Choose theme by name | View ▸ Choose Theme… | `Ctrl+Alt+T` | `M-x theme <name>` |
 | Reload CSS themes | Preferences ▸ Display ▸ Reload CSS themes | `Ctrl+Shift+R` | — |
 | Open themes folder | Preferences ▸ Display ▸ Open themes folder… | `Ctrl+Shift+F` | — |
 | Toggle Contents panel | View ▸ Toggle Contents Panel | `Ctrl+\` | — |
 | Toggle Notes panel | View ▸ Toggle Notes Panel | `Ctrl+Shift+N` | `M-x annotations-list` |
-| Change font | View ▸ Change Font… | `Ctrl+Alt+F` | `M-x font <family>` |
+| Change font | View ▸ Change Font… | `Ctrl+Alt+F` | — |
 | Text spacing | Preferences ▸ Fonts | `Ctrl+Alt+W` | — |
 | Karaoke highlight / granularity / colors | Edit ▸ Preferences… (or Command Palette: Tune Karaoke Highlight…) | `Ctrl+,` | `M-x highlight-granularity` |
 | Dyslexia-friendly font | View ▸ Reading Aids ▸ Dyslexia-Friendly Font | `Ctrl+Alt+X` | — |
@@ -465,11 +466,12 @@ trigger it).
 | Delete selected note | Annotate ▸ Delete Note | `Ctrl+Shift+D` | `M-x annotation-delete` |
 | Export notes | Annotate ▸ Export Notes… | `Ctrl+Alt+N` | `M-x annotations-export` |
 | Import citations | Study ▸ Import… | `Ctrl+Alt+I` | — |
-| Export citations | Study ▸ Export… | `Ctrl+Alt+E` | — |
+| Export citations | Study ▸ Export… | — (menu only) | — |
 | Add citation | Study ▸ Add Citation… | `Ctrl+Alt+C` | — |
 | Add citation by DOI | Study ▸ Add by DOI… | `Ctrl+Alt+D` | — |
 | Insert citation at cursor | Study ▸ Insert at Cursor | `Ctrl+Alt+R` | — |
 | Manage / browse citations | Study ▸ Manage / Browse… | `Ctrl+Alt+G` | — |
+| Show graph view | Graph ▸ Show Graph View | `Ctrl+Shift+Q` | `M-x graph-show` |
 | Summarize document | Tools ▸ Summarize Document | `Ctrl+Shift+U` | — |
 | Translate document | Tools ▸ Translate Document | `Ctrl+Shift+X` | — |
 | Transcribe audio file | Tools ▸ Transcribe Audio File… | `Ctrl+Alt+S` | — |
@@ -481,7 +483,7 @@ trigger it).
 | Review due cards (spaced repetition) | Study ▸ Review Due Cards… | `Ctrl+Shift+F5` | — |
 | Sync with Anki (AnkiConnect) | Study ▸ Sync with Anki… | — | — |
 | Clear document cache | Tools ▸ Clear Document Cache | `Ctrl+Shift+Delete` | `M-x cache-clear` |
-| Command palette | — | `F2` | `F2` · `M-x` · `:` |
+| Command palette | Help ▸ Command Palette… | `F2` | `F2` · `M-x` · `:` |
 | Keyboard cheat sheet | Help ▸ Keyboard Shortcuts | `F3` | `M-x shortcuts` (`?`) |
 | Customize shortcuts | Help ▸ Customize Shortcuts… | `Ctrl+Alt+Q` | — |
 | Guided tour (replay) | Help ▸ Guided Tour | `Shift+F1` | — |
@@ -530,7 +532,7 @@ off with the `qt_ctrl_pause` setting.
 | Pronunciation lexicon | `Ctrl+Shift+I` | `M-x pron-add` / `pron-list` |
 | Speech Cursor mode | `Tab` | `Tab` |
 | Toggle SSML prosody | `Ctrl+Alt+Y` | `M-x ssml` |
-| Cycle speed preset | `F8` | `F8` |
+| Cycle speed preset | — | `F8` |
 
 Walkthrough: [`docs/examples/gui/read-aloud`](examples/gui/read-aloud).
 
@@ -590,7 +592,7 @@ which the view stays with you instead of snapping back to the speech.
 
 | Action | Qt GUI | TUI |
 |---|---|---|
-| New document | `Ctrl+N` | — |
+| New document | `Ctrl+N` | `Ctrl+N` |
 | Open a file | `Ctrl+O` | `Ctrl+O` |
 | Open a URL | `Ctrl+Shift+O` | `M-x open-url` |
 | Open an archive | File ▸ Open Archive… | `M-x open-archive` |
@@ -602,7 +604,7 @@ which the view stays with you instead of snapping back to the speech.
 | Export as Braille (BRF) | `Ctrl+Alt+B` | `M-x export-braille` |
 | Export as Audio | `Ctrl+Alt+A` | `M-x export-audio` |
 | Export Subtitles (SRT/VTT) | `Ctrl+Alt+U` | `M-x export-subtitles` |
-| Export karaoke video (MP4) | `Ctrl+Alt+V` | `M-x export-video` |
+| Export karaoke video (MP4) | File ▸ Export ▸ Video (MP4)… | `M-x export-video` |
 | Export audiobook (M4B) | File ▸ Export ▸ Export Audiobook (M4B)… | — |
 | Reload document | — | `F9` |
 | Quit | `Ctrl+Q` | `Ctrl+Q`   `q` |
@@ -662,11 +664,11 @@ window with a live match counter, next/previous, a case toggle, and wrap-around
 
 | Action | Qt GUI | TUI |
 |---|---|---|
-| Open find bar / search forward | `Ctrl+F` | `Ctrl+F`   `/` |
+| Open find bar / search forward | `Ctrl+F` | `Ctrl+F` |
 | Next match | `Enter`   `F3` | `n` |
 | Previous match | `Shift+Enter`   `Shift+F3` | `N` |
 | Toggle case sensitivity | (Match case checkbox) | — |
-| Search backward | — | `Ctrl+R`   `?` |
+| Search backward | — | `M-x search-backward` |
 | Close find / clear search | `Esc` | `Esc`   `C-g` |
 
 In the Qt find bar, every match is tinted amber and the active match bright
@@ -735,7 +737,7 @@ a bookmark set in one interface appears in the other.
 | Action | Shortcut |
 |---|---|
 | Import citations | `Ctrl+Alt+I` |
-| Export citations | `Ctrl+Alt+E` |
+| Export citations | Study ▸ Export… |
 | Add citation | `Ctrl+Alt+C` |
 | Add citation by DOI | `Ctrl+Alt+D` |
 | Insert citation at cursor | `Ctrl+Alt+R` |
@@ -799,7 +801,7 @@ complete.
 | `batch-convert` | Convert many files / a folder to one format (Markdown, text, or Braille) |
 | `export-braille` | Export a BRF braille file (requires `louis`) |
 | `open-archive [path]` | Open an archive (ZIP/TAR/.7z/.rar) and browse its members |
-| `export-audio [fmt]` | Synthesize document to audio; `fmt` is `mp3` (default), `ogg`, `mp4`, or `wav` |
+| `export-audio [fmt]` | Synthesize document to audio; `fmt` is `wav` (default, from the `audio_export_format` setting), `mp3`, `ogg`, or `mp4` |
 | `export-subtitles` | Write a timestamped **SRT/VTT** caption track synchronized to the speech |
 | `export-video [path]` | Export a sentence-synchronized karaoke MP4 video |
 | `subtitle-format srt\|vtt` | Set the caption format used for subtitle export |
@@ -832,11 +834,11 @@ complete.
 | `volume-down` | Decrease TTS volume |
 | `tts-backend` | Switch TTS engine at runtime (`pyttsx3`/`espeak`/`festival`/`piper`/`coqui`/`dectalk`/`elevenlabs`/`none`) |
 | `highlight-granularity word\|sentence\|both` | Highlight the spoken word, the whole sentence, or both |
-| `tts-voice` | Switch TTS voice by ID |
+| `tts-voice` | Open the interactive voice picker (same as `Ctrl+T`) |
 | `ssml-on` / `ssml-off` | Enable/disable SSML prosody markup |
 | `speed <name>` | Apply a named speed preset: `skim`, `normal`, `study`, `slow` |
-| `speed-add <name> <wpm>` | Define a new speed preset |
-| `speed-list` | List all defined speed presets |
+| `preset-add <name>` | Save the current rate as a new speed preset |
+| `preset-list` | List all defined speed presets |
 
 ### Search & Navigation
 
@@ -862,8 +864,7 @@ complete.
 | `line-numbers` | Toggle line numbers |
 | `syntax-highlight` | Toggle code syntax highlighting |
 | `wrap-width` | Set text wrap width in columns |
-| `font-size-up` / `font-size-down` | Adjust font size (Qt GUI) |
-| `font <family>` | Set font family (Qt GUI) |
+| `font-size-up` / `font-size-down` | Show a reminder that font size is set in your terminal emulator |
 | `table-mode` | Switch table reading: `structured`, `flat`, or `skip` |
 | `footnote-mode` | Switch footnote handling: `inline`, `deferred`, or `skip` |
 | `reading-level` | Show Flesch-Kincaid grade and ease score |
@@ -909,7 +910,7 @@ complete.
 | `help` | Open the built-in help manual |
 | `about` | Version, author, and license |
 | `license` | Full GPL v3 license text |
-| `settings` | Open `settings.json` in your system editor |
+| `settings` | Show the path of `settings.json` |
 | `quit` | Exit `star` |
 
 All standard Emacs line-editing keys work inside the minibuffer (`C-a`, `C-e`,
@@ -923,7 +924,7 @@ All standard Emacs line-editing keys work inside the minibuffer (`C-a`, `C-e`,
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ File  Highlight  View                                                         │  ← menu bar
+│ File Edit View Annotate Speech Navigate Format Study Graph Tools Help        │  ← menu bar
 ├─────┬──────────────────────────────────────────────────────────────────────  │
 │     │ [Open] [Play/Pause ▶⏸] [Stop ■] [+ Speed] [− Speed] [SC ○] [Voice…]   │  ← toolbar
 │ ToC │ [Theme] [Help] [Quit] [Copy] [Level] [Highlight]                        │
@@ -1001,6 +1002,12 @@ of your notes and highlights), Sync with Anki (AnkiConnect)…, and the citation
 library: Import… (`Ctrl+Alt+I`), Export…, Add Citation… (`Ctrl+Alt+C`), Add by
 DOI… (`Ctrl+Alt+D`), Insert Citation at Cursor… (`Ctrl+Alt+R`), and Manage /
 Browse… (`Ctrl+Alt+G`).
+
+**Graph menu** — the knowledge graph of your notes and their relations: Show
+Graph View (`Ctrl+Shift+Q`, toggles the graph dock), Rebuild Graph, Add
+Relation… / Edit Relations…, Extract Concepts…, Auto-Suggest Relations…,
+Export Graph ▸ (SVG / PlantUML / DOT (GraphViz) / JSON), and View Formats ▸
+(open an SVG / PlantUML / DOT file).
 
 **View menu** — Toggle Contents Panel (`Ctrl+\`), Toggle Notes Panel
 (`Ctrl+Shift+N`), Next Theme (`F5`), Choose Theme…, Caret Browsing (`F7`),

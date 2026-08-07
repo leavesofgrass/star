@@ -81,7 +81,8 @@ pluggable backends/formats/exporters, and `star --check-update` checks PyPI.
 Prefer the command line or a scripted setup? `star --install-optional` installs
 the `all` preset; `star --install-optional thin` or
 `star --install-optional ocr,dictionary` install a preset or a comma-separated
-list of features; run it with no value to list every feature with its size.
+list of features; run it with an unrecognized value (e.g.
+`star --install-optional help`) to list every feature with its size.
 `star --plugins list` and `star --check-update` round out the CLI. Advanced users
 can still install extras the classic way — `pip install "star-reader[all]"`, or
 groups like `star-reader[translate,vocab]` — but the normal path is one click,
@@ -158,8 +159,8 @@ notes) are in the **[Installation guide](docs/installation.md)**.
   so the core runs on the Python standard library alone.
 - **One-click optional features:** when a capability needs an add-on, star
   downloads it in the background — **no `pip install` step anywhere** — and it
-  works right away (only the large speech-to-text pack needs a restart). Driven by
-  a first-run chooser or `star --install-optional`.
+  works right away, including the large speech-to-text pack. Driven by a
+  first-run chooser or `star --install-optional`.
 - **One tabbed Preferences dialog:** every reader setting — Reading, Reading
   Aids, Voice, Display, Fonts, General — in **Edit ▸ Preferences…**
   (**Ctrl+,**), with Apply and **Restore Defaults**.
