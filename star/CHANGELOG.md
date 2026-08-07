@@ -8,6 +8,43 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.29] 2026-08-07
+
+### 🐛 Fixed
+
+- **Word highlighting now lands on the right word for non-ASCII text with the
+  in-process eSpeak engine (Linux).** libespeak-ng reports word events as
+  offsets into the UTF-8 *byte* stream it is handed, while star's highlighter
+  works in characters — identical for plain ASCII, but every accented, Cyrillic,
+  CJK, or emoji character earlier in a passage pushed the highlight one position
+  further right. Byte offsets are now mapped back to characters per chunk
+  (start *and* length), so the karaoke highlight stays glued to the spoken word
+  in any language.
+- **`star --install-optional --help` no longer misdescribes the bare flag.**
+  Running `star --install-optional` with no value installs the full **all**
+  preset; the help text (and README) claimed it would list the available
+  features instead. Both now say what actually happens, and point to
+  `star --install-optional help` for the feature list with sizes.
+
+### 🔀 Changed
+
+- **The eSpeak buffer-size shim retires itself once upstream is fixed.** star
+  ships a workaround for pyttsx3's espeak binding over-reading its input buffer
+  ([pyttsx3#448](https://github.com/nateshmbhat/pyttsx3/issues/448), fix
+  submitted upstream as
+  [PR #450](https://github.com/nateshmbhat/pyttsx3/pull/450)). The shim now
+  inspects the installed driver first and stands down when the fix is already
+  present, so a patched pyttsx3 release is used as-is the day it ships.
+- **Documentation accuracy sweep — 72 verified corrections across 20 files.**
+  Every guide was audited against the code: wrong shortcuts on menu-only
+  actions, a nonexistent `starz` command, the pre-0.1.28 TTS engine order,
+  leftover "needs a restart" and "≈ 2 GB" dictation-era claims, unfinished
+  menu renames (Highlight/Notes → Annotate, Citations → Study), stale
+  packaging/release-gating descriptions, and the configuration table's missing
+  `applesay` engine and `ar` UI language, among others.
+
+---
+
 ## [0.1.28] 2026-07-18
 
 ### 🔀 Changed
