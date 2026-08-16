@@ -127,10 +127,13 @@ notes) are in the **[Installation guide](docs/installation.md)**.
 - **Knowledge graph:** link annotations across documents with typed relations
   (`CONFLICTS_WITH`, `SUPPORTS`, `CITES`, …), extract concepts, view the graph
   interactively, and export to SVG/PlantUML/DOT/JSON.
-- **Export:** Markdown, HTML, EPUB, PDF (with highlights), BRF braille, TTS
-  audio (WAV/MP3/OGG/MP4), **chaptered M4B audiobooks** (chapters from headings;
-  needs ffmpeg), karaoke video (MP4), Anki decks, and synchronized SRT/VTT
-  subtitles.
+- **Export:** Markdown, HTML, EPUB, DOCX, PDF (with highlights), BRF braille,
+  TTS audio (WAV/MP3/OGG/MP4), **chaptered M4B audiobooks** (chapters from
+  headings; needs ffmpeg), karaoke video (MP4), Anki decks, and synchronized
+  SRT/VTT subtitles.
+- **Publish (F9):** styled, metadata-complete EPUB / Word / single-file HTML
+  with bundled **Large Print**, **Dyslexia-friendly**, and **High Contrast**
+  templates — or your own CSS / institution's `.docx` template.
 - **Extensible:** TTS engines, document formats, and export targets are
   discovered through `importlib.metadata` entry-points — installing a
   third-party plugin package adds backends, loaders, or exporters with no

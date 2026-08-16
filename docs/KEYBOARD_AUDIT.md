@@ -52,7 +52,7 @@ survive a UI-language switch. Source: `star/gui/mixin_chrome.py`.
 | `Ctrl+Alt+A` | Export as Audio… |
 | `Ctrl+Alt+U` | Export Subtitles (SRT / VTT)… |
 | `Ctrl+Alt+H` | Anki Flashcards… |
-| *(no shortcut)* | Obsidian Vault…, Video (MP4)… (menu-only; `Ctrl+Alt+V` is Tools ▸ Dictate Note), Export Audiobook (M4B)…, plugin exporters (HTML/EPUB/third-party) |
+| *(no shortcut)* | Obsidian Vault…, Video (MP4)… (menu-only; `Ctrl+Alt+V` is Tools ▸ Dictate Note), Export Audiobook (M4B)…, plugin exporters (HTML/EPUB/DOCX/third-party) |
 
 ### Speech 🔊
 

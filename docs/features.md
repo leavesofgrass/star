@@ -1115,7 +1115,7 @@ template, and output
 path prompts with completion — and shares the same per-document memory.
 
 Publishing needs Pandoc (bundled in the Windows exe; `pip install pypandoc`
-or a system pandoc elsewhere). The quick HTML/EPUB items under File ▸ Export
+or a system pandoc elsewhere). The quick HTML/EPUB/DOCX items under File ▸ Export
 remain the fast, unstyled path.
 
 ## Speed presets, bookmarks & history

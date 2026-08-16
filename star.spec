@@ -83,6 +83,15 @@ datas = [
 if _os.path.isdir(_os.path.join(_here, "star", "locale")):
     datas.append(("star/locale", "star/locale"))
 
+# Publishing stylesheets (0.1.30+): the bundled accessibility templates the
+# Publish dialog seeds into the user's publish-styles folder.  Without these
+# the frozen app silently offers no Large Print / Dyslexia-friendly /
+# High Contrast templates (seeding no-ops on an absent bundled dir).  The
+# DOCX reference documents need no bundling — they are generated at runtime
+# by python-docx, which is a base dependency and already in the build.
+if _os.path.isdir(_os.path.join(_here, "star", "publish_styles")):
+    datas.append(("star/publish_styles", "star/publish_styles"))
+
 # ── Plugin registry metadata — REQUIRED for any speech at all ───────────────
 # Since 0.1.21 every TTS engine (SAPI/pyttsx3, eSpeak, DECtalk, …) is
 # discovered through importlib.metadata entry points declared in
