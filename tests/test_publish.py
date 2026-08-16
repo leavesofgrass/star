@@ -219,7 +219,7 @@ def test_pandoc_write_appends_extra_args(monkeypatch):
             captured["extra"] = list(extra_args)
 
     monkeypatch.setattr(ex, "_PYPANDOC", True)
-    monkeypatch.setattr(ex, "_pypandoc", _FakePypandoc)
+    monkeypatch.setattr(ex, "_pypandoc", _FakePypandoc, raising=False)
     _pandoc_write("# hi", "epub", "out.epub", extra_args=["--toc", "--css", "x"])
     assert captured["extra"][0] == "--standalone"
     assert captured["extra"][1:] == ["--toc", "--css", "x"]
@@ -237,7 +237,7 @@ def test_exporter_options_route_through_publish_args(monkeypatch):
             captured["extra"] = list(extra_args)
 
     monkeypatch.setattr(ex, "_PYPANDOC", True)
-    monkeypatch.setattr(ex, "_pypandoc", _FakePypandoc)
+    monkeypatch.setattr(ex, "_pypandoc", _FakePypandoc, raising=False)
     monkeypatch.setattr(publish, "_pandoc_major_cache", 3)
     doc = _doc(title="T", markdown="# T\n\nbody")
     EPUBExporter().export(doc, "out.epub", options=PublishOptions(author="A"))
