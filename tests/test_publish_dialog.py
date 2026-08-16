@@ -114,6 +114,40 @@ def test_cover_is_epub_only(qapp):
     dlg.deleteLater()
 
 
+def test_format_switch_repopulates_templates(qapp, monkeypatch, tmp_path):
+    """EPUB↔DOCX switching swaps the template list (CSS vs reference docs)
+    while keeping a same-named selection — large-print exists in both worlds."""
+    import star.gui.publish_dialog as pd
+    import star.publish as publish
+
+    css = tmp_path / "large-print.css"
+    css.write_text("body{}", encoding="utf-8")
+    ref = tmp_path / "large-print.docx"
+    ref.write_bytes(b"stub")
+    monkeypatch.setattr(
+        pd, "available_templates", lambda: {"large-print": css, "web-only": css}
+    )
+    monkeypatch.setattr(
+        publish, "available_reference_docs", lambda: {"large-print": ref}
+    )
+
+    dlg = _dialog(qapp)
+    dlg._select_data(dlg._template, "large-print")
+    dlg._select_data(dlg._fmt, "docx")
+    dlg._on_format_changed()
+    names = [dlg._template.itemData(i) for i in range(dlg._template.count())]
+    assert names == ["", "large-print"]  # reference docs, not CSS
+    assert dlg._template.currentData() == "large-print"  # selection survived
+    assert not dlg._cover_row.isEnabled()  # cover stays EPUB-only
+
+    dlg._select_data(dlg._fmt, "epub")
+    dlg._on_format_changed()
+    names = [dlg._template.itemData(i) for i in range(dlg._template.count())]
+    assert "web-only" in names  # CSS list is back
+    assert dlg._template.currentData() == "large-print"
+    dlg.deleteLater()
+
+
 def test_publish_menu_action_bound_to_f9(qapp):
     from PyQt6.QtGui import QKeySequence
     from PyQt6.QtWidgets import QApplication  # noqa: F401

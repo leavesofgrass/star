@@ -1085,7 +1085,8 @@ it you get a clear message rather than a broken file.
 
 Where the quick **File ▸ Export** items are bare converters, **File ▸
 Publish…** (`F9`) is the full pipeline: it produces a *styled, metadata-complete*
-EPUB or standalone HTML through Pandoc, in one keyboard-first dialog.
+EPUB, Word document (DOCX), or single-file HTML through Pandoc, in one
+keyboard-first dialog.
 
 - **Stylesheet templates** — three accessibility templates ship with star, each
   mirroring one of its reading aids: **Large Print** (~18 pt body, open
@@ -1098,11 +1099,19 @@ EPUB or standalone HTML through Pandoc, in one keyboard-first dialog.
 - **Metadata** — title, author, language, and date prefill from the document's
   own metadata (an imported EPUB's author carries through automatically) and
   can be overridden per publish.
+- **DOCX styling via reference documents** — CSS can't style Word files, so
+  the DOCX target styles through Pandoc reference documents instead. star
+  *generates* Large Print and Dyslexia-friendly reference `.docx` files into
+  the same `publish-styles` folder on first use, and any `.docx` you drop
+  there (e.g. your institution's template) appears in the picker.
+- **Single-file HTML** — the HTML target embeds the stylesheet and every
+  image into one portable file (`--embed-resources`), ready to attach or post.
 - **Cover image** (EPUB) and a **table of contents** with selectable depth.
 - Choices are **remembered per document**, so re-publishing after edits is
   `F9`, `Enter`.
 
-The TUI mirrors the flow as **`M-x publish`** — format, template, and output
+The TUI mirrors the flow as **`M-x publish`** — format (`epub`/`html`/`docx`),
+template, and output
 path prompts with completion — and shares the same per-document memory.
 
 Publishing needs Pandoc (bundled in the Windows exe; `pip install pypandoc`

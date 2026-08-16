@@ -116,6 +116,42 @@ class HTMLExporter(Exporter):
         )
 
 
+class DOCXExporter(Exporter):
+    """Render the document to a Word .docx file via Pandoc.
+
+    Registered in 0.1.30 for the publishing arc's phase 2 — the
+    submit-your-coursework target.  Appears in the dynamic File ▸ Export
+    section as the bare converter; the Publish dialog / ``M-x publish`` route
+    through it with a :class:`star.publish.PublishOptions`, where styling
+    comes from a ``--reference-doc`` (see
+    :func:`star.publish.available_reference_docs`).
+    """
+
+    name = "docx"
+
+    @classmethod
+    def extensions(cls) -> frozenset[str]:
+        return frozenset({".docx"})
+
+    @classmethod
+    def available(cls) -> bool:
+        from ._runtime import _PANDOC_BIN, _PYPANDOC
+        return bool(_PYPANDOC or _PANDOC_BIN)
+
+    def export(self, document, path, *, options=None, **kwargs) -> None:
+        if options is not None:
+            from .publish import build_pandoc_args
+
+            _pandoc_write(
+                document.markdown or "", "docx", path,
+                extra_args=build_pandoc_args(options, document),
+            )
+            return
+        _pandoc_write(
+            document.markdown or "", "docx", path, title=getattr(document, "title", "")
+        )
+
+
 class EPUBExporter(Exporter):
     """Render the document to an EPUB file via Pandoc."""
 

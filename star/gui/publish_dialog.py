@@ -15,9 +15,13 @@ from .._runtime import *  # noqa: F401,F403
 from ..i18n import tr
 from ..publish import PublishOptions, available_templates, resolve_metadata
 
-#: The publish targets this dialog offers today; DOCX and single-file HTML
-#: join in phase 2 (design doc) with no pipeline change.
-_FORMATS: "List[Tuple[str, str]]" = [("EPUB", "epub"), ("HTML", "html")]
+#: The publish targets.  EPUB and DOCX are the deliverable formats; HTML here
+#: means ONE portable file (--embed-resources), unlike the bare quick export.
+_FORMATS: "List[Tuple[str, str]]" = [
+    ("EPUB", "epub"),
+    ("DOCX", "docx"),
+    ("HTML", "html"),
+]
 
 #: Combo entry meaning "no stylesheet — Pandoc's default look".
 _NO_TEMPLATE = ""
@@ -44,10 +48,9 @@ class PublishDialog(QDialog):
             self._fmt.addItem(label, value)
         form.addRow(tr("Format:"), self._fmt)
 
+        # Populated per-format by _populate_templates(): CSS stylesheets for
+        # EPUB/HTML, --reference-doc .docx files for DOCX.
         self._template = QComboBox()
-        self._template.addItem(tr("No template (Pandoc default)"), _NO_TEMPLATE)
-        for name in sorted(available_templates()):
-            self._template.addItem(name, name)
         form.addRow(tr("Stylesheet template:"), self._template)
 
         # Metadata rows prefill from the document via the same resolution the
@@ -84,11 +87,13 @@ class PublishDialog(QDialog):
         self._toc_depth.setValue(int(saved.get("toc_depth", 3)))
         form.addRow(tr("Contents depth:"), self._toc_depth)
 
-        # Restore the remembered format/template AFTER the rows exist, then
-        # keep the EPUB-only cover row in sync with the chosen format.
+        # Restore the remembered format, fill the template list for it, then
+        # restore the remembered template and keep both format-dependent rows
+        # (template list + EPUB-only cover) in sync with later changes.
         self._select_data(self._fmt, saved.get("fmt", "epub"))
+        self._populate_templates()
         self._select_data(self._template, saved.get("template", _NO_TEMPLATE))
-        self._fmt.currentIndexChanged.connect(self._sync_format_rows)
+        self._fmt.currentIndexChanged.connect(self._on_format_changed)
         self._sync_format_rows()
 
         buttons = QDialogButtonBox(
@@ -111,6 +116,30 @@ class PublishDialog(QDialog):
         idx = combo.findData(value)
         if idx >= 0:
             combo.setCurrentIndex(idx)
+
+    def _on_format_changed(self, *_a) -> None:
+        self._populate_templates()
+        self._sync_format_rows()
+
+    def _populate_templates(self) -> None:
+        """Fill the template combo for the current format, keeping the
+        selection when the same name exists in the new list (large-print
+        exists as both a stylesheet and a reference doc, so switching
+        EPUB ↔ DOCX preserves the intent)."""
+        from ..publish import available_reference_docs
+
+        fmt = str(self._fmt.currentData())
+        current = str(self._template.currentData() or _NO_TEMPLATE)
+        names = sorted(
+            available_reference_docs() if fmt == "docx" else available_templates()
+        )
+        self._template.blockSignals(True)
+        self._template.clear()
+        self._template.addItem(tr("No template (Pandoc default)"), _NO_TEMPLATE)
+        for name in names:
+            self._template.addItem(name, name)
+        self._select_data(self._template, current)
+        self._template.blockSignals(False)
 
     def _sync_format_rows(self, *_a) -> None:
         """The cover image applies to EPUB only — disable it elsewhere."""

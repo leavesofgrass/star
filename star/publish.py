@@ -86,6 +86,84 @@ def available_templates() -> Dict[str, Path]:
     return result
 
 
+def _generate_reference_doc(kind: str, dest: Path) -> bool:
+    """Generate an accessibility ``--reference-doc`` .docx at *dest*.
+
+    DOCX styling can't use CSS — Pandoc styles its output by copying the
+    styles of a reference document.  Rather than shipping binary .docx blobs,
+    the two accessibility references are *generated* from python-docx's stock
+    template (a base dependency) the first time discovery runs:
+
+    - ``large-print``: 18 pt Normal, 1.5 line spacing, sans-serif, bumped
+      headings — the large-print-edition conventions.
+    - ``dyslexia-friendly``: OpenDyslexic (Word substitutes its default when
+      the font is absent), 14 pt, 1.5 spacing, extra paragraph gap.
+
+    Pandoc's docx writer puts body paragraphs in ``Body Text`` (and the first
+    paragraph after a heading in ``First Paragraph``) — python-docx's template
+    defines neither, so both are added based on Normal; without them the
+    tuned Normal style would never actually cascade to the output text.
+    Returns False (and writes nothing) when python-docx is unavailable.
+    """
+    try:
+        import docx as _docx
+        from docx.enum.style import WD_STYLE_TYPE
+        from docx.shared import Pt
+    except ImportError:
+        return False
+    try:
+        d = _docx.Document()
+        normal = d.styles["Normal"]
+        if kind == "large-print":
+            normal.font.name = "Arial"
+            normal.font.size = Pt(18)
+            normal.paragraph_format.line_spacing = 1.5
+            normal.paragraph_format.space_after = Pt(12)
+            for name, size in (("Heading 1", 26), ("Heading 2", 22), ("Heading 3", 20)):
+                st = d.styles[name]
+                st.font.size = Pt(size)
+        elif kind == "dyslexia-friendly":
+            normal.font.name = "OpenDyslexic"
+            normal.font.size = Pt(14)
+            normal.paragraph_format.line_spacing = 1.5
+            normal.paragraph_format.space_after = Pt(14)
+        else:
+            return False
+        for pandoc_style in ("Body Text", "First Paragraph"):
+            if pandoc_style not in [s.name for s in d.styles]:
+                st = d.styles.add_style(pandoc_style, WD_STYLE_TYPE.PARAGRAPH)
+                st.base_style = d.styles["Normal"]
+        d.save(str(dest))
+        return True
+    except Exception:  # noqa: BLE001 — a failed generate must not break discovery
+        return False
+
+
+def available_reference_docs() -> Dict[str, Path]:
+    """Map reference-doc name (file stem) → .docx path for the DOCX target.
+
+    Mirrors :func:`available_templates` for the ``--reference-doc`` world:
+    the two generated accessibility references are seeded into the user
+    folder once (never regenerated over an edited file), any ``*.docx`` the
+    user drops there appears, and the user copy wins on a name clash.
+    """
+    try:
+        PUBLISH_STYLES_DIR.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return {}
+    for kind in ("large-print", "dyslexia-friendly"):
+        dest = PUBLISH_STYLES_DIR / f"{kind}.docx"
+        if not dest.exists():
+            _generate_reference_doc(kind, dest)
+    result: Dict[str, Path] = {}
+    try:
+        for ref in sorted(PUBLISH_STYLES_DIR.glob("*.docx")):
+            result[ref.stem] = ref
+    except OSError:
+        pass
+    return result
+
+
 def resolve_metadata(document: Any, options: "PublishOptions") -> Dict[str, str]:
     """Resolve title/author/language/date: options → doc.metadata → doc fields.
 
@@ -172,9 +250,15 @@ def build_pandoc_args(
         args += ["--metadata", f"date={meta['date']}"]
 
     if options.template:
-        css = available_templates().get(options.template)
-        if css is not None:
-            args += ["--css", str(css)]
+        if options.fmt == "docx":
+            # DOCX has no CSS — styling comes from a reference document.
+            ref = available_reference_docs().get(options.template)
+            if ref is not None:
+                args += ["--reference-doc", str(ref)]
+        else:
+            css = available_templates().get(options.template)
+            if css is not None:
+                args += ["--css", str(css)]
 
     if options.toc:
         args += ["--toc", f"--toc-depth={int(options.toc_depth)}"]
@@ -184,5 +268,14 @@ def build_pandoc_args(
             args += ["--epub-cover-image", options.cover_image]
         flag = "--split-level" if _pandoc_major() >= 3 else "--epub-chapter-level"
         args += [f"{flag}={int(options.split_level)}"]
+
+    if options.fmt == "html":
+        # Publish means ONE portable file: the template CSS and any images
+        # embed as data URIs (the quick File ▸ Export ▸ HTML stays bare).
+        args += [
+            "--embed-resources"
+            if _pandoc_major() >= 3
+            else "--self-contained"
+        ]
 
     return args

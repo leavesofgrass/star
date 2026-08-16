@@ -248,6 +248,63 @@ def test_exporter_options_route_through_publish_args(monkeypatch):
     assert captured["extra"].count("title=T") == 1
 
 
+# ── phase 2: DOCX reference docs + single-file HTML ─────────────────────────
+
+
+def test_args_docx_uses_reference_doc_not_css(monkeypatch, tmp_path):
+    monkeypatch.setattr(publish, "_pandoc_major_cache", 3)
+    ref = tmp_path / "large-print.docx"
+    ref.write_bytes(b"stub")
+    monkeypatch.setattr(
+        publish, "available_reference_docs", lambda: {"large-print": ref}
+    )
+    args = build_pandoc_args(
+        PublishOptions(fmt="docx", template="large-print", cover_image="c.png"),
+        None,
+    )
+    i = args.index("--reference-doc")
+    assert args[i + 1] == str(ref)
+    assert "--css" not in args
+    assert "--epub-cover-image" not in args  # cover is EPUB-only
+    assert not any(a.startswith("--split-level") for a in args)
+    assert "--toc" in args  # TOC applies to DOCX too
+
+
+def test_args_html_is_single_file(monkeypatch):
+    monkeypatch.setattr(publish, "_pandoc_major_cache", 3)
+    html = build_pandoc_args(PublishOptions(fmt="html"), None)
+    assert "--embed-resources" in html
+    monkeypatch.setattr(publish, "_pandoc_major_cache", 2)
+    old = build_pandoc_args(PublishOptions(fmt="html"), None)
+    assert "--self-contained" in old and "--embed-resources" not in old
+    monkeypatch.setattr(publish, "_pandoc_major_cache", 3)
+    epub = build_pandoc_args(PublishOptions(fmt="epub"), None)
+    assert "--embed-resources" not in epub
+
+
+def test_reference_docs_generate_seed_and_discover(monkeypatch, tmp_path):
+    """First discovery generates the two a11y reference .docx files with the
+    styles Pandoc's writer needs, and never regenerates over an edit."""
+    pytest.importorskip("docx", reason="python-docx not installed")
+    monkeypatch.setattr(publish, "PUBLISH_STYLES_DIR", tmp_path)
+
+    refs = publish.available_reference_docs()
+    assert set(refs) >= {"large-print", "dyslexia-friendly"}
+
+    with zipfile.ZipFile(refs["large-print"]) as z:
+        styles = z.read("word/styles.xml").decode("utf-8")
+    assert 'w:val="36"' in styles  # 18 pt Normal = 36 half-points
+    assert "Body Text" in styles  # pandoc's body-paragraph style exists
+
+    # A user-dropped reference appears; an existing file is never regenerated.
+    (tmp_path / "mine.docx").write_bytes(b"user")
+    marker = tmp_path / "large-print.docx"
+    marker.write_bytes(b"edited")
+    refs = publish.available_reference_docs()
+    assert "mine" in refs
+    assert marker.read_bytes() == b"edited"
+
+
 # ── integration: a real EPUB, structurally verified ─────────────────────────
 
 
@@ -285,3 +342,36 @@ def test_published_epub_structure(tmp_path, monkeypatch):
         )
         assert b"Test Author" in joined
         assert b"Structure Test" in joined
+
+
+@pytest.mark.skipif(not EPUBExporter.available(), reason="Pandoc not installed")
+def test_published_docx_structure(tmp_path, monkeypatch):
+    """A real DOCX publish: the generated large-print reference doc's styling
+    lands in the output (pandoc copies the reference styles.xml), and the
+    document metadata reaches docProps."""
+    pytest.importorskip("docx", reason="python-docx not installed")
+    from star.export import DOCXExporter
+
+    monkeypatch.setattr(publish, "PUBLISH_STYLES_DIR", tmp_path / "styles")
+    refs = publish.available_reference_docs()
+    assert "large-print" in refs
+
+    doc = _doc(
+        title="Docx Test",
+        markdown="# One\n\nAlpha beta.\n\n## Two\n\nGamma.\n",
+        metadata={"creator": "Docx Author"},
+    )
+    out = tmp_path / "paper.docx"
+    DOCXExporter().export(
+        doc, str(out),
+        options=PublishOptions(fmt="docx", template="large-print"),
+    )
+
+    assert out.is_file() and out.stat().st_size > 0
+    with zipfile.ZipFile(out) as zf:
+        names = zf.namelist()
+        assert "word/document.xml" in names
+        styles = zf.read("word/styles.xml").decode("utf-8")
+        assert 'w:val="36"' in styles  # the 18 pt large-print Normal came through
+        core = zf.read("docProps/core.xml").decode("utf-8")
+        assert "Docx Author" in core

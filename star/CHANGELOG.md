@@ -19,6 +19,15 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
   optional cover image, and a table of contents with selectable depth — with
   every choice remembered per document, shared between the GUI dialog and the
   TUI command.
+- **DOCX and single-file HTML publish targets.** The Publish dialog and
+  `M-x publish` gain **DOCX** — the submit-your-coursework format — styled
+  through Pandoc *reference documents*: star generates Large Print and
+  Dyslexia-friendly reference `.docx` files (via python-docx, no binary
+  blobs shipped) into the `publish-styles` folder, and any `.docx` dropped
+  there (an institution's template, say) appears in the picker. The HTML
+  target now embeds its stylesheet and images into **one portable file**
+  (`--embed-resources`); the quick File ▸ Export ▸ HTML stays the bare
+  converter. A quick unstyled DOCX converter also joins File ▸ Export.
 - **Three accessibility publish templates**, each mirroring a star reading
   aid: **Large Print**, **Dyslexia-friendly** (OpenDyslexic/Atkinson
   Hyperlegible stack), and **High Contrast** (the AAA theme palette). Seeded

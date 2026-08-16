@@ -43,6 +43,10 @@ document.
 
 ## Next steps
 
-- The quick, unstyled converters stay at **File ▸ Export ▸ HTML/EPUB**.
+- Pick **DOCX** as the format to produce a Word file instead — styling comes
+  from reference documents (star generates Large Print and Dyslexia-friendly
+  ones; drop your institution's `.docx` template into `publish-styles/` to
+  submit in its house style).
+- The quick, unstyled converters stay at **File ▸ Export ▸ HTML/EPUB/DOCX**.
 - [features.md — Publishing](../../../features.md#publishing-epub--html) for
   the full option reference.

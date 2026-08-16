@@ -120,7 +120,7 @@ def test_publish_chain_prompts_and_runs(monkeypatch):
     app._publish_cmd()
     prompt, initial, completions, commit = app.prompts[-1]
     assert "format" in prompt.lower()
-    assert completions == ["epub", "html"]
+    assert completions == ["epub", "html", "docx"]
     commit("epub")
 
     prompt, initial, completions, commit = app.prompts[-1]
@@ -153,4 +153,29 @@ def test_publish_rejects_unknown_format(monkeypatch):
     monkeypatch.setattr(EPUBExporter, "available", classmethod(lambda cls: True))
     app = _App(doc=_doc())
     app._publish_fmt_cb("pdf")
-    assert any("epub or html" in m for m, _e in app.notices)
+    assert any("epub, html, or docx" in m for m, _e in app.notices)
+
+
+def test_publish_docx_offers_reference_docs(monkeypatch, tmp_path):
+    """The docx branch completes over --reference-doc names, not CSS, and the
+    destination default carries the .docx extension."""
+    import star.publish as publish
+    from star.export import EPUBExporter
+
+    monkeypatch.setattr(EPUBExporter, "available", classmethod(lambda cls: True))
+    ref = tmp_path / "large-print.docx"
+    ref.write_bytes(b"stub")
+    monkeypatch.setattr(
+        publish, "available_reference_docs", lambda: {"large-print": ref}
+    )
+    monkeypatch.setattr(
+        publish, "available_templates", lambda: {"css-only": tmp_path}
+    )
+
+    app = _App(doc=_doc())
+    app._publish_fmt_cb("docx")
+    _p, _i, completions, commit = app.prompts[-1]
+    assert completions == ["none", "large-print"]  # reference docs, no CSS
+    commit("large-print")
+    _p, initial, _c, _commit = app.prompts[-1]
+    assert initial.endswith("notes.docx")

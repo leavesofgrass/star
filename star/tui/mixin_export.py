@@ -65,7 +65,7 @@ class ExportMixin:
     # ── Publish (full pipeline: template + metadata + TOC) ────────────────
 
     def _publish_cmd(self, arg: str = "") -> None:
-        """M-x publish [epub|html] — styled export via the publishing pipeline.
+        """M-x publish [epub|html|docx] — styled export via the pipeline.
 
         Mirrors the GUI's File ▸ Publish… dialog as a minibuffer chain
         (format → stylesheet template → output path).  Metadata is resolved
@@ -86,7 +86,7 @@ class ExportMixin:
             )
             return
         fmt = (arg or "").strip().lower()
-        if fmt in ("epub", "html"):
+        if fmt in ("epub", "html", "docx"):
             self._publish_fmt_cb(fmt)
             return
         saved = self._publish_saved()
@@ -94,7 +94,7 @@ class ExportMixin:
             "Publish format: ",
             initial=str(saved.get("fmt", "epub")),
             on_commit=self._publish_fmt_cb,
-            completions=["epub", "html"],
+            completions=["epub", "html", "docx"],
         )
 
     def _publish_saved(self) -> "Dict[str, Any]":
@@ -103,13 +103,16 @@ class ExportMixin:
         return dict(store.get(self._annot_key(), {}) or {})
 
     def _publish_fmt_cb(self, fmt: str) -> None:
-        from ..publish import available_templates
+        from ..publish import available_reference_docs, available_templates
 
         fmt = fmt.strip().lower()
-        if fmt not in ("epub", "html"):
-            self.notify("Publish format must be epub or html.", error=True)
+        if fmt not in ("epub", "html", "docx"):
+            self.notify("Publish format must be epub, html, or docx.", error=True)
             return
-        names = sorted(available_templates())
+        # DOCX styles via --reference-doc files; EPUB/HTML via CSS templates.
+        names = sorted(
+            available_reference_docs() if fmt == "docx" else available_templates()
+        )
         saved = str(self._publish_saved().get("template", "")) or "none"
         self._enter_minibuffer(
             "Stylesheet template: ",
@@ -123,7 +126,7 @@ class ExportMixin:
         if template == "none":
             template = ""
         p = Path(self.doc.path) if self.doc and self.doc.path else Path("publish")
-        ext = ".epub" if fmt == "epub" else ".html"
+        ext = {"epub": ".epub", "html": ".html", "docx": ".docx"}[fmt]
         self._enter_minibuffer(
             f"Publish {fmt.upper()} to: ",
             initial=str(p.parent / (p.stem + ext)),
