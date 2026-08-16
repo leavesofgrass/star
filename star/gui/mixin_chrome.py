@@ -401,6 +401,16 @@ class ChromeMixin:
                     )
                 )
 
+        file_menu.addAction(
+            _mi(
+                "Publish…",
+                "F9",
+                self._qt_publish_dialog,
+                tip="Publish the document as a styled EPUB or HTML "
+                "(template, metadata, cover, table of contents)",
+            )
+        )
+
         file_menu.addSeparator()
         file_menu.addAction(
             _mi(

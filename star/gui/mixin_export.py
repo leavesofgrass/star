@@ -8,6 +8,7 @@ lazily by main_window.py (itself imported by runner.py after the _QT guard).
 from .._runtime import *  # noqa: F401,F403
 from ..braille import _export_braille
 from ..convert import resolve_format, run_batch, supported_formats
+from ..i18n import tr
 from ..ttstext import _preprocess_tts_text
 from ..watch import HotFolderWatcher, _make_logger
 from ._qtcompat import _KEEP_ANCHOR
@@ -501,6 +502,66 @@ class ExportMixin:
             if cls.name not in self._MENU_COVERED_EXPORTERS and cls.available()
         ]
         return sorted(out, key=lambda c: c.name)
+
+    def _qt_publish_dialog(self) -> None:
+        """File ▸ Publish… (F9) — the full publishing pipeline in one dialog.
+
+        Collects a :class:`star.publish.PublishOptions` (format, stylesheet
+        template, metadata, cover, TOC), remembers the choices per document,
+        and runs the matching exporter on a background thread — the same
+        worker/status pattern as :meth:`_qt_export_via_plugin`, but with the
+        options routed through ``star.publish.build_pandoc_args``.
+        """
+        from ..plugins import PluginRegistry
+        from .publish_dialog import PublishDialog
+
+        if not self.doc:
+            self.statusBar().showMessage(tr("No document loaded"))
+            return
+
+        store: Dict[str, Any] = dict(self.settings.get("publish_options", {}) or {})
+        key = self._annot_key()
+        dlg = PublishDialog(self, self.doc, store.get(key))
+        if not dlg.exec():
+            return
+        options = dlg.options()
+
+        exporter_cls = next(
+            (c for c in PluginRegistry.get().exporters if c.name == options.fmt),
+            None,
+        )
+        if exporter_cls is None or not exporter_cls.available():
+            self.statusBar().showMessage(
+                tr("Publishing needs Pandoc — install pandoc or pypandoc")
+            )
+            return
+
+        if key:
+            store[key] = dlg.values_dict()
+            self.settings.set("publish_options", store)
+
+        ext = sorted(exporter_cls.extensions())[0]
+        p = Path(self.doc.path) if self.doc.path else Path("publish")
+        dest, _flt = QFileDialog.getSaveFileName(
+            self,
+            tr("Publish"),
+            str(p.parent / (p.stem + ext)),
+            f"{options.fmt.upper()} (*{ext});;All Files (*)",
+        )
+        if not dest:
+            return
+
+        self.statusBar().showMessage(tr("Publishing… this may take a while"))
+        doc = self._qt_live_doc()  # live buffer while editing; a copy
+
+        def _work() -> None:
+            try:
+                exporter_cls().export(doc, dest, options=options)
+                self._export_audio_signal.emit(f"Published {options.fmt.upper()} → {dest}")
+            except Exception as exc:  # noqa: BLE001 — surfaced on the status bar
+                self._export_audio_signal.emit(f"Publish error: {exc}")
+
+        self._spawn_worker(_work)
 
     def _qt_export_via_plugin(self, exporter_cls: type) -> None:
         """Generic File ▸ Export handler driving a registered Exporter plugin.
