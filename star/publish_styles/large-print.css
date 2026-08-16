@@ -1,0 +1,47 @@
+/* star publish template — Large Print
+ *
+ * Oversized type with generous spacing for low-vision readers, following the
+ * conventions of large-print editions (roughly 18 pt body text and open
+ * leading).  EPUB reading systems scale em-based sizes with the reader's own
+ * font setting, so this stays proportional rather than fighting the device.
+ *
+ * Copy this file, rename it, and edit freely: star picks up any *.css in the
+ * publish-styles folder automatically, and never overwrites your edits.
+ */
+
+body {
+  font-size: 1.5em;          /* ~18 pt against a 12 pt base */
+  line-height: 1.8;
+  font-family: sans-serif;   /* clean strokes enlarge better than serifs */
+  margin: 1em 8%;
+  text-align: left;          /* never justify — rivers hurt low-vision reading */
+  hyphens: none;
+}
+
+p {
+  margin: 0 0 1em 0;
+  text-indent: 0;            /* block paragraphs, not indents */
+}
+
+h1 { font-size: 1.8em; line-height: 1.4; margin: 1.2em 0 0.6em 0; }
+h2 { font-size: 1.5em; line-height: 1.4; margin: 1.2em 0 0.6em 0; }
+h3 { font-size: 1.3em; line-height: 1.4; margin: 1em 0 0.5em 0; }
+h4, h5, h6 { font-size: 1.15em; line-height: 1.4; margin: 1em 0 0.5em 0; }
+
+li { margin-bottom: 0.5em; }
+
+blockquote {
+  margin: 1em 0 1em 1em;
+  padding-left: 0.8em;
+  border-left: 0.25em solid currentColor;
+}
+
+code, pre {
+  font-size: 1em;            /* keep code as large as prose */
+  line-height: 1.6;
+}
+
+table { border-collapse: collapse; }
+th, td { padding: 0.5em 0.7em; border: 1px solid currentColor; }
+
+a { text-decoration: underline; }  /* never color-only link affordance */

@@ -211,7 +211,7 @@ m4b      = "star.tts.exporters:M4BExporter"
 include = ["star*"]
 
 [tool.setuptools.package-data]
-star = ["README.md", "LICENSE", "CHANGELOG.md", "welcome.md", "locale/*.json", "locale/README.md"]
+star = ["README.md", "LICENSE", "CHANGELOG.md", "welcome.md", "locale/*.json", "locale/README.md", "publish_styles/*.css"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

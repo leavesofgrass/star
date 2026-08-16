@@ -1,0 +1,60 @@
+/* star publish template — Dyslexia-friendly
+ *
+ * Mirrors star's dyslexia reading aids: a purpose-built font stack
+ * (OpenDyslexic first, then the high-legibility fallbacks star's own
+ * reading-font chooser offers), wide letter/word spacing, short measure, and
+ * an off-white page that reduces glare-driven letter movement.  The font
+ * stack degrades to the reader's sans-serif when none are installed; readers
+ * with OpenDyslexic on their device get it automatically.
+ *
+ * Copy this file, rename it, and edit freely: star picks up any *.css in the
+ * publish-styles folder automatically, and never overwrites your edits.
+ */
+
+body {
+  font-family: "OpenDyslexic", "OpenDyslexic3", "Atkinson Hyperlegible",
+               "Lexend", "Comic Neue", sans-serif;
+  font-size: 1.2em;
+  line-height: 1.9;               /* BDA guidance: ~1.5x minimum; roomier here */
+  letter-spacing: 0.04em;
+  word-spacing: 0.18em;
+  background-color: #faf7ef;      /* warm off-white — softer than pure white */
+  color: #1a1a1a;
+  margin: 1em 10%;
+  max-width: 34em;                /* short measure keeps return sweeps easy */
+  text-align: left;
+  hyphens: none;
+}
+
+p {
+  margin: 0 0 1.2em 0;
+  text-indent: 0;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  line-height: 1.4;
+  margin: 1.4em 0 0.6em 0;
+  font-weight: bold;              /* bold for emphasis — never italics */
+}
+h1 { font-size: 1.6em; }
+h2 { font-size: 1.4em; }
+h3 { font-size: 1.2em; }
+
+em { font-style: normal; font-weight: bold; }  /* italics impair legibility */
+
+li { margin-bottom: 0.6em; }
+
+blockquote {
+  margin: 1.2em 0 1.2em 1em;
+  padding: 0.4em 0 0.4em 0.8em;
+  border-left: 0.25em solid #8a7f66;
+  background-color: #f3eede;
+}
+
+code, pre {
+  font-family: "Consolas", "DejaVu Sans Mono", monospace;
+  background-color: #f3eede;
+  line-height: 1.7;
+}
+
+a { text-decoration: underline; }

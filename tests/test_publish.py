@@ -166,6 +166,45 @@ def test_templates_missing_dirs_yield_empty(monkeypatch, tmp_path):
     assert available_templates() == {}
 
 
+# ── the bundled accessibility templates (Batch 2) ───────────────────────────
+
+_BUNDLED_NAMES = ("large-print", "dyslexia-friendly", "high-contrast")
+
+
+def test_bundled_templates_ship_and_discover(monkeypatch, tmp_path):
+    """The three a11y stylesheets exist in the package and discovery (with a
+    clean user folder) seeds and returns every one of them."""
+    monkeypatch.setattr(publish, "PUBLISH_STYLES_DIR", tmp_path / "user")
+    t = available_templates()
+    for name in _BUNDLED_NAMES:
+        assert name in t, f"bundled template missing: {name}"
+        assert (tmp_path / "user" / f"{name}.css").is_file()  # seeded
+
+
+@pytest.mark.parametrize("name", _BUNDLED_NAMES)
+def test_bundled_template_content_sanity(name):
+    css = (publish._BUNDLED_STYLES_DIR / f"{name}.css").read_text(
+        encoding="utf-8"
+    )
+    assert "body" in css and "line-height" in css
+    # Every template keeps the underline link affordance (a11y: never
+    # color-only), and explains the copy-and-edit workflow in its header.
+    assert "text-decoration: underline" in css
+    assert "never overwrites your edits" in css
+
+
+def test_bundled_templates_mirror_their_aid():
+    styles = publish._BUNDLED_STYLES_DIR
+    lp = (styles / "large-print.css").read_text(encoding="utf-8")
+    assert "1.5em" in lp  # ~18pt large-print body
+    dys = (styles / "dyslexia-friendly.css").read_text(encoding="utf-8")
+    assert "OpenDyslexic" in dys and "Atkinson Hyperlegible" in dys
+    hc = (styles / "high-contrast.css").read_text(encoding="utf-8")
+    # The exact on-screen high-contrast palette (star/themes.py).
+    for color in ("#000000", "#ffffff", "#ffe14d", "#5fe3ff", "#8ac6ff"):
+        assert color in hc
+
+
 # ── _pandoc_write plumbing ──────────────────────────────────────────────────
 
 

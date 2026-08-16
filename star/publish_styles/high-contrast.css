@@ -1,0 +1,53 @@
+/* star publish template — High Contrast
+ *
+ * Mirrors star's AAA high-contrast reading theme: pure black page, pure
+ * white text, and the same hue-coded heading colors star uses on screen
+ * (yellow / cyan / pink / green), each chosen for AAA contrast on black.
+ * For readers who invert or override colors in their reading system, the
+ * underline-based link affordance survives any palette substitution.
+ *
+ * Copy this file, rename it, and edit freely: star picks up any *.css in the
+ * publish-styles folder automatically, and never overwrites your edits.
+ */
+
+body {
+  background-color: #000000;
+  color: #ffffff;
+  font-size: 1.2em;
+  line-height: 1.7;
+  font-family: sans-serif;
+  margin: 1em 8%;
+  text-align: left;
+}
+
+p { margin: 0 0 1em 0; text-indent: 0; }
+
+/* star's high-contrast heading hues (themes.py: high-contrast palette). */
+h1 { color: #ffe14d; line-height: 1.4; }
+h2 { color: #5fe3ff; line-height: 1.4; }
+h3 { color: #ff9ce0; line-height: 1.4; }
+h4, h5, h6 { color: #7dffb0; line-height: 1.4; }
+
+a {
+  color: #8ac6ff;
+  text-decoration: underline;   /* affordance survives color overrides */
+}
+
+code, pre {
+  color: #ffbf66;
+  background-color: #141414;
+}
+
+blockquote {
+  margin: 1em 0 1em 1em;
+  padding-left: 0.8em;
+  border-left: 0.3em solid #c0c0c0;
+  color: #c0c0c0;
+}
+
+hr { border: 0; border-top: 0.15em solid #c0c0c0; }
+
+table { border-collapse: collapse; }
+th, td { padding: 0.4em 0.6em; border: 1px solid #c0c0c0; }
+
+::selection { background-color: #2a2a2a; }
