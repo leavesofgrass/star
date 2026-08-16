@@ -25,6 +25,7 @@ MX_COMMANDS = sorted(
         "export-braille",
         "export-markdown",
         "export-audio",
+        "publish",
         "export-subtitles",
         "subtitle-format",
         "subtitle-word-level",
@@ -242,6 +243,7 @@ _SHORTCUTS: List[Tuple[str, List[Tuple[str, str, str]]]] = [
             ("Export Braille / Audio", "Ctrl+Alt+B / Ctrl+Alt+A", "M-x export-*"),
             ("Export Subtitles", "Ctrl+Alt+U", "M-x export-subtitles"),
             ("Export Video (MP4)", "File ▸ Export ▸ Video…", "M-x export-video"),
+            ("Publish (EPUB/HTML, styled)", "File ▸ Publish… (F9)", "M-x publish"),
             ("Quit", "Ctrl+Q", "Ctrl+Q / q"),
         ],
     ),
@@ -504,6 +506,7 @@ completions.  Use `↑` / `↓` to recall previous commands.  Press **Esc** to c
 | `export-markdown` | Export document as Markdown |
 | `export-braille` | Export as BRF braille file (requires liblouis) |
 | `export-audio [fmt]` | Export TTS audio as MP3/OGG/MP4/WAV (requires ffmpeg or pydub) |
+| `publish [fmt]` | Publish styled EPUB/HTML (template + metadata + TOC; requires Pandoc) |
 | `play` | Start reading |
 | `stop` | Stop reading |
 | `pause` | Toggle play/pause |

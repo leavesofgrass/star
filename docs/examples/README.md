@@ -61,6 +61,7 @@ Depth: [Features](../features.md) · [Usage guide](../usage_guide.md).
 | I want to… | Walkthrough |
 |---|---|
 | Write a Markdown document, dictate, and export to PDF / audio / Braille | [`gui/write-and-export`](gui/write-and-export) |
+| Publish a styled, accessible EPUB (templates, metadata, cover, TOC) | [`gui/publish`](gui/publish) |
 
 Depth: [Usage guide ▸ authoring](../usage_guide.md).
 

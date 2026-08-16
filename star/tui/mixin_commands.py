@@ -122,6 +122,7 @@ class CommandsMixin:
             "export-markdown": self._export_markdown,
             "export-braille": self._export_braille_cmd,
             "export-audio": lambda: self._export_audio_cmd(arg or ""),
+            "publish": lambda: self._publish_cmd(arg or ""),
             "export-subtitles": self._export_subtitles_cmd,
             "subtitle-format": lambda: self._set_subtitle_format(arg),
             "subtitle-word-level": lambda: (

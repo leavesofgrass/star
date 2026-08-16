@@ -399,6 +399,7 @@ trigger it).
 | Export as Audio | File ▸ Export ▸ Export as Audio… | `Ctrl+Alt+A` | `M-x export-audio` |
 | Export subtitles (SRT/VTT) | File ▸ Export ▸ Export Subtitles… | `Ctrl+Alt+U` | `M-x export-subtitles` |
 | Export karaoke video (MP4) | File ▸ Export ▸ Video (MP4)… | — (menu only) | `M-x export-video` |
+| Publish (styled EPUB/HTML) | File ▸ Publish… | `F9` | `M-x publish` |
 | Export audiobook (M4B) | File ▸ Export ▸ Export Audiobook (M4B)… | — (menu only) | — |
 | Export Anki flashcards | File ▸ Export ▸ Anki Flashcards… | `Ctrl+Alt+H` | — |
 | Quit | File ▸ Quit | `Ctrl+Q` | `M-x quit` (`q`) |
@@ -605,6 +606,7 @@ which the view stays with you instead of snapping back to the speech.
 | Export as Audio | `Ctrl+Alt+A` | `M-x export-audio` |
 | Export Subtitles (SRT/VTT) | `Ctrl+Alt+U` | `M-x export-subtitles` |
 | Export karaoke video (MP4) | File ▸ Export ▸ Video (MP4)… | `M-x export-video` |
+| Publish (styled EPUB/HTML) | `F9` | `M-x publish` |
 | Export audiobook (M4B) | File ▸ Export ▸ Export Audiobook (M4B)… | — |
 | Reload document | — | `F9` |
 | Quit | `Ctrl+Q` | `Ctrl+Q`   `q` |
@@ -802,6 +804,7 @@ complete.
 | `export-braille` | Export a BRF braille file (requires `louis`) |
 | `open-archive [path]` | Open an archive (ZIP/TAR/.7z/.rar) and browse its members |
 | `export-audio [fmt]` | Synthesize document to audio; `fmt` is `wav` (default, from the `audio_export_format` setting), `mp3`, `ogg`, or `mp4` |
+| `publish [fmt]` | Publish a styled EPUB or HTML through the Pandoc pipeline: prompts for format, stylesheet template, and output path; remembers the choices per document (shared with the GUI Publish dialog) |
 | `export-subtitles` | Write a timestamped **SRT/VTT** caption track synchronized to the speech |
 | `export-video [path]` | Export a sentence-synchronized karaoke MP4 video |
 | `subtitle-format srt\|vtt` | Set the caption format used for subtitle export |

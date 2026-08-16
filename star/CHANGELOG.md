@@ -8,6 +8,26 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### ✨ Added
+
+- **Publishing pipeline — File ▸ Publish… (`F9`) and `M-x publish`.** Where the
+  quick Export items are bare converters, Publish produces a *styled,
+  metadata-complete* EPUB or standalone HTML through Pandoc: stylesheet
+  templates, title/author/language/date (prefilled from the document), an
+  optional cover image, and a table of contents with selectable depth — with
+  every choice remembered per document, shared between the GUI dialog and the
+  TUI command.
+- **Three accessibility publish templates**, each mirroring a star reading
+  aid: **Large Print**, **Dyslexia-friendly** (OpenDyslexic/Atkinson
+  Hyperlegible stack), and **High Contrast** (the AAA theme palette). Seeded
+  into a user `publish-styles` folder on first use — copy, rename, edit; any
+  `*.css` dropped there appears in the picker and hand edits are never
+  overwritten.
+
+---
+
 ## [0.1.29] 2026-08-07
 
 ### ✨ Added

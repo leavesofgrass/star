@@ -1081,6 +1081,34 @@ it you get a clear message rather than a broken file.
 
 ---
 
+## Publishing (EPUB / HTML)
+
+Where the quick **File ▸ Export** items are bare converters, **File ▸
+Publish…** (`F9`) is the full pipeline: it produces a *styled, metadata-complete*
+EPUB or standalone HTML through Pandoc, in one keyboard-first dialog.
+
+- **Stylesheet templates** — three accessibility templates ship with star, each
+  mirroring one of its reading aids: **Large Print** (~18 pt body, open
+  leading), **Dyslexia-friendly** (the OpenDyslexic/Atkinson Hyperlegible font
+  stack, wide spacing, warm off-white page), and **High Contrast** (the AAA
+  black/white/yellow-cyan palette from star's own theme). On first use they are
+  seeded into a `publish-styles` folder in star's config directory — copy,
+  rename, and edit freely; any `*.css` you drop there appears in the picker,
+  and your edits are never overwritten.
+- **Metadata** — title, author, language, and date prefill from the document's
+  own metadata (an imported EPUB's author carries through automatically) and
+  can be overridden per publish.
+- **Cover image** (EPUB) and a **table of contents** with selectable depth.
+- Choices are **remembered per document**, so re-publishing after edits is
+  `F9`, `Enter`.
+
+The TUI mirrors the flow as **`M-x publish`** — format, template, and output
+path prompts with completion — and shares the same per-document memory.
+
+Publishing needs Pandoc (bundled in the Windows exe; `pip install pypandoc`
+or a system pandoc elsewhere). The quick HTML/EPUB items under File ▸ Export
+remain the fast, unstyled path.
+
 ## Speed presets, bookmarks & history
 
 **Speed presets** switch reading rate with one command:

@@ -38,6 +38,7 @@ survive a UI-language switch. Source: `star/gui/mixin_chrome.py`.
 | `Ctrl+Shift+B` | Library / Bookshelf… |
 | `Ctrl+Shift+C` | Batch Convert… |
 | `Ctrl+Shift+W` | Watch Folder… (toggle) |
+| `F9` | Publish… — styled EPUB/HTML with template, metadata, cover, TOC |
 | `Ctrl+Q` | Quit |
 | *(no shortcut)* | Edit Document Metadata…, Import Obsidian Vault…, Open Archive… |
 

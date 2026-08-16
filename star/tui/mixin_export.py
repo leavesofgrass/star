@@ -62,6 +62,111 @@ class ExportMixin:
         except OSError as e:
             self.notify(f"Export error: {e}", error=True)
 
+    # ── Publish (full pipeline: template + metadata + TOC) ────────────────
+
+    def _publish_cmd(self, arg: str = "") -> None:
+        """M-x publish [epub|html] — styled export via the publishing pipeline.
+
+        Mirrors the GUI's File ▸ Publish… dialog as a minibuffer chain
+        (format → stylesheet template → output path).  Metadata is resolved
+        from the document exactly as the GUI does, the table of contents
+        defaults on, and the chosen format/template are remembered per
+        document in the same settings store the GUI dialog uses
+        (``publish_options``) — the two front-ends share the memory.
+        """
+        from ..export import EPUBExporter
+
+        if not self.doc:
+            self.notify("No document to publish.", error=True)
+            return
+        if not EPUBExporter.available():
+            self.notify(
+                "Publishing needs Pandoc — install pandoc or pypandoc.",
+                error=True,
+            )
+            return
+        fmt = (arg or "").strip().lower()
+        if fmt in ("epub", "html"):
+            self._publish_fmt_cb(fmt)
+            return
+        saved = self._publish_saved()
+        self._enter_minibuffer(
+            "Publish format: ",
+            initial=str(saved.get("fmt", "epub")),
+            on_commit=self._publish_fmt_cb,
+            completions=["epub", "html"],
+        )
+
+    def _publish_saved(self) -> "Dict[str, Any]":
+        """This document's remembered publish choices (shared with the GUI)."""
+        store = dict(self.settings.get("publish_options", {}) or {})
+        return dict(store.get(self._annot_key(), {}) or {})
+
+    def _publish_fmt_cb(self, fmt: str) -> None:
+        from ..publish import available_templates
+
+        fmt = fmt.strip().lower()
+        if fmt not in ("epub", "html"):
+            self.notify("Publish format must be epub or html.", error=True)
+            return
+        names = sorted(available_templates())
+        saved = str(self._publish_saved().get("template", "")) or "none"
+        self._enter_minibuffer(
+            "Stylesheet template: ",
+            initial=saved if saved in names else "none",
+            on_commit=lambda t, f=fmt: self._publish_template_cb(f, t),
+            completions=["none", *names],
+        )
+
+    def _publish_template_cb(self, fmt: str, template: str) -> None:
+        template = template.strip()
+        if template == "none":
+            template = ""
+        p = Path(self.doc.path) if self.doc and self.doc.path else Path("publish")
+        ext = ".epub" if fmt == "epub" else ".html"
+        self._enter_minibuffer(
+            f"Publish {fmt.upper()} to: ",
+            initial=str(p.parent / (p.stem + ext)),
+            on_commit=lambda d, f=fmt, t=template: self._publish_run(f, t, d),
+        )
+
+    def _publish_run(self, fmt: str, template: str, dest: str) -> None:
+        from ..plugins import PluginRegistry
+        from ..publish import PublishOptions
+
+        dest = dest.strip()
+        if not dest or not self.doc:
+            return
+        exporter_cls = next(
+            (c for c in PluginRegistry.get().exporters if c.name == fmt), None
+        )
+        if exporter_cls is None:
+            self.notify(f"No exporter registered for {fmt}.", error=True)
+            return
+        # Remember fmt/template in the shared per-document store, merging so
+        # metadata the GUI dialog saved for this document survives untouched.
+        key = self._annot_key()
+        if key:
+            store = dict(self.settings.get("publish_options", {}) or {})
+            entry = dict(store.get(key, {}) or {})
+            entry.update({"fmt": fmt, "template": template})
+            store[key] = entry
+            self.settings.set("publish_options", store)
+        options = PublishOptions(fmt=fmt, template=template)
+        doc = self.doc  # exporters only read; the TUI has no live edit buffer
+        self.notify("Publishing… this may take a moment", dur=15.0)
+
+        def _work() -> None:
+            try:
+                exporter_cls().export(doc, dest, options=options)
+                msg = f"Published {fmt.upper()} → {dest}"
+                self._bg_queue.put(lambda: self.notify(msg))
+            except Exception as exc:  # noqa: BLE001 — surfaced via notify
+                m = f"Publish error: {exc}"
+                self._bg_queue.put(lambda: self.notify(m, error=True))
+
+        threading.Thread(target=_work, daemon=True).start()
+
     def _export_braille_cmd(self) -> None:
         if not self.doc:
             self.notify("No document to export.", error=True)
