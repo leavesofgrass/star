@@ -15,7 +15,7 @@ and what each missing piece unlocks — a zero-setup health check for your insta
 
     $ star --deps
 
-    star 0.1.29 - optional dependency status (34/38 available)
+    star 0.1.30 - optional dependency status (34/38 available)
 
     Documents:
       [+] PDF text extraction - Open and read PDF files

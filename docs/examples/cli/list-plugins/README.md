@@ -16,11 +16,12 @@ plugin star can see.
 
     $ star --plugins list
 
-    star 0.1.29 - registered plugins (30 total)
+    star 0.1.30 - registered plugins (32 total)
 
-    TTS backends [star.backends] (backends) - 11:
+    TTS backends [star.backends] (backends) - 12:
       [?] applesay       -> star.tts.applesay:AppleSayBackend  prio=15
       [?] pyttsx3        -> star.tts.pyttsx3:Pyttsx3Backend  prio=20
+      [?] qtspeech       -> star.tts.qtspeech:QtSpeechBackend  prio=35
       [?] espeak         -> star.tts.espeak:ESpeakBackend  prio=50
       [?] elevenlabs     -> star.tts.cloud.elevenlabs:ElevenLabsBackend  prio=900
       ...

@@ -18,7 +18,7 @@ in Python with the library API — the same helpers behind the GUI's
 ## What you should see
 
     Exported 2 profiles to profiles.json
-      envelope:   star_profiles format v1, written by star 0.1.29
+      envelope:   star_profiles format v1, written by star 0.1.30
       profile:    fast-dark  (20 settings captured)
       profile:    relaxed-light  (20 settings captured)
 
