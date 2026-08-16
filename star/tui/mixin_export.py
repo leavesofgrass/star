@@ -122,20 +122,39 @@ class ExportMixin:
         )
 
     def _publish_template_cb(self, fmt: str, template: str) -> None:
+        from ..publish import available_citation_styles
+
         template = template.strip()
         if template == "none":
             template = ""
+        styles = sorted(available_citation_styles())
+        saved = str(self._publish_saved().get("citation_style", "")) or "none"
+        self._enter_minibuffer(
+            "Citation style: ",
+            initial=saved if saved in styles else "none",
+            on_commit=lambda c, f=fmt, t=template: self._publish_cite_cb(f, t, c),
+            completions=["none", *styles],
+        )
+
+    def _publish_cite_cb(self, fmt: str, template: str, cite: str) -> None:
+        cite = cite.strip()
+        if cite == "none":
+            cite = ""
         p = Path(self.doc.path) if self.doc and self.doc.path else Path("publish")
         ext = {"epub": ".epub", "html": ".html", "docx": ".docx"}[fmt]
         self._enter_minibuffer(
             f"Publish {fmt.upper()} to: ",
             initial=str(p.parent / (p.stem + ext)),
-            on_commit=lambda d, f=fmt, t=template: self._publish_run(f, t, d),
+            on_commit=lambda d, f=fmt, t=template, c=cite: self._publish_run(
+                f, t, d, c
+            ),
         )
 
-    def _publish_run(self, fmt: str, template: str, dest: str) -> None:
+    def _publish_run(
+        self, fmt: str, template: str, dest: str, citation_style: str = ""
+    ) -> None:
         from ..plugins import PluginRegistry
-        from ..publish import PublishOptions
+        from ..publish import PublishOptions, export_bibliography
 
         dest = dest.strip()
         if not dest or not self.doc:
@@ -152,10 +171,20 @@ class ExportMixin:
         if key:
             store = dict(self.settings.get("publish_options", {}) or {})
             entry = dict(store.get(key, {}) or {})
-            entry.update({"fmt": fmt, "template": template})
+            entry.update(
+                {"fmt": fmt, "template": template, "citation_style": citation_style}
+            )
             store[key] = entry
             self.settings.set("publish_options", store)
-        options = PublishOptions(fmt=fmt, template=template)
+        options = PublishOptions(
+            fmt=fmt, template=template, citation_style=citation_style
+        )
+        if citation_style:
+            # The TUI always uses the automatic library bibliography; a file
+            # override is the GUI dialog's affordance.
+            auto = export_bibliography(self.settings)
+            if auto:
+                options.bibliography = auto
         doc = self.doc  # exporters only read; the TUI has no live edit buffer
         self.notify("Publishing… this may take a moment", dur=15.0)
 

@@ -28,6 +28,17 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
   target now embeds its stylesheet and images into **one portable file**
   (`--embed-resources`); the quick File ▸ Export ▸ HTML stays the bare
   converter. A quick unstyled DOCX converter also joins File ▸ Export.
+- **Academic citation styles and coursework formats** — built for the
+  formatting expectations of nursing and public health programs. Publishing
+  gains Pandoc citation processing with bundled **APA 7th**, **AMA 11th**,
+  and **NLM/Vancouver** styles (Citation Style Language, CC-BY-SA): `[@key]`
+  citations become correctly formatted in-text citations plus a styled
+  reference list. The bibliography is star's own citation-manager library
+  automatically, or a picked Zotero/EndNote export (.json/.bib/.ris); any
+  `.csl` dropped into `publish-styles` appears in the picker. New
+  **apa-student-paper** (TNR 12, double-spaced, hanging-indent references)
+  and **ama-manuscript** reference documents, and an **academic-manuscript**
+  stylesheet, complete the submit-ready formats.
 - **Three accessibility publish templates**, each mirroring a star reading
   aid: **Large Print**, **Dyslexia-friendly** (OpenDyslexic/Atkinson
   Hyperlegible stack), and **High Contrast** (the AAA theme palette). Seeded

@@ -1,0 +1,54 @@
+/* star publish template — Academic Manuscript
+ *
+ * Coursework-manuscript conventions for the HTML/EPUB targets: a serif face,
+ * double spacing, restrained headings, and a hanging-indent reference list
+ * (the .csl-entry rules style what pandoc's citation processor emits, so a
+ * chosen citation style — APA, AMA, Vancouver — renders correctly).  Pair it
+ * with the apa-student-paper or ama-manuscript reference document when
+ * publishing to DOCX.
+ *
+ * Copy this file, rename it, and edit freely: star picks up any *.css in the
+ * publish-styles folder automatically, and never overwrites your edits.
+ */
+
+body {
+  font-family: "Times New Roman", "Liberation Serif", Georgia, serif;
+  font-size: 1.05em;
+  line-height: 2;                 /* double-spaced manuscript */
+  margin: 1em 12%;
+  max-width: 42em;
+  text-align: left;
+  hyphens: none;
+}
+
+p {
+  margin: 0;
+  text-indent: 2em;               /* first-line paragraph indent */
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-size: 1.05em;              /* headings at body size, weight carries rank */
+  font-weight: bold;
+  line-height: 2;
+  margin: 1em 0 0 0;
+}
+h1 { text-align: center; }
+
+blockquote {
+  margin: 1em 0 1em 2em;          /* block quote indent, no border decoration */
+  padding: 0;
+}
+
+/* Pandoc citeproc reference list: hanging indent, double-spaced. */
+.csl-bib-body { line-height: 2; }
+.csl-entry {
+  padding-left: 2em;
+  text-indent: -2em;
+  margin-bottom: 0;
+}
+
+table { border-collapse: collapse; }
+th, td { padding: 0.3em 0.6em; border-bottom: 1px solid currentColor; }
+th { border-top: 1px solid currentColor; }
+
+a { text-decoration: underline; }

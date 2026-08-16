@@ -1106,6 +1106,16 @@ keyboard-first dialog.
   there (e.g. your institution's template) appears in the picker.
 - **Single-file HTML** — the HTML target embeds the stylesheet and every
   image into one portable file (`--embed-resources`), ready to attach or post.
+- **Academic citation styles** — pick **APA 7th** (the nursing-education
+  standard), **AMA 11th**, or **NLM/Vancouver** and star runs Pandoc's
+  citation processor: `[@key]` citations in the text become correctly
+  formatted in-text citations plus a styled reference list. The
+  bibliography comes from star's own **citation manager** (Study menu)
+  automatically, or from a Zotero/EndNote export file you pick. Any `.csl`
+  from the Citation Style Language repository dropped into `publish-styles`
+  (10,000+ journal styles exist) appears in the picker; an
+  **academic-manuscript** stylesheet and **apa-student-paper** /
+  **ama-manuscript** reference documents complete the coursework formats.
 - **Cover image** (EPUB) and a **table of contents** with selectable depth.
 - Choices are **remembered per document**, so re-publishing after edits is
   `F9`, `Enter`.

@@ -506,7 +506,7 @@ completions.  Use `↑` / `↓` to recall previous commands.  Press **Esc** to c
 | `export-markdown` | Export document as Markdown |
 | `export-braille` | Export as BRF braille file (requires liblouis) |
 | `export-audio [fmt]` | Export TTS audio as MP3/OGG/MP4/WAV (requires ffmpeg or pydub) |
-| `publish [fmt]` | Publish styled EPUB/DOCX/HTML (template + metadata + TOC; requires Pandoc) |
+| `publish [fmt]` | Publish styled EPUB/DOCX/HTML (template + citations + metadata + TOC; requires Pandoc) |
 | `play` | Start reading |
 | `stop` | Stop reading |
 | `pause` | Toggle play/pause |

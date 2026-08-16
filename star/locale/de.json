@@ -654,5 +654,12 @@
   "Stylesheet template:": "Stilvorlage:",
   "Title:": "Titel:",
   "e.g. en, es, fr": "z. B. en, es, fr",
-  "e.g. 2026-08-16": "z. B. 2026-08-16"
+  "e.g. 2026-08-16": "z. B. 2026-08-16",
+  "None (plain text citations)": "Keiner (Zitate als Klartext)",
+  "Citation style:": "Zitierstil:",
+  "Bibliography:": "Literaturverzeichnis:",
+  "Bibliography file": "Literaturverzeichnis-Datei",
+  "star citation library (automatic)": "star-Zitatbibliothek (automatisch)",
+  "Choose Bibliography File": "Literaturverzeichnis-Datei auswählen",
+  "Bibliographies (*.json *.bib *.ris);;All Files (*)": "Literaturverzeichnisse (*.json *.bib *.ris);;Alle Dateien (*)"
 }

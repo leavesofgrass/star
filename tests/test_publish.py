@@ -305,6 +305,81 @@ def test_reference_docs_generate_seed_and_discover(monkeypatch, tmp_path):
     assert marker.read_bytes() == b"edited"
 
 
+# ── citations: CSL styles, auto-bibliography, citeproc flags ────────────────
+
+
+def test_bundled_citation_styles_ship_and_seed(monkeypatch, tmp_path):
+    monkeypatch.setattr(publish, "PUBLISH_STYLES_DIR", tmp_path / "user")
+    styles = publish.available_citation_styles()
+    assert set(styles) >= {"apa", "american-medical-association", "vancouver"}
+    assert (tmp_path / "user" / "apa.csl").is_file()  # seeded like the CSS
+    # A user-dropped .csl appears too.
+    (tmp_path / "user" / "my-program.csl").write_text("<style/>", encoding="utf-8")
+    assert "my-program" in publish.available_citation_styles()
+
+
+def test_args_citation_style_enables_citeproc(monkeypatch, tmp_path):
+    monkeypatch.setattr(publish, "_pandoc_major_cache", 3)
+    csl = tmp_path / "apa.csl"
+    csl.write_text("<style/>", encoding="utf-8")
+    monkeypatch.setattr(
+        publish, "available_citation_styles", lambda: {"apa": csl}
+    )
+    args = build_pandoc_args(
+        PublishOptions(citation_style="apa", bibliography="refs.json"), None
+    )
+    assert "--citeproc" in args
+    i = args.index("--csl")
+    assert args[i + 1] == str(csl)
+    j = args.index("--bibliography")
+    assert args[j + 1] == "refs.json"
+    assert "link-citations=true" in args
+    # No style chosen → no citeproc; unknown style name → no citeproc.
+    assert "--citeproc" not in build_pandoc_args(PublishOptions(), None)
+    none = build_pandoc_args(PublishOptions(citation_style="nope"), None)
+    assert "--citeproc" not in none
+
+
+def test_export_bibliography_writes_library_csl_json(monkeypatch, tmp_path):
+    monkeypatch.setattr(publish, "CACHE_DIR", tmp_path / "cache")
+
+    class _S(dict):
+        def get(self, k, d=None):
+            return super().get(k, d)
+
+    s = _S(citations=[{"id": "smith2020", "title": "T", "author": "Smith, A.",
+                       "year": "2020", "type": "article-journal"}])
+    path = publish.export_bibliography(s)
+    assert path and path.endswith(".json")
+    import json as _json
+
+    data = _json.loads(open(path, encoding="utf-8").read())
+    assert isinstance(data, list) and data  # CSL-JSON array with the entry
+    # Empty library → None (publish proceeds without a bibliography).
+    assert publish.export_bibliography(_S(citations=[])) is None
+
+
+def test_academic_reference_docs_generate(monkeypatch, tmp_path):
+    """The APA student paper carries TNR 12 double-spaced with a hanging-indent
+    Bibliography; the AMA manuscript exists with a flush reference list."""
+    pytest.importorskip("docx", reason="python-docx not installed")
+    monkeypatch.setattr(publish, "PUBLISH_STYLES_DIR", tmp_path)
+    refs = publish.available_reference_docs()
+    assert {"apa-student-paper", "ama-manuscript"} <= set(refs)
+
+    with zipfile.ZipFile(refs["apa-student-paper"]) as z:
+        styles = z.read("word/styles.xml").decode("utf-8")
+    assert "Times New Roman" in styles
+    assert 'w:val="24"' in styles  # 12 pt = 24 half-points
+    assert 'w:line="480"' in styles  # double spacing = 480 twentieths
+    assert "Bibliography" in styles
+    assert 'w:hanging="720"' in styles  # 0.5" hanging indent on References
+
+    with zipfile.ZipFile(refs["ama-manuscript"]) as z:
+        ama = z.read("word/styles.xml").decode("utf-8")
+    assert "Times New Roman" in ama and "Bibliography" in ama
+
+
 # ── integration: a real EPUB, structurally verified ─────────────────────────
 
 
@@ -375,3 +450,38 @@ def test_published_docx_structure(tmp_path, monkeypatch):
         assert 'w:val="36"' in styles  # the 18 pt large-print Normal came through
         core = zf.read("docProps/core.xml").decode("utf-8")
         assert "Docx Author" in core
+
+
+@pytest.mark.skipif(not EPUBExporter.available(), reason="Pandoc not installed")
+def test_published_docx_with_apa_citations(tmp_path, monkeypatch):
+    """End-to-end citeproc: a [@key] citation in the markdown plus a CSL-JSON
+    bibliography and the bundled APA style produce a formatted author–year
+    citation and a reference entry in the real pandoc output."""
+    from star.export import DOCXExporter
+
+    monkeypatch.setattr(publish, "PUBLISH_STYLES_DIR", tmp_path / "user")
+    bib = tmp_path / "refs.json"
+    bib.write_text(
+        '[{"id": "okoro2021", "type": "article-journal",'
+        ' "title": "Community health outreach",'
+        ' "author": [{"family": "Okoro", "given": "Ada"}],'
+        ' "container-title": "Journal of Public Health Nursing",'
+        ' "issued": {"date-parts": [[2021]]}}]',
+        encoding="utf-8",
+    )
+    doc = _doc(
+        title="Cite Test",
+        markdown="# Intro\n\nOutreach works [@okoro2021].\n\n# References\n",
+    )
+    out = tmp_path / "cited.docx"
+    DOCXExporter().export(
+        doc, str(out),
+        options=PublishOptions(
+            fmt="docx", citation_style="apa", bibliography=str(bib), toc=False
+        ),
+    )
+    with zipfile.ZipFile(out) as zf:
+        body = zf.read("word/document.xml").decode("utf-8")
+    assert "Okoro" in body and "2021" in body  # in-text (Okoro, 2021)
+    assert "Community health outreach" in body  # reference list entry
+    assert "Journal of Public Health Nursing" in body

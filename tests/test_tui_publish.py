@@ -130,6 +130,12 @@ def test_publish_chain_prompts_and_runs(monkeypatch):
     commit("large-print")
 
     prompt, initial, completions, commit = app.prompts[-1]
+    assert "citation" in prompt.lower()
+    assert completions[0] == "none"
+    assert "apa" in completions  # bundled CSL styles discovered
+    commit("none")
+
+    prompt, initial, completions, commit = app.prompts[-1]
     assert initial.endswith("notes.epub")
     commit(initial)
 
@@ -177,5 +183,7 @@ def test_publish_docx_offers_reference_docs(monkeypatch, tmp_path):
     _p, _i, completions, commit = app.prompts[-1]
     assert completions == ["none", "large-print"]  # reference docs, no CSS
     commit("large-print")
+    _p, _i, _c, commit = app.prompts[-1]  # citation-style prompt
+    commit("none")
     _p, initial, _c, _commit = app.prompts[-1]
     assert initial.endswith("notes.docx")

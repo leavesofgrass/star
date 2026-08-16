@@ -525,6 +525,14 @@ class ExportMixin:
         if not dlg.exec():
             return
         options = dlg.options()
+        if options.citation_style and not options.bibliography:
+            # The automatic half: star's citation library becomes the
+            # references file (best-effort — an empty library publishes fine).
+            from ..publish import export_bibliography
+
+            auto = export_bibliography(self.settings)
+            if auto:
+                options.bibliography = auto
 
         exporter_cls = next(
             (c for c in PluginRegistry.get().exporters if c.name == options.fmt),

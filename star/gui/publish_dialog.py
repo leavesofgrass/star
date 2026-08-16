@@ -13,7 +13,12 @@ setting has focus (the loop in :meth:`_ensure_accessible_names`, pinned by
 """
 from .._runtime import *  # noqa: F401,F403
 from ..i18n import tr
-from ..publish import PublishOptions, available_templates, resolve_metadata
+from ..publish import (
+    PublishOptions,
+    available_citation_styles,
+    available_templates,
+    resolve_metadata,
+)
 
 #: The publish targets.  EPUB and DOCX are the deliverable formats; HTML here
 #: means ONE portable file (--embed-resources), unlike the bare quick export.
@@ -78,6 +83,30 @@ class PublishDialog(QDialog):
         cover_box.addWidget(browse)
         form.addRow(tr("Cover image (EPUB):"), cover_row)
         self._cover_row = cover_row
+
+        # Citation processing (all formats): a CSL style turns on pandoc's
+        # citeproc; the bibliography defaults to star's own citation library
+        # and can be overridden with a Zotero/EndNote export file.
+        self._citation_style = QComboBox()
+        self._citation_style.addItem(tr("None (plain text citations)"), "")
+        for name in sorted(available_citation_styles()):
+            self._citation_style.addItem(name, name)
+        self._select_data(self._citation_style, saved.get("citation_style", ""))
+        form.addRow(tr("Citation style:"), self._citation_style)
+
+        bib_row = QWidget()
+        bib_box = QHBoxLayout(bib_row)
+        bib_box.setContentsMargins(0, 0, 0, 0)
+        self._bibliography = QLineEdit(saved.get("bibliography", ""))
+        self._bibliography.setAccessibleName(tr("Bibliography file"))
+        self._bibliography.setPlaceholderText(
+            tr("star citation library (automatic)")
+        )
+        bib_box.addWidget(self._bibliography)
+        bib_browse = QPushButton(tr("Browse…"))
+        bib_browse.clicked.connect(self._pick_bibliography)
+        bib_box.addWidget(bib_browse)
+        form.addRow(tr("Bibliography:"), bib_row)
 
         self._toc = QCheckBox(tr("Include a table of contents"))
         self._toc.setChecked(bool(saved.get("toc", True)))
@@ -145,6 +174,16 @@ class PublishDialog(QDialog):
         """The cover image applies to EPUB only — disable it elsewhere."""
         self._cover_row.setEnabled(self._fmt.currentData() == "epub")
 
+    def _pick_bibliography(self) -> None:
+        path, _flt = QFileDialog.getOpenFileName(
+            self,
+            tr("Choose Bibliography File"),
+            self._bibliography.text() or "",
+            tr("Bibliographies (*.json *.bib *.ris);;All Files (*)"),
+        )
+        if path:
+            self._bibliography.setText(path)
+
     def _pick_cover(self) -> None:
         path, _flt = QFileDialog.getOpenFileName(
             self,
@@ -205,6 +244,8 @@ class PublishDialog(QDialog):
             ),
             toc=self._toc.isChecked(),
             toc_depth=self._toc_depth.value(),
+            citation_style=str(self._citation_style.currentData() or ""),
+            bibliography=self._bibliography.text().strip(),
         )
 
     def values_dict(self) -> "Dict[str, Any]":
@@ -220,4 +261,6 @@ class PublishDialog(QDialog):
             "cover_image": self._cover.text().strip(),
             "toc": o.toc,
             "toc_depth": o.toc_depth,
+            "citation_style": o.citation_style,
+            "bibliography": o.bibliography,
         }

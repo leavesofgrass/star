@@ -18,6 +18,10 @@ GUI walkthrough.
      `high-contrast` — each mirrors the matching star reading aid)
    - **Title / Author / Language / Date:** prefilled from the document's
      metadata; edit freely — your values win.
+   - **Citation style:** `apa` for APA 7th (or `american-medical-association`
+     / `vancouver`). Write citations as `[@smith2020]` in your text; the
+     bibliography comes from Study ▸ your citation library automatically, or
+     Browse… to a Zotero/EndNote export (.json/.bib/.ris).
    - **Cover image:** optional; Browse… to a PNG/JPG.
    - Leave **Include a table of contents** checked.
 4. Choose **Publish**, pick the output file, and watch the status bar —

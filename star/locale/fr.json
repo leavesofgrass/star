@@ -654,5 +654,12 @@
   "Stylesheet template:": "Modèle de feuille de style :",
   "Title:": "Titre :",
   "e.g. en, es, fr": "p. ex. en, es, fr",
-  "e.g. 2026-08-16": "p. ex. 2026-08-16"
+  "e.g. 2026-08-16": "p. ex. 2026-08-16",
+  "None (plain text citations)": "Aucun (citations en texte brut)",
+  "Citation style:": "Style de citation :",
+  "Bibliography:": "Bibliographie :",
+  "Bibliography file": "Fichier de bibliographie",
+  "star citation library (automatic)": "bibliothèque de citations de star (automatique)",
+  "Choose Bibliography File": "Choisir le fichier de bibliographie",
+  "Bibliographies (*.json *.bib *.ris);;All Files (*)": "Bibliographies (*.json *.bib *.ris);;Tous les fichiers (*)"
 }

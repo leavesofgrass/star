@@ -804,7 +804,7 @@ complete.
 | `export-braille` | Export a BRF braille file (requires `louis`) |
 | `open-archive [path]` | Open an archive (ZIP/TAR/.7z/.rar) and browse its members |
 | `export-audio [fmt]` | Synthesize document to audio; `fmt` is `wav` (default, from the `audio_export_format` setting), `mp3`, `ogg`, or `mp4` |
-| `publish [fmt]` | Publish a styled EPUB, single-file HTML, or DOCX through the Pandoc pipeline: prompts for format, template (CSS, or a `--reference-doc` for DOCX), and output path; remembers the choices per document (shared with the GUI Publish dialog) |
+| `publish [fmt]` | Publish a styled EPUB, single-file HTML, or DOCX through the Pandoc pipeline: prompts for format, template (CSS, or a `--reference-doc` for DOCX), citation style (APA/AMA/Vancouver via Pandoc citeproc, bibliography from star's citation manager), and output path; remembers the choices per document (shared with the GUI Publish dialog) |
 | `export-subtitles` | Write a timestamped **SRT/VTT** caption track synchronized to the speech |
 | `export-video [path]` | Export a sentence-synchronized karaoke MP4 video |
 | `subtitle-format srt\|vtt` | Set the caption format used for subtitle export |

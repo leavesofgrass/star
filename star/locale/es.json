@@ -654,5 +654,12 @@
   "Stylesheet template:": "Plantilla de estilos:",
   "Title:": "Título:",
   "e.g. en, es, fr": "p. ej. en, es, fr",
-  "e.g. 2026-08-16": "p. ej. 2026-08-16"
+  "e.g. 2026-08-16": "p. ej. 2026-08-16",
+  "None (plain text citations)": "Ninguno (citas en texto plano)",
+  "Citation style:": "Estilo de citas:",
+  "Bibliography:": "Bibliografía:",
+  "Bibliography file": "Archivo de bibliografía",
+  "star citation library (automatic)": "biblioteca de citas de star (automática)",
+  "Choose Bibliography File": "Elegir archivo de bibliografía",
+  "Bibliographies (*.json *.bib *.ris);;All Files (*)": "Bibliografías (*.json *.bib *.ris);;Todos los archivos (*)"
 }

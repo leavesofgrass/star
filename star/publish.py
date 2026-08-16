@@ -44,6 +44,13 @@ class PublishOptions:
     # Heading level that starts a new chapter/file inside the EPUB.  Named
     # --split-level in pandoc >= 3, --epub-chapter-level before.
     split_level: int = 1
+    # Citation processing (0.1.30): a CSL style name from
+    # :func:`available_citation_styles` switches on pandoc's citeproc, and
+    # ``bibliography`` names the references file — callers leave it "" to have
+    # the front-end fill it from star's citation library
+    # (:func:`export_bibliography`), or set an explicit .json/.bib/.ris path.
+    citation_style: str = ""
+    bibliography: str = ""
 
 
 def _seed_user_styles() -> None:
@@ -58,14 +65,15 @@ def _seed_user_styles() -> None:
         PUBLISH_STYLES_DIR.mkdir(parents=True, exist_ok=True)
     except OSError:
         return
-    for src in sorted(_BUNDLED_STYLES_DIR.glob("*.css")):
-        dest = PUBLISH_STYLES_DIR / src.name
-        if dest.exists():
-            continue
-        try:
-            dest.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
-        except OSError:
-            pass
+    for pattern in ("*.css", "*.csl"):
+        for src in sorted(_BUNDLED_STYLES_DIR.glob(pattern)):
+            dest = PUBLISH_STYLES_DIR / src.name
+            if dest.exists():
+                continue
+            try:
+                dest.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+            except OSError:
+                pass
 
 
 def available_templates() -> Dict[str, Path]:
@@ -84,6 +92,52 @@ def available_templates() -> Dict[str, Path]:
         for css in entries:
             result[css.stem] = css
     return result
+
+
+def available_citation_styles() -> Dict[str, Path]:
+    """Map citation-style name (file stem) → .csl path.
+
+    star bundles APA 7th (``apa`` — the nursing-education standard), AMA 11th
+    (``american-medical-association``), and NLM/Vancouver (``vancouver``) from
+    the Citation Style Language project (CC-BY-SA; each file carries its own
+    license metadata).  They seed into the user ``publish-styles`` folder like
+    the CSS templates, and any ``*.csl`` dropped there — the CSL repository
+    has ten thousand more — appears; the user copy wins on a name clash.
+    """
+    _seed_user_styles()
+    result: Dict[str, Path] = {}
+    for root in (_BUNDLED_STYLES_DIR, PUBLISH_STYLES_DIR):
+        try:
+            entries = sorted(root.glob("*.csl"))
+        except OSError:
+            continue
+        for csl in entries:
+            result[csl.stem] = csl
+    return result
+
+
+def export_bibliography(settings: Any) -> Optional[str]:
+    """Write star's citation library as CSL-JSON for ``--bibliography``.
+
+    The automatic half of the publish bibliography: when a citation style is
+    chosen and no explicit file was picked, the front-ends call this to turn
+    the Study-menu citation library (``settings["citations"]``) into the
+    references file pandoc consumes.  Returns the written path, or ``None``
+    when the library is empty or unreadable (publishing proceeds without a
+    bibliography rather than failing).
+    """
+    try:
+        from .citations import _format_citations
+
+        items = list(settings.get("citations", []) or [])
+        if not items:
+            return None
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        dest = CACHE_DIR / "publish-bibliography.json"
+        dest.write_text(_format_citations(items, ".json"), encoding="utf-8")
+        return str(dest)
+    except Exception:  # noqa: BLE001 — bibliography is best-effort, never fatal
+        return None
 
 
 def _generate_reference_doc(kind: str, dest: Path) -> bool:
@@ -108,12 +162,14 @@ def _generate_reference_doc(kind: str, dest: Path) -> bool:
     try:
         import docx as _docx
         from docx.enum.style import WD_STYLE_TYPE
-        from docx.shared import Pt
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
+        from docx.shared import Inches, Pt
     except ImportError:
         return False
     try:
         d = _docx.Document()
         normal = d.styles["Normal"]
+        hanging_bibliography = False
         if kind == "large-print":
             normal.font.name = "Arial"
             normal.font.size = Pt(18)
@@ -127,12 +183,55 @@ def _generate_reference_doc(kind: str, dest: Path) -> bool:
             normal.font.size = Pt(14)
             normal.paragraph_format.line_spacing = 1.5
             normal.paragraph_format.space_after = Pt(14)
+        elif kind == "apa-student-paper":
+            # APA 7 student-paper conventions: Times New Roman 12, double
+            # spacing throughout, 0.5" first-line paragraph indents, headings
+            # the same size as body text (Level 1 centered bold), and a
+            # hanging-indent double-spaced reference list.
+            normal.font.name = "Times New Roman"
+            normal.font.size = Pt(12)
+            normal.paragraph_format.line_spacing = 2.0
+            normal.paragraph_format.space_after = Pt(0)
+            for name in ("Heading 1", "Heading 2", "Heading 3"):
+                st = d.styles[name]
+                st.font.name = "Times New Roman"
+                st.font.size = Pt(12)
+                st.font.bold = True
+                st.font.color.rgb = None  # body-colored, not theme blue
+            d.styles["Heading 1"].paragraph_format.alignment = (
+                WD_ALIGN_PARAGRAPH.CENTER
+            )
+            hanging_bibliography = True
+        elif kind == "ama-manuscript":
+            # AMA-style manuscript: Times New Roman 12, double-spaced; the
+            # numeric (superscript) citation format comes from the CSL style,
+            # so the reference list stays flush (no hanging indent).
+            normal.font.name = "Times New Roman"
+            normal.font.size = Pt(12)
+            normal.paragraph_format.line_spacing = 2.0
+            normal.paragraph_format.space_after = Pt(0)
+            for name in ("Heading 1", "Heading 2", "Heading 3"):
+                st = d.styles[name]
+                st.font.name = "Times New Roman"
+                st.font.color.rgb = None
         else:
             return False
-        for pandoc_style in ("Body Text", "First Paragraph"):
+        # Pandoc's docx writer assigns these styles; python-docx's template
+        # defines none of them, and a missing style would break the cascade.
+        # "Bibliography" is what citeproc's reference list lands in.
+        for pandoc_style in ("Body Text", "First Paragraph", "Bibliography"):
             if pandoc_style not in [s.name for s in d.styles]:
                 st = d.styles.add_style(pandoc_style, WD_STYLE_TYPE.PARAGRAPH)
                 st.base_style = d.styles["Normal"]
+        if hanging_bibliography:
+            bib = d.styles["Bibliography"].paragraph_format
+            bib.left_indent = Inches(0.5)
+            bib.first_line_indent = Inches(-0.5)
+        if kind == "apa-student-paper":
+            # First-line indent on body paragraphs only — after the reference
+            # list style is derived, so References keep the hanging indent.
+            for name in ("Body Text", "First Paragraph"):
+                d.styles[name].paragraph_format.first_line_indent = Inches(0.5)
         d.save(str(dest))
         return True
     except Exception:  # noqa: BLE001 — a failed generate must not break discovery
@@ -151,7 +250,12 @@ def available_reference_docs() -> Dict[str, Path]:
         PUBLISH_STYLES_DIR.mkdir(parents=True, exist_ok=True)
     except OSError:
         return {}
-    for kind in ("large-print", "dyslexia-friendly"):
+    for kind in (
+        "large-print",
+        "dyslexia-friendly",
+        "apa-student-paper",
+        "ama-manuscript",
+    ):
         dest = PUBLISH_STYLES_DIR / f"{kind}.docx"
         if not dest.exists():
             _generate_reference_doc(kind, dest)
@@ -259,6 +363,15 @@ def build_pandoc_args(
             css = available_templates().get(options.template)
             if css is not None:
                 args += ["--css", str(css)]
+
+    if options.citation_style:
+        csl = available_citation_styles().get(options.citation_style)
+        if csl is not None:
+            args += ["--citeproc", "--csl", str(csl)]
+            if options.bibliography:
+                args += ["--bibliography", options.bibliography]
+            # Clickable in-text citations in HTML/EPUB; inert in DOCX.
+            args += ["--metadata", "link-citations=true"]
 
     if options.toc:
         args += ["--toc", f"--toc-depth={int(options.toc_depth)}"]
