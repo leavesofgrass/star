@@ -13,18 +13,32 @@ from ._runtime import *  # noqa: F401,F403
 from .formats import Exporter
 
 
-def _pandoc_write(md: str, to_fmt: str, out_path: str, *, title: str = "") -> None:
+def _pandoc_write(
+    md: str,
+    to_fmt: str,
+    out_path: str,
+    *,
+    title: str = "",
+    extra_args: Optional[List[str]] = None,
+) -> None:
     """Convert *md* (Markdown) to *to_fmt* with Pandoc, writing *out_path*.
 
     Mirrors :func:`star.markup._pandoc_convert` but on the *output* side: it
     prefers the ``pypandoc`` binding and falls back to the ``pandoc`` binary on
     stdin.  Raises ``RuntimeError`` when Pandoc is unavailable or the conversion
     fails.
+
+    *extra_args* carries the publishing pipeline's flags
+    (:func:`star.publish.build_pandoc_args`).  Those already include the
+    resolved title, so callers pass either *title* (quick-export path) or
+    *extra_args* (publish path) — not both.
     """
     out = str(out_path)
     extra: List[str] = ["--standalone"]
     if title:
         extra += ["--metadata", f"title={title}"]
+    if extra_args:
+        extra += list(extra_args)
     last_err: Optional[Exception] = None
 
     if _PYPANDOC:
@@ -88,7 +102,15 @@ class HTMLExporter(Exporter):
         from ._runtime import _PANDOC_BIN, _PYPANDOC
         return bool(_PYPANDOC or _PANDOC_BIN)
 
-    def export(self, document, path, **kwargs) -> None:
+    def export(self, document, path, *, options=None, **kwargs) -> None:
+        if options is not None:
+            from .publish import build_pandoc_args
+
+            _pandoc_write(
+                document.markdown or "", "html", path,
+                extra_args=build_pandoc_args(options, document),
+            )
+            return
         _pandoc_write(
             document.markdown or "", "html", path, title=getattr(document, "title", "")
         )
@@ -108,7 +130,18 @@ class EPUBExporter(Exporter):
         from ._runtime import _PANDOC_BIN, _PYPANDOC
         return bool(_PYPANDOC or _PANDOC_BIN)
 
-    def export(self, document, path, **kwargs) -> None:
+    def export(self, document, path, *, options=None, **kwargs) -> None:
+        """*options* (a :class:`star.publish.PublishOptions`) selects the full
+        publishing pipeline — metadata, stylesheet, cover, TOC; without it this
+        stays the bare quick-export the File ▸ Export menu has always offered."""
+        if options is not None:
+            from .publish import build_pandoc_args
+
+            _pandoc_write(
+                document.markdown or "", "epub", path,
+                extra_args=build_pandoc_args(options, document),
+            )
+            return
         _pandoc_write(
             document.markdown or "", "epub", path, title=getattr(document, "title", "")
         )

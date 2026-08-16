@@ -694,6 +694,7 @@ else:
 SETTINGS_FILE = _CFG_ROOT / "settings.json"
 CACHE_DIR = _CFG_ROOT / "cache"
 THEMES_DIR = _CFG_ROOT / "themes"  # user CSS theme files live here
+PUBLISH_STYLES_DIR = _CFG_ROOT / "publish-styles"  # user publish stylesheets
 LOG_FILE = _CFG_ROOT / "star.log"
 
 
