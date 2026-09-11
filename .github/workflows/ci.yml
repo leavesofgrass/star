@@ -221,7 +221,7 @@ jobs:
         # To bump: raise the pin, run `ruff check .` locally, and deal with
         # whatever the new version reports *deliberately* — either fix it or
         # adjust select/ignore in pyproject.toml.  Do not float this.
-        run: python -m pip install ruff==0.16.0
+        run: python -m pip install ruff==0.16.7
 
       - name: Lint
         # ruff honours .gitignore, so the vendored/build/venv trees are skipped.
