@@ -21,6 +21,9 @@ _HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
 _COMMUNITY = [
     "dracula", "nord", "solarized-dark", "solarized-light",
     "gruvbox-dark", "tokyo-night", "catppuccin-mocha", "monokai",
+    # Reading-comfort + community additions (2026-09).
+    "sepia", "amber", "everforest-dark", "rose-pine", "kanagawa",
+    "gruvbox-light",
 ]
 
 # Text-carrying keys checked for contrast against bg (sel/code_bg are

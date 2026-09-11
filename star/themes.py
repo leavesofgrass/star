@@ -241,6 +241,50 @@ BUILT_IN_PALETTES: Dict[str, Dict[str, str]] = {
         "code": "#e6db74", "code_bg": "#1e1f1c", "link": "#66d9ef",
         "muted": "#a59f85",
     },
+    # ── Reading-comfort + community additions (2026-09) ───────────────────
+    # Two themes tuned for long reading sessions — sepia (the classic warm
+    # e-reader page) and amber (low-blue dark, phosphor's warm cousin) — plus
+    # three more community schemes and gruvbox-dark's missing light half.
+    # Same rules as the 0.1.27 set: faithful to each scheme's published
+    # palette but AA-nudged where needed (every text key >= 4.5:1 on bg,
+    # enforced by tests/test_themes.py), and appended AFTER the existing
+    # built-ins so the F5 cycle order users know is unchanged.
+    "sepia": {
+        "bg": "#f4ecd8", "fg": "#3d2f1f", "sel": "#e0d2b4",
+        "h1": "#8a4510", "h2": "#6b4a20", "h3": "#4f5d2f", "h4": "#175e63",
+        "code": "#7a3b12", "code_bg": "#eadfc6", "link": "#14607a",
+        "muted": "#6d5c42",
+    },
+    "amber": {
+        "bg": "#171204", "fg": "#f0b458", "sel": "#3f3010",
+        "h1": "#ffcf70", "h2": "#f5a832", "h3": "#e0953a", "h4": "#d4b96a",
+        "code": "#ffd98a", "code_bg": "#241b08", "link": "#ffc04d",
+        "muted": "#b08448",
+    },
+    "everforest-dark": {
+        "bg": "#2d353b", "fg": "#d3c6aa", "sel": "#475258",
+        "h1": "#a7c080", "h2": "#83c092", "h3": "#7fbbb3", "h4": "#dbbc7f",
+        "code": "#e69875", "code_bg": "#232a2e", "link": "#7fbbb3",
+        "muted": "#a4b0a0",
+    },
+    "rose-pine": {
+        "bg": "#191724", "fg": "#e0def4", "sel": "#403d52",
+        "h1": "#ebbcba", "h2": "#9ccfd8", "h3": "#c4a7e7", "h4": "#f6c177",
+        "code": "#f6c177", "code_bg": "#26233a", "link": "#9ccfd8",
+        "muted": "#908caa",
+    },
+    "kanagawa": {
+        "bg": "#1f1f28", "fg": "#dcd7ba", "sel": "#2d4f67",
+        "h1": "#7e9cd8", "h2": "#98bb6c", "h3": "#7aa89f", "h4": "#e6c384",
+        "code": "#ffa066", "code_bg": "#16161d", "link": "#7fb4ca",
+        "muted": "#9c9a90",
+    },
+    "gruvbox-light": {
+        "bg": "#fbf1c7", "fg": "#3c3836", "sel": "#d5c4a1",
+        "h1": "#8f5c0a", "h2": "#af3a03", "h3": "#38684a", "h4": "#076678",
+        "code": "#635e0a", "code_bg": "#ebdbb2", "link": "#076678",
+        "muted": "#665c54",
+    },
 }
 
 #: Built-in theme names in cycle order (Galaxy first; it is the default).

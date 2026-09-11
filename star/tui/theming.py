@@ -342,6 +342,45 @@ THEMES: Dict[str, Dict] = {
         h4=(141, _MAGENTA), code=(186, _YELLOW), link=(81, _CYAN),
         muted=(144, _WHITE), err=(197, _RED),
     ),
+    # ── Reading-comfort + community additions (2026-09) ───────────────────
+    # Same names as the new GUI palettes (themes.py); xterm-256
+    # approximations with base-8 fallbacks, appended to keep cycle order.
+    "sepia": _t256(
+        bg=(230, _WHITE), fg=(237, _BLACK),
+        h1=(94, _YELLOW), h2=(58, _YELLOW), h3=(65, _GREEN),
+        h4=(24, _CYAN), code=(94, _RED), link=(24, _BLUE),
+        muted=(59, _BLACK), err=(124, _RED),
+    ),
+    "amber": _t256(
+        bg=(233, _DEF), fg=(215, _YELLOW),
+        h1=(221, _YELLOW), h2=(214, _YELLOW), h3=(172, _YELLOW),
+        h4=(179, _YELLOW), code=(222, _YELLOW), link=(214, _YELLOW),
+        muted=(137, _YELLOW), err=(203, _RED),
+    ),
+    "everforest-dark": _t256(
+        bg=(236, _DEF), fg=(187, _WHITE),
+        h1=(150, _GREEN), h2=(108, _GREEN), h3=(109, _CYAN),
+        h4=(180, _YELLOW), code=(216, _YELLOW), link=(109, _CYAN),
+        muted=(145, _WHITE), err=(167, _RED),
+    ),
+    "rose-pine": _t256(
+        bg=(233, _DEF), fg=(189, _WHITE),
+        h1=(181, _RED), h2=(116, _CYAN), h3=(183, _MAGENTA),
+        h4=(222, _YELLOW), code=(222, _YELLOW), link=(116, _CYAN),
+        muted=(103, _WHITE), err=(211, _RED),
+    ),
+    "kanagawa": _t256(
+        bg=(234, _DEF), fg=(187, _WHITE),
+        h1=(110, _BLUE), h2=(107, _GREEN), h3=(109, _CYAN),
+        h4=(180, _YELLOW), code=(215, _YELLOW), link=(74, _CYAN),
+        muted=(246, _WHITE), err=(210, _RED),
+    ),
+    "gruvbox-light": _t256(
+        bg=(230, _WHITE), fg=(237, _BLACK),
+        h1=(94, _YELLOW), h2=(130, _RED), h3=(65, _GREEN),
+        h4=(24, _BLUE), code=(58, _GREEN), link=(24, _BLUE),
+        muted=(59, _BLACK), err=(124, _RED),
+    ),
 }
 
 THEME_NAMES = list(THEMES.keys())

@@ -118,7 +118,7 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 | One-click optional features | Missing add-ons are offered for background download — no `pip` required; the feature works in the same session |
 | Plugin system | Third parties add TTS engines, document formats, or exporters via entry-point plugins; introspect with `star --plugins` |
 | Dependency status report | `star --deps` lists every optional dependency and how to add the rest |
-| Built-in themes | 17 palettes: galaxy (default), galaxy-light, one-dark, one-light, dark, light, contrast, high-contrast (WCAG AAA), phosphor, plus the popular community schemes **dracula, nord, solarized-dark, solarized-light, gruvbox-dark, tokyo-night, catppuccin-mocha, monokai** (every text color AA-checked, in the GUI *and* the terminal); can also follow the OS light / dark / high-contrast preference |
+| Built-in themes | 23 palettes: galaxy (default), galaxy-light, one-dark, one-light, dark, light, contrast, high-contrast (WCAG AAA), phosphor, the reading-comfort pair **sepia** and **amber** (low-blue dark), plus the popular community schemes **dracula, nord, solarized-dark, solarized-light, gruvbox-dark, gruvbox-light, tokyo-night, catppuccin-mocha, monokai, everforest-dark, rose-pine, kanagawa** (every text color AA-checked, in the GUI *and* the terminal); can also follow the OS light / dark / high-contrast preference |
 | CSS theme customization | Drop any `.css` file into the themes folder; star picks it up instantly |
 | High-DPI display support | Qt GUI scales correctly on 4K and HiDPI screens; toolbar icons render crisply on high-DPI displays |
 | Reading level | Flesch-Kincaid grade and ease score on demand |
@@ -1458,12 +1458,18 @@ piping to other AT tools.
 | `tokyo-night` | Tokyo Night's blues and violets |
 | `catppuccin-mocha` | Catppuccin Mocha pastels |
 | `monokai` | Classic Monokai — cyan/green/orange on warm charcoal |
+| `sepia` | The classic warm e-reader page — dark umber text on soft parchment |
+| `amber` | Low-blue dark reading theme — warm ambers only, phosphor's late-night cousin |
+| `everforest-dark` | Everforest's soft greens on deep slate |
+| `rose-pine` | Rosé Pine — rose, foam, and iris on near-black plum |
+| `kanagawa` | Kanagawa's wave blues and spring greens on sumi ink |
+| `gruvbox-light` | Gruvbox's warm retro accents on cream (completes the gruvbox pair) |
 
 The nine original themes avoid red-and-green accent pairs (deuteranopia /
 protanopia safe); the community palettes reproduce their published schemes,
 red included, but every text color in every theme meets or exceeds WCAG 2.1
 AA (4.5:1) on its background — and `high-contrast` meets AAA. The same
-seventeen names work in the terminal UI (xterm-256 approximations with plain
+twenty-three names work in the terminal UI (xterm-256 approximations with plain
 base-8 fallbacks). Switch with `F5` (cycle), **View → Choose Theme…**,
 Preferences ▸ Display, `M-x theme <name>`, or `star --theme`.
 

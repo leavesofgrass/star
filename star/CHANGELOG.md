@@ -8,6 +8,23 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### ✨ Added
+
+- **Six new themes (23 total), in both UIs.** Two reading-comfort themes star
+  was missing: **`sepia`** (the classic warm e-reader page) and **`amber`**
+  (a low-blue dark theme for late-night reading, phosphor's warm cousin) —
+  plus the community schemes **`everforest-dark`**, **`rose-pine`**, and
+  **`kanagawa`**, and **`gruvbox-light`** to complete the gruvbox pair. As
+  with the 0.1.27 set: faithful to each scheme's published palette but nudged
+  where needed so every text color clears WCAG AA (4.5:1) on its background
+  (test-enforced), with xterm-256 terminal approximations and base-8
+  fallbacks, appended after the existing themes so the `F5` cycle order you
+  know is unchanged.
+
+---
+
 ## [0.1.30] 2026-08-16
 
 ### ✨ Added
