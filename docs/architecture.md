@@ -28,7 +28,7 @@ that ships in every distribution form.
 | `star/settings.py` | Persistent settings store and defaults. |
 | `star/ttstext/` | TTS text preprocessing **package** (SSML/DECtalk markup, abbreviation/number/date/math normalization, table narration) — a behaviour-identical split of the former `ttstext.py`; the public API is unchanged. |
 | `star/markup/` | Lightweight markup → Markdown converters (AsciiDoc, Creole, MediaWiki, Org, reStructuredText, Textile, LaTeX) and the Pandoc bridge — a behaviour-identical split of the former `markup.py`; the public API is unchanged. |
-| `star/documents/` | Document model and the multi-format loaders (PDF, EPUB, DOCX, …), plus format dispatch and the entry-point `FormatHandler`s. |
+| `star/documents/` | Document model and the multi-format loaders (PDF, EPUB, DOCX, …), plus format dispatch and the entry-point `FormatHandler`s. One module per binary container, all stdlib-only: `ole.py` (CFB reader; legacy DOC/PPT), `ooxml.py` (DOCX/PPTX without python-docx/pptx), `odf.py` (ODP, flat ODF), `rtf.py` (RTF, Write), `fb2.py`, `mobi.py` (PalmDOC/HUFF), `chm.py` (ITSS + LZX), `winhelp.py` (`|TOPIC` walker), `daisy.py` (OPF / `ncc.html` / zip), `audio.py` (MP4/ID3 chapters), `comics.py`, `manpage.py` (roff). |
 | `star/archive.py` | Archive-member ingestion — ZIP and TAR via the stdlib (always available), `.7z`/`.rar` via optional packages — feeding the document loaders. |
 | `star/pagination.py` | Pure paging logic for windowing very large documents (no Qt, no I/O). |
 | `star/sync.py` | Sidecar (annotations/settings) conflict-merge for two-way sync. |

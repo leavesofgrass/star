@@ -11,6 +11,8 @@ from ..markup import _pandoc_convert
 _PANDOC_FIRST_FORMATS = frozenset({
     "docx", "odt", "pptx", "html", "csv", "tsv", "xlsx",
     "rst", "latex", "mediawiki", "textile", "creole", "orgmode", "notebook",
+    # Native loaders exist for these too (0.1.32); Pandoc's readers are richer.
+    "rtf", "fb2", "man",
 })
 
 
@@ -42,6 +44,13 @@ def _load_pandoc_first(path: str) -> Optional[str]:
     for the uncommon Pandoc-only extensions, auto-detection for the rest.
     Returns None if Pandoc fails or is unavailable."""
     pf = _PANDOC_INPUT_EXTS.get(Path(path).suffix.lower())
+    if not pf:
+        from .manpage import is_manual_page_name
+
+        if is_manual_page_name(path):
+            if Path(path).suffix.lower() == ".gz":
+                return None  # Pandoc cannot read gzipped input; the native loader can
+            pf = "man"
     return _pandoc_convert(path, pf) if pf else _load_via_pandoc(path)
 
 

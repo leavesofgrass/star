@@ -56,8 +56,12 @@ are in the
   TUI — including in-process eSpeak-NG with true audio-position sync.
 - **Many TTS engines:** pyttsx3 (SAPI5 / NSSpeechSynthesizer), macOS `say`,
   eSpeak-NG, Festival, **Piper** (neural, offline, free), Coqui, and DECtalk.
-- **Opens almost anything:** PDF (incl. OCR), DOCX, PPTX, EPUB, HTML, Markdown,
-  spreadsheets, DAISY/DTBook, and dozens more formats.
+- **Opens almost anything:** PDF (incl. OCR), Word/PowerPoint (DOCX/DOCM, PPTX,
+  and the legacy binary DOC/PPT), OpenDocument (ODT/ODP and flat XML), RTF and
+  Windows Write, EPUB, FictionBook, MOBI/Kindle, CHM and WinHelp help files,
+  DAISY 3 packages and DAISY 2.02 books, comic archives, M4B/MP3 audiobook
+  chapters, manual pages, HTML, Markdown, spreadsheets, and dozens more —
+  every format the Paperback reader opens, on the standard library alone.
 - **Write, don't just read:** create a document from scratch (**File ▸ New**,
   **Ctrl+N**), format Markdown from an edit-mode toolbar and a **Format** menu
   (Bold **Ctrl+B**, Italic **Ctrl+I**, Underline **Ctrl+U**, headings, lists,
