@@ -16,10 +16,11 @@ plugin star can see.
 
     $ star --plugins list
 
-    star 0.1.31 - registered plugins (32 total)
+    star 0.1.32 - registered plugins (33 total)
 
-    TTS backends [star.backends] (backends) - 12:
+    TTS backends [star.backends] (backends) - 13:
       [?] applesay       -> star.tts.applesay:AppleSayBackend  prio=15
+      [-] eloquence      -> star.tts.eloquence:EloquenceBackend  prio=18
       [?] pyttsx3        -> star.tts.pyttsx3:Pyttsx3Backend  prio=20
       [?] qtspeech       -> star.tts.qtspeech:QtSpeechBackend  prio=35
       [?] espeak         -> star.tts.espeak:ESpeakBackend  prio=50
@@ -38,7 +39,9 @@ plugin star can see.
 - `prio=` sets selection order — a lower number wins when several plugins can
   handle the same job (e.g. which voice is chosen automatically).
 - `[+]` means the plugin's dependencies are importable now; `[?]` means it would
-  load on demand.
+  load on demand; `[-]` means it can't run here yet (wrong platform, or an
+  optional engine that isn't installed — `eloquence` shows `[-]` until you
+  accept its one-time OpenEVV download).
 - `star --plugins info <group> <name>` details one plugin; `star --plugins api`
   prints the ABC contracts you implement to write your own.
 
