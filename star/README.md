@@ -55,7 +55,9 @@ are in the
 - **Reads aloud with live word highlighting** in both the Qt GUI and the terminal
   TUI — including in-process eSpeak-NG with true audio-position sync.
 - **Many TTS engines:** pyttsx3 (SAPI5 / NSSpeechSynthesizer), macOS `say`,
-  eSpeak-NG, Festival, **Piper** (neural, offline, free), Coqui, and DECtalk.
+  **Eloquence** (the classic screen-reader voice via open-source OpenEVV on
+  Windows, with exact word timing), eSpeak-NG, Festival, **Piper** (neural,
+  offline, free), Coqui, and DECtalk.
 - **Opens almost anything:** PDF (incl. OCR), Word/PowerPoint (DOCX/DOCM, PPTX,
   and the legacy binary DOC/PPT), OpenDocument (ODT/ODP and flat XML), RTF and
   Windows Write, EPUB, FictionBook, MOBI/Kindle, CHM and WinHelp help files,

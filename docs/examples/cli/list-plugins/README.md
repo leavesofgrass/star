@@ -16,7 +16,7 @@ plugin star can see.
 
     $ star --plugins list
 
-    star 0.1.32 - registered plugins (33 total)
+    star 0.1.32 - registered plugins (47 total)
 
     TTS backends [star.backends] (backends) - 13:
       [?] applesay       -> star.tts.applesay:AppleSayBackend  prio=15
@@ -26,10 +26,12 @@ plugin star can see.
       [?] espeak         -> star.tts.espeak:ESpeakBackend  prio=50
       [?] elevenlabs     -> star.tts.cloud.elevenlabs:ElevenLabsBackend  prio=900
       ...
-    Document format handlers [star.formats] (formats) - 12:
+    Document format handlers [star.formats] (formats) - 26:
       [+] pdf            -> star.documents.handlers:PDFHandler  prio=10  .pdf
-      [+] docx           -> star.documents.handlers:DocxHandler  prio=50  .docx
-      [+] markdown       -> star.documents.handlers:MarkdownHandler  prio=50  .markdown .md
+      [+] fb2            -> star.documents.handlers:FB2Handler  prio=40  .fb2
+      [+] man            -> star.documents.handlers:ManPageHandler  prio=40  .man .roff
+      [+] rtf            -> star.documents.handlers:RTFHandler  prio=40  .rtf
+      [+] audiobook      -> star.documents.handlers:AudiobookHandler  prio=50  .m4a .m4b .mp3
       ...
 
 ## How it works
