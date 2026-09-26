@@ -159,6 +159,42 @@ def test_wav_bytes_carries_rate_and_pcm():
         assert w.getnframes() == 100
 
 
+# ── engine text encoding (the em-dash bug) ───────────────────────────────────
+
+
+def test_em_dash_is_one_cp1252_byte_not_utf8():
+    """First live bug report: fed UTF-8, an em-dash (E2 80 94 read as
+    cp1252) was spoken as "a-circumflex, euro."  The engine must receive
+    cp1252, where the em-dash is a single native byte."""
+    out = elo._encode_for_engine("reads—like this")
+    assert out == b"reads\x97like this"
+    assert b"\xe2\x80" not in out  # no UTF-8 multi-byte sequences, ever
+
+
+def test_common_typography_survives_in_cp1252():
+    cases = {
+        "‘quoted’": b"\x91quoted\x92",  # curly single quotes
+        "“quoted”": b"\x93quoted\x94",  # curly double quotes
+        "wait…": b"wait\x85",  # ellipsis
+        "–range": b"\x96range",  # en dash
+        "café": b"caf\xe9",  # Latin-1 letters pass through
+    }
+    for text, expected in cases.items():
+        assert elo._encode_for_engine(text) == expected
+
+
+def test_unmappable_characters_never_raise():
+    out = elo._encode_for_engine("arrow → and CJK 日")
+    assert isinstance(out, bytes) and b"arrow" in out
+    for text in ("", " ", "—", "plain"):
+        assert isinstance(elo._encode_for_engine(text), bytes)
+
+
+def test_fallback_encoder_used_without_win32(monkeypatch):
+    monkeypatch.setattr(elo, "_WIDE_CHAR_TO_MULTI_BYTE", None)
+    assert elo._encode_for_engine("reads—like") == b"reads\x97like"
+
+
 # ── the measured OpenEVV quirk rules stay encoded ────────────────────────────
 
 

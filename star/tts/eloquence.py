@@ -71,6 +71,45 @@ _RATE_POINTS: "List[Tuple[int, int]]" = [
 ]
 
 
+def _encode_for_engine(text: str) -> bytes:
+    """Encode *text* as the cp1252 bytes the engine actually reads.
+
+    ECI is a single-byte-codepage engine, not a UTF-8 one: fed UTF-8, an
+    em-dash (U+2014 → E2 80 94) is spoken as "a-circumflex, euro" — the
+    first live bug report against this backend.  cp1252 carries the common
+    typography natively (em/en dashes, curly quotes, the ellipsis), and
+    Windows' own ``WideCharToMultiByte`` best-fit conversion folds most of
+    the rest to sensible lookalikes instead of question marks — the approach
+    the OpenEVV NVDA add-on settled on after a plain ASCII fold proved
+    "wrong twice over" (its textproc.py).  Falls back to Python's cp1252
+    with replacement when the Win32 call is unavailable.
+    """
+    if _WIDE_CHAR_TO_MULTI_BYTE is not None:
+        try:
+            import ctypes
+
+            n = _WIDE_CHAR_TO_MULTI_BYTE(
+                1252, 0, text, len(text), None, 0, None, None
+            )
+            if n > 0:
+                buf = ctypes.create_string_buffer(n)
+                _WIDE_CHAR_TO_MULTI_BYTE(
+                    1252, 0, text, len(text), buf, n, None, None
+                )
+                return buf.raw[:n]
+        except Exception:  # noqa: BLE001 — fall through to the pure encoder
+            pass
+    return text.encode("cp1252", "replace")
+
+
+try:
+    import ctypes as _ct_probe
+
+    _WIDE_CHAR_TO_MULTI_BYTE = _ct_probe.windll.kernel32.WideCharToMultiByte
+except (ImportError, AttributeError, OSError):
+    _WIDE_CHAR_TO_MULTI_BYTE = None
+
+
 def _speed_for_wpm(wpm: float) -> int:
     """The ECI speed whose measured rate best matches *wpm* (clamped)."""
     try:
@@ -266,7 +305,8 @@ class _EciEngine:
         self._samples = 0
         for i, w in enumerate(words):
             self._lib.eciInsertIndex(self._h, i)
-            self._lib.eciAddText(self._h, (w + " ").encode("utf-8", "replace"))
+            # cp1252, never UTF-8 — see _encode_for_engine (the em-dash bug).
+            self._lib.eciAddText(self._h, _encode_for_engine(w + " "))
         self._lib.eciSynthesize(self._h)
         self._lib.eciSynchronize(self._h)
         return bytes(self._pcm), list(self._marks)
