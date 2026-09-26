@@ -238,7 +238,8 @@ backend already uses them. On **Windows** there are two routes:
   the engine. Its program code is open source, **but its language data
   derives from IBM's ViaVoice, and OpenEVV's own authors state they cannot
   license that data**. star can download it for you when you pick the
-  `eloquence` engine (Speech ▸ Choose TTS Engine…), after a one-time consent
+  `eloquence` engine (Speech ▸ Choose TTS Engine… in the GUI, or
+  `M-x tts-backend` in the terminal UI), after a one-time consent
   dialog that states exactly this — whether to install and use it is your
   decision, and no one can make it for you. star also detects an existing
   OpenEVV install (the OpenEVVWindows SAPI5 installer or NVDA add-on), and
@@ -253,10 +254,12 @@ backend already uses them. On **Windows** there are two routes:
   Apple's high-quality voices with no extra dependencies. When no voice is set,
   star auto-selects a voice matching `tts_prefer_voice` (default `"eloquence"`),
   favoring a US-English variant.
-- **Eloquence (`eloquence`, Windows)** — the classic screen-reader voice
-  (Reed and family), driven in process through OpenEVV's ECI engine with an
-  index mark at every word, so the karaoke highlight lands at the *exact*
-  audio position of each spoken word — more precisely than any SAPI5 voice.
+- **Eloquence (`eloquence`, Windows)** — the classic screen-reader voice,
+  driven in process through OpenEVV's ECI engine with an index mark at every
+  word, so the karaoke highlight lands at the *exact* audio position of each
+  spoken word — more precisely than any SAPI5 voice. All eight classic
+  voices are in the Voice Manager (`F4`) and the voice picker: **Reed,
+  Shelley, Bobby, Rod, Glen, Sandy, Grandma, and Grandpa**.
   Not bundled: see **Getting Eloquence** below.
 - **Qt speech (`qtspeech`, new in 0.1.29)** — drives the platform's native
   engine through Qt's `QTextToSpeech` (WinRT/SAPI on Windows, AVSpeech on

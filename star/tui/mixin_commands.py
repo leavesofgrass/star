@@ -217,11 +217,8 @@ class CommandsMixin:
             "volume-up": lambda: self._volume_change(+0.1),
             "volume-down": lambda: self._volume_change(-0.1),
             "tts-backend": lambda: self._enter_minibuffer(
-                "TTS backend (pyttsx3/espeak/festival/piper/coqui/dectalk/none): ",
-                on_commit=lambda v: (
-                    self.tts.change_backend(v.strip()),
-                    self.notify(f"TTS: {self.tts.backend_name}"),
-                ),
+                "TTS backend (pyttsx3/eloquence/espeak/festival/piper/coqui/dectalk/none): ",
+                on_commit=self._change_backend_command,
             ),
             # tts-voice now opens the interactive picker (same as voice-picker
             # and Ctrl+T) so the user sees names rather than opaque IDs.

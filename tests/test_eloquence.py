@@ -224,3 +224,155 @@ def test_callback_never_answers_abort():
     src = inspect.getsource(elo._EciEngine._on_message)
     assert "return _DATA_PROCESSED" in src
     assert elo._DATA_PROCESSED == 1
+
+
+# ── voice presets (probed against OpenEVV 2026-09-26) ────────────────────────
+
+
+def test_preset_table_is_the_classic_eight():
+    slugs = [s for s, _p, _n in elo._PRESET_VOICES]
+    presets = [p for _s, p, _n in elo._PRESET_VOICES]
+    assert presets == list(range(1, 9))
+    assert len(set(slugs)) == 8
+    assert slugs[0] == "reed"  # preset 1 stays the default voicing
+
+
+def test_preset_for_voice_id_accepts_slug_name_and_number():
+    assert elo._preset_for_voice_id("shelley") == 2
+    assert elo._preset_for_voice_id("Shelley") == 2  # display name, any case
+    assert elo._preset_for_voice_id("2") == 2
+    assert elo._preset_for_voice_id(" grandpa ") == 8
+    assert elo._preset_for_voice_id("") is None
+    assert elo._preset_for_voice_id("nonsense") is None
+
+
+def test_list_voices_offers_every_preset(monkeypatch, tmp_path):
+    dll = tmp_path / "eci.dll"
+    dll.write_bytes(b"x")
+    monkeypatch.setenv("STAR_ECI_LIBRARY", str(dll))
+    monkeypatch.setattr(elo.sys, "platform", "win32")
+    voices = EloquenceBackend().list_voices()
+    assert [v["id"] for v in voices] == [s for s, _p, _n in elo._PRESET_VOICES]
+    assert all(v["name"].endswith("(Eloquence)") for v in voices)
+
+
+def test_speed_is_reapplied_after_preset_copy_in_source():
+    """eciCopyVoice replaces EVERY setting of the working voice (measured;
+    the NVDA driver re-reads its sliders for the same reason), so speak()
+    must order the preset copy before set_speed/set_volume."""
+    import inspect
+
+    src = inspect.getsource(elo.EloquenceBackend.speak)
+    assert src.index("load_preset") < src.index("set_speed")
+    assert src.index("load_preset") < src.index("set_volume")
+
+
+# ── the TUI consent flow (mirrors the GUI's engine-picker gate) ──────────────
+
+
+class _FakeTTS:
+    def __init__(self):
+        self.changed: "list[str]" = []
+        self.backend_name = "pyttsx3"
+
+    def change_backend(self, name):
+        self.changed.append(name)
+        self.backend_name = name
+
+
+def _make_tui_app():
+    """Compose the real VoiceMixin onto a tiny fake app (the
+    tests/test_tui_mixins.py pattern): only what the flow touches."""
+    import queue
+
+    from star.tui.mixin_voice import VoiceMixin
+
+    class _App(VoiceMixin):
+        def __init__(self):
+            self.tts = _FakeTTS()
+            self.settings = _Settings()
+            self.notices: "list[str]" = []
+            self.pager_shown: "list[str]" = []
+            self.confirm_answer = True
+            self._bg_queue = queue.Queue()
+
+        def notify(self, msg, error=False, dur=None):
+            self.notices.append(msg)
+
+        def _show_text_pager(self, title, markdown):
+            self.pager_shown.append(markdown)
+
+        def _inline_confirm(self, prompt):
+            return self.confirm_answer
+
+    return _App()
+
+
+@pytest.fixture
+def _win32_voice_mixin(monkeypatch):
+    import star.tui.mixin_voice as mv
+
+    monkeypatch.setattr(mv.sys, "platform", "win32")
+    return mv
+
+
+def test_tui_switch_offers_install_when_engine_missing(
+    monkeypatch, _win32_voice_mixin
+):
+    monkeypatch.setattr(elo, "find_eci_library", lambda: None)
+    app = _make_tui_app()
+    offered = []
+    app._offer_eloquence_install = lambda: offered.append(True)
+    app._change_backend_command("eloquence")
+    assert offered == [True]
+    assert app.tts.changed == []  # never switched to a missing engine
+
+
+def test_tui_switch_passes_through_when_installed(monkeypatch, _win32_voice_mixin):
+    monkeypatch.setattr(elo, "find_eci_library", lambda: "C:/x/eci.dll")
+    app = _make_tui_app()
+    app._change_backend_command("Eloquence")
+    assert app.tts.changed == ["eloquence"]
+
+
+def test_tui_consent_decline_downloads_nothing(monkeypatch, _win32_voice_mixin):
+    monkeypatch.setattr(
+        elo, "install_openevv",
+        lambda *a, **k: pytest.fail("declined consent must not download"),
+    )
+    app = _make_tui_app()
+    app.confirm_answer = False
+    app._offer_eloquence_install()
+    # The pager carried the licensing text verbatim, formatted.
+    assert elo.OPENEVV_VERSION in app.pager_shown[0]
+    assert "cannot" in app.pager_shown[0]  # the unlicensable-data sentence
+    assert any("not installed" in n for n in app.notices)
+
+
+def test_tui_consent_accept_downloads_and_switches(monkeypatch, _win32_voice_mixin):
+    mv = _win32_voice_mixin
+
+    class _SyncThread:
+        def __init__(self, target=None, daemon=None, name=None):
+            self._target = target
+
+        def start(self):
+            self._target()
+
+    monkeypatch.setattr(
+        mv, "threading", type("T", (), {"Thread": _SyncThread})
+    )
+    seen = {}
+
+    def _fake_install(settings, *, acknowledged):
+        seen["ack"] = acknowledged
+        return "C:/x/eci.dll"
+
+    monkeypatch.setattr(elo, "install_openevv", _fake_install)
+    app = _make_tui_app()
+    app._offer_eloquence_install()
+    while not app._bg_queue.empty():  # drain like _poll_bg_queue does
+        app._bg_queue.get_nowait()()
+    assert seen == {"ack": True}
+    assert app.tts.changed == ["eloquence"]
+    assert any("installed" in n for n in app.notices)

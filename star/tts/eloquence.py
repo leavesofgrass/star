@@ -58,6 +58,39 @@ _VP_SPEED = 6
 _VP_VOLUME = 7
 _BUFFER_SAMPLES = 4096
 _SAMPLE_RATES = (8000, 11025, 22050)
+_ACTIVE_VOICE = 0  # slot 0 is the working voice; eciCopyVoice(h, n, 0) loads preset n
+
+#: The eight ECI voice presets, in ``eciCopyVoice`` order, under the names the
+#: classic screen readers made famous (the engine's own eciGetVoiceName labels
+#: are the generic descriptors — "Adult Male 1" for Reed, and so on).  Probed
+#: against OpenEVV 2026-09-26: all eight copies succeed, each changes the
+#: rendered audio, and the engine stays healthy afterward.
+_PRESET_VOICES: "Tuple[Tuple[str, int, str], ...]" = (
+    ("reed", 1, "Reed"),  # Adult Male 1 — the engine default
+    ("shelley", 2, "Shelley"),  # Adult Female 1
+    ("bobby", 3, "Bobby"),  # Child 1
+    ("rod", 4, "Rod"),  # Adult Male 2
+    ("glen", 5, "Glen"),  # Adult Male 3
+    ("sandy", 6, "Sandy"),  # Adult Female 2
+    ("grandma", 7, "Grandma"),  # Elderly Female 1
+    ("grandpa", 8, "Grandpa"),  # Elderly Male 1
+)
+
+
+def _preset_for_voice_id(voice_id: str) -> "Optional[int]":
+    """Map a picker voice id to an ECI preset number (1-8), or ``None``.
+
+    Accepts the slug (``"shelley"``), the display name in any case, or the
+    preset number itself (``"2"``) — settings files and third-party callers
+    have used all three shapes for other backends.
+    """
+    v = (voice_id or "").strip().lower()
+    if not v:
+        return None
+    for slug, preset, _name in _PRESET_VOICES:
+        if v == slug or v == str(preset):
+            return preset
+    return None
 
 #: ECI speed (voice param 6, 0..=250) → measured words per minute, from
 #: TextWeaver's calibration of ETI-Eloquence 6.x at 11025 Hz (Reed).  star
@@ -258,10 +291,14 @@ class _EciEngine:
         lib.eciGetVoiceParam.argtypes = [
             ctypes.c_void_p, ctypes.c_int, ctypes.c_int,
         ]
+        lib.eciCopyVoice.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
 
         self._h = ctypes.c_void_p(lib.eciNew())
         if not self._h:
             raise RuntimeError("eciNew returned no engine instance")
+        #: Which preset the working voice holds; None until a copy is made
+        #: (a fresh engine starts on the Reed voicing without one).
+        self.loaded_preset: "Optional[int]" = None
         self._buf = (ctypes.c_short * _BUFFER_SAMPLES)()
         self._pcm = bytearray()
         self._marks: "List[Tuple[int, int]]" = []  # (index, sample_offset)
@@ -283,6 +320,17 @@ class _EciEngine:
         elif msg == _MSG_INDEX:
             self._marks.append((int(lparam), self._samples))
         return _DATA_PROCESSED  # NEVER eciDataAbort: it hangs eciSynchronize
+
+    def load_preset(self, preset: int) -> bool:
+        """Copy ECI preset *preset* (1-8) into the working voice.
+
+        A copy replaces **every** setting of the working voice, so callers
+        must re-apply speed and volume afterward (``speak`` always does).
+        """
+        ok = bool(self._lib.eciCopyVoice(self._h, int(preset), _ACTIVE_VOICE))
+        if ok:
+            self.loaded_preset = int(preset)
+        return ok
 
     def set_speed(self, speed: int) -> None:
         self._lib.eciSetVoiceParam(self._h, 0, _VP_SPEED, int(speed))
@@ -344,7 +392,7 @@ class EloquenceBackend(TTSBackend):
     def __init__(self, rate: int = 265, volume: float = 1.0, voice: str = ""):
         self._rate = int(rate)
         self._volume = max(0.0, min(1.0, float(volume)))
-        self._voice = voice  # reserved: ECI presets arrive in a later cut
+        self._voice = voice  # an ECI preset id — see _PRESET_VOICES
         self._engine: "Optional[_EciEngine]" = None
         self._gen = 0
         self._speaking = False
@@ -396,6 +444,11 @@ class EloquenceBackend(TTSBackend):
                 eng = self._ensure_engine()
                 if eng is None:
                     return
+                preset = _preset_for_voice_id(self._voice)
+                if preset is not None and eng.loaded_preset != preset:
+                    eng.load_preset(preset)
+                # Always after any preset copy: a copy replaces every voice
+                # setting, including these two.
                 eng.set_speed(_speed_for_wpm(self._rate))
                 eng.set_volume(round(self._volume * 100))
                 for chunk_text, base in chunks:
@@ -482,11 +535,12 @@ class EloquenceBackend(TTSBackend):
         self._voice = voice_id or ""
 
     def list_voices(self) -> "List[Dict[str, str]]":
-        # One voice today; the eight ECI presets (Reed, Shelley, …) are a
-        # follow-up once preset copying is probed against OpenEVV.
         if not self.available():
             return []
-        return [{"id": "reed", "name": "Reed (Eloquence)", "lang": "en-US"}]
+        return [
+            {"id": slug, "name": f"{name} (Eloquence)", "lang": "en-US"}
+            for slug, _preset, name in _PRESET_VOICES
+        ]
 
     @property
     def speaking(self) -> bool:

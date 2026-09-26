@@ -8,6 +8,24 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### ✨ Added
+
+- **The eight classic Eloquence voices.** The `eloquence` engine's voice
+  picker now offers the whole cast — **Reed, Shelley, Bobby, Rod, Glen,
+  Sandy, Grandma, and Grandpa** (ECI presets 1–8) — in the Voice Manager
+  (`F4`), the TUI voice picker, and `tts_voice`. Preset copying was probed
+  against OpenEVV first: it is safe, and star re-applies your rate and
+  volume after every switch because a preset replaces every voice setting.
+- **Eloquence one-time download in the terminal UI.** `M-x tts-backend
+  eloquence` now offers the same consent-gated OpenEVV download the GUI's
+  engine picker has: the licensing summary in a pager, a y/n confirm, a
+  background download, and an automatic switch when it lands. The consent
+  wording is single-sourced with the GUI dialog.
+
+---
+
 ## [0.1.32] 2026-09-25
 
 ### ✨ Added

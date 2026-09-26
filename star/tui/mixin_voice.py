@@ -222,6 +222,72 @@ class VoiceMixin:
         pairs = "  |  ".join(f"{k} → {v}" for k, v in sorted(lex.items()))
         self.notify(f"Pronunciations: {pairs}", dur=8.0)
 
+    # ── Engine switching ─────────────────────────────────────────────────
+
+    def _change_backend_command(self, name: str) -> None:
+        """M-x tts-backend commit: switch engines.
+
+        Picking ``eloquence`` on Windows without OpenEVV installed routes
+        through the consent-gated download, mirroring the GUI's engine
+        picker (`_qt_offer_eloquence_install`).
+        """
+        name = (name or "").strip().lower()
+        if name == "eloquence" and sys.platform == "win32":
+            from ..tts import eloquence as _elo
+
+            if _elo.find_eci_library() is None:
+                self._offer_eloquence_install()
+                return
+        self.tts.change_backend(name)
+        self.notify(f"TTS: {self.tts.backend_name}")
+
+    def _offer_eloquence_install(self) -> None:
+        """Consent-gated OpenEVV download, TUI edition.
+
+        The pager shows ``star.tts.eloquence.CONSENT_TEXT`` verbatim
+        (single-sourced with the GUI dialog; the wording is the user's
+        licensing decision, so it is never paraphrased), then a y/n
+        confirm; a yes records the acknowledgment and downloads on a
+        worker thread, reporting back through ``_bg_queue``.
+        """
+        from ..tts.eloquence import CONSENT_TEXT, OPENEVV_VERSION, install_openevv
+
+        self._show_text_pager(
+            "Eloquence — before you install",
+            CONSENT_TEXT.format(version=OPENEVV_VERSION),
+        )
+        if not self._inline_confirm(
+            f"Download OpenEVV {OPENEVV_VERSION} and enable Eloquence? (y/n) "
+        ):
+            self.notify("Eloquence was not installed.")
+            return
+        self.notify("Downloading Eloquence (OpenEVV) in the background…", dur=8.0)
+
+        def _work() -> None:
+            try:
+                path = install_openevv(self.settings, acknowledged=True)
+            except Exception as exc:  # noqa: BLE001 — offline/refused is a normal outcome
+                msg = f"Eloquence install failed: {exc}"
+                self._bg_queue.put(lambda: self.notify(msg, error=True))
+                return
+            if path:
+                self._bg_queue.put(self._eloquence_ready)
+            else:
+                self._bg_queue.put(
+                    lambda: self.notify(
+                        "Eloquence install did not complete.", error=True
+                    )
+                )
+
+        threading.Thread(
+            target=_work, daemon=True, name="star-eloquence-install"
+        ).start()
+
+    def _eloquence_ready(self) -> None:
+        """Curses-loop callback: the download finished — switch to it."""
+        self.tts.change_backend("eloquence")
+        self.notify(f"Eloquence installed — TTS: {self.tts.backend_name}")
+
     # ── Voice & profile presets ──────────────────────────────────────────
 
     def _apply_loaded_settings(self) -> None:
