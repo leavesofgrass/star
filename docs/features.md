@@ -138,16 +138,30 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 | RAR archive | `.rar` | `rarfile` (`[archive]` extra) |
 | PDF (text layer) | `.pdf` | `pdfminer.six` |
 | PDF (scanned / image) | `.pdf` | `pytesseract`, `pymupdf` |
-| Microsoft Word | `.docx` | `python-docx` |
-| Microsoft Word (legacy) | `.doc` | `python-docx` or `antiword` |
-| PowerPoint | `.pptx` | `python-pptx` |
-| OpenDocument Text | `.odt` | `odfpy` (or Pandoc fallback) |
+| Microsoft Word | `.docx`, `.docm`, `.dotx`, `.dotm` | `python-docx` (built-in OOXML reader for macro-enabled files and as fallback) |
+| Microsoft Word (legacy) | `.doc`, `.dot` | built-in OLE reader (python-docx, `antiword`, LibreOffice or Pandoc when present) |
+| PowerPoint | `.pptx`, `.pptm`, `.ppsx` | `python-pptx` (built-in OOXML reader for macro-enabled files and as fallback) |
+| PowerPoint (legacy) | `.ppt`, `.pps` | built-in OLE reader (LibreOffice when present) |
+| OpenDocument Text | `.odt`, `.fodt` (flat XML) | `odfpy` for `.odt` (built-in XML walker for `.fodt` and as fallback) |
+| OpenDocument Presentation | `.odp`, `.fodp` | built-in |
+| Rich Text Format | `.rtf` | built-in (Pandoc preferred when installed) |
+| Windows Write | `.wri` | built-in (RTF or plain text in disguise, or the Write binary) |
 | EPUB 2 / 3 | `.epub` | built-in |
-| HTML / XHTML | `.html`, `.htm` | built-in |
+| FictionBook | `.fb2`, `.fb2.zip` | built-in (Pandoc preferred when installed) |
+| Mobipocket / Kindle | `.mobi`, `.prc`, `.azw`, `.azw3` | built-in (PalmDOC + HUFF/CDIC; DRM-free books only) |
+| Compiled HTML Help | `.chm` | built-in (ITSS directory + LZX decompressor) |
+| WinHelp | `.hlp` | built-in (WinHelp 3.0 / 3.1 / 4.0) |
+| HTML / XHTML | `.html`, `.htm`, `.xhtml` | built-in |
+| DAISY 3 package | `.opf`, `.ncx` | built-in (DTBook text or SMIL/XHTML content; NCX chapters) |
+| DAISY 2.02 | `ncc.html` | built-in (SMIL → content HTML; NCC headings as chapters) |
 | DAISY / DTBook | `.xml`, `.daisy` | built-in |
-| DAISY ZIP | `.zip` | built-in |
-| Markdown | `.md`, `.markdown` | built-in |
-| Plain text | `.txt` | built-in |
+| DAISY ZIP | `.zip` | built-in (a `.zip` holding `ncc.html`, an OPF or DTBook opens as the book) |
+| Comic book archive | `.cbz`, `.cbr`, `.cb7` | built-in page index; page text via OCR (`[ocr]` extra); `.cbr` needs `rarfile` (`[archive]` extra) |
+| Audiobook (chapters & metadata) | `.m4b`, `.m4a`, `.mp3` | built-in (MP4 atoms / ID3v2 `CHAP`; `ffprobe` as fallback) |
+| Manual page (roff) | `.man`, `.roff`, `ls.1` … `foo.8`, `printf.3.gz` | built-in (Pandoc preferred when installed) |
+| Gzipped document | `.gz` (`notes.txt.gz`, `page.html.gz` …) | built-in (unpacked and opened by its inner extension) |
+| Markdown | `.md`, `.markdown`, `.mdown`, `.mdx`, `.mdwn`, `.mkd`, `.mkdn`, `.mkdown`, `.ronn` | built-in |
+| Plain text | `.txt`, `.text`, `.log` | built-in |
 | reStructuredText | `.rst`, `.rest` | built-in |
 | AsciiDoc | `.adoc`, `.asciidoc`, `.asc` | built-in (or Pandoc) |
 | MediaWiki markup | `.wiki`, `.mediawiki` | built-in |
@@ -166,18 +180,27 @@ the [Usage Guide](usage_guide.md); for the settings that tune them, see
 **Pandoc as a first-class importer.** When Pandoc is installed, star prefers it
 for the formats it handles well — the office and markup formats above (DOCX,
 ODT, PPTX, HTML, RST, LaTeX, MediaWiki, Textile, Creole, Org, Jupyter,
-CSV/TSV/XLSX) **plus Pandoc-only types** with no native loader: `.rtf`, `.fb2`,
-`.docbook`, `.jats`, `.ris`, `.bib`/`.bibtex` (BibTeX/BibLaTeX), `.opml`,
-`.t2t`, `.muse`, `.typst`, `.dokuwiki`, `.twiki`, `.tikiwiki`, `.vimwiki`,
-`.jira`, `.man`/`.mdoc`, `.pod`, and more. Pandoc reads **50+ input formats**
-(51 as of Pandoc 3.9; the exact set is `pandoc --list-input-formats`). star
-falls back to its native loader if a Pandoc conversion fails.
+CSV/TSV/XLSX, RTF, FB2, manual pages) **plus Pandoc-only types** with no native
+loader: `.docbook`, `.jats`, `.ris`, `.bib`/`.bibtex` (BibTeX/BibLaTeX),
+`.opml`, `.t2t`, `.muse`, `.typst`, `.dokuwiki`, `.twiki`, `.tikiwiki`,
+`.vimwiki`, `.jira`, `.mdoc`, `.pod`, and more. Pandoc reads **50+ input
+formats** (51 as of Pandoc 3.9; the exact set is `pandoc --list-input-formats`).
+star falls back to its native loader if a Pandoc conversion fails.
 
-Three things are **always read natively**: **EPUB** (so its NCX/NAV chapter
-navigation is preserved), the formats Pandoc can't open (PDF, images/OCR, plain
-code, DAISY/DTBook, archives, URLs), and Markdown/plain text (no conversion
-needed). Controlled by the **`prefer_pandoc`** setting (default `true`); set it
-`false` to always use the native loaders.
+Everything else is **read natively** and needs nothing beyond the Python
+standard library: **EPUB** (so its NCX/NAV chapter navigation is preserved),
+MOBI/Kindle, CHM and WinHelp, the legacy binary Office formats, DAISY packages,
+comics, audiobooks, PDF, images/OCR, plain code, archives, URLs, and
+Markdown/plain text. Controlled by the **`prefer_pandoc`** setting (default
+`true`); set it `false` to always use the native loaders.
+
+**Format parity with Paperback.** Every document format the
+[Paperback](https://github.com/trypsynth/paperback) accessible reader opens
+also opens in star (0.1.32): HTML, EPUB, FB2, CBZ/CBR, CHM, DAISY (OPF / zip /
+`ncc.html`), PDF, DOC/DOCX/DOCM, PPT/PPTX/PPTM, ODT/FODT, ODP/FODP, RTF,
+WinHelp, M4B and MP3 audiobooks, MOBI/AZW/AZW3, manual pages, the Markdown
+spellings, and `.txt`/`.log`. The CHM and WinHelp readers are Python ports of
+the MIT-licensed `libchm` and `libhlp` crates Paperback uses.
 
 **PowerPoint:** Slide titles render as headings, body text as paragraphs, and
 speaker notes are appended after each slide. **Spreadsheets:** CSV, TSV, and XLSX
@@ -747,6 +770,31 @@ and `chapter-prev` in both modes.
 directly, Bookshare `.zip` downloads (unpacked automatically), and Archive.org
 DAISY URLs. Reading order follows the `<spine>`/`<book>` sequence.
 
+Whole DAISY books open from their entry file as well: a **DAISY 3 package**
+(`.opf`, or its `.ncx`) reads the DTBook text — or, for narrated books, the
+SMIL-aligned XHTML content in spine order — and takes its chapter list from the
+NCX; a **DAISY 2.02** book opens from `ncc.html`, following each heading's SMIL
+file to the shared content HTML, with the NCC headings as chapters. A `.zip`
+that contains either is opened as the book rather than as an archive index. An
+audio-only book becomes a track listing that points at **Tools ▸ Transcribe
+Audio**. Chapter entries carry word positions, so `chapter-next`/`chapter-prev`
+in the terminal UI land on the chapter for every format that supplies one
+(EPUB, DAISY, FB2, CHM, WinHelp, audiobooks).
+
+**Audiobooks (`.m4b`, `.mp3`)** open as a navigable document of their own
+structure — title, author/narrator, album, year, duration, description, and the
+**chapter list with timestamps** (from the MP4 `chpl` atom or QuickTime chapter
+track, or ID3v2 `CHAP`/`CTOC` frames; `ffprobe` as a fallback). The narration
+itself is not text; run **Tools ▸ Transcribe Audio** on the file to read it.
+
+**Help files** open as one section per topic: `.chm` in table-of-contents
+order (the `.hhc` sitemap becomes the Contents list and the chapter list), and
+`.hlp` in stored order with each topic's title as its heading.
+
+**Comic archives (`.cbz`, `.cbr`)** list their pages in natural order
+(`page2` before `page10`) with one section per page; with OCR installed every
+page is recognised so captions and speech bubbles can be read aloud.
+
 ---
 
 ## Document caching
@@ -935,7 +983,7 @@ no manual extraction required.
 
 | Format | Extension(s) | Notes |
 |---|---|---|
-| ZIP | `.zip` | stdlib; always available (DAISY ZIPs use the DAISY handler, not this one) |
+| ZIP | `.zip` | stdlib; always available (a ZIP that *is* a document — DAISY, EPUB, DOCX/PPTX, FB2, a folder of comic pages — opens as that document, not as an index) |
 | TAR | `.tar`, `.tar.gz`, `.tgz`, `.tar.xz`, `.tar.bz2` | stdlib; always available |
 | 7-Zip | `.7z` | requires `py7zr` (`pip install "star-reader[archive]"`) |
 | RAR | `.rar` | requires `rarfile` (`pip install "star-reader[archive]"`) |

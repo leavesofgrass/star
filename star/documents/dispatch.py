@@ -8,7 +8,16 @@ from .ebook import _epub_extract_chapters, _load_dtbook, _load_epub
 from .html import _load_html
 from .misc import _load_image_ocr, _load_url, _process_footnotes, _record_archive_members
 from .model import Document
-from .office import _load_csv_tsv, _load_doc, _load_docx, _load_odt_v2, _load_pptx, _load_xlsx
+from .audio import _load_audiobook_full
+from .comics import _load_comic
+from .daisy import _is_daisy_zip, _load_daisy_full
+from .fb2 import _fb2_chapters, _load_fb2
+from .manpage import _load_manpage, is_manual_page_name
+from .mobi import _load_mobi_full
+from .odf import _load_fodt, _load_odp
+from .office import _load_csv_tsv, _load_doc, _load_docx, _load_odt_v2, _load_ppt, _load_pptx, _load_xlsx
+from .ooxml import _ooxml_kind
+from .rtf import _load_rtf, _load_wri
 from .pandoc import _PANDOC_INPUT_EXTS, _load_pandoc_first, _load_via_pandoc, _pandoc_available, _pandoc_handles
 from .pdf import _load_pdf
 from .text_loaders import _load_asciidoc, _load_creole, _load_latex, _load_markdown, _load_mediawiki, _load_notebook, _load_orgmode, _load_plain_text, _load_r_code, _load_rmarkdown, _load_rst, _load_textile
@@ -20,19 +29,54 @@ _EXT_FORMAT_MAP: Dict[str, str] = {
         ".md": "markdown",
         ".markdown": "markdown",
         ".mdown": "markdown",
+        ".mdx": "markdown",
+        ".mdwn": "markdown",
+        ".mkd": "markdown",
+        ".mkdn": "markdown",
+        ".mkdown": "markdown",
+        ".ronn": "markdown",
         ".txt": "text",
         ".text": "text",
+        ".log": "text",
         ".html": "html",
         ".htm": "html",
         ".xhtml": "html",
         ".pdf": "pdf",
         ".docx": "docx",
+        ".docm": "docx",  # macro-enabled Word — same package layout
+        ".dotx": "docx",
+        ".dotm": "docx",
         ".doc": "doc",
         ".dot": "doc",  # legacy Word template — same binary format
         ".pptx": "pptx",
-        ".ppt": "pptx",  # legacy PowerPoint — same conversion path
+        ".pptm": "pptx",  # macro-enabled PowerPoint — same package layout
+        ".ppsx": "pptx",
+        ".ppt": "ppt",  # legacy binary PowerPoint 97–2003 (OLE)
+        ".pps": "ppt",
         ".odt": "odt",
+        ".fodt": "fodt",
+        ".odp": "odp",
+        ".fodp": "odp",
         ".epub": "epub",
+        ".fb2": "fb2",
+        ".mobi": "mobi",
+        ".prc": "mobi",
+        ".azw": "mobi",
+        ".azw3": "mobi",
+        ".kf8": "mobi",
+        ".chm": "chm",
+        ".hlp": "winhelp",
+        ".rtf": "rtf",
+        ".wri": "wri",
+        ".cbz": "comic",
+        ".cbr": "comic",
+        ".cb7": "comic",
+        ".m4b": "audiobook",
+        ".m4a": "audiobook",
+        ".mp3": "audiobook",
+        ".man": "man",
+        ".roff": "man",
+        ".gz": "gz",
         ".csv": "csv",
         ".tsv": "tsv",
         ".xlsx": "xlsx",
@@ -74,14 +118,27 @@ _EXT_FORMAT_MAP: Dict[str, str] = {
 }
 
 
+#: Manual pages are named for their section (``ls.1``, ``printf.3.gz``); these
+#: pseudo-extensions let the library scanner pick them up.
+_MAN_SECTION_EXTS = frozenset({f".{i}" for i in range(1, 10)})
+
+
 def _detect_format(path: str) -> str:
     """Detect document format from extension or magic bytes."""
     p = path.lower()
     if p.startswith(("http://", "https://", "ftp://")):
         return "url"
+    name = Path(path).name.lower()
+    if name == "ncc.html":
+        return "daisy"  # a DAISY 2.02 book's master file, not an ordinary HTML page
     ext = Path(path).suffix.lower()
     if ext in _EXT_FORMAT_MAP:
-        return _EXT_FORMAT_MAP[ext]
+        fmt = _EXT_FORMAT_MAP[ext]
+        if fmt == "gz" and is_manual_page_name(path):
+            return "man"
+        return fmt
+    if is_manual_page_name(path):
+        return "man"
     if ext in _PANDOC_INPUT_EXTS:
         return "pandoc"
     return "text"
@@ -94,7 +151,7 @@ def supported_extensions() -> "frozenset[str]":
     extensions contributed by installed ``star.formats`` plugins.  Used by the
     library scanner to decide which files in a folder are documents.
     """
-    exts = set(_EXT_FORMAT_MAP) | set(_PANDOC_INPUT_EXTS)
+    exts = set(_EXT_FORMAT_MAP) | set(_PANDOC_INPUT_EXTS) | set(_MAN_SECTION_EXTS)
     try:
         from ..plugins import PluginRegistry
 
@@ -126,7 +183,11 @@ def load_document(path: str, settings: Settings) -> Document:
                 return doc
 
     # ── Opening an archive directly → build member index ─────────────────
-    if is_archive(path) and not path.lower().endswith((".epub", ".daisy")):
+    # A ``.zip`` is often a document in disguise (a DAISY/Bookshare download, a
+    # renamed EPUB, DOCX or FB2, a folder of comic pages).  Sniff those first so
+    # they open as the book they are rather than as a member index.
+    zip_fmt = _sniff_zip(path) if path.lower().endswith(".zip") else ""
+    if is_archive(path) and not zip_fmt and not path.lower().endswith((".epub", ".daisy")):
         try:
             members = list_members(path)
         except Exception:
@@ -140,7 +201,7 @@ def load_document(path: str, settings: Settings) -> Document:
         return doc
 
     doc = Document(path=path)
-    fmt = _detect_format(path)
+    fmt = zip_fmt or _detect_format(path)
     doc.format = fmt
 
     # Check document cache before doing any parsing work
@@ -164,6 +225,8 @@ def load_document(path: str, settings: Settings) -> Document:
 
     md: str = ""
     doc_from_handler: "Document | None" = None
+    extra_chapters: "List[Tuple[str, str]]" = []
+    extra_meta: "Dict[str, str]" = {}
     # Pandoc-first: when Pandoc is present and enabled, it imports the formats it
     # handles well (offices, markup, and the Pandoc-only types) in preference to
     # the native loader; star falls back to the native loader if Pandoc fails.
@@ -188,7 +251,11 @@ def load_document(path: str, settings: Settings) -> Document:
     # PandocHandler anyway (which would silently ignore the disabled preference).
     _handler = None
     _pandoc_only_disabled = fmt == "pandoc" and not settings.get("prefer_pandoc", True)
-    if not md and not _pandoc_only_disabled:
+    # Files routed by *name* rather than suffix (ncc.html, ls.1, printf.3.gz, a
+    # sniffed .zip) must not be claimed by the handler registered for their
+    # suffix (HTML, Pandoc, …); their native branch below does the work.
+    _name_routed = bool(zip_fmt) or fmt in ("daisy", "man", "gz") and Path(path).suffix.lower() not in (".daisy", ".opf", ".ncx", ".man", ".roff")
+    if not md and not _pandoc_only_disabled and not _name_routed:
         from ..plugins import PluginRegistry
         _handler = PluginRegistry.get().handler_for(Path(path))
 
@@ -215,8 +282,42 @@ def load_document(path: str, settings: Settings) -> Document:
         md = _load_html(path)
     elif fmt == "epub":
         md = _load_epub(path)
-    elif fmt in ("daisy", "xml") and path.lower().endswith(".xml"):
+    elif fmt == "daisy":
+        md, extra_chapters, extra_meta = _load_daisy_full(path)
+    elif fmt == "xml":
         md = _load_dtbook(path)
+    elif fmt == "fb2":
+        md = _load_fb2(path)
+        extra_chapters = _fb2_chapters(path)
+    elif fmt == "rtf":
+        md = _load_rtf(path)
+    elif fmt == "wri":
+        md = _load_wri(path)
+    elif fmt == "odp":
+        md = _load_odp(path)
+    elif fmt == "fodt":
+        md = _load_fodt(path)
+    elif fmt == "ppt":
+        md = _load_ppt(path)
+    elif fmt == "comic":
+        md = _load_comic(path, lang=str(settings.get("ocr_lang", "eng") or "eng"))
+    elif fmt == "mobi":
+        md, extra_meta = _load_mobi_full(path)
+    elif fmt == "audiobook":
+        md, extra_chapters, extra_meta = _load_audiobook_full(path)
+    elif fmt == "chm":
+        from .chm import _load_chm_full
+        md, extra_chapters, extra_meta = _load_chm_full(path)
+    elif fmt == "winhelp":
+        from .winhelp import _load_winhelp_full
+        md, extra_chapters, extra_meta = _load_winhelp_full(path)
+    elif fmt == "man":
+        md = _load_manpage(path)
+    elif fmt == "gz":
+        inner = _load_gz(path, settings)
+        if inner is not None:
+            return inner
+        md = _load_manpage(path)
     elif fmt == "csv":
         md = _load_csv_tsv(path, ",")
     elif fmt == "tsv":
@@ -316,6 +417,14 @@ def load_document(path: str, settings: Settings) -> Document:
                 doc.chapters = [(t, h, 0) for t, h in raw_chapters]
             except Exception:
                 doc.chapters = []
+        elif extra_chapters and settings.get("epub_show_chapters", True):
+            doc.chapters = [(t, h, 0) for t, h in extra_chapters]
+        if extra_meta:
+            doc.metadata = {**extra_meta, **(doc.metadata or {})}
+            if extra_meta.get("title") and (not doc.title or doc.title == Path(path).name):
+                doc.title = extra_meta["title"]
+    if doc.chapters:
+        _resolve_chapter_words(doc)
 
     # Cache the result
     if (
@@ -340,3 +449,105 @@ def load_document(path: str, settings: Settings) -> Document:
             pass
 
     return doc
+
+
+def _sniff_zip(path: str) -> str:
+    """Format of a ``.zip`` that is really a document, or ``""`` for a plain archive.
+
+    Checks the EPUB ``mimetype`` entry, an Office Open XML package, a DAISY
+    book (``ncc.html`` / OPF / DTBook), a single ``.fb2`` member, and an
+    image-only archive (a comic without its ``.cbz`` name).
+    """
+    try:
+        with zipfile.ZipFile(path, "r") as zf:
+            names = [n for n in zf.namelist() if not n.endswith("/")]
+            lower = [n.lower() for n in names]
+            if "mimetype" in lower:
+                try:
+                    if b"epub" in zf.read(names[lower.index("mimetype")])[:64]:
+                        return "epub"
+                except Exception:  # noqa: BLE001
+                    pass
+            if "meta-inf/container.xml" in lower and any(n.endswith(".opf") for n in lower):
+                return "epub"
+    except Exception:  # noqa: BLE001
+        return ""
+    kind = _ooxml_kind(path)
+    if kind == "word":
+        return "docx"
+    if kind == "ppt":
+        return "pptx"
+    if kind == "xl":
+        return "xlsx"
+    if _is_daisy_zip(path):
+        return "daisy"
+    fb2 = [n for n in lower if n.endswith(".fb2")]
+    if len(fb2) == 1 and len(names) <= 3:
+        return "fb2"
+    from .comics import _is_page
+    docs = [n for n in names if not n.rsplit("/", 1)[-1].startswith(".") and "__MACOSX" not in n]
+    if docs and all(_is_page(n) or n.lower().endswith((".xml", ".txt", ".nfo")) for n in docs) \
+            and any(_is_page(n) for n in docs):
+        return "comic"
+    return ""
+
+
+def _load_gz(path: str, settings: Settings) -> "Document | None":
+    """Open a gzipped document (``paper.txt.gz``, ``page.html.gz`` …) by
+    unpacking it to a temp file named for the inner extension and loading that.
+    Returns None when the inner name has no recognised extension (the caller
+    then treats it as a manual page / plain text)."""
+    import gzip
+
+    inner = Path(Path(path).stem)
+    if not inner.suffix or inner.suffix.lower() == ".tar":
+        return None
+    if _detect_format(str(inner)) in ("text", "gz") and inner.suffix.lower() not in (".txt", ".text", ".log"):
+        return None
+    tmp_fd, tmp_path = tempfile.mkstemp(suffix=inner.suffix)
+    os.close(tmp_fd)
+    try:
+        with gzip.open(path, "rb") as fh:
+            Path(tmp_path).write_bytes(fh.read())
+        doc = load_document(tmp_path, settings)
+    except Exception:  # noqa: BLE001
+        return None
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+    doc.path = path
+    if not doc.title or doc.title == Path(tmp_path).name:
+        doc.title = inner.name
+    return doc
+
+
+def _resolve_chapter_words(doc: Document) -> None:
+    """Give each ``Document.chapters`` entry a word index by locating its title
+    in the spoken text, so chapter-next/prev in the terminal UI lands on the
+    chapter rather than at word 0.  Entries whose title cannot be found keep
+    their existing index."""
+    from .model import _WORD_TOKEN_RE
+
+    text = doc.plain_text or ""
+    if not text or not doc.chapters:
+        return
+    low = text.lower()
+    tokens = [m.start() for m in _WORD_TOKEN_RE.finditer(text)]
+    if not tokens:
+        return
+    import bisect
+
+    cursor = 0
+    resolved: List[Tuple[str, str, int]] = []
+    for title, href, widx in doc.chapters:
+        key = re.sub(r"\s+", " ", title.strip().lower())
+        pos = low.find(key, cursor) if key else -1
+        if pos < 0 and key:
+            pos = low.find(key)
+        if pos >= 0:
+            widx = bisect.bisect_left(tokens, pos)
+            cursor = pos + len(key)
+        resolved.append((title, href, widx))
+    doc.chapters = resolved

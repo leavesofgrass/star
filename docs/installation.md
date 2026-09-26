@@ -245,7 +245,8 @@ What the fat zipapp does and does not remove:
 | `pymupdf` | PDF page rendering required by pytesseract | `pip install pymupdf` |
 | `python-docx` | Microsoft Word DOCX support | `pip install python-docx` |
 | `python-pptx` | PowerPoint PPTX support | `pip install python-pptx` |
-| `odfpy` | OpenDocument ODT support | `pip install odfpy` |
+| `odfpy` | OpenDocument ODT support (flat `.fodt`, `.odp`/`.fodp` and a fallback ODT reader are built in) | `pip install odfpy` |
+| `rarfile` | RAR comic archives (`.cbr`); ZIP comics (`.cbz`) are built in | `pip install rarfile` (needs the `unrar` tool) |
 | `openpyxl` | Excel XLSX spreadsheet support | `pip install openpyxl` |
 | `pypandoc` | Pandoc conversion for formats without a native loader | `pip install pypandoc` |
 | `louis` | **Optional** contracted Grade 2 Braille (Grade 1 BRF export is built in and needs nothing) | `pip install louis` |

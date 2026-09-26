@@ -81,9 +81,13 @@ def test_detect_format_urls():
 
 
 def test_detect_format_pandoc_only_extension():
-    # .rtf has no native loader → routed to the "pandoc" format.
-    assert _detect_format("memo.rtf") == "pandoc"
-    assert _detect_format("book.fb2") == "pandoc"
+    # Formats with no native loader route to the "pandoc" format; RTF and FB2
+    # gained native loaders in 0.1.32 and now detect as themselves (Pandoc is
+    # still preferred for them when installed — see _pandoc_handles).
+    assert _detect_format("refs.ris") == "pandoc"
+    assert _detect_format("doc.typst") == "pandoc"
+    assert _detect_format("memo.rtf") == "rtf"
+    assert _detect_format("book.fb2") == "fb2"
 
 
 def test_detect_format_unknown_defaults_to_text():
