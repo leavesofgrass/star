@@ -98,7 +98,9 @@ notes) are in the **[Installation guide](docs/installation.md)**.
 - **Reads aloud with live word highlighting** in both the Qt GUI and the terminal
   TUI — including in-process eSpeak-NG with true audio-position sync.
 - **Many TTS engines + Voice Manager:** pyttsx3
-  (SAPI5 / NSSpeechSynthesizer), macOS `say`, eSpeak-NG, Festival, **Piper**
+  (SAPI5 / NSSpeechSynthesizer), macOS `say`, **Eloquence** (the classic
+  screen-reader voice via open-source OpenEVV on Windows, with exact word
+  timing), eSpeak-NG, Festival, **Piper**
   (neural, offline, free), Coqui, DECtalk, and opt-in **ElevenLabs cloud neural
   voices** (text leaves your machine only after you set a key *and* choose the
   cloud voice; any failure falls back to a local engine) — browse, filter,

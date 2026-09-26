@@ -260,7 +260,8 @@ def main() -> None:
     ap.add_argument(
         "--backend",
         default="",
-        help="TTS backend: auto|pyttsx3|espeak|festival|coqui|dectalk|none",
+        help="TTS backend: auto|pyttsx3|eloquence|espeak|festival|piper|coqui|"
+        "dectalk|none (any registered backend works; see --plugins list)",
     )
     ap.add_argument(
         "--plain",

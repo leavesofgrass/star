@@ -835,7 +835,7 @@ complete.
 | `rate-down` | Decrease reading rate by 20 wpm |
 | `volume-up` | Increase TTS volume |
 | `volume-down` | Decrease TTS volume |
-| `tts-backend` | Switch TTS engine at runtime (`pyttsx3`/`espeak`/`festival`/`piper`/`coqui`/`dectalk`/`elevenlabs`/`none`) |
+| `tts-backend` | Switch TTS engine at runtime (`pyttsx3`/`eloquence`/`espeak`/`festival`/`piper`/`coqui`/`dectalk`/`elevenlabs`/`none`) |
 | `highlight-granularity word\|sentence\|both` | Highlight the spoken word, the whole sentence, or both |
 | `tts-voice` | Open the interactive voice picker (same as `Ctrl+T`) |
 | `ssml-on` / `ssml-off` | Enable/disable SSML prosody markup |
@@ -1091,7 +1091,7 @@ star [OPTIONS] [FILE_OR_URL]
 | `--plain` | Extract clean text to stdout; no UI |
 | `--rate RATE` | Initial TTS reading rate in wpm |
 | `--theme THEME` | Initial color theme: `dark`, `light`, `contrast`, `phosphor` |
-| `--backend BACKEND` | TTS backend: `auto`, `pyttsx3`, `espeak`, `festival`, `coqui`, `dectalk`, `none` |
+| `--backend BACKEND` | TTS backend: `auto`, `pyttsx3`, `eloquence`, `espeak`, `festival`, `piper`, `coqui`, `dectalk`, `none` — any registered backend works (see `--plugins list`) |
 | `--watch DIR` | Watch DIR and convert files dropped into it (headless hot-folder mode); requires `--output` |
 | `--output DIR` | Output directory for `--watch` conversions |
 | `--format FMT` | Output format for `--watch`: `markdown`, `text`, or `braille` (default: markdown) |
