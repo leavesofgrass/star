@@ -122,6 +122,14 @@ def _load_epub(path: str) -> str:
 def _load_dtbook(path: str) -> str:
     """Load DTBook XML (DAISY digital talking book) into markdown.
     Supports DTBook 2005-3 and DAISY 3 NCX navigation."""
+    return _dtbook_to_md(path)
+
+
+def _dtbook_to_md(source: "str | bytes | ET.Element") -> str:
+    """DTBook → Markdown from a file path, raw XML bytes, or a parsed root.
+
+    The DAISY package/zip loaders in :mod:`daisy` hand in bytes read from an
+    archive member; :func:`_load_dtbook` hands in a path."""
     _NS = {
         "dtb": "http://www.daisy.org/z3986/2005/dtbook/",
         "ncx": "http://www.daisy.org/z3986/2005/ncx/",
@@ -182,8 +190,12 @@ def _load_dtbook(path: str) -> str:
         return out
 
     try:
-        tree = ET.parse(path)
-        root = tree.getroot()
+        if isinstance(source, ET.Element):
+            root = source
+        elif isinstance(source, (bytes, bytearray)):
+            root = ET.fromstring(bytes(source))
+        else:
+            root = ET.parse(source).getroot()
         lines = _walk(root)
         # Collapse runs of blank lines
         result: List[str] = []

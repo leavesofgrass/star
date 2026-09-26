@@ -8,6 +8,63 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### ✨ Added
+
+- **Format parity with Paperback.** Every document format the
+  [Paperback](https://github.com/trypsynth/paperback) accessible reader opens
+  now opens in star, each on the Python standard library alone:
+  - **E-books:** FictionBook (`.fb2`, `.fb2.zip`) with chapters and footnotes;
+    **Mobipocket / Kindle** (`.mobi`, `.prc`, `.azw`, `.azw3`) — PalmDOC and
+    HUFF/CDIC decompression, EXTH metadata, KF8 hybrid files (DRM-free only).
+  - **Help files:** **Compiled HTML Help** (`.chm`) — a full ITSS directory
+    reader and LZX decompressor, topics in `.hhc` table-of-contents order;
+    **WinHelp** (`.hlp`, WinHelp 3.0/3.1/4.0) — `|TOPIC` blocks, both phrase
+    compression schemes, one section per topic. Both are Python ports of the
+    MIT-licensed `libchm`/`libhlp` crates Paperback uses.
+  - **Office:** Rich Text Format (`.rtf`) and **Windows Write** (`.wri`);
+    **macro-enabled Word / PowerPoint** (`.docm`, `.pptm`) through a built-in
+    OOXML reader that also serves as the fallback when python-docx/python-pptx
+    are absent; **legacy binary PowerPoint** (`.ppt`/`.pps`) and a native
+    **legacy Word** (`.doc`) fallback via a built-in OLE compound-file reader;
+    **OpenDocument presentations** (`.odp`, `.fodp`) and flat text (`.fodt`).
+  - **DAISY:** **DAISY 3 packages** (`.opf`, `.ncx`) and **DAISY 2.02 books**
+    (`ncc.html`) open as whole books with their NCX/NCC chapters, from loose
+    files or a `.zip`; `.opf`/`.ncx`/`.daisy` had been mapped but never
+    dispatched, which is fixed.
+  - **Audiobooks:** `.m4b` and `.mp3` open as a navigable document of their
+    metadata and **chapter list with timestamps** (MP4 `chpl`/chapter track,
+    ID3v2 `CHAP`/`CTOC`; `ffprobe` fallback), pointing at Tools ▸ Transcribe
+    Audio for the narration.
+  - **Comics:** `.cbz` / `.cbr` / `.cb7` page indexes in natural order, with
+    per-page OCR text when the `[ocr]` extra is installed.
+  - **Manual pages:** native roff (`man` and `mdoc` macros) for `.man`,
+    `.roff`, section-numbered names (`ls.1`, `Tcl_Init.3tcl`) and gzipped
+    installed pages (`printf.3.gz`); any other **gzipped document**
+    (`notes.txt.gz`, `page.html.gz`) is unpacked and opened by its inner name.
+  - **Spellings:** `.mdx`, `.mdwn`, `.mkd`, `.mkdn`, `.mkdown`, `.ronn`
+    (Markdown), `.log` (text), `.dotx`/`.dotm`/`.ppsx`.
+- **ZIP sniffing.** A `.zip` that is really a document — an EPUB, a DOCX/PPTX
+  package, a DAISY book, an `.fb2.zip`, or a folder of comic pages — opens as
+  that document instead of as an archive member index.
+- **Chapter positions for the terminal UI.** Chapter entries (EPUB, DAISY,
+  FB2, CHM, WinHelp, audiobooks) now resolve to word positions, so
+  `chapter-next`/`chapter-prev` jump to the chapter instead of word 0.
+- Fourteen new `star.formats` entry-point handlers (`star --plugins list`),
+  the Qt open dialog's filter lists every format, and the archive member
+  filter follows the dispatcher's extension map instead of a hand-kept copy.
+
+### 🔧 Changed
+
+- RTF, FB2 and manual pages detect as their own formats (`rtf`, `fb2`, `man`)
+  rather than the Pandoc catch-all; Pandoc is still preferred for them when
+  installed and `prefer_pandoc` is on.
+- ODT without odfpy falls back to a namespace-aware XML walker (headings,
+  lists, tables, notes) instead of a regex tag stripper.
+
+---
+
 ## [0.1.31] 2026-09-10
 
 ### ✨ Added

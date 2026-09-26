@@ -98,12 +98,16 @@ def _docx_para_images(para: Any, counter: List[int]) -> List[str]:
 
 def _load_docx(path: str) -> str:
     if not _DOCX:
-        return (
-            "# DOCX support not available\n\n"
-            "Install python-docx:  `pip install python-docx`\n"
-        )
+        from .ooxml import _load_docx_native
+
+        return _load_docx_native(path)
     try:
         doc = _load_docx().Document(path)
+    except Exception:  # noqa: BLE001 — .docm/.dotm (macro-enabled) or an odd package
+        from .ooxml import _load_docx_native
+
+        return _load_docx_native(path)
+    try:
         out: List[str] = []
         fig_counter = [0]
         for para in doc.paragraphs:
@@ -248,6 +252,18 @@ def _load_doc(path: str) -> str:
     if pandoc_md:
         return pandoc_md
 
+    # ── 5. Native OLE reader (Word 97–2003 piece table / Word 6 text run) ──
+    # Needs nothing but the standard library, so a plain wheel install with
+    # no antiword/LibreOffice/Pandoc still reads the document's text.
+    try:
+        from .ole import _load_doc_native
+
+        native = _load_doc_native(path)
+        if native:
+            return native
+    except Exception:  # noqa: BLE001
+        pass
+
     # ── Nothing worked ──────────────────────────────────────────────────
     return (
         f"# {title}\n\n"
@@ -287,12 +303,16 @@ def _load_pptx(path: str) -> str:
     Requires: pip install python-pptx
     """
     if not _PPTX:
-        return (
-            "Could not load PowerPoint file: python-pptx is not installed.\n"
-            "Install it with: pip install python-pptx"
-        )
+        from .ooxml import _load_pptx_native
 
-    prs = _load_pptx().Presentation(path)
+        return _load_pptx_native(path)
+
+    try:
+        prs = _load_pptx().Presentation(path)
+    except Exception:  # noqa: BLE001 — .pptm/.ppsx (other content types) or an odd package
+        from .ooxml import _load_pptx_native
+
+        return _load_pptx_native(path)
     sections = []
 
     for slide_num, slide in enumerate(prs.slides, start=1):
@@ -365,6 +385,53 @@ def _load_pptx(path: str) -> str:
     return "\n\n".join(sections)
 
 
+def _load_ppt(path: str) -> str:
+    """Load a legacy binary PowerPoint (.ppt / .pps) file as Markdown.
+
+    1. **python-pptx** — when the file is really OOXML saved under a .ppt name.
+    2. **LibreOffice headless** — converts .ppt → .pptx, then python-pptx.
+    3. **Native OLE reader** (stdlib) — walks the ``PowerPoint Document``
+       stream's text atoms, so the slides' text opens with no extras installed.
+    """
+    # ── 1. OOXML in disguise ────────────────────────────────────────────
+    try:
+        with open(path, "rb") as fh:
+            magic = fh.read(4)
+    except OSError as e:
+        return f"# Error\n\n```\n{e}\n```\n"
+    if magic[:2] == b"PK":
+        return _load_pptx(path)
+
+    # ── 2. LibreOffice headless (ppt → pptx → python-pptx) ──────────────
+    if _PPTX:
+        lo_candidates: List[str] = ["soffice", "libreoffice"]
+        if sys.platform == "win32":
+            lo_candidates += [
+                r"C:\Program Files\LibreOffice\program\soffice.exe",
+                r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
+            ]
+        lo_bin = next((b for b in lo_candidates if shutil.which(b) or Path(b).exists()), None)
+        if lo_bin and not os.environ.get("STAR_NO_LIBREOFFICE"):
+            try:
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    result = subprocess.run(
+                        [lo_bin, "--headless", "--convert-to", "pptx", "--outdir", tmpdir, path],
+                        capture_output=True, timeout=60, creationflags=_SUBPROCESS_FLAGS)
+                    if result.returncode == 0:
+                        out = Path(tmpdir) / (Path(path).stem + ".pptx")
+                        if out.exists():
+                            md = _load_pptx(str(out))
+                            if md.strip() and not md.startswith("Could not load"):
+                                return md
+            except Exception:  # noqa: BLE001
+                pass
+
+    # ── 3. Native OLE reader ────────────────────────────────────────────
+    from .ole import _load_ppt_native
+
+    return _load_ppt_native(path)
+
+
 def _load_odt_v2(path: str) -> str:
     """Load an ODT (OpenDocument Text) file to Markdown.
 
@@ -389,6 +456,11 @@ def _load_odt_v2(path: str) -> str:
     except (FileNotFoundError, OSError):
         pass
 
+    from .odf import _load_odt_via_xml
+
+    md = _load_odt_via_xml(path)
+    if md.strip() and not md.startswith("# ODT Error"):
+        return md
     return _load_odt_raw_xml(path)
 
 

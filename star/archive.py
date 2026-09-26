@@ -16,8 +16,11 @@ ARCHIVE_SEP = "!"
 # Extensions recognised as archive containers.
 _ARCHIVE_EXTS: Tuple[str, ...] = (".zip", ".tar", ".tar.gz", ".tgz", ".tar.xz", ".tar.bz2", ".7z", ".rar")
 
-# Doc extensions star can open — mirrors _detect_format() in documents.py.
-_DOC_EXTS = frozenset({
+# Doc extensions star can open — the dispatcher's map, plus the Pandoc-only
+# types, kept in sync by importing it lazily (documents imports archive, so a
+# module-level import would be circular).  The literal set is the fallback used
+# only if that import somehow fails.
+_DOC_EXTS_FALLBACK = frozenset({
     ".md", ".markdown", ".mdown", ".txt", ".text", ".html", ".htm", ".xhtml",
     ".pdf", ".docx", ".doc", ".dot", ".pptx", ".ppt", ".odt", ".epub",
     ".csv", ".tsv", ".xlsx", ".xls", ".tex", ".ltx", ".rst", ".rest",
@@ -25,7 +28,35 @@ _DOC_EXTS = frozenset({
     ".creole", ".r", ".rmd", ".ipynb", ".xml", ".daisy", ".opf", ".ncx",
     ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff", ".webp",
     ".py", ".js", ".rs", ".c", ".cpp", ".h", ".hpp", ".brf", ".org",
+    ".rtf", ".wri", ".fb2", ".mobi", ".azw", ".azw3", ".chm", ".hlp",
+    ".odp", ".fodp", ".fodt", ".docm", ".pptm", ".cbz", ".cbr", ".m4b", ".mp3",
 })
+
+
+def _doc_exts() -> "frozenset[str]":
+    try:
+        from .documents.dispatch import _EXT_FORMAT_MAP
+        from .documents.pandoc import _PANDOC_INPUT_EXTS
+
+        return frozenset(_EXT_FORMAT_MAP) | frozenset(_PANDOC_INPUT_EXTS)
+    except Exception:  # noqa: BLE001
+        return _DOC_EXTS_FALLBACK
+
+
+class _DocExts:
+    """Lazy, dispatcher-backed view kept under the historical ``_DOC_EXTS`` name."""
+
+    def __contains__(self, ext: str) -> bool:
+        return ext in _doc_exts()
+
+    def __iter__(self):
+        return iter(_doc_exts())
+
+    def __len__(self) -> int:
+        return len(_doc_exts())
+
+
+_DOC_EXTS = _DocExts()
 
 # Lazy availability flags (not literal True/False → not caught by guard scanner).
 _7Z_AVAILABLE = _module_available("py7zr")

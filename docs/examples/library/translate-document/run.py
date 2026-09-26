@@ -48,7 +48,16 @@ def main() -> int:
     print(doc.plain_text)
     print()
 
-    translated = translate_text(doc.plain_text, target_lang="es")
+    try:
+        translated = translate_text(doc.plain_text, target_lang="es")
+    except Exception as exc:  # noqa: BLE001 — network / rate limit: exit clean, print guidance
+        print(
+            "Translation service unavailable right now "
+            f"({type(exc).__name__}: {exc}).\n"
+            "Google Translate limits unauthenticated requests; wait a minute and "
+            "run again, or use Tools > Translate Document… in the GUI."
+        )
+        return 0
 
     print("Spanish translation:")
     print("-" * 40)

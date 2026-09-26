@@ -18,9 +18,16 @@ def settings():
 
 
 def test_pandoc_only_extensions_detected():
-    for ext in (".rtf", ".fb2", ".typst", ".typ", ".opml", ".bib", ".bibtex",
+    for ext in (".typst", ".typ", ".opml", ".bib", ".bibtex",
                 ".docbook", ".muse", ".ris", ".jira", ".vimwiki", ".pod"):
         assert _detect_format("file" + ext) == "pandoc", ext
+    # RTF, FB2 and man pages have native loaders since 0.1.32 but stay
+    # Pandoc-first when Pandoc is installed.
+    assert _detect_format("file.rtf") == "rtf"
+    assert _detect_format("file.fb2") == "fb2"
+    assert _detect_format("file.man") == "man"
+    for fmt in ("rtf", "fb2", "man"):
+        assert _pandoc_handles(fmt) is True, fmt
 
 
 def test_native_formats_unchanged():
@@ -58,9 +65,10 @@ def test_rtf_opens_via_pandoc(tmp_path, settings):
 @pytest.mark.skipif(not _pandoc_available(), reason="Pandoc not installed")
 def test_prefer_pandoc_off_falls_back_to_guidance(tmp_path, settings):
     # With Pandoc disabled, a Pandoc-only format yields the install-guidance note
-    # rather than garbled plain text.
-    p = tmp_path / "x.rtf"
-    p.write_text(r"{\rtf1 hi}")
+    # rather than garbled plain text.  (RTF has a native loader since 0.1.32, so
+    # a RIS bibliography stands in as the Pandoc-only example.)
+    p = tmp_path / "x.ris"
+    p.write_text("TY  - JOUR\nTI  - Hi\nER  - \n")
     settings["prefer_pandoc"] = False  # safe: isolated tmp settings file
     doc = load_document(str(p), settings)
     assert "Pandoc" in doc.markdown
