@@ -53,11 +53,13 @@ are in the
 ## ✨ Highlights
 
 - **Reads aloud with live word highlighting** in both the Qt GUI and the terminal
-  TUI — including in-process eSpeak-NG with true audio-position sync.
+  TUI — the highlight follows the *audio*, not a timer.
 - **Many TTS engines:** pyttsx3 (SAPI5 / NSSpeechSynthesizer), macOS `say`,
   **Eloquence** (the classic screen-reader voice via open-source OpenEVV on
-  Windows, with exact word timing), eSpeak-NG, Festival, **Piper** (neural,
-  offline, free), Coqui, and DECtalk.
+  Windows, with exact word timing and all eight classic voices — Reed,
+  Shelley, Bobby, Rod, Glen, Sandy, Grandma, Grandpa), Qt speech, eSpeak-NG,
+  Festival, **Piper** (neural, offline, free), Coqui, and DECtalk — browse and
+  preview them in the **Voice Manager** (**F4**).
 - **Opens almost anything:** PDF (incl. OCR), Word/PowerPoint (DOCX/DOCM, PPTX,
   and the legacy binary DOC/PPT), OpenDocument (ODT/ODP and flat XML), RTF and
   Windows Write, EPUB, FictionBook, MOBI/Kindle, CHM and WinHelp help files,
@@ -66,18 +68,22 @@ are in the
   every format the Paperback reader opens, on the standard library alone.
 - **Write, don't just read:** create a document from scratch (**File ▸ New**,
   **Ctrl+N**), format Markdown from an edit-mode toolbar and a **Format** menu
-  (Bold **Ctrl+B**, Italic **Ctrl+I**, Underline **Ctrl+U**, headings, lists,
-  quotes, links **Ctrl+K**, inline code, rules) with full **Undo/Redo**, and
-  **dictate straight into the text** with **Voice Typing** (**Tools ▸ Voice
-  Typing**, **Ctrl+Alt+K**).
-- **Study tools:** notes & annotations, a citation manager, summarization, Anki
-  flashcard export, document translation (15 languages, no API key), RSS/Atom
-  feed reading, and a difficult-word overlay.
-- **Export:** Markdown, PDF (with highlights), BRF braille, TTS audio
-  (WAV/MP3/OGG/MP4), and synchronized SRT/VTT subtitles.
-- **Accessibility-first:** NVDA/JAWS/Orca/VoiceOver compatible, four
-  colorblind-friendly themes + custom CSS themes, dyslexia-friendly font, bionic
-  reading, adjustable spacing (WCAG 1.4.12), and high-DPI support.
+  with full **Undo/Redo**, and **dictate straight into the text** with
+  **Voice Typing** (**Tools ▸ Voice Typing**, **Ctrl+Alt+K**).
+- **Study tools:** notes & annotations with spaced repetition (FSRS, optional
+  Anki two-way sync), a citation manager, summarization, document translation
+  (15 languages, no API key), RSS/Atom feed reading, an offline dictionary
+  (**Ctrl+D**), a knowledge graph, and a difficult-word overlay.
+- **Export & publish:** Markdown, HTML, EPUB, DOCX, PDF (with highlights), BRF
+  braille, TTS audio (WAV/MP3/OGG/MP4), chaptered M4B audiobooks, karaoke
+  video, Anki decks, and SRT/VTT subtitles — plus **Publish (F9)** for styled,
+  metadata-complete EPUB / Word / HTML with accessibility templates and
+  APA / AMA / Vancouver citations.
+- **Accessibility-first:** NVDA/JAWS/Orca/VoiceOver compatible, 23 themes
+  (high-contrast AAA and colorblind-friendly palettes included), a Reading
+  Font chooser (OpenDyslexic, Atkinson Hyperlegible, Lexend), syllable
+  splitting, a reading ruler, bionic reading, adjustable spacing
+  (WCAG 1.4.12), and a translated, RTL-capable interface.
 - **Graceful degradation:** every third-party dependency is optional and guarded,
   so the core runs on the Python standard library alone.
 
