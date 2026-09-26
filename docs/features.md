@@ -192,12 +192,35 @@ Worked example: [`docs/examples/library/load-a-document`](examples/library/load-
 ## TTS backends
 
 In `auto` mode (the default), `star` chooses the first available backend in this
-order: **macOS `say` (Mac only) → pyttsx3 → DECtalk (in-process DLL, when
-present) → Qt speech → eSpeak-NG → Festival → DECtalk CLI → silent**. On a Mac
-this guarantees a native Apple voice even without any Python packages.
+order: **macOS `say` (Mac only) → Eloquence (when installed, Windows) →
+pyttsx3 → DECtalk (in-process DLL, when present) → Qt speech → eSpeak-NG →
+Festival → DECtalk CLI → silent**. On a Mac this guarantees a native Apple
+voice even without any Python packages; on Windows, installing Eloquence
+makes it the reading voice.
 
 Switch engines any time with **Speech → Choose TTS Engine…** (`Ctrl+Shift+G`) or
 `M-x tts-backend`.
+
+### Getting Eloquence
+
+Eloquence is proprietary, and star does not include it. On **macOS** nothing
+is needed — Apple ships the Eloquence voices built in, and star's `say`
+backend already uses them. On **Windows** there are two routes:
+
+- **Code Factory's Eloquence for Windows** (codefactoryglobal.com) — the
+  licensed product. star's `eloquence` backend currently drives OpenEVV's
+  64-bit library only, so Code Factory installs are used through SAPI5
+  (`pyttsx3`) today.
+- **OpenEVV** (github.com/Mudb0y/openevv) — a community reimplementation of
+  the engine. Its program code is open source, **but its language data
+  derives from IBM's ViaVoice, and OpenEVV's own authors state they cannot
+  license that data**. star can download it for you when you pick the
+  `eloquence` engine (Speech ▸ Choose TTS Engine…), after a one-time consent
+  dialog that states exactly this — whether to install and use it is your
+  decision, and no one can make it for you. star also detects an existing
+  OpenEVV install (the OpenEVVWindows SAPI5 installer or NVDA add-on), and
+  `STAR_ECI_LIBRARY` points at any ECI-compatible library explicitly.
+
 
 - **pyttsx3 (preferred when installed — except on macOS, where the native `say`
   backend is the default)** — wraps the platform's native engine
@@ -207,6 +230,11 @@ Switch engines any time with **Speech → Choose TTS Engine…** (`Ctrl+Shift+G`
   Apple's high-quality voices with no extra dependencies. When no voice is set,
   star auto-selects a voice matching `tts_prefer_voice` (default `"eloquence"`),
   favoring a US-English variant.
+- **Eloquence (`eloquence`, Windows)** — the classic screen-reader voice
+  (Reed and family), driven in process through OpenEVV's ECI engine with an
+  index mark at every word, so the karaoke highlight lands at the *exact*
+  audio position of each spoken word — more precisely than any SAPI5 voice.
+  Not bundled: see **Getting Eloquence** below.
 - **Qt speech (`qtspeech`, new in 0.1.29)** — drives the platform's native
   engine through Qt's `QTextToSpeech` (WinRT/SAPI on Windows, AVSpeech on
   macOS, speech-dispatcher on Linux). Ships inside the PyQt6 wheel star

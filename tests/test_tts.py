@@ -643,6 +643,7 @@ _BACKENDS = {
     "DECtalkDLLBackend": ("dectalk", 25),
     "Pyttsx3Backend": ("pyttsx3", 20),
     "AppleSayBackend": ("applesay", 15),
+    "EloquenceBackend": ("eloquence", 18),
     "QtSpeechBackend": ("qtspeech", 35),
     "ESpeakLibBackend": ("espeak", 40),
     "ESpeakBackend": ("espeak", 50),
@@ -696,6 +697,18 @@ def test_manager_auto_prefers_applesay_over_pyttsx3_on_mac(fake_backends):
 def test_manager_auto_prefers_pyttsx3_when_say_unavailable(fake_backends):
     # Off macOS `say` is unavailable, so pyttsx3 stays star's default engine.
     fake_backends["Pyttsx3Backend"]._avail = True
+    assert _manager("auto").backend_name == "pyttsx3"
+
+
+def test_manager_auto_prefers_eloquence_when_installed(fake_backends):
+    """Installing Eloquence (OpenEVV) is itself the opt-in: at priority 18 it
+    outranks pyttsx3 (20) so the machine speaks with it by default — and it
+    is star's own tts_prefer_voice default.  Absent, nothing changes."""
+    fake_backends["Pyttsx3Backend"]._avail = True
+    fake_backends["EloquenceBackend"]._avail = True
+    assert _manager("auto").backend_name == "eloquence"
+    assert _manager("eloquence").backend_name == "eloquence"
+    fake_backends["EloquenceBackend"]._avail = False
     assert _manager("auto").backend_name == "pyttsx3"
 
 

@@ -168,6 +168,7 @@ star = "star.app:main"
 [project.entry-points."star.backends"]
 silent     = "star.tts.silent:SilentBackend"
 pyttsx3    = "star.tts.pyttsx3:Pyttsx3Backend"
+eloquence  = "star.tts.eloquence:EloquenceBackend"
 applesay   = "star.tts.applesay:AppleSayBackend"
 qtspeech   = "star.tts.qtspeech:QtSpeechBackend"
 espeak     = "star.tts.espeak:ESpeakBackend"

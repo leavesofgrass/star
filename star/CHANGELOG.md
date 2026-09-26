@@ -8,6 +8,25 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### ✨ Added
+
+- **Eloquence (`eloquence`) TTS engine — the classic screen-reader voice on
+  Windows.** Driven in process through OpenEVV's ECI engine with an index
+  mark at every word, so star's karaoke highlight lands at the exact audio
+  position of each spoken word. star never bundles the engine: picking
+  `eloquence` in **Speech ▸ Choose TTS Engine…** offers a one-time,
+  plain-language consent dialog (OpenEVV's code is open; its language data
+  derives from IBM's and cannot be licensed — installing it is your
+  decision) and then downloads OpenEVV v0.3 in the background; existing
+  OpenEVV installs (SAPI5 installer, NVDA add-on) and `STAR_ECI_LIBRARY`
+  are detected without any download. Once installed, Eloquence becomes the
+  Windows reading voice automatically — it is what `tts_prefer_voice`
+  always defaulted to. Rate is calibrated to real words-per-minute.
+
+---
+
 ## [0.1.31] 2026-09-10
 
 ### ✨ Added

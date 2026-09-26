@@ -7,6 +7,7 @@ lazily by main_window.py (itself imported by runner.py after the _QT guard).
 """
 from .._runtime import *  # noqa: F401,F403
 from ..citations import _fetch_citation_by_doi
+from ..i18n import tr
 
 
 class DocOpsMixin:
@@ -229,6 +230,10 @@ class DocOpsMixin:
         backend_name = "silent" if chosen == "none" else chosen
         self.tts_manager.change_backend(backend_name)
         active = self.tts_manager.backend_name
+        if chosen == "eloquence" and active != chosen and sys.platform == "win32":
+            # Not installed: offer the consent-gated OpenEVV download.
+            self._qt_offer_eloquence_install()
+            return
         if chosen not in ("auto", "none") and active != chosen:
             hints = {
                 "piper": "Install the piper binary and a .onnx voice model, then"
@@ -236,6 +241,8 @@ class DocOpsMixin:
                 "coqui": "Enable the Coqui voice from Tools ▸ Optional Features.",
                 "elevenlabs": "Paste your key into 'elevenlabs_api_key' in"
                 " settings to use the cloud voice.",
+                "eloquence": "Windows only (OpenEVV). On macOS the built-in"
+                " 'say' engine already offers Apple's Eloquence voices.",
             }
             hint = hints.get(chosen, "")
             self.statusBar().showMessage(
@@ -243,4 +250,42 @@ class DocOpsMixin:
             )
         else:
             self.statusBar().showMessage(f"TTS engine: {active}")
+
+    def _qt_offer_eloquence_install(self) -> None:
+        """Consent-gated OpenEVV download for the eloquence backend.
+
+        The dialog carries the licensing status verbatim from
+        ``star.tts.eloquence.CONSENT_TEXT`` (single-sourced; its wording is
+        the user's licensing decision, so it is not paraphrased per locale).
+        A Yes records the acknowledgment and downloads in the background —
+        the same worker/status pattern as every optional-feature install.
+        """
+        from ..tts.eloquence import (
+            CONSENT_TEXT,
+            OPENEVV_VERSION,
+            install_openevv,
+        )
+
+        try:
+            yes, no = QMessageBox.StandardButton.Yes, QMessageBox.StandardButton.No
+        except AttributeError:  # PyQt5
+            yes, no = QMessageBox.Yes, QMessageBox.No  # type: ignore[attr-defined]
+        ret = QMessageBox.question(
+            self,
+            tr("Download Eloquence (OpenEVV)?"),
+            CONSENT_TEXT.format(version=OPENEVV_VERSION),
+            yes | no,
+        )
+        if ret != yes:
+            return
+        self.statusBar().showMessage(tr("Downloading Eloquence (OpenEVV)…"), 0)
+
+        def _work() -> None:
+            path = install_openevv(self.settings, acknowledged=True)
+            if path:
+                self._deps_installed_signal.emit("Eloquence", True, True)
+            else:
+                self._deps_installed_signal.emit("Eloquence", False, False)
+
+        self._spawn_worker(_work, name="star-eloquence-install")
 

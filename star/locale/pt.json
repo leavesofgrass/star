@@ -661,5 +661,7 @@
   "Bibliography file": "Arquivo de bibliografia",
   "star citation library (automatic)": "biblioteca de citações do star (automática)",
   "Choose Bibliography File": "Escolher arquivo de bibliografia",
-  "Bibliographies (*.json *.bib *.ris);;All Files (*)": "Bibliografias (*.json *.bib *.ris);;Todos os arquivos (*)"
+  "Bibliographies (*.json *.bib *.ris);;All Files (*)": "Bibliografias (*.json *.bib *.ris);;Todos os arquivos (*)",
+  "Download Eloquence (OpenEVV)?": "Baixar Eloquence (OpenEVV)?",
+  "Downloading Eloquence (OpenEVV)…": "Baixando Eloquence (OpenEVV)…"
 }
