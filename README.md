@@ -161,8 +161,9 @@ notes) are in the **[Installation guide](docs/installation.md)**.
   applied across the whole UI), syllable splitting, a caret-tracking reading
   ruler, bionic reading, and adjustable spacing (WCAG 1.4.12).
 - **23 themes** including high-contrast (AAA) and four colorblind-friendly
-  palettes — every one clears WCAG AA, follows your OS light/dark setting, and
-  custom CSS themes are welcome.
+  palettes — community schemes are nudged where needed to clear WCAG AA
+  (test-enforced), the app follows your OS light/dark setting, and custom CSS
+  themes are welcome.
 - **A translated interface** — terminal UI included — in Spanish, French,
   German, and Portuguese, with a first-run language picker; **right-to-left
   languages mirror the whole app** (Arabic is the first RTL catalog). A
