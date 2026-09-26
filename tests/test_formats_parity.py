@@ -1000,7 +1000,11 @@ def test_comic_cbr_needs_rarfile_or_is_zip(tmp_path):
     real_rar = tmp_path / "real.cbr"
     real_rar.write_bytes(b"Rar!\x1a\x07\x00" + b"\x00" * 64)
     md = _load_comic(str(real_rar), ocr=False)
-    assert "rarfile" in md or "Page" in md  # guidance when rarfile is absent, pages when present
+    # Without rarfile: the install hint.  With rarfile (the [all] / full-fat
+    # legs): the stub is a valid but empty RAR, so it reports no pages.  Either
+    # way the file opens as a document rather than raising.
+    assert md.startswith("# real")
+    assert "rarfile" in md or "no page images" in md
 
 
 def test_mp3_id3_chapters(tmp_path, settings):

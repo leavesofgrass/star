@@ -58,7 +58,7 @@ def _comic_pages(path: str) -> "Tuple[str, List[str], Callable[[str], bytes]]":
     if kind == "rar":
         try:
             import rarfile  # type: ignore[import]
-        except ImportError:
+        except Exception:  # noqa: BLE001 — absent, or its crypto dependency failed to load
             raise RuntimeError(
                 "rarfile is required to open .cbr comic archives.\n"
                 'Install: pip install rarfile  or  pip install "star-reader[archive]"'
@@ -69,7 +69,7 @@ def _comic_pages(path: str) -> "Tuple[str, List[str], Callable[[str], bytes]]":
     if kind == "7z":
         try:
             import py7zr  # type: ignore[import]
-        except ImportError:
+        except Exception:  # noqa: BLE001
             raise RuntimeError(
                 "py7zr is required to open .cb7 comic archives.\n"
                 'Install: pip install py7zr  or  pip install "star-reader[archive]"'
