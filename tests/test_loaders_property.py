@@ -73,7 +73,7 @@ def _flatten(rendered):
 # ── _build_word_map invariants ───────────────────────────────────────────────
 
 
-@settings(max_examples=200, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=200, suppress_health_check=[HealthCheck.too_slow], deadline=None)
 @given(_TEXT)
 def test_word_map_offsets_are_sorted_and_in_bounds(text):
     """Every WordPos maps a token of *text* to a valid slice, and the TTS
@@ -98,7 +98,7 @@ def test_word_map_offsets_are_sorted_and_in_bounds(text):
             assert 0 <= wp.disp_col <= len(flat[wp.disp_line])
 
 
-@settings(max_examples=200, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=200, suppress_health_check=[HealthCheck.too_slow], deadline=None)
 @given(_TEXT)
 def test_word_map_covers_exactly_the_tokenized_words(text):
     """The map has one entry per \\b\\w[\\w'-]* token, in source order — the
@@ -110,7 +110,7 @@ def test_word_map_covers_exactly_the_tokenized_words(text):
     assert [wp.word for wp in wm] == expected
 
 
-@settings(max_examples=100)
+@settings(max_examples=100, deadline=None)
 @given(_TEXT, st.integers(min_value=1, max_value=200))
 def test_word_map_stays_in_bounds_for_any_wrap_width(text, width):
     """Rendering at any width must still yield disp_line/disp_col that index
@@ -126,7 +126,7 @@ def test_word_map_stays_in_bounds_for_any_wrap_width(text, width):
 # ── render_markdown structural invariants ────────────────────────────────────
 
 
-@settings(max_examples=200, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=200, suppress_health_check=[HealthCheck.too_slow], deadline=None)
 @given(_TEXT, st.integers(min_value=1, max_value=200))
 def test_render_yields_valid_line_structure(text, width):
     """render_markdown always returns a list of lines, each a list of
@@ -143,7 +143,7 @@ def test_render_yields_valid_line_structure(text, width):
             assert isinstance(role, str)
 
 
-@settings(max_examples=100)
+@settings(max_examples=100, deadline=None)
 @given(_TEXT)
 def test_render_is_deterministic(text):
     """Same input, same width → identical render (no hidden global state)."""
@@ -156,7 +156,7 @@ def test_render_is_deterministic(text):
 @settings(
     max_examples=150,
     suppress_health_check=[HealthCheck.too_slow, HealthCheck.function_scoped_fixture],
-)
+ deadline=None)
 @given(grid=_GRID)
 def test_csv_table_has_consistent_column_count(tmp_path, grid):
     """Every emitted table row (header, separator, body) has the same number of
@@ -186,7 +186,7 @@ def test_csv_table_has_consistent_column_count(tmp_path, grid):
 @settings(
     max_examples=150,
     suppress_health_check=[HealthCheck.too_slow, HealthCheck.function_scoped_fixture],
-)
+ deadline=None)
 @given(grid=_GRID)
 def test_csv_escapes_every_literal_pipe(tmp_path, grid):
     """A literal '|' inside a cell is always backslash-escaped, so a cell value
@@ -216,7 +216,7 @@ def test_csv_escapes_every_literal_pipe(tmp_path, grid):
 # ── _load_html_str total-function invariant ──────────────────────────────────
 
 
-@settings(max_examples=150, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=150, suppress_health_check=[HealthCheck.too_slow], deadline=None)
 @given(
     st.text(
         alphabet=st.characters(

@@ -48,7 +48,15 @@ def main() -> int:
     print(doc.plain_text)
     print()
 
-    translated = translate_text(doc.plain_text, target_lang="es")
+    try:
+        translated = translate_text(doc.plain_text, target_lang="es")
+    except Exception as exc:  # noqa: BLE001 — throttled/offline is environmental
+        # The free translation endpoint rate-limits by IP and needs network;
+        # neither is a defect in this example, so degrade the same way the
+        # missing-dependency path does: explain and exit cleanly.
+        print(f"Translation service unavailable right now ({exc}).")
+        print("Try again later — the service rate-limits per IP.")
+        return 0
 
     print("Spanish translation:")
     print("-" * 40)
