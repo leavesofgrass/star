@@ -312,6 +312,21 @@ def test_expand_abbreviations_custom_takes_precedence():
     assert _expand_abbreviations("Use FOO here", {"FOO": "foobar"}) == "Use foobar here"
 
 
+@pytest.mark.parametrize(
+    "expansion",
+    [r"C:\notes", r"a\b", "trailing\\", r"\1 group", r"\g<0>", r"\N{BULLET}"],
+)
+def test_expand_abbreviations_custom_backslash_is_literal(expansion):
+    """A backslash in a user's expansion is text, not a regex template: it
+    used to raise an uncaught re.error ("bad escape") or insert a group."""
+    out = _expand_abbreviations("Open NB now", {"NB": expansion})
+    assert out == f"Open {expansion} now"
+
+
+def test_expand_abbreviations_empty_custom_key_is_ignored():
+    assert _expand_abbreviations("Use FOO here", {"": "x"}) == "Use FOO here"
+
+
 # ── _apply_pronunciations ─────────────────────────────────────────────────────
 
 

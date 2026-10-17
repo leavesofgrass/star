@@ -87,7 +87,15 @@ def _expand_abbreviations(text: str, custom: Optional[Dict[str, str]] = None) ->
     """
     if custom:
         for abbr, exp in sorted(custom.items(), key=lambda x: -len(x[0])):
-            text = re.sub(r"\b" + re.escape(abbr), exp, text)
+            if not abbr:
+                continue  # an empty key would match at every word boundary
+            # The expansion is inserted literally (a function replacement),
+            # like _apply_pronunciations: as a template string, a backslash
+            # in it ("C:\notes", "a\b") was read as an escape or a group
+            # reference and raised an uncaught re.error mid-reading.
+            text = re.sub(
+                r"\b" + re.escape(abbr), lambda _m, s=str(exp): s, text
+            )
     for pattern, expansion in _ABBREV_RE:
         text = pattern.sub(expansion, text)
     return text
