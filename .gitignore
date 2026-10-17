@@ -27,6 +27,11 @@ build/
 .venv/
 .venv-build/
 
+# Claude Code's local project folder (guard hook, settings, agent worktrees,
+# temp files).  The guard and settings name a local user profile path, so
+# this folder must never reach the public repository.
+.claude/
+
 # Python bytecode caches and packaging metadata
 __pycache__/
 *.py[codz]
