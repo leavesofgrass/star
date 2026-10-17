@@ -25,6 +25,17 @@ _LANG_NAME_TO_CODE: Dict[str, str] = {
     "português": "pt",
 }
 
+# "us" as a word of a voice's language tag ("en_US", "en-us", "English (US)"),
+# or "United States" spelled out.  A substring test also matched "Australia",
+# "Russian" and "Belarusian".
+_US_LANG_RE = re.compile(r"(?<![a-z])us(?![a-z])|united states")
+
+
+def _is_us_english_tag(lang: Any) -> bool:
+    """Whether a voice's ``lang`` value names the United States variant."""
+    return bool(_US_LANG_RE.search(str(lang or "").lower()))
+
+
 # Explicit engine choices that mean "no speech".  They never fall back to
 # automatic selection.  "none" is the GUI picker's label and an older value
 # of the tts_backend setting; "silent" is the backend's own name.
@@ -163,7 +174,7 @@ class SelectionMixin:
             return
         # Favor a US-English variant of the preferred voice family.
         best = next(
-            (m for m in matches if "us" in str(m.get("lang", "")).lower()),
+            (m for m in matches if _is_us_english_tag(m.get("lang", ""))),
             matches[0],
         )
         vid = best.get("id") or best.get("name")

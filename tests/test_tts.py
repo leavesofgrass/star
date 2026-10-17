@@ -879,6 +879,35 @@ def test_resolve_default_voice_first_match_when_no_us(fake_backends):
     assert mgr._backend.chosen == "eloq-gb"
 
 
+def test_resolve_default_voice_us_is_a_word_not_a_substring(fake_backends):
+    """"us" inside "Australia" or "Russian" is not the US variant; the old
+    substring test picked the Australian voice here."""
+    voices = [
+        {"id": "eloq-au", "name": "Eloquence Reed", "lang": "English (Australia)"},
+        {"id": "eloq-ru", "name": "Eloquence Reed", "lang": "Russian"},
+        {"id": "eloq-us", "name": "Eloquence Reed", "lang": "en_US"},
+    ]
+    mgr = _voice_manager(fake_backends, voices, tts_voice="",
+                         tts_prefer_voice="eloquence")
+    mgr._resolve_default_voice()
+    assert mgr._backend.chosen == "eloq-us"
+
+
+@pytest.mark.parametrize(
+    ("lang", "is_us"),
+    [
+        ("en-US", True), ("en_us", True), ("English (US)", True),
+        ("English (United States)", True), ("[b'\\x05en-us']", True),
+        ("en-AU", False), ("English (Australia)", False), ("Russian", False),
+        ("Belarusian", False), ("", False), (None, False),
+    ],
+)
+def test_us_english_tag_matches_a_whole_word(lang, is_us):
+    from star.tts.manager._selection import _is_us_english_tag
+
+    assert _is_us_english_tag(lang) is is_us
+
+
 def test_resolve_default_voice_respects_explicit_user_voice(fake_backends):
     voices = [{"id": "eloq-us", "name": "Eloquence", "lang": "en-US"}]
     mgr = _voice_manager(fake_backends, voices, tts_voice="my-chosen-voice",
