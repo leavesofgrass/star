@@ -41,6 +41,24 @@ def test_all_preset_includes_everything():
     assert "ner" in all_keys
 
 
+def test_the_unrelated_pypi_louis_is_never_installed():
+    """The PyPI package named "louis" is a placeholder, not liblouis's binding.
+
+    Neither the run-time installer nor any extra may name it: Grade 2 Braille
+    uses a system or vendored liblouis.
+    """
+    import tomllib
+    from pathlib import Path
+
+    pips = {pip.lower() for pkgs in autodeps.FEATURES.values() for pip, _ in pkgs}
+    assert "louis" not in pips
+    pyproject = Path(__file__).resolve().parent.parent / "pyproject.toml"
+    project = tomllib.loads(pyproject.read_text(encoding="utf-8"))["project"]
+    for extra, specs in project["optional-dependencies"].items():
+        names = {s.split(";")[0].split("[")[0].strip().lower() for s in specs}
+        assert "louis" not in names, f"extra [{extra}] installs the PyPI louis"
+
+
 def test_thin_is_a_subset_of_features_and_lighter_than_all():
     assert set(autodeps.preset("thin")).issubset(set(autodeps.FEATURES))
     assert len(autodeps.preset("thin")) <= len(autodeps.preset("all"))

@@ -801,7 +801,7 @@ complete.
 | `reload` | Reload the current document from disk |
 | `export-markdown` | Save the rendered document as a `.md` file |
 | `batch-convert` | Convert many files / a folder to one format (Markdown, text, or Braille) |
-| `export-braille` | Export a BRF braille file (requires `louis`) |
+| `export-braille` | Export a BRF braille file (Grade 1 is built in; Grade 2 needs liblouis) |
 | `open-archive [path]` | Open an archive (ZIP/TAR/.7z/.rar) and browse its members |
 | `export-audio [fmt]` | Synthesize document to audio; `fmt` is `wav` (default, from the `audio_export_format` setting), `mp3`, `ogg`, or `mp4` |
 | `publish [fmt]` | Publish a styled EPUB, single-file HTML, or DOCX through the Pandoc pipeline: prompts for format, template (CSS, or a `--reference-doc` for DOCX), citation style (APA/AMA/Vancouver via Pandoc citeproc, bibliography from star's citation manager), and output path; remembers the choices per document (shared with the GUI Publish dialog) |

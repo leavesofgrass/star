@@ -167,7 +167,10 @@ OPTIONAL_DEPENDENCIES: List[Dict[str, Any]] = [
         "module": "star._runtime", "attr": "_LOUIS", "kind": "bool",
         "probe": ["louis"],
         "enables": "Contracted Grade 2 Braille export (Grade 1 is built in)",
-        "install": _extra("braille"),
+        # liblouis's binding is not on PyPI; the PyPI "louis" is unrelated.
+        "install": "Install liblouis's Python binding from your system "
+                   "(Debian and Ubuntu: apt install python3-louis); "
+                   "it is not on PyPI, and the Windows star.exe includes it",
     },
     {
         "key": "audio_export", "label": "Audio export (pydub)",

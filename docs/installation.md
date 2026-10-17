@@ -165,7 +165,7 @@ star --tui           # force the terminal UI
 ```
 
 Extras let you install exactly what you need: `[ocr]`, `[formats]`, `[markup]`,
-`[braille]`, `[audio]`, `[syllables]` (syllable-splitting decoding aid),
+`[audio]`, `[syllables]` (syllable-splitting decoding aid),
 `[transcribe]`, `[watch]`, `[graph]` (knowledge-graph / Obsidian helpers),
 `[ner]` (spaCy/NLTK concept extraction), or `[all]`.
 
@@ -249,7 +249,7 @@ What the fat zipapp does and does not remove:
 | `rarfile` | RAR comic archives (`.cbr`); ZIP comics (`.cbz`) are built in | `pip install rarfile` (needs the `unrar` tool) |
 | `openpyxl` | Excel XLSX spreadsheet support | `pip install openpyxl` |
 | `pypandoc` | Pandoc conversion for formats without a native loader | `pip install pypandoc` |
-| `louis` | **Optional** contracted Grade 2 Braille (Grade 1 BRF export is built in and needs nothing) | `pip install louis` |
+| liblouis's `louis` binding | **Optional** contracted Grade 2 Braille (Grade 1 BRF export is built in and needs nothing) | Not on PyPI: see **liblouis** under [External Binary Dependencies](#external-binary-dependencies). Never `pip install louis`: that PyPI package is unrelated. |
 | `pydub` | Audio format conversion fallback (MP3 / OGG / MP4) when ffmpeg is absent | `pip install pydub` |
 | `faster-whisper` | Speech recognition for audio transcription and voice dictation of notes (the legacy `openai-whisper` backend still works but is **deprecated** — scheduled for removal in 0.2.0) | `pip install faster-whisper` |
 | `sounddevice` + `numpy` | Microphone capture for voice dictation (transcription of files needs only Whisper) | `pip install sounddevice numpy` |
@@ -313,7 +313,7 @@ work too):
 | **ffmpeg** | MP3 / OGG / MP4 audio export (WAV always works) | `winget install Gyan.FFmpeg` |
 | **Tesseract** | OCR of scanned PDFs / images (also needs `pip install "star-reader[ocr]"`) | `winget install UB-Mannheim.TesseractOCR` |
 | **Pandoc** | Conversion of exotic markup formats | `winget install JohnMacFarlane.Pandoc` |
-| **liblouis** | Contracted **Grade 2** Braille (Grade 1 BRF is built in) | `pip install louis` (ships the binding + library), or install liblouis and set `LOUIS_TABLEPATH` |
+| **liblouis** | Contracted **Grade 2** Braille (Grade 1 BRF is built in) | Included in `star.exe`. From a source checkout, `python tools/build-vendor.py` fetches liblouis and its Python binding from the official liblouis release into `vendor/`; a pip install can use that folder through `STAR_VENDOR_DIR`. The PyPI package named `louis` is unrelated: never install it. |
 | **DECtalk** | The classic "Perfect Paul" voice | Niche on Windows: point `DECTALK_BIN` at a `dtalk`/`dectalk` CLI. The in-process DECtalk engine is deliberately **excluded from the public `star.exe`** (it's a commercial synthesizer); **SAPI5 is the recommended Windows voice.** |
 
 After installing, **restart your terminal** (so the updated `PATH` takes effect)
@@ -365,7 +365,10 @@ subfolders for the engines you actually want. Run `star --deps` (and try
   [github.com/tesseract-ocr/tesseract](https://github.com/tesseract-ocr/tesseract/releases)
   or install via your system package manager.
 - **liblouis** — only for contracted **Grade 2** Braille; Grade 1 BRF export is
-  built in and needs nothing.
+  built in and needs nothing. star needs liblouis's own Python binding, which
+  is not on PyPI: on Debian and Ubuntu install `python3-louis` and run star
+  with the system Python (or a virtual environment made with
+  `--system-site-packages`). The PyPI package named `louis` is unrelated.
 - **eSpeak-NG** — the eSpeak voice. star loads the system `libespeak-ng`
   in-process when present, or falls back to the `espeak-ng` CLI. See
   [TTS backends](features.md#tts-backends).
@@ -398,7 +401,7 @@ pip install pytesseract pymupdf
 pip install windows-curses
 
 # Everything
-pip install PyQt6 pyttsx3 pdfminer.six pytesseract pymupdf python-docx python-pptx odfpy openpyxl pypandoc louis pydub pyphen windows-curses
+pip install PyQt6 pyttsx3 pdfminer.six pytesseract pymupdf python-docx python-pptx odfpy openpyxl pypandoc pydub pyphen windows-curses
 ```
 
 ---

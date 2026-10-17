@@ -982,9 +982,12 @@ accented Latin letters fold to their base letter.
 
 ### Optional contracted Grade 2 (liblouis)
 
-```bash
-pip install louis
-```
+Grade 2 needs liblouis and its own Python binding, which is not on PyPI. The
+Windows `star.exe` includes both. On Debian and Ubuntu, install `python3-louis`;
+for a source checkout on Windows, `python tools/build-vendor.py` fetches them
+from the official liblouis release. Never `pip install louis`: the PyPI package
+of that name is unrelated to liblouis. See
+[Installation](installation.md#external-binary-dependencies).
 
 ```json
 "braille_grade2": true,

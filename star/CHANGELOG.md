@@ -80,6 +80,30 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
   in-process eSpeak-NG, Qt speech where the engine reports word progress,
   pyttsx3) and which are timer-paced, and the features guide explains the
   engine fallback. `docs/configuration.md` lists `eloquence_license_ack`.
+- **star no longer installs the PyPI package named `louis`.** It is an
+  unrelated placeholder, not liblouis's Python binding, yet the `[braille]`
+  and `[all]` extras and the optional-feature installer pulled it in. It
+  installed no code, so Grade 2 Braille never worked through it. The
+  `[braille]` extra and the installer's Grade 2 Braille entry are gone; the
+  docs now say where the binding really comes from (the Windows `star.exe`
+  includes it; on Debian and Ubuntu, `python3-louis`). Grade 1 BRF export is
+  built in, as before. If you installed it, `pip uninstall louis` removes it.
+
+### 🏗️ Build & CI
+
+- **The test suite stays inside the checkout.** It wrote into your real star
+  profile (settings, cache, themes) and the system temp folder. pytest's
+  temp folder is now `build/pytest-tmp`; every test gets its own profile and
+  home folder; and an audit hook refuses, and fails, any write outside the
+  checkout. `tools/ci-pytest.sh` keeps its own temp files in `build/tmp`.
+- **Network tests are off by default.** Tests marked `network` run only with
+  `pytest -m network -n0` and in one CI job; any other test that reaches for
+  the network fails. One such test, which downloaded a font from GitHub on
+  every run, now stays offline.
+- **A Linux development container.** `docker compose run --rm -T dev bash
+  tools/ci-pytest.sh python -m pytest` runs the suite on Debian trixie with
+  Python 3.13, espeak-ng, speech-dispatcher, pandoc and ffmpeg. See
+  `docs/docker.md`.
 
 ---
 

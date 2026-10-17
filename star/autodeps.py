@@ -57,7 +57,9 @@ FEATURES: dict[str, list[tuple[str, str]]] = {
     "translate": [("deep-translator", "deep_translator")],
     "feeds": [("feedparser", "feedparser")],
     "audio": [("pydub", "pydub")],
-    "braille": [("louis", "louis")],
+    # No "braille" feature: liblouis's Python binding is not on PyPI, and the
+    # PyPI package named "louis" is an unrelated placeholder.  Grade 2 Braille
+    # uses a system or vendored liblouis (diagnostics: braille2).
     "watch": [("watchdog", "watchdog")],
     "clipboard": [("pyperclip", "pyperclip")],
     "markup": [("pypandoc", "pypandoc")],
@@ -87,8 +89,6 @@ FEATURE_INFO: dict[str, tuple[str, str, int]] = {
     "feeds": ("RSS / Atom feeds", "feedparser — open an article from a feed", 1),
     "audio": ("Audio format conversion",
               "pydub — MP3/OGG export helpers (also needs ffmpeg on PATH)", 1),
-    "braille": ("Grade 2 Braille",
-                "louis (liblouis bindings) — contracted Braille; Grade 1 is built in", 3),
     "watch": ("Hot-folder watching",
               "watchdog — real filesystem events for star --watch", 1),
     "clipboard": ("System clipboard copy",
@@ -120,7 +120,7 @@ FEATURE_INFO: dict[str, tuple[str, str, int]] = {
 # download size so "All" is an informed, deliberate choice.
 PRESETS: dict[str, list[str]] = {
     "thin": ["documents", "dictionary", "spellcheck", "summarize", "syllables",
-             "flashcards", "translate", "feeds", "audio", "braille", "watch",
+             "flashcards", "translate", "feeds", "audio", "watch",
              "clipboard", "markup"],
     "all": list(FEATURES),
 }

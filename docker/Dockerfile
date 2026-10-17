@@ -15,10 +15,8 @@
 # docker/Dockerfile.dockerignore.
 
 # ── The dependency list, from pyproject.toml ─────────────────────────────────
-# star's own dependencies plus the `all` and `test` extras, minus `louis`:
-# the PyPI package of that name is an unrelated placeholder, not liblouis's
-# Python bindings, so the image does not install it.  Only a change to this
-# list re-runs the slow install below.
+# star's own dependencies plus the `all` and `test` extras.  Only a change to
+# this list re-runs the slow install below.
 FROM debian:trixie-slim AS requirements
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
@@ -26,17 +24,13 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 COPY pyproject.toml /src/pyproject.toml
 RUN python3 - <<'EOF'
-import re
 import tomllib
 
 project = tomllib.load(open("/src/pyproject.toml", "rb"))["project"]
 extras = project["optional-dependencies"]
-skip = {"louis"}
-wanted = [*project["dependencies"], *extras["all"], *extras["test"]]
 lines = []
-for spec in wanted:
-    name = re.split(r"[\s;<>=!~\[]", spec, maxsplit=1)[0].lower()
-    if name not in skip and spec not in lines:
+for spec in [*project["dependencies"], *extras["all"], *extras["test"]]:
+    if spec not in lines:
         lines.append(spec)
 open("/requirements.txt", "w").write("\n".join(lines) + "\n")
 EOF

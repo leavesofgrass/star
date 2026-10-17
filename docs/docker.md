@@ -14,7 +14,7 @@ star is developed on Windows and runs on Linux too. The Docker container runs th
 
 Left out on purpose:
 
-- **`louis` from PyPI.** The PyPI package of that name is an unrelated placeholder, not liblouis's Python bindings, so the image does not install it. The Braille translation tests skip in the container, as they do in CI.
+- **liblouis.** Its Python binding is not on PyPI, so the Grade 2 Braille tests skip in the container, as they do in CI. Grade 1 Braille is built into star and is tested.
 - **spaCy and its language model** (the `ner` extra). The knowledge graph uses its regex fallback.
 - **A sound device.** Tests never open one.
 

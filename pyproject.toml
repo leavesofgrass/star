@@ -67,7 +67,10 @@ Issues = "https://github.com/leavesofgrass/star/issues"
 ocr = ["pytesseract", "pymupdf", "Pillow"]
 formats = ["odfpy", "openpyxl"]
 markup = ["pypandoc"]
-braille = ["louis"]
+# No braille extra: contracted Grade 2 Braille needs liblouis's own Python
+# binding, which is not on PyPI.  The PyPI package named "louis" is an
+# unrelated placeholder and must never be installed (docs/installation.md says
+# where the binding comes from).  Grade 1 BRF export is built in.
 audio = ["pydub"]
 transcribe = ["faster-whisper", "sounddevice", "numpy"]
 # Extractive document summarization (Tools ▸ Summarize Document) via sumy.
@@ -131,7 +134,6 @@ all = [
     "odfpy",
     "openpyxl",
     "pypandoc",
-    "louis",
     "pydub",
     "watchdog",
     "pyperclip",
