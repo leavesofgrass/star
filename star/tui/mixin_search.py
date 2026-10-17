@@ -30,7 +30,9 @@ class SearchMixin:
     def _do_search(self, query: str, direction: str = "forward") -> None:
         if not query or not self.rendered:
             return
-        found = self.search.search(query, self.rendered, from_line=self.scroll)
+        found = self.search.search(
+            query, self.rendered, from_line=self.scroll, direction=direction
+        )
         if found:
             m = self.search.current_match
             if m:
@@ -57,7 +59,7 @@ class SearchMixin:
         if ch in (curses.KEY_ENTER, 10, 13):
             q = self.search_ed.value.strip()
             self.mode = "normal"
-            cb = getattr(self, "_mx_callback", None)
+            cb = getattr(self, "_search_callback", None)
             if cb and q:
                 cb(q)
             return

@@ -718,3 +718,112 @@ def test_rerender_keeps_position_and_open_restores(monkeypatch):
     app._render_doc(restore=True)
     assert app.scroll > 3, "open must restore the saved (late) position"
     assert any("Resumed" in m for m, _ in app.messages)
+
+
+# ── Search minibuffer (Ctrl+F, M-x search, M-x search-backward) ─────────────
+
+
+def _search_app(md, scroll=0):
+    from star.tui.mixin_commands import CommandsMixin
+    from star.tui.mixin_search import SearchMixin
+
+    class _SearchApp(CommandsMixin, SearchMixin, _FakeApp):
+        pass
+
+    app = _SearchApp(rendered=_rendered(md), scroll=scroll)
+    app.search = SearchEngine()
+    app.mode = "normal"
+    return app
+
+
+def _type_and_enter(app, text):
+    for ch in text:
+        app._handle_search_key(ord(ch))
+    app._handle_search_key(10)  # Enter
+
+
+_THREE_BETAS = "beta one\n\nbeta two\n\nbeta three\n\nbeta four\n"
+
+
+def _match_lines(rendered):
+    return [i for i, segs in enumerate(rendered) if "beta" in "".join(t for t, _ in segs)]
+
+
+def test_search_minibuffer_runs_its_query_in_a_fresh_session():
+    """Ctrl+F, a query and Enter used to do nothing: the commit callback was
+    dropped and Enter looked for the M-x callback, which a fresh session
+    does not have."""
+    app = _search_app(_THREE_BETAS)
+    app._enter_minibuffer(
+        "Search: ", mode="search", on_commit=lambda q: app._do_search(q, "forward")
+    )
+    _type_and_enter(app, "beta")
+    assert app.mode == "normal"
+    assert app.search.match_count == 4
+    assert app.messages[-1] == ("4 match(es) for 'beta'", False)
+
+
+def test_search_query_is_not_run_as_a_command_after_mx():
+    """After any M-x command, Enter in the search minibuffer ran the query
+    as a command ("Unknown command 'beta'")."""
+    app = _search_app(_THREE_BETAS)
+    commands = []
+    app._enter_minibuffer("M-x: ", on_commit=commands.append)
+    app._mx_callback("line-numbers")  # an M-x command ran earlier
+    app._enter_minibuffer("Search: ", mode="search")  # default: forward search
+    _type_and_enter(app, "beta")
+    assert commands == ["line-numbers"]
+    assert app.search.match_count == 4
+
+
+def test_search_backward_starts_above_the_view():
+    lines = _match_lines(_rendered(_THREE_BETAS))
+    app = _search_app(_THREE_BETAS, scroll=lines[2] - 1)  # between 2nd and 3rd
+    app._enter_minibuffer(
+        "Search: ", mode="search", on_commit=lambda q: app._do_search(q, "backward")
+    )
+    _type_and_enter(app, "beta")
+    assert app.search.current_match[0] == lines[1]
+
+    app2 = _search_app(_THREE_BETAS, scroll=lines[2] - 1)
+    app2._enter_minibuffer(
+        "Search: ", mode="search", on_commit=lambda q: app2._do_search(q, "forward")
+    )
+    _type_and_enter(app2, "beta")
+    assert app2.search.current_match[0] == lines[2]
+
+
+def test_mx_search_backward_command_searches_backward():
+    """The M-x search-backward entry wires the backward direction."""
+    lines = _match_lines(_rendered(_THREE_BETAS))
+    app = _search_app(_THREE_BETAS, scroll=lines[3])
+
+    class _CommandTableApp(type(app)):
+        def __getattr__(self, name):
+            # execute_command builds its whole table, naming every handler
+            # StarApp has; the ones this fake lacks are no-ops here.  Names
+            # read through getattr(..., default) stay missing.
+            if name.startswith("_") and not name.startswith("__") and "callback" not in name:
+                return lambda *a, **k: None
+            raise AttributeError(name)
+
+    app.__class__ = _CommandTableApp
+    app.execute_command("search-backward")
+    assert app.mode == "search"
+    _type_and_enter(app, "beta")
+    assert app.search.current_match[0] == lines[3]  # at or above the view top
+    app.scroll = lines[3] - 1
+    app._enter_minibuffer("Search: ", mode="search",
+                          on_commit=lambda q: app._do_search(q, "backward"))
+    _type_and_enter(app, "beta")
+    assert app.search.current_match[0] == lines[2]
+
+
+def test_search_engine_backward_wraps_to_the_last_match():
+    rendered = _rendered(_THREE_BETAS)
+    lines = _match_lines(rendered)
+    eng = SearchEngine()
+    assert eng.search("beta", rendered, from_line=lines[0] - 1, direction="backward")
+    assert eng.current_match[0] == lines[-1]  # nothing above: wrap to the end
+    assert eng.search_regex(r"bet.", rendered, from_line=lines[1], direction="backward")
+    assert eng.current_match[0] == lines[1]

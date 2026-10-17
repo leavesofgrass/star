@@ -33,6 +33,13 @@ class CommandsMixin:
         elif mode == "search":
             self.search_ed = LineEditor(initial)
             self._search_prompt = prompt
+            # Enter runs this with the query.  The callback used to be
+            # dropped here and Enter read _mx_callback instead: in a fresh
+            # session the query never ran, and after any M-x command it ran
+            # as a command ("Unknown command 'foo'").
+            self._search_callback = on_commit or (
+                lambda q: self._do_search(q, "forward")
+            )
         elif mode == "goto":
             self.goto_ed = LineEditor(initial)
 

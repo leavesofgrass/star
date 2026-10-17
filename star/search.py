@@ -34,8 +34,36 @@ class SearchEngine:
     def match_index(self) -> int:
         return self._idx
 
-    def search(self, query: str, rendered: List[Line], from_line: int = 0) -> bool:
-        """Run a new search.  Returns True if any matches found."""
+    def _start_at(self, from_line: int, direction: str) -> None:
+        """Make the current match the first one at or below *from_line*
+        (``"forward"``) or the last one at or above it (``"backward"``),
+        wrapping to the other end of the document when there is none."""
+        if not self._matches:
+            self._idx = -1
+            return
+        if direction == "backward":
+            before = [i for i, (li, _, _) in enumerate(self._matches) if li <= from_line]
+            self._idx = before[-1] if before else len(self._matches) - 1
+            return
+        for i, (li, _, _) in enumerate(self._matches):
+            if li >= from_line:
+                self._idx = i
+                return
+        self._idx = 0
+
+    def search(
+        self,
+        query: str,
+        rendered: List[Line],
+        from_line: int = 0,
+        direction: str = "forward",
+    ) -> bool:
+        """Run a new search.  Returns True if any matches found.
+
+        The current match starts at *from_line* and goes the given
+        *direction*: ``"forward"`` takes the first match at or below it,
+        ``"backward"`` the last match at or above it.
+        """
         self.query = query
         self._matches = []
         self._idx = -1
@@ -52,14 +80,7 @@ class SearchEngine:
                     break
                 self._matches.append((li, pos, pos + len(query)))
                 col = pos + 1
-        if self._matches:
-            # Start from from_line
-            for i, (li, _, _) in enumerate(self._matches):
-                if li >= from_line:
-                    self._idx = i
-                    break
-            else:
-                self._idx = 0
+        self._start_at(from_line, direction)
         return bool(self._matches)
 
     def next_match(self) -> Optional[Tuple[int, int, int]]:
@@ -75,13 +96,17 @@ class SearchEngine:
         return self._matches[self._idx]
 
     def search_regex(
-        self, pattern: str, rendered: "List[Line]", from_line: int = 0
+        self,
+        pattern: str,
+        rendered: "List[Line]",
+        from_line: int = 0,
+        direction: str = "forward",
     ) -> bool:
         """Run a regex search. Falls back to plain search if pattern is invalid."""
         try:
             rx = re.compile(pattern, re.IGNORECASE)
         except re.error:
-            return self.search(pattern, rendered, from_line)
+            return self.search(pattern, rendered, from_line, direction)
         self.query = pattern
         self._matches = []
         self._idx = -1
@@ -89,13 +114,7 @@ class SearchEngine:
             text = "".join(t for t, _ in segs)
             for m in rx.finditer(text):
                 self._matches.append((li, m.start(), m.end()))
-        if self._matches:
-            for i, (li, _, _) in enumerate(self._matches):
-                if li >= from_line:
-                    self._idx = i
-                    break
-            else:
-                self._idx = 0
+        self._start_at(from_line, direction)
         return bool(self._matches)
 
 
