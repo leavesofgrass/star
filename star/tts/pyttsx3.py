@@ -136,6 +136,9 @@ class Pyttsx3Backend(TTSBackend):
 
     name = "pyttsx3"
     priority = 20
+    # SAPI5's started-word events arrive, but they lag and burst, so they are
+    # not paced to the audio.
+    emits_word_events = True
 
     def __init__(self, rate: int = 265, volume: float = 1.0, voice: str = ""):
         self._rate = rate

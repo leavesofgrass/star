@@ -110,6 +110,11 @@ class QtSpeechBackend(TTSBackend):
     # not change which engine ``auto`` selects on any existing platform; it is
     # only reached when those higher-priority engines are unavailable.
     priority = 35
+    # sayingWord fires as each word is about to be spoken, on engines with the
+    # WordByWordProgress capability.  Engines without it (speech-dispatcher)
+    # send none, and the highlight timer's first-event wait then times out.
+    emits_word_events = True
+    word_events_paced = True
 
     def __init__(self, rate: int = 200, volume: float = 1.0, voice: str = "") -> None:
         self._rate = int(rate)

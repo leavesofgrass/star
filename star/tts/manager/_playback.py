@@ -6,10 +6,38 @@ timer-generation guards, SAPI5/eSpeak pacing constants, and monotonic-write
 callback logic are byte-for-byte identical to the original; only the enclosing
 class was split into cooperating mixins.
 """
+import bisect
+
 from ..._runtime import *  # noqa: F401,F403
-from ..pyttsx3 import Pyttsx3Backend
-from ..espeak import ESpeakLibBackend
 from ..cloud.base import CloudTTSError
+
+
+def _word_index_for_event(word_map: List["WordPos"], location: int, length: int) -> int:
+    """Return the index of the map word an engine word event names, or -1.
+
+    *location* and *length* give the event's span in the full plain text.
+    The answer is the first map word whose range intersects that span, so an
+    engine token that carries leading punctuation (Eloquence speaks
+    whitespace-separated tokens such as ``"Hello`` or ``(3:45``) still lands
+    on its word instead of being dropped.  An event that starts exactly at
+    the end of a word (the gap after it) counts as that word, as before.
+
+    The map is ordered by ``tts_offset`` with no overlaps (see
+    ``_build_word_map``), so the search is a bisection on the word ends.
+    """
+    if not word_map:
+        return -1
+    end = location + max(1, length)
+    i = bisect.bisect_right(
+        word_map, location, key=lambda wp: wp.tts_offset + wp.tts_len
+    )
+    if i < len(word_map) and word_map[i].tts_offset < end:
+        return i
+    if i > 0:
+        prev = word_map[i - 1]
+        if prev.tts_offset <= location <= prev.tts_offset + prev.tts_len:
+            return i - 1
+    return -1
 
 
 class PlaybackMixin:
@@ -78,20 +106,25 @@ class PlaybackMixin:
             if self._on_done:
                 self._on_done()
 
-        # pyttsx3 word callbacks supplement the timer when they fire reliably
-        # (they may not on all Windows/SAPI5 configurations).  The timer is
-        # always started as the primary highlight mechanism.
-        if isinstance(self._backend, (Pyttsx3Backend, ESpeakLibBackend)):
-            # The in-process eSpeak-NG backend paces its callbacks to real audio
-            # position, so they are playback-accurate (unlike SAPI5's, which lag
-            # and burst).  Flag that for the timer, and keep the backend's
-            # latency-compensation offset in sync with the user setting so the
-            # highlight is not painted slightly before the word is heard.
-            self._paced_playback = isinstance(self._backend, ESpeakLibBackend)
-            if self._paced_playback:
-                self._backend.set_highlight_offset_ms(
-                    int(self._settings.get("espeak_highlight_offset_ms", 120))
-                )
+        # Word callbacks supplement the timer for every backend that declares
+        # emits_word_events (Eloquence, Qt speech, pyttsx3, the in-process
+        # eSpeak library).  The timer is always started as the primary
+        # highlight mechanism, since events may not arrive on every engine
+        # configuration (SAPI5 setups, Qt engines without word progress).
+        if getattr(self._backend, "emits_word_events", False):
+            # Backends whose events are paced to the audio (Eloquence's index
+            # marks, eSpeak's audio positions, Qt's sayingWord) are
+            # playback-accurate, unlike SAPI5's, which lag and burst.  Flag
+            # that for the timer.
+            self._paced_playback = bool(
+                getattr(self._backend, "word_events_paced", False)
+            )
+            # Keep the eSpeak library's latency-compensation offset in sync
+            # with the user setting so the highlight is not painted slightly
+            # before the word is heard.
+            set_offset = getattr(self._backend, "set_highlight_offset_ms", None)
+            if callable(set_offset):
+                set_offset(int(self._settings.get("espeak_highlight_offset_ms", 120)))
 
             def on_word_cb(location: int, length: int) -> None:
                 """Translate TTS-relative location back to a word-map index.
@@ -112,30 +145,29 @@ class PlaybackMixin:
                 # text.  Skip the lookup and let the timer handle highlight.
                 if text_offset < 0:
                     return
-                abs_loc = location + text_offset
-                for i, wp in enumerate(self._word_map):
-                    if wp.tts_offset <= abs_loc < wp.tts_offset + wp.tts_len + 1:
-                        # ALWAYS record the engine-confirmed position — it is
-                        # the audio truth the timer's pacing guard runs on.
-                        # This write used to sit inside the monotonic check
-                        # below, which starved the guard whenever the timer
-                        # estimate had run ahead (every callback was then
-                        # "behind" and discarded): _last_cb_time went stale,
-                        # the timeout bypass kicked in, and the highlight
-                        # free-ran to the end of the document with nothing
-                        # ever able to rein it back in.
-                        self._last_cb_word_idx = i
-                        self._last_cb_time = time.monotonic()
-                        # Monotonic write for the shared estimate: only
-                        # advance, never retreat.  Delayed or out-of-order
-                        # SAPI5 callbacks for earlier words must not clobber
-                        # a later confirmed position (which would make
-                        # _tts_toggle save the wrong pause word and cause a
-                        # backward snap on resume).  The timer clamps the
-                        # estimate back down when it truly overshoots.
-                        if i >= self._current_word_idx:
-                            self._current_word_idx = i
-                        break
+                i = _word_index_for_event(
+                    self._word_map, location + text_offset, length
+                )
+                if i < 0:
+                    return
+                # ALWAYS record the engine-confirmed position — it is the
+                # audio truth the timer's pacing guard runs on.  This write
+                # used to sit inside the monotonic check below, which starved
+                # the guard whenever the timer estimate had run ahead (every
+                # callback was then "behind" and discarded): _last_cb_time
+                # went stale, the timeout bypass kicked in, and the highlight
+                # free-ran to the end of the document with nothing ever able
+                # to rein it back in.
+                self._last_cb_word_idx = i
+                self._last_cb_time = time.monotonic()
+                # Monotonic write for the shared estimate: only advance, never
+                # retreat.  Delayed or out-of-order SAPI5 callbacks for earlier
+                # words must not clobber a later confirmed position (which
+                # would make _tts_toggle save the wrong pause word and cause a
+                # backward snap on resume).  The timer clamps the estimate
+                # back down when it truly overshoots.
+                if i >= self._current_word_idx:
+                    self._current_word_idx = i
 
             self._expect_callbacks = True
             self._backend.speak(text, on_word=on_word_cb, on_done=on_done)
@@ -261,9 +293,9 @@ class PlaybackMixin:
             # wait for the first one before painting anything so the highlight
             # clock aligns to audible output rather than to the speak() call.
             # This removes the constant head start the highlight otherwise has
-            # from the engine's start-up latency.  Only pyttsx3 sets
-            # _expect_callbacks today, so every other backend skips this and
-            # behaves exactly as before.  _last_cb_word_idx is a single int
+            # from the engine's start-up latency.  speak() sets
+            # _expect_callbacks for every backend that declares
+            # emits_word_events; the rest skip this.  _last_cb_word_idx is a single int
             # written by the engine callback thread; reading it here is atomic
             # under the GIL, so this advisory check needs no lock.
             if self._expect_callbacks:

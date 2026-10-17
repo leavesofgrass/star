@@ -205,6 +205,9 @@ class ESpeakLibBackend(TTSBackend):
 
     name = "espeak"
     priority = 40  # in-process libespeak-ng — preferred over the CLI (real word events)
+    # The pacer thread fires each WORD event at its audio position.
+    emits_word_events = True
+    word_events_paced = True
 
     # speak_lib.h constants.
     _AUDIO_OUTPUT_PLAYBACK = 0

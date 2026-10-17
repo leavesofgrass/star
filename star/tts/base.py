@@ -21,6 +21,17 @@ class TTSBackend(abc.ABC):
     #: Third-party plugins should use values ≥ 100.
     priority: int = 50
 
+    #: True when :meth:`speak` calls ``on_word(offset, length)`` for each
+    #: spoken word, with *offset* relative to the text passed in.  The manager
+    #: hands ``on_word`` only to backends that declare it; every other backend
+    #: is paced by the highlight timer alone.
+    emits_word_events: bool = False
+
+    #: True when those word events fire as each word is heard (paced to the
+    #: audio), rather than early or in bursts.  The highlight timer then keeps
+    #: its estimate within one word of the last event instead of four.
+    word_events_paced: bool = False
+
     @abc.abstractmethod
     def available(self) -> bool:
         return False

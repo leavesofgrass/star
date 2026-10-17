@@ -74,15 +74,16 @@ class TTSManager(SelectionMixin, PlaybackMixin, ExportMixin):
         # stalls while speech continues (SAPI5 callbacks can go silent).
         self._last_cb_time: float = 0.0
         # True only while the active backend emits real per-word events that
-        # track audio progress (currently just pyttsx3's SAPI5 word callbacks;
-        # eSpeak-NG's CLI does not emit mark events, so its marks cannot be
-        # used as a signal here).  The highlight timer reads this to anchor its
+        # track audio progress (every backend that declares
+        # emits_word_events: Eloquence, Qt speech, pyttsx3 and the eSpeak
+        # library; eSpeak-NG's CLI does not).  The highlight timer reads this to anchor its
         # first paint to the first real event (≈ audio onset) instead of to the
         # speak() call, which precedes audible output by the engine's start-up
         # latency and otherwise gives the highlight a constant head start.
         self._expect_callbacks: bool = False
         # True when the active backend paces its word callbacks to real audio
-        # position (the in-process eSpeak-NG backend).  Those callbacks are
+        # position (word_events_paced: Eloquence, Qt speech, the eSpeak
+        # library).  Those callbacks are
         # playback-accurate, so the highlight timer can track them tightly
         # instead of allowing the looser slack SAPI5's lagging callbacks need.
         self._paced_playback: bool = False

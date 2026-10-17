@@ -388,6 +388,10 @@ class EloquenceBackend(TTSBackend):
     # star's own tts_prefer_voice default).  available() is False everywhere
     # the engine is absent and off Windows, so nothing else changes.
     priority = 18
+    # An index mark per word, fired at the mark's sample offset into the
+    # audio being played, so the events are both present and paced.
+    emits_word_events = True
+    word_events_paced = True
 
     def __init__(self, rate: int = 265, volume: float = 1.0, voice: str = ""):
         self._rate = int(rate)
