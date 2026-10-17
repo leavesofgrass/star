@@ -259,67 +259,59 @@ def test_chunk_offsets_concatenation_preserves_visible_text():
 
 
 # ============================================================================
-# ESpeakLibBackend._utf8_byte_to_char  (static; no library needed)
+# ESpeakLibBackend._event_span  (static; no library needed)
 #
-# libespeak-ng reports WORD events as offsets into the UTF-8 *byte* buffer it
-# was handed, but star applies them to the Python str.  These agree for ASCII
-# and diverge by one position per extra byte otherwise.
+# libespeak-ng reports a WORD event's text_position as a one-based CHARACTER
+# (code point) position and its length in characters, even though the text
+# goes in as UTF-8 bytes.  The vectors below are the engine's own events,
+# recorded live from eSpeak NG 1.52.0 (synchronous output, espeakCHARS_UTF8).
+# The 0.1.29 byte remap assumed bytes and moved the highlight one character
+# left for every multibyte character earlier in the chunk.
 # ============================================================================
 
 
-def test_utf8_byte_to_char_is_identity_for_ascii():
-    """The ASCII path must be unchanged — one byte per character."""
-    chunk = "Alpha beta gamma."
-    b2c = tts.ESpeakLibBackend._utf8_byte_to_char(chunk)
-    # one entry per byte, plus the one-past-the-end entry
-    assert len(b2c) == len(chunk.encode("utf-8")) + 1
-    assert b2c == list(range(len(chunk) + 1))
+def _spoken(chunk, events):
+    out = []
+    for pos, length in events:
+        start, n = tts.ESpeakLibBackend._event_span(len(chunk), pos, length)
+        out.append(chunk[start:start + n])
+    return out
 
 
-@pytest.mark.parametrize(
-    ("chunk", "word"),
-    [
-        ("Café pour Émile", "Émile"),      # 2-byte Latin-1 supplement
-        ("日本語 の テキスト", "テキスト"),   # 3-byte CJK
-        ("Ω≈ç√ tail", "tail"),             # mixed multi-byte run
-        ("emoji 🎧 headphones", "headphones"),  # 4-byte astral plane
-    ],
-)
-def test_utf8_byte_to_char_locates_word_after_multibyte_text(chunk, word):
-    """A byte offset from the engine must map to the word's *character* index.
-
-    This is the regression the mapping exists for: taking espeak's byte
-    position as a character index lands the highlight further right the more
-    multi-byte text precedes it.
-    """
-    b2c = tts.ESpeakLibBackend._utf8_byte_to_char(chunk)
-    byte_pos = chunk.encode("utf-8").index(word.encode("utf-8"))
-
-    assert b2c[byte_pos] == chunk.index(word)
-    # and the naive (pre-fix) reading really is wrong, so this test has teeth
-    assert byte_pos != chunk.index(word)
+def test_event_span_ascii_words():
+    assert _spoken("Alpha beta gamma.", [(1, 5), (7, 4), (12, 5)]) == [
+        "Alpha", "beta", "gamma",
+    ]
 
 
-def test_utf8_byte_to_char_maps_word_length_to_characters():
-    """Mapping start and end bytes yields the word's length in characters."""
-    chunk = "Ünicöde wörd"
-    word = "wörd"
-    raw = chunk.encode("utf-8")
-    b2c = tts.ESpeakLibBackend._utf8_byte_to_char(chunk)
-
-    b0 = raw.index(word.encode("utf-8"))
-    b1 = b0 + len(word.encode("utf-8"))  # 5 bytes for a 4-char word
-
-    start, end = b2c[b0], b2c[b1]
-    assert chunk[start:end] == word
-    assert end - start == len(word) == 4
+def test_event_span_after_a_two_byte_character():
+    """"café word": the engine puts "word" at 6, its character position.
+    Read as a byte position (the old remap) it landed on the space before."""
+    assert _spoken("café word", [(1, 4), (6, 4)]) == ["café", "word"]
 
 
-def test_utf8_byte_to_char_end_entry_allows_final_word():
-    """The one-past-the-end entry lets a trailing word map its end offset."""
-    chunk = "tréma"
-    b2c = tts.ESpeakLibBackend._utf8_byte_to_char(chunk)
-    assert b2c[len(chunk.encode("utf-8"))] == len(chunk)
+def test_event_span_after_three_byte_ideographs():
+    """Three CJK ideographs then "test": the engine says 5 (bytes would be 11)."""
+    assert _spoken("日本語 test", [(5, 4)]) == ["test"]
+
+
+def test_event_span_lengths_are_characters():
+    assert _spoken(
+        "naïve façade résumé end", [(1, 5), (7, 6), (14, 6), (21, 3)]
+    ) == ["naïve", "façade", "résumé", "end"]
+
+
+def test_event_span_after_an_astral_character():
+    """An emoji above U+FFFF counts as one code point."""
+    assert _spoken("a 🎧 emoji", [(1, 1), (3, 1), (5, 5)]) == ["a", "🎧", "emoji"]
+
+
+def test_event_span_clamps_to_the_chunk():
+    span = tts.ESpeakLibBackend._event_span
+    assert span(9, 0, 4) == (0, 4)     # position 0 or below starts the chunk
+    assert span(9, 7, 10) == (6, 3)    # a length past the end is cut
+    assert span(9, 40, 4) == (9, 0)    # a position past the end is empty
+    assert span(9, 3, -2) == (2, 0)    # a negative length is empty
 
 
 # ============================================================================

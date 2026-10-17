@@ -299,10 +299,10 @@ class ESpeakLibBackend(TTSBackend):
             _fields_ = [
                 ("type", ctypes.c_int),
                 ("unique_identifier", ctypes.c_uint),
-                # 1-based offset into the UTF-8 *byte* buffer handed to
-                # espeak_Synth — not a character index; see _utf8_byte_to_char.
+                # 1-based character (code point) position in the text handed
+                # to espeak_Synth, even for UTF-8 input; see _event_span.
                 ("text_position", ctypes.c_int),
-                ("length", ctypes.c_int),  # likewise measured in UTF-8 bytes
+                ("length", ctypes.c_int),  # likewise measured in characters
                 ("audio_position", ctypes.c_int),  # ms into the output stream
                 ("sample", ctypes.c_int),
                 ("user_data", ctypes.c_void_p),
@@ -422,25 +422,21 @@ class ESpeakLibBackend(TTSBackend):
         return out or [(text, 0)]
 
     @staticmethod
-    def _utf8_byte_to_char(chunk: str) -> "List[int]":
-        """Map 0-based UTF-8 **byte** offsets in *chunk* to character indices.
+    def _event_span(chunk_len: int, text_position: int, length: int) -> "Tuple[int, int]":
+        """Return a WORD event's ``(start, length)`` in characters of the chunk.
 
-        libespeak-ng is handed UTF-8 bytes (``espeakCHARS_UTF8``) and reports a
-        WORD event's ``text_position``/``length`` as offsets into *that byte
-        buffer* — not into the Python ``str`` the offsets are eventually applied
-        to.  The two coincide exactly for ASCII, which is why the discrepancy
-        stayed invisible for so long, but every multi-byte character shifts them
-        apart: with "é" (2 bytes) or "日" (3 bytes) earlier in the passage the
-        highlight lands progressively further right than the word being spoken.
-
-        The returned list holds one entry per byte plus a final one-past-the-end
-        entry, so a start byte and an end byte can both be mapped by indexing.
+        libespeak-ng reports ``text_position`` as a **one-based character**
+        (code point) position in the text it was handed, and ``length`` in
+        characters too, even though the text goes in as UTF-8 bytes
+        (``espeakCHARS_UTF8``).  Checked live against eSpeak NG 1.52.0: in
+        "café word" the engine puts "word" at 6, its character position (the
+        byte position would be 7).  So the character offset is simply
+        ``text_position - 1``.  Both ends are clamped to the chunk so a
+        surprising position from the engine can never index past it.
         """
-        out: List[int] = []
-        for i, ch in enumerate(chunk):
-            out.extend([i] * len(ch.encode("utf-8", "replace")))
-        out.append(len(chunk))
-        return out
+        start = min(max(text_position - 1, 0), chunk_len)
+        end = min(max(start + length, start), chunk_len)
+        return start, end - start
 
     # -- speech -----------------------------------------------------------
     def speak(
@@ -483,14 +479,14 @@ class ESpeakLibBackend(TTSBackend):
         # and a dedicated pacer thread fires on_word at that time, so the
         # highlight follows actual playback instead of synthesis.
         #
-        # (text_position/length are 1-based offsets into the chunk's UTF-8 *byte*
-        # buffer — see _utf8_byte_to_char.  They are mapped back to character
-        # offsets and added to the chunk's base offset, yielding an absolute
-        # plain-text offset which TTSManager maps to a word-map index exactly as
-        # it does for pyttsx3.)
+        # (text_position is a 1-based character position in the chunk and
+        # length is in characters — see _event_span.  The 0-based offset is
+        # added to the chunk's base offset, yielding an absolute plain-text
+        # offset which TTSManager maps to a word-map index exactly as it does
+        # for pyttsx3.)
         pace_q: "queue.Queue" = queue.Queue()
 
-        def _make_cb(base_offset: int, chunk_start: float, b2c: "List[int]"):
+        def _make_cb(base_offset: int, chunk_start: float, chunk_len: int):
             def _synth_cb(wav, numsamples, evp):
                 if self._gen != my_gen or self._stop_evt.is_set():
                     return 1  # abort this chunk's synthesis
@@ -505,21 +501,11 @@ class ESpeakLibBackend(TTSBackend):
                                     + e.audio_position / 1000.0
                                     + self._hl_offset
                                 )
-                                # Byte offsets from the engine -> character
-                                # offsets into the chunk (identity for ASCII).
-                                # Clamped so a surprising position from the
-                                # engine can never index past the map.
-                                last = len(b2c) - 1
-                                b0 = min(max(e.text_position - 1, 0), last)
-                                b1 = min(max(b0 + e.length, b0), last)
-                                start = b2c[b0]
+                                start, length = self._event_span(
+                                    chunk_len, e.text_position, e.length
+                                )
                                 pace_q.put(
-                                    (
-                                        target,
-                                        base_offset + start,
-                                        b2c[b1] - start,
-                                        my_gen,
-                                    )
+                                    (target, base_offset + start, length, my_gen)
                                 )
                             i += 1
                 except Exception:
@@ -568,9 +554,8 @@ class ESpeakLibBackend(TTSBackend):
                     # returns; espeak_Synchronize then blocks until this chunk
                     # finishes playing, so chunks play back to back from here.
                     chunk_start = time.monotonic()
-                    b2c = self._utf8_byte_to_char(chunk_text)
                     cb = type(self)._callback_type(
-                        _make_cb(base, chunk_start, b2c)
+                        _make_cb(base, chunk_start, len(chunk_text))
                     )
                     self._cb = cb  # keep a live ref for this chunk
                     lib.espeak_SetSynthCallback(cb)
