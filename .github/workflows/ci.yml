@@ -142,6 +142,17 @@ jobs:
         shell: bash
         run: bash tools/ci-pytest.sh python -m pytest
 
+      - name: Run the network tests (public identifiers only)
+        # Tests marked `network` reach the internet, so pyproject.toml's
+        # addopts deselect them (-m "not network") in every other run, and
+        # tests/conftest.py refuses network access to any test without the
+        # mark.  This is the one job that runs them, on purpose: each sends
+        # only a public identifier (an ISBN) with star's own User-Agent, and
+        # skips itself when the service cannot be reached.  -n0: a handful
+        # of tests needs no xdist workers.
+        shell: bash
+        run: python -m pytest -m network -n0
+
   coverage:
     name: coverage gate (per-module floors)
     runs-on: ubuntu-latest

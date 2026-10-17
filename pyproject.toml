@@ -247,7 +247,10 @@ testpaths = ["tests"]
 #   profile tests/conftest.py builds) live in build/pytest-tmp inside the
 #   checkout, never in the system temp folder.  pytest empties this folder at
 #   the start of every run; it is ignored by git (build/).
-addopts = "-q -n auto --dist loadgroup --basetemp=build/pytest-tmp"
+# -m "not network" → tests that reach the internet are deselected by default.
+#   Run them on purpose with `pytest -m network -n0` (a -m on the command line
+#   replaces this one; combine marks there, e.g. -m "qt and not network").
+addopts = '-q -n auto --dist loadgroup --basetemp=build/pytest-tmp -m "not network"'
 # Hang DIAGNOSTICS: any single test stuck for 2 minutes dumps every thread's
 # traceback to stderr (pytest's built-in faulthandler — a dump, not a kill).
 # The actual KILL for a wedged run is the wall-clock `timeout` in
@@ -258,7 +261,7 @@ addopts = "-q -n auto --dist loadgroup --basetemp=build/pytest-tmp"
 faulthandler_timeout = 120
 pythonpath = ["."]
 markers = [
-    "network: test requires network access (may be skipped offline)",
+    "network: reaches the internet; deselected by default (addopts above), run on purpose with `pytest -m network -n0`; sends only public identifiers with star's own User-Agent, and skips when offline",
     "qt: touches Qt (added automatically in tests/conftest.py); CI runs these serially in-process via `pytest -m qt -n0`",
 ]
 

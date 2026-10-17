@@ -200,3 +200,54 @@ def test_bytecode_caches_outside_are_refused_quietly(guard):
         with pytest.raises(PermissionError):
             sys.audit("open", str(pyc), None, os.O_WRONLY | os.O_CREAT | os.O_EXCL)
     assert refused == []  # the import system skips the cache; no test fails
+
+
+# ── the network ──────────────────────────────────────────────────────────────
+
+
+def test_network_tests_are_deselected_by_default(pytestconfig):
+    addopts = list(pytestconfig.getini("addopts"))
+    pairs = list(zip(addopts, addopts[1:]))
+    assert ("-m", "not network") in pairs
+
+
+def test_an_unmarked_test_cannot_reach_the_network(guard):
+    # 192.0.2.1 is TEST-NET-1 (RFC 5737): never routed, so even a broken
+    # guard sends nothing anywhere.
+    events = [
+        ("socket.connect", (None, ("192.0.2.1", 80))),
+        ("socket.connect", (None, ("2001:db8::1", 443, 0, 0))),
+        ("socket.sendto", (None, ("192.0.2.1", 53))),
+        ("socket.getaddrinfo", ("example.invalid", 443, 0, 0, 0)),
+        ("socket.gethostbyname", ("example.invalid",)),
+        ("socket.gethostbyaddr", ("192.0.2.1",)),
+        ("urllib.Request", ("https://example.invalid/x", None, {}, "GET")),
+        ("http.client.connect", (None, "example.invalid", 443)),
+        ("webbrowser.open", ("https://example.invalid/",)),
+    ]
+    for event, args in events:
+        with guard.expect_refusals() as refused:
+            with pytest.raises(OSError):
+                sys.audit(event, *args)
+        assert len(refused) == 1 and "network" in refused[0], event
+
+
+def test_this_machine_is_not_the_network(guard):
+    with guard.expect_refusals() as refused:
+        sys.audit("socket.connect", None, ("127.0.0.1", 8080))
+        sys.audit("socket.connect", None, ("::1", 8080, 0, 0))
+        sys.audit("socket.connect", None, "/run/star.sock")  # a Unix socket
+        sys.audit("socket.getaddrinfo", "localhost", 8080, 0, 0, 0)
+        sys.audit("urllib.Request", "file:///etc/hosts", None, {}, "GET")
+    assert refused == []
+
+
+def test_a_network_marked_test_may_reach_the_network(guard):
+    # Deselected by default, a network test runs with the guard's leave.
+    previous, guard.allow_network = guard.allow_network, True
+    try:
+        with guard.expect_refusals() as refused:
+            sys.audit("socket.getaddrinfo", "openlibrary.org", 443, 0, 0, 0)
+        assert refused == []
+    finally:
+        guard.allow_network = previous

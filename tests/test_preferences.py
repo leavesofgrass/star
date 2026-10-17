@@ -87,7 +87,13 @@ def test_reading_aids_tab_writes_the_new_toggles(window, monkeypatch):
 
 def test_fonts_tab_writes_spacing_and_mirrors_reading_font(window, monkeypatch):
     from PyQt6.QtWidgets import QDialog
+
+    import star.fonts as fonts_mod
+
     monkeypatch.setattr(QDialog, "exec", lambda self: 0, raising=False)
+    # Choosing OpenDyslexic applies it, which fetches the font from GitHub when
+    # it is not cached.  Tests stay offline: the fetch finds nothing.
+    monkeypatch.setattr(fonts_mod, "fetch_font", lambda key, **kw: [])
     dlg = _dialog(window)
     # Reading-font combo mirrors the Display tab's.
     dlg.reading_font.setCurrentText("atkinson")

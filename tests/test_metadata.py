@@ -245,9 +245,38 @@ def test_fetch_metadata_by_isbn_network_error(monkeypatch):
     assert "unavailable" in msg.lower() or "failed" in msg.lower()
 
 
+def test_fetch_metadata_sends_only_the_isbn_and_a_neutral_user_agent(monkeypatch):
+    """What the network test below sends: a public ISBN and star's own User-Agent.
+
+    No personal identifier (name, account, machine, address) may leave the
+    machine; the request carries the ISBN in its query and nothing else.
+    """
+    import urllib.error
+    import urllib.parse
+
+    from star._runtime import APP_VERSION
+
+    sent = []
+
+    def _capture(req, *a, **kw):
+        sent.append(req)
+        raise urllib.error.URLError("captured, not sent")
+
+    monkeypatch.setattr("urllib.request.urlopen", _capture)
+    _fetch_metadata_by_isbn("978-0-345-39180-3")
+    (req,) = sent
+    parts = urllib.parse.urlsplit(req.full_url)
+    assert (parts.scheme, parts.hostname, parts.path) == ("https", "openlibrary.org", "/api/books")
+    assert urllib.parse.parse_qs(parts.query) == {
+        "bibkeys": ["ISBN:9780345391803"], "format": ["json"], "jscmd": ["data"],
+    }
+    assert req.data is None and req.get_method() == "GET"
+    assert dict(req.header_items()) == {"User-agent": f"star/{APP_VERSION} (metadata lookup)"}
+
+
 @pytest.mark.network
 def test_fetch_metadata_real_isbn():
-    """Real network test — only runs when pytest -m network is given."""
+    """Real network test: deselected by default; run with pytest -m network -n0."""
     meta, msg = _fetch_metadata_by_isbn("978-0-345-39180-3")  # Hitchhiker's Guide
     if msg:
         pytest.skip(f"Network unavailable: {msg}")

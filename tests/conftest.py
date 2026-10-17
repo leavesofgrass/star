@@ -21,8 +21,10 @@ write inside the checkout:
 * ``_IsolationGuard`` is an audit hook (``sys.addaudithook``): Python announces
   every file open, directory create, rename and delete before it happens, and
   the hook refuses any write outside the checkout, the base temp folder and the
-  Python environment, and fails the test that tried it.  Native code and child
-  processes are not seen by the hook; the environment above covers them.
+  Python environment, and fails the test that tried it.  It also refuses
+  network access from any test not marked ``network`` (see pyproject.toml's
+  addopts, which deselect those by default).  Native code and child processes
+  are not seen by the hook; the environment above covers them.
 * ``tests/test_isolation.py`` proves it: nothing appears under the real profile.
 
 Qt lifecycle: the suite constructs many ``StarWindow`` instances across the GUI
@@ -35,12 +37,14 @@ threads, and ``_drain_qt_events`` flushes pending events + deferred C++ deletion
 (and forces a GC) after every test, while the shared QApplication is still alive.
 """
 import errno
+import ipaddress
 import json
 import os
 import sys
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path, PurePath
+from urllib.parse import urlsplit
 
 import pytest
 
@@ -109,15 +113,20 @@ def real_profile_dir(env: dict | None = None) -> Path | None:
     return Path(base) / "star" if base else None
 
 
+class NetworkBlocked(OSError):
+    """Raised when a test not marked ``network`` reaches for the network."""
+
+
 class _IsolationGuard:
-    """An audit hook that keeps the suite inside the checkout.
+    """An audit hook that keeps the suite inside the checkout and offline.
 
     Python raises an audit event before every file open, directory create,
-    rename and delete (PEP 578).  While active, the hook refuses a write
-    outside ``roots`` with ``PermissionError``, and records each refusal so the
-    test fails even when the code under test swallows the error.  Bytecode
-    caches are refused quietly: the import system skips the cache and carries
-    on.
+    rename, delete and socket connect (PEP 578).  While active, the hook
+    refuses a write outside ``roots`` with ``PermissionError`` and a network
+    call to anything but this machine with ``NetworkBlocked`` (unless the
+    running test is marked ``network``), and records each refusal so the test
+    fails even when the code under test swallows the error.  Bytecode caches
+    are refused quietly: the import system skips the cache and carries on.
     """
 
     # Event name -> the argument positions that hold a path being written.
@@ -149,11 +158,23 @@ class _IsolationGuard:
     # path with a descriptor cannot be resolved here and is let through (the
     # top-level shutil.rmtree event has already been checked).
     DIR_FD_ARG = {"os.mkdir": 2, "os.remove": 1, "os.rmdir": 1}
+    NETWORK_EVENTS = frozenset({
+        "socket.connect",
+        "socket.sendto",
+        "socket.getaddrinfo",
+        "socket.gethostbyname",
+        "socket.gethostbyaddr",
+        "socket.getnameinfo",
+        "urllib.Request",
+        "http.client.connect",
+        "webbrowser.open",
+    })
     WRITE_FLAGS = os.O_WRONLY | os.O_RDWR | os.O_APPEND | os.O_CREAT | os.O_TRUNC
     DEVICES = frozenset({"nul", "con", "conin$", "conout$", "/dev/null"})
 
     def __init__(self) -> None:
         self.active = False
+        self.allow_network = False
         self.roots: tuple[str, ...] = ()
         self.hits: list[str] = []
         self._installed = False
@@ -214,6 +235,47 @@ class _IsolationGuard:
                 return None
         return full
 
+    @staticmethod
+    def local_host(host) -> bool:
+        """Return True if *host* names this machine (or no host at all)."""
+        if host is None:
+            return True
+        if isinstance(host, bytes):
+            host = host.decode("ascii", "replace")
+        if not isinstance(host, str):
+            return True
+        name = host.strip("[]").lower()
+        if name in ("", "localhost", "localhost.localdomain") or name.endswith(".localhost"):
+            return True
+        try:
+            ip = ipaddress.ip_address(name.split("%", 1)[0])
+        except ValueError:
+            return False
+        return ip.is_loopback or ip.is_unspecified
+
+    def remote_target(self, event: str, args: tuple) -> str | None:
+        """Return what a network event would reach, if that is off this machine."""
+        if event == "webbrowser.open":
+            return str(args[0])  # a browser window is never wanted in a test
+        if event == "urllib.Request":
+            parts = urlsplit(str(args[0]))
+            if parts.scheme in ("file", "data", ""):
+                return None
+            host = parts.hostname
+        elif event in ("socket.connect", "socket.sendto"):
+            address = args[1]
+            if isinstance(address, (str, bytes)):
+                return None  # a Unix socket path
+            host = address[0] if isinstance(address, tuple) and address else None
+        elif event == "socket.getnameinfo":
+            sockaddr = args[0]
+            host = sockaddr[0] if isinstance(sockaddr, tuple) and sockaddr else None
+        elif event == "http.client.connect":
+            host = args[1]
+        else:  # getaddrinfo, gethostbyname, gethostbyaddr
+            host = args[0]
+        return None if self.local_host(host) else str(host)
+
     def _write_targets(self, event: str, args: tuple):
         """Yield each path a write event would change outside the roots."""
         if event == "open":
@@ -242,24 +304,38 @@ class _IsolationGuard:
                 yield full
 
     def _hook(self, event: str, args: tuple) -> None:
-        if not self.active or event not in self.WRITE_EVENTS:
+        if not self.active:
             return
-        refused = None
-        try:
-            for full in self._write_targets(event, args):
-                refused = full
-                break
-        except Exception:  # noqa: BLE001 - an odd argument is not a refusal
-            return
-        if refused is None:
-            return
-        if "__pycache__" not in PurePath(refused).parts:
-            self.hits.append(f"{event}: {refused}")
-        raise PermissionError(
-            errno.EACCES,
-            "star's tests write only inside the checkout; refused " + event,
-            refused,
-        )
+        if event in self.WRITE_EVENTS:
+            refused = None
+            try:
+                for full in self._write_targets(event, args):
+                    refused = full
+                    break
+            except Exception:  # noqa: BLE001 - an odd argument is not a refusal
+                return
+            if refused is None:
+                return
+            if "__pycache__" not in PurePath(refused).parts:
+                self.hits.append(f"{event}: {refused}")
+            raise PermissionError(
+                errno.EACCES,
+                "star's tests write only inside the checkout; refused " + event,
+                refused,
+            )
+        if event in self.NETWORK_EVENTS and not self.allow_network:
+            try:
+                target = self.remote_target(event, args)
+            except Exception:  # noqa: BLE001
+                return
+            if target is None:
+                return
+            self.hits.append(f"{event}: {target} (network, test not marked network)")
+            raise NetworkBlocked(
+                errno.ECONNREFUSED,
+                "star's tests stay offline unless marked network; refused " + event,
+                target,
+            )
 
 
 _GUARD = _IsolationGuard()
@@ -401,8 +477,8 @@ def real_env():
 
 
 @pytest.fixture(autouse=True)
-def _guard_check():
-    """Fail a test that wrote outside the checkout.
+def _guard_check(request):
+    """Fail a test that wrote outside the checkout or reached for the network.
 
     Defined first among the autouse fixtures so it wraps the others: refusals
     in their setup and teardown count too.  Refusals recorded before the test
@@ -410,13 +486,16 @@ def _guard_check():
     this one, so none goes unreported.
     """
     earlier = _GUARD.take_hits()
+    _GUARD.allow_network = request.node.get_closest_marker("network") is not None
     yield
+    _GUARD.allow_network = False
     during = _GUARD.take_hits()
     lines = [f"  before this test started: {hit}" for hit in earlier]
     lines += [f"  during this test: {hit}" for hit in during]
     if lines:
         pytest.fail(
-            "Test isolation: refused a write outside the checkout:\n" + "\n".join(lines),
+            "Test isolation: refused a write outside the checkout or a network "
+            "call from a test not marked network:\n" + "\n".join(lines),
             pytrace=False,
         )
 
