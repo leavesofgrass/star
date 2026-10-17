@@ -25,6 +25,7 @@ from ..i18n import available_languages, get_language, tr
 from ..settings import DEFAULTS, WHISPER_MODELS
 from ..themes import BUILT_IN_THEME_NAMES
 from .a11y import announce
+from .mixin_display import RATE_MAX_WPM, RATE_MIN_WPM
 
 # RSVP position keys, in the overlay's own dict order (top→bottom, left→right).
 _RSVP_POSITIONS = [
@@ -555,7 +556,7 @@ class PreferencesDialog(QDialog):
         form.addRow(tr("TTS engine:"), self.engine_box)
 
         self.rate_spin = QSpinBox()
-        self.rate_spin.setRange(50, 400)
+        self.rate_spin.setRange(RATE_MIN_WPM, RATE_MAX_WPM)
         self.rate_spin.setSuffix(" wpm")
         self.rate_spin.setValue(int(self.settings.get("tts_rate", 265) or 265))
         form.addRow(tr("Speech rate:"), self.rate_spin)
@@ -563,8 +564,10 @@ class PreferencesDialog(QDialog):
         self.volume_spin = QSpinBox()
         self.volume_spin.setRange(0, 100)
         self.volume_spin.setSuffix(" %")
+        # A stored 0.0 is a real volume: "or 1.0" turned it into 100 %.
+        stored_vol = self.settings.get("tts_volume", 1.0)
         self.volume_spin.setValue(
-            int(round(float(self.settings.get("tts_volume", 1.0) or 1.0) * 100))
+            int(round(float(1.0 if stored_vol is None else stored_vol) * 100))
         )
         form.addRow(tr("Volume:"), self.volume_spin)
 

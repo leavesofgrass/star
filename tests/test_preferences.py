@@ -419,3 +419,27 @@ def test_apply_announces_to_screen_readers(window, monkeypatch):
     dlg.theme_box.setCurrentText(other)
     dlg._apply()
     assert any(other in m for m in spoken), spoken
+
+
+def test_stored_volume_of_zero_shows_zero(window):
+    """0.0 is a real volume; a falsy-or fallback used to show it as 100 %."""
+    window.settings["tts_volume"] = 0.0
+    dlg = _dialog(window)
+    assert dlg.volume_spin.value() == 0
+
+
+def test_rate_spin_range_matches_the_rate_keys(window):
+    """The rate keys clamp to 50..600 wpm; the spin box allowed only 400,
+    so a rate set by keys above 400 could not be shown or kept."""
+    from star.gui.mixin_display import RATE_MAX_WPM, RATE_MIN_WPM
+
+    assert (RATE_MIN_WPM, RATE_MAX_WPM) == (50, 600)
+    window.settings["tts_rate"] = 560
+    dlg = _dialog(window)
+    assert dlg.rate_spin.minimum() == RATE_MIN_WPM
+    assert dlg.rate_spin.maximum() == RATE_MAX_WPM
+    assert dlg.rate_spin.value() == 560
+
+    window.settings["tts_rate"] = 590
+    window._rate_change(+25)  # the Faster key: clamped at the same maximum
+    assert int(window.settings["tts_rate"]) == RATE_MAX_WPM

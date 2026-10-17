@@ -11,6 +11,12 @@ from ..themes import _load_css_themes, detect_os_color_scheme, theme_for_os_sche
 from .a11y import announce
 
 
+#: The speech rate range in words per minute.  The rate keys clamp to it and
+#: the Preferences rate spin box uses it as its range, so the two agree.
+RATE_MIN_WPM = 50
+RATE_MAX_WPM = 600
+
+
 class DisplayMixin:
     # ── Status-bar helpers ───────────────────────────────────────────────
     # The bare showMessage default lingers forever and treats failures the
@@ -39,7 +45,9 @@ class DisplayMixin:
     # ── Display options ─────────────────────────────────────────────────────
 
     def _rate_change(self, delta: int) -> None:
-        new_rate = max(50, min(600, int(self.settings["tts_rate"]) + delta))
+        new_rate = max(
+            RATE_MIN_WPM, min(RATE_MAX_WPM, int(self.settings["tts_rate"]) + delta)
+        )
         self.tts_manager.set_rate(new_rate)
         if self._qt_sc_reader is not None:
             self._qt_sc_reader.update_rate(new_rate)
