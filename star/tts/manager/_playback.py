@@ -310,7 +310,13 @@ class PlaybackMixin:
                     time.sleep(0.01)
 
             idx = max(0, start_idx)
-            while not self._timer_stop.wait(interval):
+            # The first paint happens at once (at speak(), or at the first
+            # word event when anchored above); every later step waits one
+            # interval.  Waiting first put the start word on screen one
+            # interval late (0.24 s at 265 wpm).
+            wait = 0.0
+            while not self._timer_stop.wait(wait):
+                wait = interval
                 # Bail out as soon as a newer timer generation takes over.
                 if self._timer_gen != my_gen:
                     return
@@ -355,8 +361,18 @@ class PlaybackMixin:
                     if self._on_highlight:
                         self._on_highlight(idx)
                     idx += 1
-                # Don't break when we reach the end — the backend may still
-                # be speaking padding/trailing punctuation.
+                if idx >= len(self._word_map):
+                    # End of the map: the last word is painted and stays lit
+                    # until on_done clears it, so the thread can end.  It
+                    # keeps running only while a live callback stream could
+                    # still pull an overshot estimate back (the clamp above).
+                    cb = self._last_cb_word_idx
+                    live = (
+                        0 <= cb < len(self._word_map) - 1
+                        and time.monotonic() - self._last_cb_time < _CB_DEAD
+                    )
+                    if not live:
+                        return
 
         self._timer_thread = threading.Thread(target=_tick, daemon=True)
         self._timer_thread.start()

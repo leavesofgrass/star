@@ -258,3 +258,68 @@ def test_eloquence_word_events_reach_the_manager(mgr):
     recorded["on_word"](plain.index('"this"'), len('"this"'))
     assert mgr._last_cb_word_idx == 1
     mgr.stop()
+
+
+# ---------------------------------------------------------------------------
+# First paint and end of map
+# ---------------------------------------------------------------------------
+
+
+def _recording(mgr, *, rate, words):
+    """Set a timer rate and word map; return (paints, an Event per index)."""
+    mgr._settings._data["tts_rate"] = rate
+    mgr.set_word_map(list(range(words)))
+    paints = []
+    seen = {i: threading.Event() for i in range(words)}
+
+    def on_highlight(idx):
+        paints.append(idx)
+        seen[idx].set()
+
+    return paints, seen, on_highlight
+
+
+def _start(mgr, on_highlight, start_idx=0):
+    """Start the timer the way speak() does, with the anchor wait skipped."""
+    mgr.set_on_highlight(on_highlight)
+    mgr._timer_gen += 1
+    mgr._timer_stop.set()
+    mgr._expect_callbacks = False
+    mgr._start_timer_highlight(start_idx)
+
+
+def test_first_highlight_paints_at_once(mgr):
+    """The start word is painted without waiting one timer interval: at a
+    rate of 1 wpm the interval is 60 s, so a paint inside the backstop
+    timeout can only be the immediate one."""
+    paints, seen, on_highlight = _recording(mgr, rate=1, words=10)
+    _start(mgr, on_highlight, start_idx=3)
+    assert seen[3].wait(5.0), "the first paint waited for the timer interval"
+    mgr.stop()
+    assert paints == [3]  # the next word waits its interval
+
+
+def test_timer_thread_ends_at_the_end_of_the_map(mgr):
+    paints, _seen, _cb = _recording(mgr, rate=60000, words=5)  # 1 ms ticks
+    mgr._last_cb_word_idx = -1
+    _run_timer(mgr, paints)
+    mgr._timer_thread.join(timeout=5.0)
+    assert not mgr._timer_thread.is_alive(), "timer ran on past the map"
+    assert paints == [0, 1, 2, 3, 4]
+
+
+def test_timer_waits_at_the_end_while_word_events_lag(mgr):
+    """A live callback stream behind the estimate keeps the timer running
+    (it may still clamp the highlight back); the last event ends it."""
+    paints, seen, on_highlight = _recording(mgr, rate=60000, words=5)
+    mgr._last_cb_word_idx = 1
+    mgr._last_cb_time = time.monotonic()
+    mgr._paced_playback = True
+    _start(mgr, on_highlight)
+    assert seen[1].wait(5.0)
+    assert mgr._timer_thread.is_alive()
+    mgr._last_cb_word_idx = 4
+    mgr._last_cb_time = time.monotonic()
+    mgr._timer_thread.join(timeout=5.0)
+    assert not mgr._timer_thread.is_alive()
+    assert paints[-1] == 4
