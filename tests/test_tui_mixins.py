@@ -827,3 +827,44 @@ def test_search_engine_backward_wraps_to_the_last_match():
     assert eng.current_match[0] == lines[-1]  # nothing above: wrap to the end
     assert eng.search_regex(r"bet.", rendered, from_line=lines[1], direction="backward")
     assert eng.current_match[0] == lines[1]
+
+
+# ── Sentence moves while speech is stopped ───────────────────────────────────
+
+_WORDS = ("one two three four five six seven eight nine ten eleven twelve").split()
+
+
+def _twelve_sentence_app():
+    """Twelve short sentences wrapped at 40 columns, so several sentences
+    start in the middle of a display line (the case that stalled)."""
+    md = " ".join(f"Sentence number {w} is here." for w in _WORDS)
+    rendered = render_markdown(md, 40)
+    flat = ["".join(t for t, _ in line) for line in rendered]
+    doc = Document(path="/tmp/s.md", title="s", markdown=md, plain_text=md)
+    doc.word_map = _build_word_map(md, flat)
+    app = _FakeApp(rendered=rendered, doc=doc)
+    app._build_sentence_map()
+    return app
+
+
+def test_next_sentence_advances_while_speech_is_stopped():
+    """Sentence moves set only the scroll, and with speech stopped the
+    current word came from the viewport again: four presses all said
+    "Sentence 2/12"."""
+    app = _twelve_sentence_app()
+    assert len(app._sentence_starts) == 12
+    for n in range(2, 7):
+        app._skip_next_sentence()
+        assert app.messages[-1][0].startswith(f"→ Sentence {n}/12"), app.messages[-1]
+    assert app._caret_word == app._sentence_starts[5]
+    assert app.play_from_calls == []  # stopped: it moves, it does not speak
+
+
+def test_previous_sentence_steps_back_from_the_new_position():
+    app = _twelve_sentence_app()
+    for _ in range(4):
+        app._skip_next_sentence()  # now at sentence 5
+    app._skip_prev_sentence()
+    assert app.messages[-1][0].startswith("← Sentence 4/12")
+    app._skip_prev_sentence()
+    assert app.messages[-1][0].startswith("← Sentence 3/12")

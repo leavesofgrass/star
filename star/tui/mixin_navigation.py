@@ -30,6 +30,13 @@ class NavigationMixin:
         self._highlight_line = self._highlight_col_start = self._highlight_col_end = -1
         total = len(self.rendered)
         self.scroll = max(0, min(dest_line, total - 1) if total else 0)
+        # The destination becomes the reading position: the caret is what
+        # _current_word_for_nav reads when speech is stopped.  Setting only
+        # the scroll left the "current" word where it was (or in the
+        # previous sentence, when a sentence starts mid-line), so next
+        # sentence said "Sentence 2/12" on every press while stopped.
+        self._caret_word = dest_word
+        self._caret_goal_col = -1
         if was_speaking or always_play:
             self._tts_play_from_word(dest_word)
         self.notify(label)
