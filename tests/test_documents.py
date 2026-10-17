@@ -458,3 +458,100 @@ def test_load_document_csv_native(tmp_path):
     doc = load_document(str(p), _native_settings())
     assert doc.format == "csv"
     assert "x" in doc.plain_text and "y" in doc.plain_text
+
+
+# ============================================================================
+# Document cache keeps chapter navigation
+# ============================================================================
+
+_FILLER = " ".join(["These words are here to be read aloud."] * 40)
+_CHAPTER_FB2 = f"""<?xml version="1.0"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">
+<description><title-info><book-title>Cached Book</book-title></title-info></description>
+<body>
+<section id="c1"><title><p>Chapter One</p></title><p>{_FILLER}</p></section>
+<section id="c2"><title><p>Chapter Two</p></title><p>{_FILLER}</p></section>
+</body></FictionBook>"""
+
+
+@pytest.fixture
+def cached_book(tmp_path, monkeypatch):
+    """An FB2 with two chapters, long enough to be cached, and a sandboxed
+    cache folder.  Returns (path, settings, hits) where *hits* records what
+    each cache lookup returned."""
+    import star.cache as cache_mod
+    import star.documents.dispatch as dispatch_mod
+
+    monkeypatch.setattr(cache_mod, "CACHE_DIR", tmp_path / "cache")
+    hits = []
+    real_load = dispatch_mod._cache_load
+
+    def recording_load(path, fp):
+        data = real_load(path, fp)
+        hits.append(data)
+        return data
+
+    monkeypatch.setattr(dispatch_mod, "_cache_load", recording_load)
+    p = tmp_path / "book.fb2"
+    p.write_text(_CHAPTER_FB2, encoding="utf-8")
+    s = Settings()
+    s["document_cache"] = True
+    s["prefer_pandoc"] = False
+    return str(p), s, hits
+
+
+def test_cache_hit_keeps_chapters(cached_book):
+    path, s, hits = cached_book
+    first = load_document(path, s)
+    assert [c[0] for c in first.chapters] == ["Chapter One", "Chapter Two"]
+    assert first.chapters[1][2] > 0  # resolved to the chapter's word
+
+    second = load_document(path, s)
+    assert hits[-1] is not None, "the second load was not a cache hit"
+    assert second.chapters == first.chapters
+    assert second.plain_text == first.plain_text
+
+
+def test_cache_entry_without_chapters_is_reparsed(cached_book):
+    """An entry written before chapters were cached is a miss, not a hit
+    with an empty chapter list."""
+    from star.cache import _cache_save
+    from star.stats import _settings_fingerprint
+
+    path, s, hits = cached_book
+    _cache_save(
+        path,
+        {"markdown": "# Old", "plain_text": "old", "title": "Old",
+         "format": "fb2", "metadata": {}},
+        _settings_fingerprint(s),
+    )
+    doc = load_document(path, s)
+    assert hits[-1] is not None  # the legacy entry was found ...
+    assert doc.markdown != "# Old"  # ... and not used
+    assert [c[0] for c in doc.chapters] == ["Chapter One", "Chapter Two"]
+    again = load_document(path, s)  # the re-parse saved a full entry
+    assert again.chapters == doc.chapters
+
+
+def test_cache_respects_the_chapter_setting(cached_book):
+    """The fingerprint ignores epub_show_chapters, so an entry saved with
+    chapters shown must not serve a load with them hidden.  The entry's
+    markdown is marked on disk to tell a hit from a re-parse."""
+    import json
+    from pathlib import Path
+
+    import star.cache as cache_mod
+    from star.stats import _settings_fingerprint
+
+    path, s, hits = cached_book
+    load_document(path, s)  # cached with chapters shown
+    entry = Path(cache_mod.CACHE_DIR) / cache_mod._cache_key(
+        path, _settings_fingerprint(s)
+    )
+    payload = json.loads(entry.read_text(encoding="utf-8"))
+    payload["data"]["markdown"] = "# Marked"
+    entry.write_text(json.dumps(payload), encoding="utf-8")
+
+    assert load_document(path, s).markdown == "# Marked"  # same setting: a hit
+    s["epub_show_chapters"] = False
+    assert load_document(path, s).markdown != "# Marked"  # changed: re-parsed

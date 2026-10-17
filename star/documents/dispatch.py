@@ -212,12 +212,28 @@ def load_document(path: str, settings: Settings) -> Document:
     ):
         fp = _settings_fingerprint(settings)
         cached = _cache_load(path, fp)
-        if cached:
+        # A hit must carry the chapter list, saved under the same
+        # epub_show_chapters choice (which the fingerprint does not cover).
+        # Entries written before chapters were cached have neither key, so
+        # they are treated as a miss and re-parsed once, then saved anew;
+        # otherwise a hit silently dropped chapter navigation.
+        chapters = None
+        if cached and cached.get("chapters_shown") == bool(
+            settings.get("epub_show_chapters", True)
+        ):
+            try:
+                chapters = [
+                    (str(t), str(h), int(w)) for t, h, w in cached.get("chapters", [])
+                ]
+            except (TypeError, ValueError):
+                chapters = None  # a damaged entry: parse the file instead
+        if chapters is not None:
             doc.markdown = cached.get("markdown", "")
             doc.plain_text = cached.get("plain_text", "")
             doc.title = cached.get("title", Path(path).name)
             doc.format = cached.get("format", fmt)
             doc.metadata = cached.get("metadata", {})
+            doc.chapters = chapters
             return doc
 
     # Dispatch table covers all registered formats; the else-branch below
@@ -442,6 +458,9 @@ def load_document(path: str, settings: Settings) -> Document:
                     "title": doc.title,
                     "format": doc.format,
                     "metadata": doc.metadata,
+                    # Resolved (title, href, word index) triples.
+                    "chapters": [list(c) for c in doc.chapters],
+                    "chapters_shown": bool(settings.get("epub_show_chapters", True)),
                 },
                 fp,
             )
