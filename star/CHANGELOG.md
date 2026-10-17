@@ -24,6 +24,63 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
   background download, and an automatic switch when it lands. The consent
   wording is single-sourced with the GUI dialog.
 
+### 🐛 Fixed
+
+- **Eloquence and Qt speech now drive the word highlight.** Their word
+  events never reached it: the speech manager passed its word callback to
+  pyttsx3 and the in-process eSpeak engine only, so these two engines were
+  timer-paced, despite what the 0.1.32 notes said about Eloquence. Each
+  engine now declares whether it reports word events, and every one that
+  does is wired. A word event lands on the first word its text overlaps, so
+  an Eloquence token with punctuation in front ("Hello" in quotation marks,
+  a bracketed time) lights its word instead of being dropped.
+- **eSpeak word positions are characters again.** The 0.1.29 change that
+  read libespeak-ng's word positions as UTF-8 byte offsets was itself the
+  bug: the engine reports one-based character positions (checked live
+  against eSpeak NG 1.52.0). The remap moved the highlight one character
+  left for every accented, CJK or emoji character earlier in a passage.
+- **Pandoc imports keep accented text on Windows.** Pandoc's output was
+  decoded with the Windows code page, so "é" came back as two wrong
+  characters and some letters (such as "Á") made the import return nothing.
+  It is now decoded as UTF-8 everywhere.
+- **The Eloquence licensing question is asked once.** Your yes was dropped
+  at the next launch, so the consent dialog came back every session.
+- **Chapter navigation survives a cached reopen.** Opening a book a second
+  time served it from the document cache without its chapter list. Older
+  cache entries are parsed again once.
+- **An unavailable engine you chose falls back and says so.** A chosen
+  engine that was not installed (or had no key) read with the silent
+  engine: no voice, but a moving highlight. star now falls back to
+  automatic selection and says which engine it is using ("eloquence
+  unavailable, using pyttsx3") on the status line, announced in the GUI.
+  Choosing none still means silence.
+- **The highlight starts on time and its timer stops at the end.** The
+  first word lit one timer step late (about a quarter second at 265 wpm),
+  and the timer thread kept running past the last word until speech was
+  stopped.
+- **Preferences show a volume of 0 and rates up to 600 wpm.** A volume of 0
+  appeared as 100 %, and the rate box stopped at 400 wpm although the
+  Faster key goes to 600.
+- **The default voice prefers US English correctly.** The check for a US
+  voice matched "us" anywhere, so Australian and Russian voices counted.
+- **Terminal UI search works.** `Ctrl+F`, a query and `Enter` did nothing,
+  and after any `M-x` command the query ran as a command ("Unknown command").
+  `M-x search-backward` now searches backward from the view.
+- **Next sentence moves while speech is stopped (terminal UI).** Repeated
+  presses kept saying "Sentence 2" because the move did not set the reading
+  position. Sentence moves now place the caret on the new sentence.
+- **A custom abbreviation with a backslash cannot stop reading.** An
+  expansion such as `C:\notes` or one ending in a backslash raised an
+  error or was mangled; expansions are now inserted exactly as typed.
+
+### 🔧 Changed
+
+- **The docs describe word timing as the code does.** The README and the
+  features guide now say which engines report word events (Eloquence,
+  in-process eSpeak-NG, Qt speech where the engine reports word progress,
+  pyttsx3) and which are timer-paced, and the features guide explains the
+  engine fallback. `docs/configuration.md` lists `eloquence_license_ack`.
+
 ---
 
 ## [0.1.32] 2026-09-25

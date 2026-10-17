@@ -222,7 +222,11 @@ voice even without any Python packages; on Windows, installing Eloquence
 makes it the reading voice.
 
 Switch engines any time with **Speech → Choose TTS Engine…** (`Ctrl+Shift+G`) or
-`M-x tts-backend`.
+`M-x tts-backend`. If the engine you chose is not available (not installed,
+no key, or gone since last time), star falls back to the `auto` order and
+says so on the status line, for example "eloquence unavailable, using
+pyttsx3"; your choice is kept, so the engine is used again once it is back.
+Choosing **none** is the one deliberate silence and never falls back.
 
 ### Getting Eloquence
 
@@ -264,8 +268,10 @@ backend already uses them. On **Windows** there are two routes:
 - **Qt speech (`qtspeech`, new in 0.1.29)** — drives the platform's native
   engine through Qt's `QTextToSpeech` (WinRT/SAPI on Windows, AVSpeech on
   macOS, speech-dispatcher on Linux). Ships inside the PyQt6 wheel star
-  already depends on, and delivers true per-word boundary events synchronized
-  to playback, with exact character offsets for the highlight. Never
+  already depends on. On engines that report word progress (Windows and
+  macOS) it delivers a per-word event as each word is spoken, with the
+  word's character offset for the highlight; speech-dispatcher reports none,
+  so on Linux the highlight is timer-paced. Never
   auto-selected while pyttsx3 or DECtalk is available; pick it explicitly via
   **Choose TTS Engine…** or `tts_backend: "qtspeech"`.
 - **eSpeak-NG** — preferentially driven **in process through libespeak-ng** (via
@@ -370,15 +376,26 @@ clean.
 While TTS is playing, `star` highlights the word currently being spoken and keeps
 it scrolled into view.
 
-- **pyttsx3** — word-boundary callbacks from the native engine confirm the exact
-  audio position; a background timer advances the highlight at the configured
-  rate and callbacks correct its estimate.
+Every engine that reports word events feeds them to the highlight; the
+others are paced by a timer. A word event lands on the first word its text
+overlaps, so an engine token that carries punctuation (a quotation mark or a
+bracket before the word) still lights its word.
+
+- **Eloquence** — an index mark at every word, fired at the mark's position in
+  the audio being played, so the highlight lands on the word being heard.
 - **eSpeak-NG** — when libespeak-ng is available, star paces each word to the
   audio position the engine reports for it, so the highlight follows what is
   actually heard. The `espeak_highlight_offset_ms` setting (default 120) nudges
   that timing.
-- **DECtalk / Festival / Piper / Coqui** — no word-level events; star uses the
-  reading rate (wpm) to advance the highlight on a timer.
+- **Qt speech** — a word event as each word is spoken, on engines that report
+  word progress (Windows and macOS; not speech-dispatcher on Linux, where the
+  timer paces it).
+- **pyttsx3** — word-boundary callbacks from the native engine confirm the
+  audio position; a background timer advances the highlight at the configured
+  rate and callbacks correct its estimate. SAPI5's callbacks can lag and burst,
+  so the timer stays the baseline.
+- **DECtalk / Festival / Piper / Coqui / macOS `say`** — no word-level events;
+  star uses the reading rate (wpm) to advance the highlight on a timer.
 
 **Granularity (word / sentence / both):** by default the single spoken word is
 highlighted. Switch to **sentence** highlighting (the whole current sentence is
@@ -399,13 +416,16 @@ in a steady middle reading band (~40% down the viewport) rather than letting it
 drift to the bottom edge, so there is always already-read context above and
 upcoming text below. Controlled by the `qt_autoscroll` setting (on by default).
 
-**Highlight timer and SAPI5 pacing:** the highlight timer fires once per word at
-`highlight_speed × tts_rate`. With pyttsx3 callbacks active, a *pacing guard*
-keeps the timer no more than **4 words ahead** of the last confirmed position;
-SAPI5 callbacks can arrive 1–3 words late or stop entirely, so after **1.5
-seconds** without a callback the timer holds at the pacing cap (the engine is
-mid-pause); only after **~6 seconds** with no events is the stream deemed dead
-and the timer runs freely so the highlight never freezes.
+**Highlight timer and pacing:** the highlight timer paints the first word at
+once, then steps once per word at `highlight_speed × tts_rate`, and stops at the
+end of the document's words. With word events arriving, the timer's estimate is
+pulled back to the last confirmed word, and a *pacing guard* keeps it no more
+than **4 words ahead** of that word for pyttsx3 (SAPI5 callbacks can arrive 1–3
+words late or stop entirely), or **1 word** for engines whose events follow the
+audio (Eloquence, in-process eSpeak-NG, Qt speech). After **1.5 seconds**
+without an event the timer holds at the pacing cap (the engine is mid-pause);
+only after **~6 seconds** with no events is the stream deemed dead and the
+timer runs freely so the highlight never freezes.
 
 **Word-position map:** at load time star builds a map linking every TTS word to
 its display line and column, using a monotonically advancing, column-aware search

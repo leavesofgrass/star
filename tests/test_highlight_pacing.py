@@ -323,3 +323,33 @@ def test_timer_waits_at_the_end_while_word_events_lag(mgr):
     mgr._timer_thread.join(timeout=5.0)
     assert not mgr._timer_thread.is_alive()
     assert paints[-1] == 4
+
+
+# ---------------------------------------------------------------------------
+# The docs say what the code does
+# ---------------------------------------------------------------------------
+
+# How docs/features.md names each word-event backend.
+_DOC_NAMES = {
+    "EloquenceBackend": "Eloquence",
+    "ESpeakLibBackend": "eSpeak-NG",
+    "QtSpeechBackend": "Qt speech",
+    "Pyttsx3Backend": "pyttsx3",
+}
+
+
+def test_features_doc_lists_exactly_the_word_event_engines():
+    """The Word highlighting section's event bullets name every backend that
+    declares emits_word_events, and the timer-paced bullet names none."""
+    from pathlib import Path
+
+    assert set(_DOC_NAMES) == _EMITTING_BUILTINS
+    doc = Path(__file__).resolve().parent.parent / "docs" / "features.md"
+    text = doc.read_text(encoding="utf-8")
+    section = text.split("## Word highlighting", 1)[1].split("\n## ", 1)[0]
+    bullets = [ln for ln in section.splitlines() if ln.startswith("- **")]
+    timer_bullet = next(b for b in bullets if "DECtalk" in b)
+    event_bullets = [b for b in bullets if b is not timer_bullet]
+    for name in _DOC_NAMES.values():
+        assert any(b.startswith(f"- **{name}**") for b in event_bullets), name
+        assert name not in timer_bullet, name

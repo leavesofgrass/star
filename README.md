@@ -93,8 +93,9 @@ notes) are in the **[Installation guide](docs/installation.md)**.
 
 - **Live word highlighting** in both the Qt GUI and the terminal TUI — and the
   highlight follows the *audio*, not a timer: in-process eSpeak-NG and
-  Eloquence report each word's true audio position, and pyttsx3 / Qt speech
-  deliver native word-boundary events.
+  Eloquence report each word's true audio position, and pyttsx3 and Qt speech
+  (where the engine reports word progress) deliver native word-boundary
+  events. Engines with no word events are paced by a timer.
 - **Many TTS engines:** pyttsx3 (SAPI5 / NSSpeechSynthesizer), macOS `say`,
   **Eloquence** — the classic screen-reader voice, via open-source OpenEVV on
   Windows, with all eight classic voices (**Reed, Shelley, Bobby, Rod, Glen,
