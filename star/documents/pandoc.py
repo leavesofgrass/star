@@ -68,6 +68,11 @@ def _load_via_pandoc(path: str) -> Optional[str]:
                 [_PANDOC_BIN, "--to", "markdown", path],
                 capture_output=True,
                 text=True,
+                # Pandoc writes UTF-8 on every platform; the locale's code
+                # page (cp1252 on Windows) mangled accented text and made
+                # this route return nothing on bytes cp1252 lacks.
+                encoding="utf-8",
+                errors="replace",
                 timeout=30, creationflags=_SUBPROCESS_FLAGS)
             if result.returncode == 0:
                 return result.stdout

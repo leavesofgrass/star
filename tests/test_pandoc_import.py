@@ -72,3 +72,48 @@ def test_prefer_pandoc_off_falls_back_to_guidance(tmp_path, settings):
     settings["prefer_pandoc"] = False  # safe: isolated tmp settings file
     doc = load_document(str(p), settings)
     assert "Pandoc" in doc.markdown
+
+
+# ── Pandoc output is decoded as UTF-8 ──────────────────────────────────────
+
+_UTF8_SAMPLE = "Café, Ángel and naïve résumé"
+
+
+def _fake_pandoc_run(monkeypatch, module):
+    """Route the module's Pandoc call to a child that writes UTF-8 bytes.
+
+    The module's own keyword arguments (text mode, encoding) are kept, so
+    the child's output is decoded exactly as real Pandoc output would be.
+    "Á" is UTF-8 C3 81, and 0x81 has no cp1252 character: decoding with the
+    Windows code page either mangled the text or returned nothing.
+    """
+    import subprocess
+    import sys
+
+    real_run = subprocess.run
+    script = (
+        "import sys; sys.stdout.buffer.write("
+        + repr(_UTF8_SAMPLE)
+        + ".encode('utf-8'))"
+    )
+
+    def run(argv, **kwargs):
+        return real_run([sys.executable, "-c", script], **kwargs)
+
+    monkeypatch.setattr(module, "_PYPANDOC", False)
+    monkeypatch.setattr(module, "_PANDOC_BIN", "pandoc")
+    monkeypatch.setattr(subprocess, "run", run)
+
+
+def test_document_pandoc_route_decodes_utf8(monkeypatch, tmp_path):
+    import star.documents.pandoc as mod
+
+    _fake_pandoc_run(monkeypatch, mod)
+    assert mod._load_via_pandoc(str(tmp_path / "in.typ")) == _UTF8_SAMPLE
+
+
+def test_markup_pandoc_route_decodes_utf8(monkeypatch, tmp_path):
+    import star.markup.pandoc as mod
+
+    _fake_pandoc_run(monkeypatch, mod)
+    assert mod._pandoc_convert(str(tmp_path / "in.rst"), "rst") == _UTF8_SAMPLE

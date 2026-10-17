@@ -24,6 +24,11 @@ def _pandoc_convert(path: str, from_fmt: str) -> Optional[str]:
                 [_PANDOC_BIN, "--from", from_fmt, "--to", "markdown", path],
                 capture_output=True,
                 text=True,
+                # Pandoc writes UTF-8 on every platform; the locale's code
+                # page (cp1252 on Windows) mangled accented text and made
+                # this route return nothing on bytes cp1252 lacks.
+                encoding="utf-8",
+                errors="replace",
                 timeout=30, creationflags=_SUBPROCESS_FLAGS)
             if r.returncode == 0 and r.stdout.strip():
                 return r.stdout
