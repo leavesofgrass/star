@@ -243,7 +243,11 @@ testpaths = ["tests"]
 #   `pytest` needs no special invocation.  The `qt` marker remains for
 #   targeted runs (`pytest -m qt -n0` was the reproducer that cracked it).
 #   Escape hatch for single-test runs / debugging:  pytest -n0 <target>
-addopts = "-q -n auto --dist loadgroup"
+# --basetemp → pytest's temp folders (tmp_path, and the isolated home and
+#   profile tests/conftest.py builds) live in build/pytest-tmp inside the
+#   checkout, never in the system temp folder.  pytest empties this folder at
+#   the start of every run; it is ignored by git (build/).
+addopts = "-q -n auto --dist loadgroup --basetemp=build/pytest-tmp"
 # Hang DIAGNOSTICS: any single test stuck for 2 minutes dumps every thread's
 # traceback to stderr (pytest's built-in faulthandler — a dump, not a kill).
 # The actual KILL for a wedged run is the wall-clock `timeout` in
