@@ -3,3 +3,5 @@
 *.yml  text eol=lf
 *.yaml text eol=lf
 *.sh   text eol=lf
+# Docker builds on Linux: a Windows checkout must not give the Dockerfile CRLF.
+Dockerfile text eol=lf
