@@ -1,0 +1,6 @@
+# The build context is the repository root (compose.yaml); the image needs
+# only these three files from it.  The checkout itself is mounted at run time.
+*
+!pyproject.toml
+!README.md
+!LICENSE

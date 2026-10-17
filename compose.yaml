@@ -1,0 +1,45 @@
+# Linux development container for star.  See docs/docker.md.
+#
+#   docker compose build dev
+#   docker compose run --rm -T dev bash tools/ci-pytest.sh python -m pytest
+#   docker compose run --rm dev            # an interactive shell in /work
+#
+# The checkout this file sits in is mounted read-write at /work.  Everything
+# the container writes for itself (pytest's temp and cache folders, bytecode,
+# the Hypothesis database, the wrapper's logs) goes to /target, a named volume
+# per agent: STAR_AGENT names it (star-target-<agent>), default "orch".  Run
+# each agent's container from its own worktree with its own STAR_AGENT:
+#
+#   STAR_AGENT=w1a MSYS_NO_PATHCONV=1 docker compose run --rm -T dev bash tools/ci-pytest.sh python -m pytest
+#
+# Limits: 6 GB of RAM and 4 CPUs per container by default (STAR_MEM,
+# STAR_CPUS); pytest starts one xdist worker per CPU.  One image,
+# star-dev:latest, is shared by every agent.
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: star-dev:latest
+    working_dir: /work
+    volumes:
+      - .:/work
+      - target:/target
+    environment:
+      QT_QPA_PLATFORM: offscreen
+      STAR_AGENT: ${STAR_AGENT:-orch}
+      # The container's own folder; tests/conftest.py lets the suite write here.
+      STAR_TARGET: /target
+      TMPDIR: /target/tmp
+      PYTHONPYCACHEPREFIX: /target/pycache
+      HYPOTHESIS_STORAGE_DIRECTORY: /target/hypothesis
+      PYTEST_ADDOPTS: --basetemp=/target/pytest-tmp -o cache_dir=/target/pytest-cache
+      PYTEST_XDIST_AUTO_NUM_WORKERS: ${STAR_CPUS:-4}
+    mem_limit: ${STAR_MEM:-6g}
+    cpus: ${STAR_CPUS:-4}
+    stdin_open: true
+    tty: true
+
+volumes:
+  target:
+    name: star-target-${STAR_AGENT:-orch}

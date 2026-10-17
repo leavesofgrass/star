@@ -20,8 +20,9 @@ write inside the checkout:
   ``tmp_path / "test-profile"``, and the environment at ``tmp_path / "test-home"``.
 * ``_IsolationGuard`` is an audit hook (``sys.addaudithook``): Python announces
   every file open, directory create, rename and delete before it happens, and
-  the hook refuses any write outside the checkout, the base temp folder and the
-  Python environment, and fails the test that tried it.  It also refuses
+  the hook refuses any write outside the checkout, the base temp folder, the
+  Python environment and, in the Linux container, ``/target`` (docs/docker.md),
+  and fails the test that tried it.  It also refuses
   network access from any test not marked ``network`` (see pyproject.toml's
   addopts, which deselect those by default).  Native code and child processes
   are not seen by the hook; the environment above covers them.
@@ -448,8 +449,22 @@ def pytest_configure(config):
         os.environ[key] = str(temp)
     tempfile.tempdir = str(temp)
     _PROFILE_PATHS.session_home = home
+    try:  # .pytest_cache, or as overridden; unknown with -p no:cacheprovider
+        cache_dir = Path(root, config.getini("cache_dir"))
+    except ValueError:
+        cache_dir = None
     if os.environ.get(_GUARD_ENV_VAR, "1") != "0":
-        _GUARD.install([root, base, sys.prefix, getattr(sys, "pycache_prefix", None)])
+        _GUARD.install([
+            root,
+            base,
+            cache_dir,
+            sys.prefix,  # bytecode caches of the environment's packages
+            getattr(sys, "pycache_prefix", None),
+            # The Linux container's own folder (compose.yaml), and a Hypothesis
+            # database moved out of the checkout.
+            os.environ.get("STAR_TARGET"),
+            os.environ.get("HYPOTHESIS_STORAGE_DIRECTORY"),
+        ])
 
 
 @pytest.hookimpl(tryfirst=True)
