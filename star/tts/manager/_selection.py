@@ -25,6 +25,11 @@ _LANG_NAME_TO_CODE: Dict[str, str] = {
     "português": "pt",
 }
 
+# Explicit engine choices that mean "no speech".  They never fall back to
+# automatic selection.  "none" is the GUI picker's label and an older value
+# of the tts_backend setting; "silent" is the backend's own name.
+_SILENT_CHOICES = frozenset({"silent", "none"})
+
 
 class SelectionMixin:
     """Active-backend selection and default/UI-language voice resolution."""
@@ -39,6 +44,13 @@ class SelectionMixin:
         two implementations (in-process then CLI), tried in priority order.
         ``"auto"`` walks every auto-eligible engine and takes the first that
         reports itself available; everything falls back to :class:`SilentBackend`.
+
+        An explicit engine that is not available (not installed, no key, an
+        unknown name) falls back to automatic selection, and
+        :attr:`last_engine_error` tells the user which engine is speaking
+        instead, so the document is never read by a silent backend with a
+        moving highlight.  ``"silent"`` and ``"none"`` are a deliberate choice
+        of no speech and never fall back.
         """
         from ...plugins import PluginRegistry
 
@@ -48,7 +60,9 @@ class SelectionMixin:
         classes = sorted(PluginRegistry.get().backends, key=lambda c: c.priority)
 
         chosen: Optional[TTSBackend] = None
-        if preference and preference != "auto":
+        explicit = bool(preference) and preference != "auto"
+        unavailable = ""
+        if explicit:
             # Explicit engine: try only the implementations registered under
             # this name, lowest priority first (e.g. libespeak-ng before the
             # eSpeak CLI; DECtalk.dll before the say/dtalk CLI).
@@ -59,7 +73,9 @@ class SelectionMixin:
                 if cand.available():
                     chosen = cand
                     break
-        else:
+            if chosen is None and preference not in _SILENT_CHOICES:
+                unavailable = preference
+        if not explicit or unavailable:
             # Auto: walk every auto-eligible engine in priority order.
             # On macOS the built-in `say` voice (AVSpeech-backed, WPM-native)
             # sorts first, so star never depends on pyttsx3's macOS driver
@@ -80,6 +96,14 @@ class SelectionMixin:
         self._backend.set_volume(vol)
         self._resolve_default_voice()
         self._resolve_language_voice()
+        if unavailable:
+            # One-shot note the UIs show on their status tick (status bar and
+            # announcement in the GUI, the status line in the terminal UI).
+            # The meaning comes first, within 40 cells for a Braille line.
+            if chosen is None:
+                self.last_engine_error = f"{unavailable} unavailable, no engine found"
+            else:
+                self.last_engine_error = f"{unavailable} unavailable, using {chosen.name}"
 
     def _construct_backend(self, cls: "type[TTSBackend]") -> TTSBackend:
         """Instantiate *cls* with the per-engine constructor arguments derived

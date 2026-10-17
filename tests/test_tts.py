@@ -745,6 +745,52 @@ def test_manager_silent_preference_is_silent(fake_backends):
     assert _manager("silent").backend_name == "silent"
 
 
+def test_manager_none_preference_is_silent_without_a_note(fake_backends):
+    """"none" (the GUI picker's label, an older setting value) is a choice of
+    no speech: it never falls back to another engine."""
+    fake_backends["Pyttsx3Backend"]._avail = True
+    for pref in ("none", "silent"):
+        mgr = _manager(pref)
+        assert mgr.backend_name == "silent", pref
+        assert mgr.last_engine_error == "", pref
+
+
+def test_manager_unavailable_explicit_engine_falls_back_and_says_so(fake_backends):
+    """An explicit engine that is not available falls back to automatic
+    selection and leaves a one-shot note for the UIs, instead of reading with
+    the silent backend and a moving highlight."""
+    fake_backends["Pyttsx3Backend"]._avail = True
+    mgr = _manager("eloquence")  # Eloquence is not available here
+    assert mgr.backend_name == "pyttsx3"
+    assert mgr.last_engine_error == "eloquence unavailable, using pyttsx3"
+    assert len(mgr.last_engine_error) <= 40  # one Braille line
+
+
+def test_manager_unavailable_engine_with_nothing_else_says_so(fake_backends):
+    mgr = _manager("festival")  # nothing at all is available
+    assert mgr.backend_name == "silent"
+    assert mgr.last_engine_error == "festival unavailable, no engine found"
+
+
+def test_manager_available_explicit_engine_leaves_no_note(fake_backends):
+    fake_backends["FestivalBackend"]._avail = True
+    fake_backends["Pyttsx3Backend"]._avail = True
+    mgr = _manager("festival")
+    assert mgr.backend_name == "festival"
+    assert mgr.last_engine_error == ""
+
+
+def test_change_backend_to_unavailable_engine_falls_back(fake_backends):
+    fake_backends["Pyttsx3Backend"]._avail = True
+    mgr = _manager("auto")
+    assert mgr.last_engine_error == ""
+    mgr.change_backend("qtspeech")
+    assert mgr.backend_name == "pyttsx3"
+    assert mgr.last_engine_error == "qtspeech unavailable, using pyttsx3"
+    # The user's choice is kept, so the engine is used once it is installed.
+    assert mgr._settings["tts_backend"] == "qtspeech"
+
+
 def test_manager_applies_rate_and_volume_to_selected_backend(fake_backends):
     fake_backends["FestivalBackend"]._avail = True
     s = Settings()
