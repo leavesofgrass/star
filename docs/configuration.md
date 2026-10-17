@@ -44,6 +44,7 @@ Many of these settings are exercised in the [`docs/examples/`](examples/).
 | `tts_voice` | `""` | Voice ID; empty = system default (auto-resolved via `tts_prefer_voice`) |
 | `tts_prefer_voice` | `"eloquence"` | Substring of the voice to auto-select when `tts_voice` is empty (favors US English) |
 | `tts_favorite_voices` | `[]` | Voice IDs starred in the Voice Manager; favorites sort to the top and are marked with ★ (populated automatically) |
+| `eloquence_license_ack` | `false` | Records your yes to the OpenEVV licensing notice, so the Eloquence consent question is asked only once (set automatically; see [Getting Eloquence](features.md#getting-eloquence)) |
 | `tts_auto_play` | `false` | Start TTS automatically on file open |
 | `tts_skip_code` | `true` | Skip fenced code blocks during TTS |
 | `tts_auto_resume` | `true` | Restore the reading position automatically on open |

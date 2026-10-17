@@ -57,6 +57,11 @@ DEFAULTS: Dict[str, Any] = {
     # _load() only accepts known keys, so an unseeded key written at runtime
     # would be silently dropped on the next launch.
     "tts_favorite_voices": [],
+    # The user's yes to the OpenEVV (Eloquence) licensing notice, recorded by
+    # star.tts.eloquence.install_openevv so the consent dialog is one-time.
+    # Must live in DEFAULTS for the same reason as above: without it the yes
+    # was dropped on the next launch and the dialog came back.
+    "eloquence_license_ack": False,
     # Opt-in ElevenLabs cloud neural voice.  Empty = disabled (no network egress);
     # paste a key AND select the "elevenlabs" engine to enable.  See star/tts/cloud.
     "elevenlabs_api_key": "",

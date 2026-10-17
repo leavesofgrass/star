@@ -167,3 +167,19 @@ def test_every_default_key_documented():
     documented = set(re.findall(r"`([A-Za-z0-9_]+)`", text))
     missing = sorted(k for k in DEFAULTS if k not in documented)
     assert not missing, f"settings keys missing from docs/configuration.md: {missing}"
+
+
+def test_eloquence_license_ack_survives_a_restart(settings_file):
+    """The OpenEVV consent is recorded once; a new Settings (the next launch)
+    must still see it, or the consent dialog returns every session.  _load()
+    keeps only DEFAULTS keys, so the key has to be seeded there."""
+    from star.tts.eloquence import license_acknowledged
+
+    assert DEFAULTS["eloquence_license_ack"] is False
+    first = Settings()
+    assert license_acknowledged(first) is False
+    first.set("eloquence_license_ack", True)
+
+    restarted = Settings()
+    assert restarted.get("eloquence_license_ack") is True
+    assert license_acknowledged(restarted) is True
