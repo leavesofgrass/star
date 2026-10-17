@@ -16,7 +16,7 @@ plugin star can see.
 
     $ star --plugins list
 
-    star 0.1.32 - registered plugins (47 total)
+    star 0.1.33 - registered plugins (47 total)
 
     TTS backends [star.backends] (backends) - 13:
       [?] applesay       -> star.tts.applesay:AppleSayBackend  prio=15
