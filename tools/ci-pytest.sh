@@ -31,6 +31,14 @@
 
 _dur="${STAR_PYTEST_TIMEOUT:-480}"
 
+# Temp files stay inside the checkout, never in the system temp folder: this
+# script's logs (mktemp below) and pytest's output-capture files, which pytest
+# opens before tests/conftest.py can redirect anything.  STAR_TMP_DIR names
+# another folder (compose.yaml points it at the container's /target/tmp).
+_tmp="${STAR_TMP_DIR:-$(cd "$(dirname "$0")/.." && pwd)/build/tmp}"
+mkdir -p "$_tmp"
+export TMPDIR="$_tmp" TMP="$_tmp" TEMP="$_tmp"
+
 # `timeout` may be absent on an unusual host — degrade to a plain run there.
 if [ "$_dur" = "0" ] || ! command -v timeout >/dev/null 2>&1; then
   _run() { "$@"; }

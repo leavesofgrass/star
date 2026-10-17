@@ -31,6 +31,7 @@ services:
       # The container's own folder; tests/conftest.py lets the suite write here.
       STAR_TARGET: /target
       TMPDIR: /target/tmp
+      STAR_TMP_DIR: /target/tmp  # tools/ci-pytest.sh's temp folder
       PYTHONPYCACHEPREFIX: /target/pycache
       HYPOTHESIS_STORAGE_DIRECTORY: /target/hypothesis
       PYTEST_ADDOPTS: --basetemp=/target/pytest-tmp -o cache_dir=/target/pytest-cache

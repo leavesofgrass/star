@@ -71,19 +71,7 @@ The suite keeps every write inside the checkout, natively and in the container:
 - `tests/conftest.py` points HOME, APPDATA, the XDG folders and the temp variables into that folder before star is imported, and gives each test its own star profile, so no test reads or writes the real one.
 - An audit hook in `tests/conftest.py` refuses any write outside the checkout, its temp folder and the Python environment, and fails the test that tried it. It also refuses network access to any test not marked `network`. Set `STAR_TEST_GUARD=0` only to debug the guard itself.
 
-One gap remains outside the container. pytest opens its output-capture files before `tests/conftest.py` runs, so a native run puts two short-lived files in the system temp folder unless `TMPDIR` already points into the checkout. In Git Bash, create the folder first:
-
-```bash
-mkdir -p build/tmp
-```
-
-Then start the suite with `TMPDIR` set (Python ignores a `TMPDIR` that does not exist):
-
-```bash
-TMPDIR="$PWD/build/tmp" bash tools/ci-pytest.sh python -m pytest
-```
-
-The container needs neither step: `compose.yaml` sets `TMPDIR=/target/tmp`.
+pytest opens its output-capture files before `tests/conftest.py` runs, so `tools/ci-pytest.sh` points `TMPDIR`, `TMP` and `TEMP` at `build/tmp` before it starts pytest (in the container, at `/target/tmp`). Run full suites through it. A bare `python -m pytest` on Windows still puts those two short-lived files in the system temp folder.
 
 Tests marked `network` are deselected by default. Run them on purpose with:
 
