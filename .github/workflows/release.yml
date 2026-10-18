@@ -378,3 +378,6 @@ jobs:
           files: artifacts/**/*
           generate_release_notes: true
           fail_on_unmatched_files: false
+          # A hyphenated tag (v0.1.33-rc1) is a dry run: publish it as a
+          # GitHub pre-release, so it never becomes the "Latest" release.
+          prerelease: ${{ contains(github.ref_name, '-') }}

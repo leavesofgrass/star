@@ -104,6 +104,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
   tools/ci-pytest.sh python -m pytest` runs the suite on Debian trixie with
   Python 3.13, espeak-ng, speech-dispatcher, pandoc and ffmpeg. See
   `docs/docker.md`.
+- **Dry-run tags publish as GitHub pre-releases.** A tag with a hyphen
+  (`v0.1.33-rc1`) now makes a pre-release, never the "Latest" release.
 
 ---
 

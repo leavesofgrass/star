@@ -160,8 +160,19 @@ pwsh tools/build-windows.ps1 -AllowDeprecatedExe # self-contained exe (same reci
 ## Pre-release tags
 
 Use a suffix (e.g. `v0.1.24-rc1`) for a dry run: the workflow still builds the
-wheel, routes the publish to TestPyPI, and creates a (pre-)release you can inspect
-before cutting the final tag.
+wheel and every binary, routes the publish to TestPyPI, and creates a GitHub
+**pre-release** you can inspect before cutting the final tag (any tag with a
+hyphen is published as a pre-release, so it never becomes "Latest").
+
+Two things to know:
+
+- The wheel's version comes from `pyproject.toml`, not from the tag, so a
+  `v0.1.33-rc1` tag uploads **0.1.33** to TestPyPI. A second dry run of the
+  same version (`-rc2`) cannot upload again (the file already exists there), so
+  its TestPyPI step fails; everything else still builds.
+- Before 0.1.33 the release step did not set the pre-release flag; a dry-run
+  release made then needs it set by hand (`gh release edit <tag> --prerelease`,
+  then `gh release edit <previous final tag> --latest`).
 
 ## Optional signing & native installers
 
