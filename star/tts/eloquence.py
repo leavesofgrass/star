@@ -165,16 +165,23 @@ def find_eci_library() -> "Optional[str]":
 
     1. ``STAR_ECI_LIBRARY`` — an explicit path (any ECI-compatible library).
     2. star's own consent-gated install (:data:`ELOQUENCE_DIR`).
-    3. The OpenEVVWindows SAPI5 installer's location in Program Files.
+    3. The OpenEVVWindows SAPI5 installer's location in Program Files:
+       ``OpenEVV\\lib\\x86_64\\eci.dll`` (checked against an installed copy),
+       then the ``lib_64`` folder earlier versions of this lookup assumed.
     4. The OpenEVV NVDA add-on's bundled engine.
+
+    Missing the installer's location costs more than the engine: star then
+    falls back to the same voice through SAPI 5, which sends one word event
+    per passage, so the highlight runs on its timer and drifts behind.
     """
     override = os.environ.get("STAR_ECI_LIBRARY", "").strip()
     if override:
         return override if Path(override).is_file() else None
+    program_files = Path(os.environ.get("ProgramFiles", r"C:\Program Files"))
     candidates = [
         ELOQUENCE_DIR / "eci-x86_64" / "eci.dll",
-        Path(os.environ.get("ProgramFiles", r"C:\Program Files"))
-        / "OpenEVV" / "lib_64" / "eci.dll",
+        program_files / "OpenEVV" / "lib" / "x86_64" / "eci.dll",
+        program_files / "OpenEVV" / "lib_64" / "eci.dll",
         Path(os.environ.get("APPDATA", "")) / "nvda" / "addons" / "openevv"
         / "synthDrivers" / "_openevv" / "lib" / "x86_64" / "eci.dll",
     ]

@@ -34,6 +34,14 @@ and this project aims to follow [Semantic Versioning](https://semver.org/).
   does is wired. A word event lands on the first word its text overlaps, so
   an Eloquence token with punctuation in front ("Hello" in quotation marks,
   a bracketed time) lights its word instead of being dropped.
+- **star finds an installed OpenEVV.** The OpenEVV SAPI 5 installer puts
+  its engine in `Program Files\OpenEVV\lib\x86_64`, where star never
+  looked, so star read with the same voice through SAPI 5 instead. That
+  voice sends one word event per passage and speaks faster than its
+  nominal rate (367 words per minute at a setting of 265, measured), so
+  the highlight kept up for a few words and then fell steadily behind.
+  star now uses the installed engine directly, and every word is
+  highlighted as it is heard.
 - **eSpeak word positions are characters again.** The 0.1.29 change that
   read libespeak-ng's word positions as UTF-8 byte offsets was itself the
   bug: the engine reports one-based character positions (checked live

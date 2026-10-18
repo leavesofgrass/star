@@ -54,6 +54,26 @@ def test_star_install_dir_probed_first(monkeypatch, tmp_path):
     assert find_eci_library() == str(target)
 
 
+def test_openevv_sapi_installer_location_is_found(monkeypatch, tmp_path):
+    """The OpenEVV SAPI 5 installer puts the 64-bit engine in lib\\x86_64.
+
+    Missing it made star fall back to SAPI 5, whose OpenEVV voice sends one
+    word event per passage, so the highlight drifted behind the speech.
+    """
+    monkeypatch.delenv("STAR_ECI_LIBRARY", raising=False)
+    monkeypatch.setattr(elo, "ELOQUENCE_DIR", tmp_path / "star-install")
+    monkeypatch.setenv("APPDATA", str(tmp_path / "nope"))
+    program_files = tmp_path / "Program-Files"
+    monkeypatch.setenv("ProgramFiles", str(program_files))
+    installed = program_files / "OpenEVV" / "lib" / "x86_64" / "eci.dll"
+    installed.parent.mkdir(parents=True)
+    installed.write_bytes(b"x")
+    # The 32-bit engine beside it is never chosen.
+    (program_files / "OpenEVV" / "lib" / "x86").mkdir()
+    (program_files / "OpenEVV" / "lib" / "x86" / "eci.dll").write_bytes(b"x")
+    assert find_eci_library() == str(installed)
+
+
 def test_available_is_windows_only(monkeypatch, tmp_path):
     dll = tmp_path / "eci.dll"
     dll.write_bytes(b"x")
